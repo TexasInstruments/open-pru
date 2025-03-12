@@ -9,8 +9,8 @@ The example uses generic SPI macros introduced in files spi_master_macros.inc an
  ### Timing Parameters
  All cycle level frequency calculations are based on a 333MHz PRU System clock, which gives 3ns per instruction cycle, i.e $t_{f} = 3ns$
  
- *$t_{slew}$* : Slew rate of Data toggling (slew rate of PRU GPIO mode pin) = $2ns$
- *$t_{p}$* : Propagation delay of wire (In the example, a 15 cm wire was used) = $0.5ns$
+ $t_{slew}$ : Slew rate of Data toggling (slew rate of PRU GPIO mode pin) = $2ns$
+ $t_{p}$ : Propagation delay of wire (In the example, a 15 cm wire was used) = $0.5ns$
  #### SPI Master Macros: 
 
  | Macros Name | Description         | Peak cycles per bit | Theoretical Max. SCLK | Recommended delay components (50% duty cycle) | Practical Max. SCLK
@@ -101,7 +101,7 @@ Timing parameters for macros: **m_read_packet_spi_slave_msb_gpi_sclk**, **m_read
 
  |Parameter         | Description | MIN | MAX | unit |
  |--------------|:------------------:|:--------:|:--------:|:-------:|
- |$t_{csp\_m}$         | CS poll detection to macro entry. This can be application dependent | 3$t_{f}$ + $t_{p}$ |  | ns |
+ |$t_{csp\_m}$         | CS poll detection to macro entry. This can be application dependent | $3t_{f}$ + $t_{p}$ |  | ns |
  |$t_{msh}$         | Delay time: macro start to first shift edge | $2t_{f} + t_{slew}$ |  | ns |
  |$t_{msm}$         | Delay time: minimum time between macro start to first sampling edge | $3t_{f} + t_{slew}$ |  | ns |
  |$t_{ssh}$          | Setup time: minimum time required between CS pull down to SCLK shifting edge | $t_{csp\_m} + t_{msh}= t_{csp\_m} + 2t_{f} + t_{slew}$ |  | ns |
@@ -120,7 +120,7 @@ Timing parameters the macro **m_transfer_packet_spi_slave_gpi_sclk** is shown be
 
  |Parameter         | Description | MIN | MAX | unit |
  |--------------|:------------------:|:--------:|:--------:|:-------:|
- |$t_{csp\_m}$         | CS poll detection to macro entry. This can be application dependent | 3$t_{f}$ + $t_{p}$ |  | ns |
+ |$t_{csp\_m}$         | CS poll detection to macro entry. This can be application dependent | $3t_{f}$ + $t_{p}$ |  | ns |
  |$t_{msh}$         | Delay time: minimum time between macro start to first shift edge | $2t_{f} + t_{slew}$ |  | ns |
  |$t_{msm}$         | Delay time: minimum time between macro start to first sampling edge | $7t_{f} + t_{slew}$ |  | ns |
  |$t_{ssh}$          | Setup time: minimum time required between CS pull down to SCLK shifting edge | $t_{csp\_m} + t_{msh}= t_{csp\_m} + 2t_{f} + t_{slew}$ |  | ns |
@@ -163,7 +163,7 @@ Timing parameters the macro **m_transfer_packet_spi_slave_gpi_sclk** is shown be
 
 Note: None of the ICSS Broadside Accelerators are used for this implementation.
  ## Limitations
-
+ Some of the macros were not stable at the theoretical maximum. These include: m_send_packet_spi_slave_msb_gpo_sclk, m_send_packet_spi_slave_lsb_gpo_sclk, m_transfer_packet_spi_slave_gpi_sclk, m_read_packet_spi_msb_gpo_sclk, m_read_packet_spi_lsb_gpo_sclk and m_transfer_packet_spi_master_gpo_sclk. Experimentally a frequency limitation was found and is documented in this document a "Practical Max SCLK." at which tests where successfully carried out.
 # Supported Combinations
 
  Parameter      | Value
