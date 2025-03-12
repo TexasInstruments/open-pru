@@ -55,9 +55,9 @@
 ;
 ;   Reads 1 data packet through the SPI slave interface MSB first
 ;
-;   PEAK cycles: 8 cycles
-;   Acceptable SCLK freq at 3ns cycle time: <= 41.66 MHz
-;   Acceptable CS to SCLK start time:       >= 4 cycles
+;   PEAK cycles: 7 cycles
+;   Acceptable SCLK freq at 3ns cycle time: <= 47.619 MHz
+;   Acceptable CS to SCLK start time:       > 6 cycles + prop delay + slew rate
 ;
 ;   Pseudo code:
 ;       ========== C ==========
@@ -110,9 +110,9 @@ SKIP_BIT_ENTRY_0?:
 ;
 ;   Reads 1 data packet through the SPI slave interface LSB first
 ;
-;   PEAK cycles: 8 cycles
-;   Acceptable SCLK freq at 3ns cycle time: <= 41.66 MHz
-;   Acceptable CS to SCLK start time:       >= 4 cycles
+;   PEAK cycles: 7 cycles
+;   Acceptable SCLK freq at 3ns cycle time: <= 47.619 MHz
+;   Acceptable CS to SCLK start time:       > 6 cycles + prop delay + slew rate
 ;
 ;   Pseudo code:
 ;       ========== C ==========
@@ -132,10 +132,6 @@ SKIP_BIT_ENTRY_0?:
 ;           SDI_PIN         -  PRU Pin number for SDI
 ;************************************************************************************
 m_read_packet_spi_slave_lsb_gpo_sclk   .macro  dataReg, PACKETSIZE, bitId, SCLK_PIN, SDI_PIN, MODE
-;   ;clr of SCKL signal at the beginning of MODE2 transmission is not a sampling edge ?
-;   .if $symcmp(MODE,"MODE2") = 0
-;   m_wait_low_pulse    2, SCLK_PIN
-;   .endif
 
     ; clear dataReg which is used to store received data
     ldi     bitId, 255       ; bitId is bit position pointer
@@ -147,10 +143,10 @@ READ_BIT_LOOP?:
     ;wait for sampling edge
     .if $symcmp(MODE,"MODE0") = 0 | $symcmp(MODE,"MODE3") = 0
     ;wait for rising edge
-    m_wait_low_pulse    2, SCLK_PIN
+    m_wait_low_pulse    1, SCLK_PIN
     .elseif $symcmp(MODE,"MODE1") = 0 | $symcmp(MODE,"MODE2") = 0
     ;wait for falling edge
-    m_wait_high_pulse    2, SCLK_PIN
+    m_wait_high_pulse    1, SCLK_PIN
     .endif
 
     ;sampling received bit
@@ -171,14 +167,11 @@ SKIP_BIT_ENTRY_0?:
 ;
 ;   Send 1 data packet through the SPI interface.
 ;
-;   PEAK cycles:
-;          First half   ~ (2 + 3) cycles = 5 cycles
-;          Second half  ~ (3 + 2) cycles = 5 cycles
-;          Total cycles for 50% duty cycle clock ~ (10) cycles
+;   PEAK cycles: 7 cycles
 ;
-;   Theoretical maximum SCLK freq at 3ns cycle time: <= 33.33 MHz
+;   Theoretical maximum acceptable SCLK freq at 3ns cycle time: <= 47.619 MHz
 ;   Practical limitation of 13.88MHz
-;   Acceptable CS to SCLK start time: > 3 cycles + 3 cycles (for CS polling and jump)
+;   Acceptable CS to SCLK start time: > 3 cycles + 2 cycles (for CS polling and jump)
 ;
 ;   Pseudo code:
 ;       ========== C ==========
@@ -243,8 +236,11 @@ SEND_BIT_LOOP_END?:
 ;
 ;   Send 1 data packet through the SPI interface.
 ;
-;   PEAK cycles:
-;           ~ cycle
+;   PEAK cycles: 7 cycles
+;
+;   Theoretical maximum SCLK freq at 3ns cycle time: <= 47.619 MHz
+;   Practical limitation of 13.88MHz
+;   Acceptable CS to SCLK start time: > 3 cycles + 2 cycles (for CS polling and jump)
 ;
 ;   Pseudo code:
 ;       ========== C ==========
@@ -269,10 +265,10 @@ m_send_packet_spi_slave_lsb_gpo_sclk   .macro  dataReg, PACKETSIZE, bitId, SCLK_
     ;wait for shifting edge
     .if $symcmp(MODE,"MODE1") = 0
     ;wait for rising edge
-    m_wait_low_pulse    2, SCLK_PIN
+    m_wait_low_pulse    1, SCLK_PIN
     .elseif $symcmp(MODE,"MODE3") = 0
     ;wait for falling edge
-    m_wait_high_pulse    2, SCLK_PIN
+    m_wait_high_pulse    1, SCLK_PIN
     .endif
     ;shift data right away for mode0 and mode2 as SCLK signal gives no indication for shifting of intial bit
 
@@ -291,10 +287,10 @@ data_high?:
     ;wait for shifting edge
     .if $symcmp(MODE,"MODE0") = 0 | $symcmp(MODE,"MODE3") = 0
     ;wait for falling edge
-    m_wait_high_pulse    2, SCLK_PIN
+    m_wait_high_pulse    1, SCLK_PIN
     .elseif $symcmp(MODE,"MODE1") = 0 | $symcmp(MODE,"MODE2") = 0
     ;wait for rising edge
-    m_wait_low_pulse    2, SCLK_PIN
+    m_wait_low_pulse    1, SCLK_PIN
     .endif
 
      qba            SEND_BIT_LOOP?
@@ -310,8 +306,8 @@ SEND_BIT_LOOP_END?:
 ;       Reads 1 data packet and Writes 1 data packet concurrently through
 ;       the SPI slave interface
 ;
-;   PEAK cycles: 17 cycles = 8 cycles (shifting half) + 9 cycles (sampling half)
-;   Theoretical maximum SCLK freq at 3ns cycle time: <= 18.518 MHz
+;   PEAK cycles: 13 cycles = 6 cycles (shifting half) + 7 cycles (sampling half)
+;   Theoretical maximum SCLK freq at 3ns cycle time (50% duty cycle): <= 23.809 MHz
 ;   Practical limitation of 12.8MHz at 3ns PRU system cycle time.
 ;   Acceptable CS to SCLK start time:       >= 3 cycles
 ;

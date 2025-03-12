@@ -98,9 +98,11 @@ init:
     ldi32		TEMP_REG_3, 0xCAFEC0DE
 
 idle:
-	; check if CS is pulled down
+    ; update s_dataReg with test data
 	mov		s_dataReg, TEMP_REG_3
+	; check if CS is pulled down. CS pin should be polled until falling edge is detected.
 	m_wait_high_pulse	2, CS_PIN
+    
 	;change this label to select type of SPI transmission.
 	; eg: SPI_slave_send, SPI_slave_read or SPI_slave_transfer
 	qba		SPI_slave_transfer
