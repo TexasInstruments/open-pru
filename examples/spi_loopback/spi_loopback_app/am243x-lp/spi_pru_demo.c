@@ -38,8 +38,8 @@
 #include <drivers/pruicss.h>
 
 
-#include "firmware/pru0_load_bin.h" /* PRU0Firmware_0 array - SPI Master example*/
-#include "firmware/pru1_load_bin.h" /* PRU1Firmware_0 array - SPI Slave example*/
+#include "pru0_load_bin.h" /* PRU0Firmware_0 array - SPI Master example*/
+#include "pru1_load_bin.h" /* PRU1Firmware_0 array - SPI Slave example*/
 
 /** \brief Global Structure pointer holding PRUSS1 memory Map. */
 
