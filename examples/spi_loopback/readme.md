@@ -110,7 +110,7 @@ Timing parameters for macros: **m_read_packet_spi_slave_msb_gpi_sclk**, **m_read
  |$t_{cd}$          | Delay time: CS pull down to first SDO bit on wire |  $t_{csp\_m} + t_{msh} + t_{sb} = t_{csp\_m} + 5t_{f} + 2t_{slew}$ |  | ns |
  |$t_{h}$         | Hold time: minimum time data has to be stable after sampling edge | $2t_{f} + t_{slew}$ |  | ns |
 
-Timing parameters the macro **m_transfer_packet_spi_slave_gpi_sclk** is shown below:
+Timing parameters for macro **m_transfer_packet_spi_slave_gpi_sclk** is shown below:
 
 <figure>
 <img src="images\SPI_Slave_transfer.png" alt="Slave_mode_transfer_macro" width="900">
@@ -145,13 +145,63 @@ Timing parameters the macro **m_transfer_packet_spi_slave_gpi_sclk** is shown be
  6. Now build the project spi_loopback_am243x-lp_r5fss0-0_freertos_ti-arm-clang (Here after will be called r5f project).
  
  7. Connect the SPI master and slave pins as per configuration. In the example these pins are mapped as shown below:
- 
- | Slave Pin  | Slave Signal | Master Signal | Master Pin |
- |------------|:-----:|:-----:|:-----------:|
- | J7.7 (pin 67) |  SDI  |  SDO  | J2.2 (pin 19)
- | J7.8 (pin 68) |  SDO  |  SDI  | J2.7 (pin 14)
- | J7.9 (pin 69) |  CS   |  CS   | J2.8 (pin 13)
- | J7.10 (pin 70)|  SCLK |  SCLK | J2.4 (pin 17)
+
+ <table>
+ <tr>
+    <th colspan="4">Slave
+    <th colspan="4">Master
+ </tr> 
+ <tr>
+    <th>Pin
+    <th>SOC Pad name
+    <th>PRU Signal name
+    <th>Signal
+    <th>Signal
+    <th>PRU Signal name
+    <th>SOC Pad name
+    <th>Pin
+ </tr> 
+ <tr>
+    <td>J7.7 (pin 67)
+    <td>GPIO1_21
+    <td>PRG0_PRU1_GPO1
+    <td>SDI
+    <td>SDO
+    <td>PRG0_PRU0_GPO3
+    <td>GPIO1_3
+    <td>J2.2 (pin 19)
+ </tr>
+ <tr>
+    <td>J7.8 (pin 68)
+    <td>GPIO1_22
+    <td>PRG0_PRU1_GPO2
+    <td>SDO
+    <td>SDI
+    <td>PRG0_PRU0_GPO14
+    <td>SPI3_D1
+    <td>J2.7 (pin 14)
+ </tr>
+ <tr>
+    <td>J7.9 (pin 69)
+    <td>GPIO1_26
+    <td>PRG0_PRU1_GPO6
+    <td>CS
+    <td>CS
+    <td>PRG0_PRU0_GPO5
+    <td>GPIO1_5
+    <td>J2.8 (pin 13)
+ </tr>
+ <tr>
+    <td>J7.10 (pin 70)
+    <td>GPIO1_31
+    <td>PRG0_PRU1_GPO11
+    <td>SCLK
+    <td>SCLK
+    <td>PRG0_PRU0_GPO4
+    <td>GPIO1_4
+    <td>J2.4 (pin 17)
+ </tr>
+ </table>
 
  8. Power on the AM243x Launch Pad. It is recommended to go through the "Getting started" section of MCU + SDK if this is your first time working on the launchpad.
  
@@ -162,6 +212,7 @@ Timing parameters the macro **m_transfer_packet_spi_slave_gpi_sclk** is shown be
  11. Once the debug console shows that both PRU0 and PRU1 has been initialized, then proceed to check memory arrays at 0x30010000 and 0x3001004C to see the data being received by the SPI Slave and SPI master respectively.  
 
 Note: None of the ICSS Broadside Accelerators are used for this implementation.
+
  ## Limitations
  Some of the macros were not stable at the theoretical maximum. These include: m_send_packet_spi_slave_msb_gpo_sclk, m_send_packet_spi_slave_lsb_gpo_sclk, m_transfer_packet_spi_slave_gpi_sclk, m_read_packet_spi_msb_gpo_sclk, m_read_packet_spi_lsb_gpo_sclk and m_transfer_packet_spi_master_gpo_sclk. Experimentally a frequency limitation was found and is documented in this document a "Practical Max SCLK." at which tests where successfully carried out.
 # Supported Combinations

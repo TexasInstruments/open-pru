@@ -1,4 +1,4 @@
-; Copyright (C) 2022 Texas Instruments Incorporated - http://www.ti.com/
+; Copyright (C) 2025 Texas Instruments Incorporated - http://www.ti.com/
 ;
 ; Redistribution and use in source and binary forms, with or without
 ; modification, are permitted provided that the following conditions
@@ -40,13 +40,10 @@
     .include "spi_slave_macros.inc"
     .include "time_macros.inc"
 
-; Import symbols from sysconfig generated files
-;    .include "ti_pru_io_config.inc"
-    .asg    3,          PRU_CLK_CYC_PRD_CONST ; 3ns cycle period
-
 ; Used to receive command values and interrupt from R5F core
     .asg    0x16,       PRGM_FLOW_EVENT
     .asg    31,         PRGM_FLOW_EVENT_BIT
+    .asg    3,          PRU_CLK_CYC_PRD_CONST ; 3ns cycle period
 
 ; Import the Chip Support Library Register Address defines
     .cdecls C,  NOLIST

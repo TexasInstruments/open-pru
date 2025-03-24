@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2023 Texas Instruments Incorporated
+ *  Copyright (C) 2025 Texas Instruments Incorporated
  *
  *  Redistribution and use in source and binary forms, with or without
  *  modification, are permitted provided that the following conditions
@@ -78,6 +78,7 @@ void SPI_pru_demo_main(void *args)
 
      while (1)
      {
+        /*todo: Add unit test cases here for CI CD automation */
         ClockP_usleep(1);
      }
 

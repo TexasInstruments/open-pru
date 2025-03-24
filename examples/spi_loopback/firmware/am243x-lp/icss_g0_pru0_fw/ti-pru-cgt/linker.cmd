@@ -1,8 +1,8 @@
 /*
- * AM243x_PRU0.cmd
+ * linker.cmd
  *
- * Example Linker command file for linking programs built with the TI-PRU-CGT
- * on AM243x PRU0 cores
+ * Linker command file for linking programs built with the TI-PRU-CGT
+ * on AM243x PRU cores
  *
  */
 
@@ -41,16 +41,5 @@ SECTIONS {
     .text		>  PRU_IMEM,    PAGE 0
     .stack		>  PRU0_DMEM_0, PAGE 1
     .bss		>  PRU0_DMEM_0, PAGE 1
-    /*
-    .cio		>  PRU0_DMEM_0, PAGE 1
-    .data		>  PRU0_DMEM_0, PAGE 1
-    .switch		>  PRU0_DMEM_0, PAGE 1
-    .sysmem		>  PRU0_DMEM_0, PAGE 1
-    .cinit		>  PRU0_DMEM_0, PAGE 1
-    .rodata		>  PRU0_DMEM_0, PAGE 1
-    .rofardata	>  PRU0_DMEM_0, PAGE 1
-    .farbss		>  PRU0_DMEM_0, PAGE 1
-    .fardata	>  PRU0_DMEM_0, PAGE 1
-    */
     
 }
