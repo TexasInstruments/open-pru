@@ -96,13 +96,13 @@ init:
 
 idle:
     ; update s_dataReg with test data
-	mov		s_dataReg, TEMP_REG_3
-	; check if CS is pulled down. CS pin should be polled until falling edge is detected.
-	m_wait_high_pulse	2, CS_PIN
+    mov		s_dataReg, TEMP_REG_3
+    ; check if CS is pulled down. CS pin should be polled until falling edge is detected.
+    m_wait_high_pulse	2, CS_PIN
     
-	;change this label to select type of SPI transmission.
-	; eg: SPI_slave_send, SPI_slave_read or SPI_slave_transfer
-	qba		SPI_slave_transfer
+    ;change this label to select type of SPI transmission.
+    ; eg: SPI_slave_send, SPI_slave_read or SPI_slave_transfer
+    qba		SPI_slave_transfer
 
 SPI_slave_read:
     m_read_packet_spi_slave_msb_gpi_sclk r_dataReg, 32, bitId, SCLK_PIN, SDI_PIN, "MODE3"
@@ -113,7 +113,7 @@ SPI_slave_send:
     qba 	idle
 
 SPI_slave_transfer:
-	m_transfer_packet_spi_slave_gpi_sclk r_dataReg, s_dataReg, 32, bitId, SCLK_PIN, SDI_PIN, SDO_PIN, "MODE3", "MSB"
+    m_transfer_packet_spi_slave_gpi_sclk r_dataReg, s_dataReg, 32, bitId, SCLK_PIN, SDI_PIN, SDO_PIN, "MODE3", "MSB"
 
 store_data:
     sbco	&r_dataReg, c28, TEMP_REG_1, 4
@@ -123,5 +123,5 @@ store_data:
     qba 	idle
 reset_ptr:
     ldi		TEMP_REG_1, 0x0000
-	qba 	idle
-	halt ; should never reach this code
+    qba 	idle
+    halt ; should never reach this code

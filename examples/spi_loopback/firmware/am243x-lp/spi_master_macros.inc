@@ -62,15 +62,18 @@
 ;
 ;   Pseudo code:
 ;       ========== C ==========
-;       dataReg = 0
 ;       bitId = PACKETSIZE
-;       loop:   PACKETSIZE
-;           set/clr   SCLK_PIN
+;       for(bitId >0)
+;           set SCLK_PIN shifting edge
 ;           bitId --
 ;           wait  DELAY_COMPEN_1
-;           clr/set   SCLK_PIN
+;           set SCLK_PIN sampling edge
 ;           read bit at bitId
 ;           wait  DELAY_COMPEN_2
+;       if(MODE0)
+;           clr SCLK_PIN
+;       elseif(MODE2)
+;           set SCLK_PIN
 ;       =======================
 ;
 ;   Parameters:
@@ -137,15 +140,18 @@ SKIP_BIT_ENTRY_0?:
 ;
 ;   Pseudo code:
 ;       ========== C ==========
-;       dataReg = 0
-;       bitId = 0
-;       loop:   PACKETSIZE
-;           set/clr   SCLK_PIN
+;       bitId = 255 //to trigger integer over flow (wraparound)
+;       for(bitId < PACKETSIZE-1)
+;           set SCLK_PIN shifting edge
 ;           bitId ++
 ;           wait  DELAY_COMPEN_1
-;           clr/set   SCLK_PIN
+;           set SCLK_PIN sampling edge
 ;           read bit at bitId
 ;           wait  DELAY_COMPEN_2
+;       if(MODE0)
+;           clr SCLK_PIN
+;       elseif(MODE2)
+;           set SCLK_PIN
 ;       =======================
 ;
 ;   Parameters:
@@ -212,15 +218,18 @@ SKIP_BIT_ENTRY_0?:
 ;
 ;   Pseudo code:
 ;       ========== C ==========
-;       dataReg = 0
-;       bitId = PACKETSIZE
-;       loop:   PACKETSIZE
-;           set/clr   SCLK_PIN
+;       bitId = PACKETSIZE-1
+;       for(bitId >0)
+;           set SCLK_PIN shifting edge
 ;           send SDO bit
 ;           wait  DELAY_COMPEN_1
-;           clr/set   SCLK_PIN
+;           set SCLK_PIN sampling edge
 ;           wait  DELAY_COMPEN_2
 ;           bitId --
+;       if(MODE0)
+;           clr SCLK_PIN
+;       elseif(MODE2)
+;           set SCLK_PIN
 ;       =======================
 ;
 ;   Parameters:
@@ -289,15 +298,18 @@ data_high?:
 ;
 ;   Pseudo code:
 ;       ========== C ==========
-;       dataReg = 0
 ;       bitId = 0
-;       loop:   PACKETSIZE
-;           set/clr   SCLK_PIN
+;       for(bitId < PACKETSIZE-1)
+;           set SCLK_PIN shifting edge
 ;           send SDO bit
 ;           wait  DELAY_COMPEN_1
-;           clr/set   SCLK_PIN
+;           set SCLK_PIN sampling edge
 ;           wait  DELAY_COMPEN_2
 ;           bitId ++
+;       if(MODE0)
+;           clr SCLK_PIN
+;       elseif(MODE2)
+;           set SCLK_PIN
 ;       =======================
 ;
 ;   Parameters:
@@ -371,8 +383,10 @@ data_high?:
 ;
 ;   Pseudo code:
 ;       ========== C ==========
-;       r_dataReg = 0
-;       bitId = PACKETSIZE - 1 or 0 //depending on LSB or MSB config
+;       if(S_BIT == MSB)
+;           bitId = PACKETSIZE - 1 
+;       elseif(S_BIT == LSB)
+;           bitID = 0 
 ;       loop:   READ_PACKET
 ;           set SCLK shifting edge
 ;           set SDO bit

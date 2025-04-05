@@ -59,12 +59,12 @@
 
 ; Registers used in this program
     .asg    R1,         TEMP_PTR_1
-    .asg	R10,		TEMP_REG_1
-    .asg	R11,		TEMP_REG_2
-    .asg	R12,		TEMP_REG_3
-	.asg 	R13.b0,     bitIndex1
-    .asg	R2,		    dataReg
-    .asg	R3.b0,      bitId
+    .asg    R10,        TEMP_REG_1
+    .asg    R11,        TEMP_REG_2
+    .asg    R12,        TEMP_REG_3
+    .asg    R13.b0,     bitIndex1
+    .asg    R2,         dataReg
+    .asg    R3.b0,      bitId
     .asg    R4,         s_dataReg
     .asg    R5,         r_dataReg
 
@@ -89,11 +89,11 @@ init:
     sbco    &TEMP_REG_1, ICSS_PRU_CTRL_CONST, 0x28, 2
 
 ; Initializing registers
-	ldi32   TEMP_REG_1, 0x00000028 ;offset address at which received data is written (10*4 byte buffer)
-	ldi32	TEMP_REG_2, 0xAAAAAAAA ;example data
-	ldi32	TEMP_REG_3, 0xDEADBEEF ;example data
+    ldi32   TEMP_REG_1, 0x00000028 ;offset address at which received data is written (10*4 byte buffer)
+    ldi32	TEMP_REG_2, 0xAAAAAAAA ;example data
+    ldi32	TEMP_REG_3, 0xDEADBEEF ;example data
 
-test:
+PROGRAM_START:
 	;change this label to select type of SPI transmission.
 	; eg: SPI_master_send, SPI_master_read or SPI_master_transfer
     qba SPI_master_transfer
@@ -103,41 +103,41 @@ SPI_master_send:
     m_pru_clr_pin   CS_PIN
     m_wait_nano_sec 10
     ;for sending 32 bit data MSB first at SCLK of 41.66MHz
-	m_send_packet_spi_msb_gpo_sclk dataReg, 32, bitId, SCLK_PIN, SDO_PIN, 0, 1, "MODE3"
-	m_wait_nano_sec 10
-	m_pru_set_pin   CS_PIN
-	m_wait_nano_sec 100
-	qba test
+    m_send_packet_spi_msb_gpo_sclk dataReg, 32, bitId, SCLK_PIN, SDO_PIN, 0, 1, "MODE3"
+    m_wait_nano_sec 10
+    m_pru_set_pin   CS_PIN
+    m_wait_nano_sec 100
+    qba PROGRAM_START
 
 SPI_master_read:
-	m_pru_clr_pin   CS_PIN
+    m_pru_clr_pin   CS_PIN
     m_wait_nano_sec 35
     ;to read 32 bit data MSB first from SPI slave at max freq of 13.88MHz
-	m_read_packet_spi_msb_gpo_sclk r_dataReg, 32, bitId, SCLK_PIN, SDI_PIN, 10, 7, "MODE3"
-	m_wait_nano_sec 10
-	m_pru_set_pin   CS_PIN
-	qba store_data
+    m_read_packet_spi_msb_gpo_sclk r_dataReg, 32, bitId, SCLK_PIN, SDI_PIN, 10, 7, "MODE3"
+    m_wait_nano_sec 10
+    m_pru_set_pin   CS_PIN
+    qba store_data
 
 SPI_master_transfer:
-	ldi32   r_dataReg, 0xFFFFFFFF
-	mov   s_dataReg, TEMP_REG_3
-	m_pru_clr_pin   CS_PIN
+    ldi32   r_dataReg, 0xFFFFFFFF
+    mov   s_dataReg, TEMP_REG_3
+    m_pru_clr_pin   CS_PIN
     m_wait_nano_sec 35
     ;for transfer (send and read) at 12.8MHz
-	m_transfer_packet_spi_master_gpo_sclk r_dataReg, s_dataReg, 32, bitId, SCLK_PIN, SDI_PIN, SDO_PIN, 9, 7, "MODE3", "MSB"
-	m_wait_nano_sec 10
-	m_pru_set_pin   CS_PIN
+    m_transfer_packet_spi_master_gpo_sclk r_dataReg, s_dataReg, 32, bitId, SCLK_PIN, SDI_PIN, SDO_PIN, 9, 7, "MODE3", "MSB"
+    m_wait_nano_sec 10
+    m_pru_set_pin   CS_PIN
 
 store_data:
-	;write data read from SDI into R4
-	sbco	&r_dataReg, c28, TEMP_REG_1, 4
-	qble	reset_ptr, TEMP_REG_1, 40+(9*4)
-	add		TEMP_REG_1, TEMP_REG_1, 4
-	qba		continue
+    ;write data read from SDI into R4
+    sbco	&r_dataReg, c28, TEMP_REG_1, 4
+    qble	reset_ptr, TEMP_REG_1, 40+(9*4)
+    add		TEMP_REG_1, TEMP_REG_1, 4
+    qba		continue
 reset_ptr:
     ldi		TEMP_REG_1, 0x0028
 continue:
-	m_wait_nano_sec 100
-	qba test
+    m_wait_nano_sec 100
+    qba PROGRAM_START
 
-	halt ; should never reach this code
+    halt ; should never reach this code

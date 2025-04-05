@@ -61,7 +61,6 @@
 ;
 ;   Pseudo code:
 ;       ========== C ==========
-;       dataReg = 0;
 ;       bitId = PACKETSIZE;
 ;       for (bitId >= 0)
 ;           bitId --;
@@ -116,7 +115,6 @@ SKIP_BIT_ENTRY_0?:
 ;
 ;   Pseudo code:
 ;       ========== C ==========
-;       dataReg = 0;
 ;       bitId = 0;
 ;       for (bitId < PACKETSIZE)
 ;           bitId ++;
@@ -175,13 +173,13 @@ SKIP_BIT_ENTRY_0?:
 ;
 ;   Pseudo code:
 ;       ========== C ==========
-;       dataReg = 0
 ;       bitId = PACKETSIZE - 1
-;       loop:   READ_PACKET
+;       wait for SCLK_PIN shifting edge only for MODE1 and MODE3
+;       send dataReg bit
+;       while (bitId !=0)
 ;           bitId --;
-;           wait for SCLK_PIN shifting edge
-;           send dataReg bit
 ;           wait for SCLK_PIN sampling edge
+;           send dataReg bit
 ;       =======================
 ;
 ;   Parameters:
@@ -244,12 +242,13 @@ SEND_BIT_LOOP_END?:
 ;
 ;   Pseudo code:
 ;       ========== C ==========
-;       dataReg = 0
-;       bitId = PACKETSIZE - 1
-;       loop:   READ_PACKET
-;           set   SCLK_PIN
-;           wait  16 cycles
-;           clear SCLK_PIN
+;       bitId = 0
+;       wait for SCLK_PIN shifting edge only for MODE1 and MODE3
+;       send dataReg bit
+;       while (bitId < PACKETSIZE)
+;           bitId ++;
+;           wait for SCLK_PIN sampling edge
+;           send dataReg bit
 ;       =======================
 ;
 ;   Parameters:
@@ -313,18 +312,26 @@ SEND_BIT_LOOP_END?:
 ;
 ;   Pseudo code:
 ;       ========== C ==========
-;       dataReg = 0;
-;       bitId = PACKETSIZE-1;
-;       for (bitId >= 0)
-;           wait for SCLK_PIN shifting edge
+;       if(S_BIT =="MSB")
+;           bitId = PACKETSIZE-1;
+;       else if(S_BIT =="LSB")
+;           bitId = 0;
+;       else 
+;           "error message"
+;       wait for SCLK_PIN shifting edge only for MODE1 and MODE3
+;       loop PACKETSIZE:
 ;           send bit from s_dataReg
 ;           wait for SCLK_PIN sampling edge
-;           read bit into r_dataReg
-;           bitId --;
+;           read bit into r_dataReg 
+;           if(S_BIT =="MSB")
+;               bitId --
+;           elseif(S_BIT =="LSB")
+;               bitID ++
+;           wait for SCLK_PIN shifting edge
 ;       =======================
 ;
 ;   Parameters:
-;           r_dataReg       -  Contains received data packet
+;           r_dataReg       -  Received data is stored in this register
 ;           s_dataReg       -  Contains data packet to send
 ;           PACKETSIZE      -  Size of data packet in bits (max 32 bits)
 ;           bitId           -  To track Bit index (8 bits wide)
@@ -340,6 +347,8 @@ m_transfer_packet_spi_slave_gpi_sclk   .macro  r_dataReg, s_dataReg, PACKETSIZE,
     ldi     bitId, PACKETSIZE - 1
     .elseif $symcmp(S_BIT,"LSB") = 0
     ldi     bitId, 0
+    .else
+    .emsg "Error: Invalid parameter used in macro"
     .endif
 
     ;wait for shifting edge

@@ -38,8 +38,8 @@
 #include <drivers/pruicss.h>
 
 
-#include "pru0_load_bin.h" /* PRU0Firmware_0 array - SPI Master example*/
-#include "pru1_load_bin.h" /* PRU1Firmware_0 array - SPI Slave example*/
+#include <pru0_load_bin.h> /* PRU0Firmware_0 array - SPI Master example*/
+#include <pru1_load_bin.h> /* PRU1Firmware_0 array - SPI Slave example*/
 
 /** \brief Global Structure pointer holding PRUSS1 memory Map. */
 
@@ -78,7 +78,7 @@ void SPI_pru_demo_main(void *args)
 
      while (1)
      {
-        /*todo: Add unit test cases here for CI CD automation */
+        /*TODO: [PINDSW-8471] Add unit test cases here for CI CD automation */
         ClockP_usleep(1);
      }
 

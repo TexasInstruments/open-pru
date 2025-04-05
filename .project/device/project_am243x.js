@@ -15,7 +15,8 @@ const example_file_list = [
     "examples/empty/firmware/.project/project.js",
     "examples/empty/.project/project.js",
     "examples/spi_loopback/firmware/.project/project.js",
-    "examples/spi_loopback/spi_loopback_app/.project/project.js",
+    "examples/spi_loopback/spi_loopback_app/.project/project_freertos.js",
+    "examples/spi_loopback/spi_loopback_app/.project/project_nortos.js",
 ];
 
 function getProjectSpecCpu(cpu) {
