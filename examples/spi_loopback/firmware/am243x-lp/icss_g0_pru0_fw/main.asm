@@ -31,7 +31,42 @@
 ;************************************************************************************
 ;   File:     main.asm
 ;
-;   Brief:    SPI Master PRU Implementation Example
+;   Brief:    SPI Master PRU Implementation Example. This file demonstrates usage of 
+;             the SPI master macros which provides functionalities including send, 
+;             read, and transfer operations. The type of operation is selected by 
+;             modifying the branch instruction under the PROGRAM_START label .
+;
+;   Psuedo-code:
+;             init: 
+;                Initializes registers and memory
+;             while(1){ //PROGRAM_START:
+;                Jumps to programmed SPI master macro
+;                if(SPI_master_send){ //SPI_master_send:
+;                   pull down CS pin
+;                   send data
+;                   pull up CS pin
+;                }
+;                else if(SPI_master_read){ //SPI_master_read:
+;                   pull down CS pin
+;                   read data
+;                   pull up CS pin
+;                   store data //store_data
+;                }
+;                else if(SPI_master_transfer){ //SPI_master_transfer:
+;                   pull down CS pin
+;                   send and read data concurrently
+;                   pull up CS pin
+;                   store data //store_data:
+;                }
+;             }
+;             store_data:
+;                Store data at memory address (c28 + temp_reg_1)
+;                if(MAX_BUFFER_SIZE <= temp_reg_1){
+;                   temp_reg_1 = DATA_BUFFER_OFFSET
+;                }
+;                else{
+;                   temp_reg_1 = temp_reg_1 + 4;
+;                }
 ;************************************************************************************
 
 ;************************************* includes *************************************
@@ -69,10 +104,16 @@
     .asg    R5,         r_dataReg
 
 ; PRU GPIO pin mapping for SPI Signals
-SDI_PIN       			.set    14		; Always input ; Master mode - Input to Master ; Device Mode - Input to Device
-SDO_PIN       			.set    3		; Always output ; Master mode - output from Master ; Device Mode - Output from Device
-SCLK_PIN      			.set    4		; Output during Master mode ; Input during Device mode
-CS_PIN        			.set    5		; Output during Master mode ; Input during Device mode
+SDI_PIN                 .set    14      ; Always input ; Master mode - Input to Master ; Device Mode - Input to Device
+SDO_PIN                 .set    3       ; Always output ; Master mode - output from Master ; Device Mode - Output from Device
+SCLK_PIN                .set    4       ; Output during Master mode ; Input during Device mode
+CS_PIN                  .set    5       ; Output during Master mode ; Input during Device mode
+
+;Constants definitions
+DATA_BUFFER_OFFSET      .set    0x0028
+MAX_BUFFER_SIZE         .set    40+(9*4)
+TEST_DATA_1             .set    0xDEADBEEF
+TEST_DATA_2             .set    0xAAAAAAAA
 
 ;********
 ;* MAIN *
@@ -81,63 +122,63 @@ CS_PIN        			.set    5		; Output during Master mode ; Input during Device mo
 main:
 
 init:
-    zero	&r0, 120  ; Clear the register space
+    zero    &r0, 120  ; Clear the register space
 
-; Configure the Constant Table entry C28 to point to start of shared memory
-; PRU_ICSSG Shared RAM (local-C28) : 00nn_nn00h, nnnn = c28_pointer[15:0]
+    ; Configure the Constant Table entry C28 to point to start of shared memory
+    ; PRU_ICSSG Shared RAM (local-C28) : 00nn_nn00h, nnnn = c28_pointer[15:0]
     ldi     TEMP_REG_1, 0x0100
     sbco    &TEMP_REG_1, ICSS_PRU_CTRL_CONST, 0x28, 2
 
-; Initializing registers
+    ; Initializing registers
     ldi32   TEMP_REG_1, 0x00000028 ;offset address at which received data is written (10*4 byte buffer)
-    ldi32	TEMP_REG_2, 0xAAAAAAAA ;example data
-    ldi32	TEMP_REG_3, 0xDEADBEEF ;example data
+    ldi32   TEMP_REG_2, TEST_DATA_2 ;example data
+    ldi32   TEMP_REG_3, TEST_DATA_1 ;example data
 
 PROGRAM_START:
-	;change this label to select type of SPI transmission.
-	; eg: SPI_master_send, SPI_master_read or SPI_master_transfer
-    qba SPI_master_transfer
+    ; Change this label to select the type of SPI transmission.
+    ; eg: SPI_master_send, SPI_master_read or SPI_master_transfer
+    qba     SPI_master_transfer
 
 SPI_master_send:
-    mov   dataReg, TEMP_REG_2
-    m_pru_clr_pin   CS_PIN
-    m_wait_nano_sec 10
-    ;for sending 32 bit data MSB first at SCLK of 41.66MHz
+    mov     dataReg, TEMP_REG_2
+    m_pru_clr_pin   CS_PIN  ; Clear the chip select pin
+    m_wait_nano_sec 10      ; Wait for 10 nanoseconds
+    ; For sending 32 bit data MSB first at SCLK of 41.66MHz
     m_send_packet_spi_msb_gpo_sclk dataReg, 32, bitId, SCLK_PIN, SDO_PIN, 0, 1, "MODE3"
     m_wait_nano_sec 10
-    m_pru_set_pin   CS_PIN
+    m_pru_set_pin   CS_PIN  ; Set the chip select pin
     m_wait_nano_sec 100
-    qba PROGRAM_START
+    qba     PROGRAM_START
 
 SPI_master_read:
     m_pru_clr_pin   CS_PIN
     m_wait_nano_sec 35
-    ;to read 32 bit data MSB first from SPI slave at max freq of 13.88MHz
+    ; To read 32 bit data MSB first from SPI slave at max freq of 13.88MHz
     m_read_packet_spi_msb_gpo_sclk r_dataReg, 32, bitId, SCLK_PIN, SDI_PIN, 10, 7, "MODE3"
     m_wait_nano_sec 10
     m_pru_set_pin   CS_PIN
-    qba store_data
+    qba     store_data
 
 SPI_master_transfer:
     ldi32   r_dataReg, 0xFFFFFFFF
-    mov   s_dataReg, TEMP_REG_3
+    mov     s_dataReg, TEMP_REG_3
     m_pru_clr_pin   CS_PIN
     m_wait_nano_sec 35
-    ;for transfer (send and read) at 12.8MHz
+    ; For transfer (send and read) at 12.8MHz
     m_transfer_packet_spi_master_gpo_sclk r_dataReg, s_dataReg, 32, bitId, SCLK_PIN, SDI_PIN, SDO_PIN, 9, 7, "MODE3", "MSB"
     m_wait_nano_sec 10
     m_pru_set_pin   CS_PIN
 
 store_data:
-    ;write data read from SDI into R4
-    sbco	&r_dataReg, c28, TEMP_REG_1, 4
-    qble	reset_ptr, TEMP_REG_1, 40+(9*4)
-    add		TEMP_REG_1, TEMP_REG_1, 4
-    qba		continue
+    ; Write data read from SDI into R4
+    sbco    &r_dataReg, c28, TEMP_REG_1, 4
+    qble    reset_ptr, TEMP_REG_1, MAX_BUFFER_SIZE
+    add     TEMP_REG_1, TEMP_REG_1, 4
+    qba     continue
 reset_ptr:
-    ldi		TEMP_REG_1, 0x0028
+    ldi     TEMP_REG_1, DATA_BUFFER_OFFSET
 continue:
     m_wait_nano_sec 100
-    qba PROGRAM_START
+    qba     PROGRAM_START
 
     halt ; should never reach this code

@@ -31,7 +31,38 @@
 ;************************************************************************************
 ;   File:     main.asm
 ;
-;   Brief:    SPI Slave PRU Implementation Example
+;   Brief:    SPI Slave PRU Implementation Example. This file demonstrates usage of 
+;             SPI slave macros which provides functionalities including send, read, 
+;             and transfer operations.The type of operation is selected by 
+;             modifying the branch instruction under the idle label .
+;
+;   Psuedo-code:
+;             init: 
+;                Initializes registers and memory
+;             while(1){ //idle:
+;                while(!(CS pin is low)){
+;                   jump to programmed SPI Slave operation.
+;                }
+;                if(SPI_slave_read){
+;                   read data
+;                   store data //store_data:
+;                }
+;                else if(SPI_slave_send){
+;                   send data
+;                }
+;                else if(SPI_slave_transfer){
+;                   read data
+;                   store data //store_data:
+;                }
+;             } 
+;             store_data:
+;                Store data at memory address (c28 + temp_reg_1)
+;                if(MAX_BUFFER_SIZE <= temp_reg_1){
+;                   temp_reg_1 = DATA_BUFFER_OFFSET
+;                }
+;                else{
+;                   temp_reg_1 = temp_reg_1 + 4;
+;                }
 ;************************************************************************************
 
 ;************************************* includes *************************************
@@ -75,6 +106,12 @@ SDO_PIN       			.set    2		; Always output ; Master mode - output from Master ;
 CS_PIN        			.set    6		; Output during Master mode ; Input during Device mode
 SCLK_PIN      			.set    11		; Output during Master mode ; Input during Device mode
 
+;Constant definitions
+DATA_BUFFER_OFFSET      .set    0x0000
+MAX_BUFFER_SIZE         .set    9*4
+TEST_DATA_1             .set    0xDEADBEEF
+TEST_DATA_2             .set    0xCAFEC0DE
+
 ;********
 ;* MAIN *
 ;********;
@@ -82,46 +119,46 @@ SCLK_PIN      			.set    11		; Output during Master mode ; Input during Device m
 main:
 
 init:
-    zero	&r0, 120  ; Clear the register space
+    zero    &r0, 120  ; Clear the register space
 
-; Configure the Constant Table entry C28 to point to start of shared memory
-; PRU_ICSSG Shared RAM (local-C28) : 00nn_nn00h, nnnn = c28_pointer[15:0]
+    ; Configure the Constant Table entry C28 to point to start of shared memory
+    ; PRU_ICSSG Shared RAM (local-C28) : 00nn_nn00h, nnnn = c28_pointer[15:0]
     ldi     TEMP_REG_1, 0x0100
     sbco    &TEMP_REG_1, ICSS_PRU_CTRL_CONST, 0x28, 2
 
-; Initialise register
-    ldi			TEMP_REG_1, 0x0000
-    ldi32		TEMP_REG_2, 0xDEADBEEF
-    ldi32		TEMP_REG_3, 0xCAFEC0DE
+    ; Initialise register
+    ldi     TEMP_REG_1, 0x0000
+    ldi32   TEMP_REG_2, TEST_DATA_1
+    ldi32   TEMP_REG_3, TEST_DATA_2
 
 idle:
     ; update s_dataReg with test data
-    mov		s_dataReg, TEMP_REG_3
+    mov     s_dataReg, TEMP_REG_3
     ; check if CS is pulled down. CS pin should be polled until falling edge is detected.
-    m_wait_high_pulse	2, CS_PIN
+    m_wait_high_pulse	2, CS_PIN ; Wait for a falling edge on the CS pin
     
     ;change this label to select type of SPI transmission.
     ; eg: SPI_slave_send, SPI_slave_read or SPI_slave_transfer
-    qba		SPI_slave_transfer
+    qba     SPI_slave_transfer
 
 SPI_slave_read:
     m_read_packet_spi_slave_msb_gpi_sclk r_dataReg, 32, bitId, SCLK_PIN, SDI_PIN, "MODE3"
-    qba store_data
+    qba     store_data
 
 SPI_slave_send:
     m_send_packet_spi_slave_msb_gpo_sclk s_dataReg, 32, bitId, SCLK_PIN, SDO_PIN, "MODE3"
-    qba 	idle
+    qba     idle
 
 SPI_slave_transfer:
     m_transfer_packet_spi_slave_gpi_sclk r_dataReg, s_dataReg, 32, bitId, SCLK_PIN, SDI_PIN, SDO_PIN, "MODE3", "MSB"
 
 store_data:
-    sbco	&r_dataReg, c28, TEMP_REG_1, 4
-    ldi32	r_dataReg, 0x00000000
-    qble	reset_ptr, TEMP_REG_1, 9*4
-    add		TEMP_REG_1, TEMP_REG_1, 4
-    qba 	idle
+    sbco    &r_dataReg, c28, TEMP_REG_1, 4
+    ldi32   r_dataReg, 0x00000000
+    qble    reset_ptr, TEMP_REG_1, MAX_BUFFER_SIZE
+    add     TEMP_REG_1, TEMP_REG_1, 4
+    qba     idle
 reset_ptr:
-    ldi		TEMP_REG_1, 0x0000
-    qba 	idle
+    ldi     TEMP_REG_1, DATA_BUFFER_OFFSET
+    qba     idle
     halt ; should never reach this code

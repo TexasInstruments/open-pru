@@ -31,7 +31,9 @@
 ;************************************************************************************
 ;   File:     spi_slave_macros.inc
 ;
-;   Brief:    SPI Slave interface macros for all MODES
+;   Brief:    SPI Slave interface macros for all MODES. This file provides macros
+;             for SPI data transfer, including reading, writing, and concurrent
+;             read/write operations in MSB and LSB configurations.
 ;
 ;   Includes:
 ;            icss_pin_macros.inc
@@ -59,6 +61,11 @@
 ;   Acceptable SCLK freq at 3ns cycle time: <= 47.619 MHz
 ;   Acceptable CS to SCLK start time:       > 6 cycles + prop delay + slew rate
 ;
+;   Assumptions:
+;       - CS must be pulled low before calling this macro.
+;       - The SCLK_PIN and SDI_PIN must be configured correctly.
+;       - dataReg should be cleared before calling this macro
+;
 ;   Pseudo code:
 ;       ========== C ==========
 ;       bitId = PACKETSIZE;
@@ -74,9 +81,15 @@
 ;           bitId           -  To track Bit index (8 bits wide)
 ;           SCLK_PIN        -  PRU Pin number for SCLK
 ;           SDI_PIN         -  PRU Pin number for SDI
+;
+;   Returns:
+;       - The received data packet is stored in the `dataReg` register.
 ;************************************************************************************
 m_read_packet_spi_slave_msb_gpi_sclk   .macro  dataReg, PACKETSIZE, bitId, SCLK_PIN, SDI_PIN, MODE
-    ; clear dataReg which is used to store received data
+    ; Validating packetsize parameter
+    .if (PACKETSIZE > 32)  |  (PACKETSIZE < 1)
+    .emsg "Error: Invalid parameter used in macro: PACKETSIZE"
+    .endif
     ldi     bitId, PACKETSIZE       ; bitId is bit position pointer
 
 READ_BIT_LOOP?:
@@ -84,13 +97,7 @@ READ_BIT_LOOP?:
     sub     bitId, bitId, 1
 
     ;wait for sampling edge
-    .if $symcmp(MODE,"MODE0") = 0 | $symcmp(MODE,"MODE3") = 0
-    ;wait for rising edge
-    m_wait_low_pulse    1, SCLK_PIN
-    .elseif $symcmp(MODE,"MODE1") = 0 | $symcmp(MODE,"MODE2") = 0
-    ;wait for falling edge
-    m_wait_high_pulse    1, SCLK_PIN
-    .endif
+    m_handle_spi_slave_mode "SAMPLING_EDGE", MODE, SCLK_PIN
 
     ;sampling received bit
     qbbc    BIT_ENTRY_0?, r31, SDI_PIN
@@ -113,6 +120,11 @@ SKIP_BIT_ENTRY_0?:
 ;   Acceptable SCLK freq at 3ns cycle time: <= 47.619 MHz
 ;   Acceptable CS to SCLK start time:       > 6 cycles + prop delay + slew rate
 ;
+;   Assumptions:
+;       - CS must be pulled low before calling this macro.
+;       - The SCLK_PIN and SDI_PIN must be configured correctly.
+;       - dataReg should be cleared before calling this macro
+;
 ;   Pseudo code:
 ;       ========== C ==========
 ;       bitId = 0;
@@ -128,10 +140,15 @@ SKIP_BIT_ENTRY_0?:
 ;           bitId           -  To track Bit index (8 bits wide)
 ;           SCLK_PIN        -  PRU Pin number for SCLK
 ;           SDI_PIN         -  PRU Pin number for SDI
+;
+;   Returns:
+;       - The received data packet is stored in the `dataReg` register.
 ;************************************************************************************
 m_read_packet_spi_slave_lsb_gpo_sclk   .macro  dataReg, PACKETSIZE, bitId, SCLK_PIN, SDI_PIN, MODE
-
-    ; clear dataReg which is used to store received data
+    ; Validating packetsize parameter
+    .if (PACKETSIZE > 32)  |  (PACKETSIZE < 1)
+    .emsg "Error: Invalid parameter used in macro: PACKETSIZE"
+    .endif
     ldi     bitId, 255       ; bitId is bit position pointer
 
 READ_BIT_LOOP?:
@@ -139,13 +156,7 @@ READ_BIT_LOOP?:
     add     bitId, bitId, 1
 
     ;wait for sampling edge
-    .if $symcmp(MODE,"MODE0") = 0 | $symcmp(MODE,"MODE3") = 0
-    ;wait for rising edge
-    m_wait_low_pulse    1, SCLK_PIN
-    .elseif $symcmp(MODE,"MODE1") = 0 | $symcmp(MODE,"MODE2") = 0
-    ;wait for falling edge
-    m_wait_high_pulse    1, SCLK_PIN
-    .endif
+    m_handle_spi_slave_mode "SAMPLING_EDGE", MODE, SCLK_PIN
 
     ;sampling received bit
     qbbc    BIT_ENTRY_0?, r31, SDI_PIN
@@ -171,6 +182,11 @@ SKIP_BIT_ENTRY_0?:
 ;   Practical limitation of 13.88MHz
 ;   Acceptable CS to SCLK start time: > 3 cycles + 2 cycles (for CS polling and jump)
 ;
+;   Assumptions:
+;       - CS must be pulled low before calling this macro.
+;       - The SCLK_PIN and SDO_PIN must be configured correctly.
+;       - PACKETSIZE should not be more than 32 (bits) or less than 1
+;
 ;   Pseudo code:
 ;       ========== C ==========
 ;       bitId = PACKETSIZE - 1
@@ -188,43 +204,37 @@ SKIP_BIT_ENTRY_0?:
 ;           bitId           -  To track Bit index (8 bits wide)
 ;           SCLK_PIN        -  PRU Pin number for SCLK
 ;           SDO_PIN         -  PRU Pin number for SDO
+;
+;   Returns:
+;       - No return value
 ;************************************************************************************
 m_send_packet_spi_slave_msb_gpo_sclk   .macro  dataReg, PACKETSIZE, bitId, SCLK_PIN, SDO_PIN, MODE
+    ; Validating packetsize parameter
+    .if (PACKETSIZE > 32)  |  (PACKETSIZE < 1)
+    .emsg "Error: Invalid parameter used in macro: PACKETSIZE"
+    .endif
     ldi     bitId, PACKETSIZE - 1   ; bitId is bit position pointer
 
-    ;wait for shifting edge
-    .if $symcmp(MODE,"MODE1") = 0
-    ;wait for rising edge
-    m_wait_low_pulse    1, SCLK_PIN
-    .elseif $symcmp(MODE,"MODE3") = 0
-    ;wait for falling edge
-    m_wait_high_pulse    1, SCLK_PIN
-    .endif
-    ;shift data right away for mode0 and mode2 as SCLK signal gives no indication for shifting of intial bit
+    ;wait for beginning shifting edge for only mode1 and mode3
+    m_handle_spi_slave_mode "BEGINNING", MODE, SCLK_PIN
 
 SEND_BIT_LOOP?:
-    qbbc            data_low?, dataReg, bitId
+    qbbc    data_low?, dataReg, bitId
     m_pru_set_pin   SDO_PIN
-    qba             data_high?
+    qba     data_high?
 data_low?:
     m_pru_clr_pin   SDO_PIN
     NOP
 data_high?:
-    qbeq            SEND_BIT_LOOP_END?, bitId, 0
-    sub             bitId, bitId, 1
+    qbeq    SEND_BIT_LOOP_END?, bitId, 0
+    sub     bitId, bitId, 1
 
     ;wait for shifting edge
-    .if $symcmp(MODE,"MODE0") = 0 | $symcmp(MODE,"MODE3") = 0
-    ;wait for falling edge
-    m_wait_high_pulse    1, SCLK_PIN
-    .elseif $symcmp(MODE,"MODE1") = 0 | $symcmp(MODE,"MODE2") = 0
-    ;wait for rising edge
-    m_wait_low_pulse    1, SCLK_PIN
-    .endif
+    m_handle_spi_slave_mode "SHIFTING_EDGE", MODE, SCLK_PIN
 
-    qbbc            data_low?, dataReg, bitId
+    qbbc    data_low?, dataReg, bitId
     m_pru_set_pin   SDO_PIN
-    qba             data_high?
+    qba     data_high?
 SEND_BIT_LOOP_END?:
 
     .endm
@@ -239,6 +249,11 @@ SEND_BIT_LOOP_END?:
 ;   Theoretical maximum SCLK freq at 3ns cycle time: <= 47.619 MHz
 ;   Practical limitation of 13.88MHz
 ;   Acceptable CS to SCLK start time: > 3 cycles + 2 cycles (for CS polling and jump)
+;
+;   Assumptions:
+;       - CS must be pulled low before calling this macro.
+;       - The SCLK_PIN and SDO_PIN must be configured correctly.
+;       - PACKETSIZE should not be more than 32 (bits) or less than 1
 ;
 ;   Pseudo code:
 ;       ========== C ==========
@@ -257,42 +272,36 @@ SEND_BIT_LOOP_END?:
 ;           bitId           -  To track Bit index (8 bits wide)
 ;           SCLK_PIN        -  PRU Pin number for SCLK
 ;           SDO_PIN         -  PRU Pin number for SDO
+;
+;   Returns:
+;       - No return value
 ;************************************************************************************
 m_send_packet_spi_slave_lsb_gpo_sclk   .macro  dataReg, PACKETSIZE, bitId, SCLK_PIN, SDO_PIN, MODE
+    ; Validating packetsize parameter
+    .if (PACKETSIZE > 32)  |  (PACKETSIZE < 1)
+    .emsg "Error: Invalid parameter used in macro: PACKETSIZE"
+    .endif
     ldi     bitId, 0   ; bitId is bit position pointer
 
-    ;wait for shifting edge
-    .if $symcmp(MODE,"MODE1") = 0
-    ;wait for rising edge
-    m_wait_low_pulse    1, SCLK_PIN
-    .elseif $symcmp(MODE,"MODE3") = 0
-    ;wait for falling edge
-    m_wait_high_pulse    1, SCLK_PIN
-    .endif
-    ;shift data right away for mode0 and mode2 as SCLK signal gives no indication for shifting of intial bit
+    ;wait for beginning shifting edge for only mode1 and mode3
+    m_handle_spi_slave_mode "BEGINNING", MODE, SCLK_PIN
 
 SEND_BIT_LOOP?:
 
-    qbbc            data_low?, dataReg, bitId
+    qbbc    data_low?, dataReg, bitId
     m_pru_set_pin   SDO_PIN
-    qba             data_high?
+    qba     data_high?
 data_low?:
     m_pru_clr_pin   SDO_PIN
     NOP
 data_high?:
-    add             bitId, bitId, 1
-    qbeq            SEND_BIT_LOOP_END?, bitId, PACKETSIZE
+    add     bitId, bitId, 1
+    qbeq    SEND_BIT_LOOP_END?, bitId, PACKETSIZE
 
     ;wait for shifting edge
-    .if $symcmp(MODE,"MODE0") = 0 | $symcmp(MODE,"MODE3") = 0
-    ;wait for falling edge
-    m_wait_high_pulse    1, SCLK_PIN
-    .elseif $symcmp(MODE,"MODE1") = 0 | $symcmp(MODE,"MODE2") = 0
-    ;wait for rising edge
-    m_wait_low_pulse    1, SCLK_PIN
-    .endif
+    m_handle_spi_slave_mode "SHIFTING_EDGE", MODE, SCLK_PIN
 
-     qba            SEND_BIT_LOOP?
+     qba    SEND_BIT_LOOP?
 SEND_BIT_LOOP_END?:
 
     .endm
@@ -309,6 +318,12 @@ SEND_BIT_LOOP_END?:
 ;   Theoretical maximum SCLK freq at 3ns cycle time (50% duty cycle): <= 23.809 MHz
 ;   Practical limitation of 12.8MHz at 3ns PRU system cycle time.
 ;   Acceptable CS to SCLK start time:       >= 3 cycles
+;
+;   Assumptions:
+;       - CS must be pulled low before calling this macro.
+;       - The SCLK_PIN, SDI_PIN and SDO_PIN must be configured correctly.
+;       - PACKETSIZE should not be more than 32 (bits) or less than 1
+;       - r_dataReg should be cleared before calling this macro
 ;
 ;   Pseudo code:
 ;       ========== C ==========
@@ -340,9 +355,15 @@ SEND_BIT_LOOP_END?:
 ;           SDO_PIN         -  PRU Pin number for SDO
 ;           MODE            -  MODE0, MODE1, MODE2 or MODE3 mode of SPI operation
 ;           S_BIT           -  MSB or LSB
+;
+;   Returns:
+;       - The received data packet is stored in the `r_dataReg` register.
 ;************************************************************************************
 m_transfer_packet_spi_slave_gpi_sclk   .macro  r_dataReg, s_dataReg, PACKETSIZE, bitId, SCLK_PIN, SDI_PIN, SDO_PIN, MODE, S_BIT
-    ; bitId is bit position pointer
+    ; Validating packetsize parameter
+    .if (PACKETSIZE > 32)  |  (PACKETSIZE < 1)
+    .emsg "Error: Invalid parameter used in macro: PACKETSIZE"
+    .endif
     .if $symcmp(S_BIT,"MSB") = 0
     ldi     bitId, PACKETSIZE - 1
     .elseif $symcmp(S_BIT,"LSB") = 0
@@ -351,33 +372,20 @@ m_transfer_packet_spi_slave_gpi_sclk   .macro  r_dataReg, s_dataReg, PACKETSIZE,
     .emsg "Error: Invalid parameter used in macro"
     .endif
 
-    ;wait for shifting edge
-    .if $symcmp(MODE,"MODE1") = 0
-    ;wait for rising edge
-    m_wait_low_pulse    1, SCLK_PIN
-    .elseif $symcmp(MODE,"MODE3") = 0
-    ;wait for falling edge
-    m_wait_high_pulse    1, SCLK_PIN
-    .endif
-    ;shift data right away for mode0 and mode2 as SCLK signal gives no indication for shifting of initial bit
+    ;wait for beginning shifting edge for only mode1 and mode3
+    m_handle_spi_slave_mode "BEGINNING", MODE, SCLK_PIN
 
 SEND_BIT_LOOP?:
-    qbbc            data_low?, s_dataReg, bitId
+    qbbc    data_low?, s_dataReg, bitId
     m_pru_set_pin   SDO_PIN
-    qba             data_high?
+    qba     data_high?
 data_low?:
     m_pru_clr_pin   SDO_PIN
     NOP
 data_high?:
 
     ;wait for sampling edge
-    .if $symcmp(MODE,"MODE0") = 0 | $symcmp(MODE,"MODE3") = 0
-    ;wait for rising edge
-    m_wait_low_pulse    1, SCLK_PIN
-    .elseif $symcmp(MODE,"MODE1") = 0 | $symcmp(MODE,"MODE2") = 0
-    ;wait for falling edge
-    m_wait_high_pulse    1, SCLK_PIN
-    .endif
+    m_handle_spi_slave_mode "SAMPLING_EDGE", MODE, SCLK_PIN
 
     ;sampling received bit
     qbbc    BIT_ENTRY_0?, r31, SDI_PIN
@@ -388,23 +396,116 @@ BIT_ENTRY_0?:
     NOP
 SKIP_BIT_ENTRY_0?:
     .if $symcmp(S_BIT,"MSB") = 0
-    sub             bitId, bitId, 1
-    qbeq            SEND_BIT_LOOP_END?, bitId, 0xFF
+    sub     bitId, bitId, 1
+    qbeq    SEND_BIT_LOOP_END?, bitId, 0xFF
     .elseif $symcmp(S_BIT,"LSB") = 0
-    add             bitId, bitId, 1
-    qbeq            SEND_BIT_LOOP_END?, bitId, PACKETSIZE
+    add     bitId, bitId, 1
+    qbeq    SEND_BIT_LOOP_END?, bitId, PACKETSIZE
     .endif
 
     ;wait for shifting edge
+    m_handle_spi_slave_mode "SHIFTING_EDGE", MODE, SCLK_PIN
+
+    qba     SEND_BIT_LOOP?
+SEND_BIT_LOOP_END?:
+
+    .endm
+
+;************************************************************************************
+;   Macro: m_handle_spi_slave_mode
+;
+;   Abstraction macro that handles the waiting for sampling or shifting edge of SCLK 
+;   pin based on SPI MODE using assembler directives.
+;
+;   PEAK cycles: same as m_wait_high_pulse or m_wait_low_pulse macros
+;
+;   Assumptions:
+;       - Only meant to be called from one of the spi master macros.
+;       - The SCLK_PIN must be configured correctly.
+;
+;   Pseudo code:
+;       ========== C ==========
+;       #if EDGE == SHIFTING_EDGE
+;       #if (MODE == MODE0) | (MODE == MODE3)
+;       wait for falling edge of SCLK_PIN
+;       #elif (MODE == MODE1) | (MODE == MODE2)
+;       wait for rising edge of SCLK_PIN
+;       #else
+;       Set Error msg for MODE
+;       #endif
+;
+;       #elif EDGE == SAMPLING_EDGE
+;       #if (MODE == MODE0) | (MODE == MODE3)
+;       wait for rising edge of SCLK_PIN
+;       #elif (MODE == MODE1) | (MODE == MODE2)
+;       wait for falling edge of SCLK_PIN
+;       #else
+;       Set Error msg for MODE
+;       #endif
+;
+;       #elif EDGE == BEGINNING
+;       #if MODE == MODE1
+;       wait for rising edge of SCLK_PIN
+;       #elif MODE == MODE3
+;       wait for falling edge of SCLK_PIN
+;       #endif
+;
+;       #else
+;       Set Error msg for EDGE
+;       #endif
+;       =======================
+;
+;   Parameters:
+;           EDGE       -  Mentions which edge to wait for.
+;                            -  SHIFTING_EDGE - waits for shifting edge
+;                            -  SAMPLING_EDGE - waits for sampling edge
+;                            -  BEGINNING     - Waits for shifting edge only for 
+;                                                 mode1 or mode3 needed at the beginning
+;           MODE       -  Determines SPI MODE of operation
+;           SCLK_PIN   -  PRU Pin number for SCLK
+;
+;   Returns:
+;       - No return value
+;************************************************************************************
+m_handle_spi_slave_mode .macro EDGE, MODE, SCLK_PIN
+    ;shifting edge
+    .if $symcmp(EDGE,"SHIFTING_EDGE") = 0
     .if $symcmp(MODE,"MODE0") = 0 | $symcmp(MODE,"MODE3") = 0
     ;wait for falling edge
     m_wait_high_pulse    1, SCLK_PIN
     .elseif $symcmp(MODE,"MODE1") = 0 | $symcmp(MODE,"MODE2") = 0
     ;wait for rising edge
     m_wait_low_pulse    1, SCLK_PIN
+    .else
+    .emsg "Error: Invalid parameter used in macro: MODE"
+    .endif
+    
+    ;Sampling edge
+    .elseif $symcmp(EDGE,"SAMPLING_EDGE") = 0
+    .if $symcmp(MODE,"MODE0") = 0 | $symcmp(MODE,"MODE3") = 0
+    ;wait for rising edge
+    m_wait_low_pulse    1, SCLK_PIN
+    .elseif $symcmp(MODE,"MODE1") = 0 | $symcmp(MODE,"MODE2") = 0
+    ;wait for falling edge
+    m_wait_high_pulse    1, SCLK_PIN
+    .else
+    .emsg "Error: Invalid parameter used in macro: MODE"
     .endif
 
-    qba            SEND_BIT_LOOP?
-SEND_BIT_LOOP_END?:
+    ;wait for first shifting edge at beginning only for mode1 and mode3
+    .elseif $symcmp(EDGE,"BEGINNING") = 0
+    .if $symcmp(MODE,"MODE1") = 0
+    ;wait for rising edge
+    m_wait_low_pulse    1, SCLK_PIN
+    .elseif $symcmp(MODE,"MODE3") = 0
+    ;wait for falling edge
+    m_wait_high_pulse    1, SCLK_PIN
+    .endif
+    ;shift data right away for mode0 and mode2 as SCLK signal gives no indication for shifting of initial bit
+
+    ;invalid edge
+    .else
+    .emsg "Error: Invalid parameter used in macro: EDGE"
+    .endif
 
     .endm

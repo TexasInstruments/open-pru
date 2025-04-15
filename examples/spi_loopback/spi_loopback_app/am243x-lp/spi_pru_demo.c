@@ -55,7 +55,7 @@ PRUICSS_Handle gPruIcss0Handle;
  *****************************************************************************/
 void SPI_pru_demo_main(void *args)
 {
-     Drivers_open(); // check return status
+     Drivers_open(); 
 
      int status;
      status = Board_driversOpen();
@@ -71,10 +71,10 @@ void SPI_pru_demo_main(void *args)
 
      status = PRUICSS_loadFirmware(gPruIcss0Handle, PRUICSS_PRU0, PRU0Firmware_0, sizeof(PRU0Firmware_0));
      DebugP_assert(SystemP_SUCCESS == status);
-     DebugP_log("----- PRU0 Initialized for SPI Master \r\n");
+     DebugP_log("----- PRU0 Firmware loaded successfully. SPI Master initialized. \r\n");
      status = PRUICSS_loadFirmware(gPruIcss0Handle, PRUICSS_PRU1, PRU1Firmware_0, sizeof(PRU1Firmware_0));
      DebugP_assert(SystemP_SUCCESS == status);
-     DebugP_log("----- PRU1 Initialized for SPI Slave \r\n");
+     DebugP_log("----- PRU1 Firmware loaded successfully. SPI Slave initialized. \r\n");
 
      while (1)
      {
