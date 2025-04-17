@@ -1,0 +1,84 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<projectSpec>
+    <applicability>
+        <when>
+            <context
+                deviceFamily="PRU"
+                deviceId="AM261x"
+            />
+        </when>
+    </applicability>
+
+    <project
+        title="Pru I2s Pru1 Array"
+        name = "pru_i2s_pru1_array_am261x-lp_icssm0-pru1_fw_ti-pru-cgt"
+        products="com.ti.OPEN_PRU;MCU-PLUS-SDK-AM261X"
+        configurations="
+            Release,
+            Debug,
+        "
+        connection="TIXDS110_Connection.xml"
+        toolChain="TI"
+        cgtVersion="2.3.3"
+        device="AM261x"
+        deviceCore=""
+        ignoreDefaultDeviceSettings="true"
+        ignoreDefaultCCSSettings="true"
+        endianness="little"
+        outputFormat="ELF"
+        outputType="executable"
+
+        compilerBuildOptions="
+            -I${CG_TOOL_ROOT}/include
+            -I${MCU_PLUS_SDK_PATH}/source
+            -I${OPEN_PRU_PATH}/source
+            -I${OPEN_PRU_PATH}/source/pru_i2s/firmware/I2S
+            -DPRU1
+            -DSLICE1
+            -v4
+            -DSOC_AM261X
+            -DPRU1
+            -DI2S_RX
+            -DI2S_RX_DETECT_OVERFLOW
+        "
+        linkerBuildOptions="
+            -m=pru_i2s_pru1_array.${ConfigName}.map
+            --disable_auto_rts
+            --disable_auto_rts
+            --diag_suppress=10063-D
+            --entry_point=main
+        "
+
+        postBuildStep="
+            $(CG_TOOL_ROOT)/bin/hexpru --diag_wrap=off --array --array:name_prefix=pru_prupru_i2s1_image_0 -o pru_i2s_pru1_array.h  pru_i2s_pru1_array_am261x-lp_icssm0-pru1_fw_ti-pru-cgt.out;if ${CCS_HOST_OS} == linux cat ${OPEN_PRU_PATH}/mcu_plus_sdk/source/pru_io/firmware/pru_load_bin_copyright.h pru_i2s_pru1_array.h > ${OPEN_PRU_PATH}/source/pru_i2s/firmware/I2S/pru_i2s_pru1_array.h;if ${CCS_HOST_OS} == linux rm pru_i2s_pru1_array.h;if ${CCS_HOST_OS} == win32  $(CCS_INSTALL_DIR)/utils/cygwin/cat ${OPEN_PRU_PATH}/mcu_plus_sdk/source/pru_io/firmware/pru_load_bin_copyright.h pru_i2s_pru1_array.h > ${OPEN_PRU_PATH}/source/pru_i2s/firmware/I2S/pru_i2s_pru1_array.h;if ${CCS_HOST_OS} == win32  $(CCS_INSTALL_DIR)/utils/cygwin/rm pru_i2s_pru1_array.h;
+        "
+
+        description="A Pru I2s Pru1 Array FW project">
+
+        <configuration name="Debug"
+            compilerBuildOptions="
+                -D_DEBUG_=1
+            "
+            linkerBuildOptions="
+            "
+        ></configuration>
+        <configuration name="Release"
+            compilerBuildOptions="
+                -O3
+            "
+            linkerBuildOptions="
+            "
+        ></configuration>
+        <pathVariable name="MCU_PLUS_SDK_PATH" path="${COM_TI_MCU_PLUS_SDK_AM261X_INSTALL_DIR}" scope="project" />
+        <pathVariable name="OPEN_PRU_PATH" path="${COM_TI_OPEN_PRU_INSTALL_DIR}" scope="project" />
+        <file path="../../../../pru_i2s_main.asm" openOnCreation="false" excludeFromBuild="false" action="copy">
+        </file>
+        <file path="../../../../fw_regs.asm" openOnCreation="false" excludeFromBuild="false" action="copy">
+        </file>
+        <file path="../../../../pru_i2s_master_icss.cmd" openOnCreation="false" excludeFromBuild="false" action="copy">
+        </file>
+        <file path="${OPEN_PRU_PATH}/docs/api_guide_am261x/pru_i2s_DESIGN.html"
+                openOnCreation="false" excludeFromBuild="false" targetName="README.html" action="link">
+        </file>
+    </project>
+</projectSpec>
