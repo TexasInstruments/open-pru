@@ -17,6 +17,7 @@ ifeq ($(OS),Windows_NT)
     PATHSEP=\\
     CHMOD=$(CYGWIN_PATH)/echo
     SHELL=cmd.exe
+    CGT_GCC_AARCH64_PATH=$(TOOLS_PATH)/gcc-arm-9.2-2019.12-mingw-w64-i686-aarch64-none-elf
     CGT_GCC_ARM_PATH=$(TOOLS_PATH)/gcc-arm-none-eabi-9-2019-q4-major-win32
     CGT_GCC_ARMV7_PATH=$(CGT_GCC_ARM_PATH)
 else
@@ -35,6 +36,7 @@ else
         export TOUCH=touch
         export PATHSEP=/
         export CHMOD=chmod
+        CGT_GCC_AARCH64_PATH=$(TOOLS_PATH)/gcc-arm-9.2-2019.12-x86_64-aarch64-none-elf
         CGT_GCC_ARM_PATH=$(TOOLS_PATH)/gcc-arm-none-eabi-9-2019-q4-major
         CGT_GCC_ARMV7_PATH=$(CGT_GCC_ARM_PATH)
     endif

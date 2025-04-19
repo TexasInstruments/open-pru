@@ -78,7 +78,7 @@ all:
 ifeq ($(CCS_IDE_MODE),cloud)
 #	No post build steps
 else
-	@echo  Boot image: am243x:r5fss0-0:freertos:ti-arm-clang $(BOOTIMAGE_NAME)  ...
+	@echo  Boot image: am243x:r5fss0-0:nortos:ti-arm-clang $(BOOTIMAGE_NAME)  ...
 	$(OUTRPRC_CMD) $(OUTFILE) >> $(BOOTIMAGE_TEMP_OUT_FILE)
 	$(COPY) $(OUTNAME).rprc $(BOOTIMAGE_RPRC_NAME)
 	$(COPY) $(BOOTIMAGE_RPRC_NAME) $(BOOTIMAGE_RPRC_NAME_TMP)
@@ -104,10 +104,10 @@ else
 endif
 	$(RM) $(BOOTIMAGE_RPRC_NAME_TMP)
 ifeq ($(DEVICE_TYPE),HS)
-	@echo  Boot image: am243x:r5fss0-0:freertos:ti-arm-clang $(BOOTIMAGE_NAME).hs Done !!!
+	@echo  Boot image: am243x:r5fss0-0:nortos:ti-arm-clang $(BOOTIMAGE_NAME).hs Done !!!
 	@echo  .
 else
-	@echo  Boot image: am243x:r5fss0-0:freertos:ti-arm-clang $(BOOTIMAGE_NAME).hs_fs Done !!!
+	@echo  Boot image: am243x:r5fss0-0:nortos:ti-arm-clang $(BOOTIMAGE_NAME).hs_fs Done !!!
 	@echo  .
 endif
 endif

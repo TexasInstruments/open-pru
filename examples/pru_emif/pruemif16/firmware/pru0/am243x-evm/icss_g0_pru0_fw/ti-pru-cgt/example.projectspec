@@ -73,8 +73,5 @@
         </file>
         <file path="./linker.cmd" openOnCreation="false" excludeFromBuild="false" action="copy">
         </file>
-        <file path="${OPEN_PRU_PATH}/docs/api_guide_am243x/EXAMPLES_PRU_EMPTY.html"
-                openOnCreation="false" excludeFromBuild="false" targetName="README.html" action="link">
-        </file>
     </project>
 </projectSpec>

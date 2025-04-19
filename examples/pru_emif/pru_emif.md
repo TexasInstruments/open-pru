@@ -395,11 +395,11 @@ NOTE
 ~~~
 The PRU firmware address and data bus connections can be modified by updating the macros in
 these files:
- - ${SDK_install_path}\\examples\\pru_emif\\ pruemif16\firmware\\include\\pruemif16_cfg.inc : Address bus number of bits
- - ${SDK_install_path}\\examples\\pru_emif\\pruemif16\\firmware\\pru0\\pruemif16_emif_addr_cfg.inc:
+ - ${open-pru}\\examples\\pru_emif\\ pruemif16\firmware\\include\\pruemif16_cfg.inc : Address bus number of bits
+ - ${open-pru}\\examples\\pru_emif\\pruemif16\\firmware\\pru0\\pruemif16_emif_addr_cfg.inc:
      - Address bus least significant bit PRU pin number
      - Control signal (CSn(Chip Select), WEn(Write Enable), OE(Read/Output Enable)) PRU pin numbers
- - ${SDK_install_path}\\examples\\pru_emif\\pruemif16\\firmware\\pru1\\pruemif16_emif_data_cfg.inc:
+ - ${open-pru}\\examples\\pru_emif\\pruemif16\\firmware\\pru1\\pruemif16_emif_data_cfg.inc:
      -  Data bus least significnat bit PRU pin number
      - Data bus number of bits
      - Control signal PRU pin numbers
@@ -423,7 +423,7 @@ Install [PRU Code Generation Tools 2.3.3](https://www.ti.com/tool/download/PRU-C
     <th>Folder/Files
     <th>Description
 </tr>
-<tr><td colspan="2"> ${SDK_INSTALL_PATH}/source/pru_io/examples/pru_emif/pruemif16</td></tr>
+<tr><td colspan="2"> ${open-pru}/examples/pru_emif/pruemif16</td></tr>
 <tr>
     <td>am243x_pru_emif16
     <td>AM243X R5F Application</td>
@@ -456,7 +456,7 @@ Setup file from pruemif16 project directory.
 You can build the projects after a successfull export. 
 
 Pre-built PRU0 & PRU1 FW(firmware) images are contained in C header files located in:
- ${SDK_INSTALL_PATH}examples/pru_io/pru_emif/pruemif16/am243x_pru_emif16/firmware 
+ ${open-pru}examples/pru_io/pru_emif/pruemif16/am243x_pru_emif16/firmware
  
 These C header files are compiled into the R5F application, and there is no need to rebuild the PRU
 firmware unless the firmware is modified.

@@ -1,4 +1,4 @@
-; Copyright (C) 2024 Texas Instruments Incorporated - http://www.ti.com/
+; Copyright (C) 2025 Texas Instruments Incorporated - http://www.ti.com/
 ;
 ; Redistribution and use in source and binary forms, with or without
 ; modification, are permitted provided that the following conditions
@@ -50,7 +50,8 @@ EM_D0_PIN               .set    0   ; ICSSG PRU GPI/GPO pin number. EMIF data le
 EM_D_NBITS              .set    13  ; EMIF data number of bits
 EM_D_MASK               .set    ((1<<EM_D_NBITS) - 1) << EM_D0_PIN
 
-; ICSSG Control Register address
+; ICSSG Control Register address  ( Specific to am243x SoC )
+
 CTRLMMR_ICSSG0_CTRL0    .set    0x43004100  ; PRU0
 CTRLMMR_ICSSG0_CTRL1    .set    0x43004104  ; PRU1
 CTRLMMR_ICSSG1_CTRL0    .set    0x43004110  ; PRU0
