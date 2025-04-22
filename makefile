@@ -1,6 +1,6 @@
 OPEN_PRU_PATH ?= $(abspath .)
 # Default mcu_plus_sdk path
-MCU_PLUS_SDK_PATH ?= C:\ti\mcu_plus_sdk
+MCU_PLUS_SDK_PATH ?= C:/ti/work/mcu_plus_sdk
 
 include imports.mak
 

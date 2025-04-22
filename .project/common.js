@@ -183,7 +183,7 @@ function setInstrumentationMode(mode)
     genInstrumentationMode = mode;
 }
 
-let mcu_plus_sdk_path = "C:\ti\mcu_plus_sdk"
+let mcu_plus_sdk_path = "C:/ti/work/mcu_plus_sdk"
 
 function setMcuPlusSdkPath(path)
 {

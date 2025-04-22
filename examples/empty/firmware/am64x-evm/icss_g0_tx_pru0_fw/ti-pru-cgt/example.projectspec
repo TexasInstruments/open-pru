@@ -12,7 +12,7 @@
     <project
         title="Empty"
         name = "empty_am64x-evm_icss_g0_tx_pru0_fw_ti-pru-cgt"
-        products="com.ti.OPEN_PRU;com.ti.MCU_PLUS_SDK_AM64X"
+        products="com.ti.OPEN_PRU;com.ti.MCU_PLUS_SDK_AMXXX"
         configurations="
                 Debug,
                 Release,
@@ -65,7 +65,7 @@
             linkerBuildOptions="
             "
         ></configuration>
-        <pathVariable name="MCU_PLUS_SDK_PATH" path="${COM_TI_MCU_PLUS_SDK_AM64X_INSTALL_DIR}" scope="project" />
+        <pathVariable name="MCU_PLUS_SDK_PATH" path="${COM_TI_MCU_PLUS_SDK_AMXXX_INSTALL_DIR}" scope="project" />
         <pathVariable name="OPEN_PRU_PATH" path="${COM_TI_OPEN_PRU_INSTALL_DIR}" scope="project" />
         <file path="../../../main.asm" openOnCreation="false" excludeFromBuild="false" action="copy">
         </file>
