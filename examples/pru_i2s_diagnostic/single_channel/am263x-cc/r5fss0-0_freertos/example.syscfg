@@ -1,8 +1,9 @@
 /**
  * These arguments were used when this file was generated. They will be automatically applied on subsequent loads
  * via the GUI or CLI. Run CLI with '--help' for additional information on how to override these arguments.
- * @cliArgs --device "AM263x_beta" --package "ZCZ" --part "AM263x" --context "r5fss0-0" --product "MCU_PLUS_SDK@07.03.00"
- * @versions {"tool":"1.8.0+1785"}
+ * @cliArgs --device "AM263x_beta" --part "AM263x" --package "ZCZ" --context "r5fss0-0" --product "OPEN_PRU@07.03.01" --product "MCU_PLUS_SDK@07.03.01"
+ * @v2CliArgs --device "AM2631-Q1" --package "NFBGA (ZCZ)" --context "r5fss0-0" --product "OPEN_PRU@07.03.01" --product "MCU_PLUS_SDK@07.03.01"
+ * @versions {"tool":"1.22.0+3893"}
  */
 
 /**
@@ -168,7 +169,7 @@ region1.memory_region[9].$name               = "OCRAM_256K3_RAM";
 region1.memory_region[10].auto               = false;
 region1.memory_region[10].manualStartAddress = 0x70100000;
 region1.memory_region[10].$name              = "OCRAM_256K4_RAM";
-region1.memory_region[10].size               = 0x40000;
+region1.memory_region[10].size               = 0xD0000;
 
 section1.load_memory                  = "R5F_VECS";
 section1.group                        = false;
@@ -280,29 +281,29 @@ section10.output_section.create(1);
 section10.output_section[0].$name     = ".bss.ipc_vring_mem";
 section10.output_section[0].alignment = 0;
 
-section11.$name                   = "CONFIG_SECTION0";
-section11.type                    = "NOLOAD";
-section11.group                   = false;
-section11.load_memory             = "OCRAM_256K3_RAM";
+section11.$name                       = "CONFIG_SECTION0";
+section11.group                       = false;
+section11.load_memory                 = "OCRAM_256K3_RAM";
 section11.output_section.create(1);
-section11.output_section[0].$name = ".PruI2s1RxPingPongBuf";
+section11.output_section[0].$name     = ".PruI2s1RxPingPongBuf";
+section11.output_section[0].alignment = 0;
 
-section12.$name                   = "CONFIG_SECTION1";
-section12.type                    = "NOLOAD";
-section12.group                   = false;
-section12.load_memory             = "OCRAM_256K4_RAM";
+section12.$name                       = "CONFIG_SECTION1";
+section12.group                       = false;
+section12.load_memory                 = "OCRAM_256K4_RAM";
 section12.output_section.create(1);
-section12.output_section[0].$name = ".TxBuf";
-section12.output_section[0].fill  = 2863329520;
+section12.output_section[0].$name     = ".TxBuf";
+section12.output_section[0].fill      = 2863329520;
+section12.output_section[0].alignment = 0;
 
 section13.$name                        = "CONFIG_SECTION2";
 section13.group                        = false;
-section13.type                         = "NOLOAD";
 section13.load_memory                  = "OCRAM_256K4_RAM";
 section13.output_section.create(1);
 section13.output_section[0].fill       = 1431655765;
 section13.output_section[0].$name      = ".RxBuf";
 section13.output_section[0].macro_name = "RXBUF_SECTION";
+section13.output_section[0].alignment  = 0;
 
 /**
  * Pinmux solution for unlocked pins/peripherals. This ensures that minor changes to the automatic solver in a future

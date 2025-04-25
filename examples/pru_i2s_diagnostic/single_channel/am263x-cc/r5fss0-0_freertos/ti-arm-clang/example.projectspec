@@ -108,6 +108,8 @@
         </file>
         <file path="../../../../ioexp_tca6416.h" openOnCreation="false" excludeFromBuild="true" action="copy">
         </file>
+        <file path="../../../../data.h" openOnCreation="false" excludeFromBuild="true" action="copy">
+        </file>
         <file path="syscfg_c.rov.xs" openOnCreation="false" excludeFromBuild="false" action="copy">
         </file>
         <file path="makefile_ccs_bootimage_gen" openOnCreation="false" excludeFromBuild="false" action="copy">

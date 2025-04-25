@@ -26,13 +26,11 @@ const includes = {
         "${OPEN_PRU_PATH}/source/pru_i2s/firmware",
     ],
 };
-
 const defines = {
     common: [
-        "PRU0",
-        "I2S_TX",
-        "NUMBER_OF_TX_3",
-        "I2S_TX_DETECT_UNDERFLOW",
+        "PRU1",
+        "I2S_RX",
+        "I2S_RX_DETECT_OVERFLOW"
     ],
 };
 
@@ -47,20 +45,20 @@ const lflags = {
 function getmakefilePruPostBuildSteps(cpu, board)
 {
     return  [
-        "$(CG_TOOL_ROOT)/bin/hexpru --diag_wrap=off --array --array:name_prefix=pru_prupru_i2s0_image_0 -o pru_i2s_pru0_array.h  pru_i2s_pru0_array_" + board + "_" + cpu + "_fw_ti-pru-cgt.out;"+ 
-        "$(CAT) ${OPEN_PRU_PATH}/mcu_plus_sdk/source/pru_io/firmware/pru_load_bin_copyright.h pru_i2s_pru0_array.h > ${OPEN_PRU_PATH}/source/pru_i2s/firmware/pru_i2s_pru0_array.h;"+ 
-        "$(RM) pru_i2s_pru0_array.h;"
+        "$(CG_TOOL_ROOT)/bin/hexpru --diag_wrap=off --array --array:name_prefix=pru_prupru_i2s1_image_0 -o pru_i2s_pru1_array.h  pru_i2s_pru1_array_" + board + "_" + cpu + "_fw_ti-pru-cgt.out;"+ 
+        "$(CAT) ${OPEN_PRU_PATH}/mcu_plus_sdk/source/pru_io/firmware/pru_load_bin_copyright.h pru_i2s_pru1_array.h > ${OPEN_PRU_PATH}/source/pru_i2s/firmware/pru_i2s_pru1_array.h;"+ 
+        "$(RM) pru_i2s_pru1_array.h;"
     ];
 }
 
 function getccsPruPostBuildSteps(cpu, board)
 {
     return  [
-        "$(CG_TOOL_ROOT)/bin/hexpru --diag_wrap=off --array --array:name_prefix=pru_prupru_i2s0_image_0 -o pru_i2s_pru0_array.h  pru_i2s_pru0_array_" + board + "_" + cpu + "_fw_ti-pru-cgt.out;"+ 
-        "if ${CCS_HOST_OS} == linux cat ${OPEN_PRU_PATH}/mcu_plus_sdk/source/pru_io/firmware/pru_load_bin_copyright.h pru_i2s_pru0_array.h > ${OPEN_PRU_PATH}/source/pru_i2s/firmware/pru_i2s_pru0_array.h;"+ 
-        "if ${CCS_HOST_OS} == linux rm pru_i2s_pru0_array.h;"+
-        "if ${CCS_HOST_OS} == win32  $(CCS_INSTALL_DIR)/utils/cygwin/cat ${OPEN_PRU_PATH}/mcu_plus_sdk/source/pru_io/firmware/pru_load_bin_copyright.h pru_i2s_pru0_array.h > ${OPEN_PRU_PATH}/source/pru_i2s/firmware/pru_i2s_pru0_array.h;"+ 
-        "if ${CCS_HOST_OS} == win32  $(CCS_INSTALL_DIR)/utils/cygwin/rm pru_i2s_pru0_array.h;"
+        "$(CG_TOOL_ROOT)/bin/hexpru --diag_wrap=off --array --array:name_prefix=pru_prupru_i2s1_image_0 -o pru_i2s_pru1_array.h  pru_i2s_pru1_array_" + board + "_" + cpu + "_fw_ti-pru-cgt.out;"+ 
+        "if ${CCS_HOST_OS} == linux cat ${OPEN_PRU_PATH}/mcu_plus_sdk/source/pru_io/firmware/pru_load_bin_copyright.h pru_i2s_pru1_array.h > ${OPEN_PRU_PATH}/source/pru_i2s/firmware/pru_i2s_pru1_array.h;"+ 
+        "if ${CCS_HOST_OS} == linux rm pru_i2s_pru1_array.h;"+
+        "if ${CCS_HOST_OS} == win32  $(CCS_INSTALL_DIR)/utils/cygwin/cat ${OPEN_PRU_PATH}/mcu_plus_sdk/source/pru_io/firmware/pru_load_bin_copyright.h pru_i2s_pru1_array.h > ${OPEN_PRU_PATH}/source/pru_i2s/firmware/pru_i2s_pru1_array.h;"+ 
+        "if ${CCS_HOST_OS} == win32  $(CCS_INSTALL_DIR)/utils/cygwin/rm pru_i2s_pru1_array.h;"
     ];
 }
 
@@ -68,7 +66,7 @@ function getccsPruPostBuildSteps(cpu, board)
 const readmeDoxygenPageTag = "pru_i2s_DESIGN";
 
 const buildOptionCombos = [
-    { device: device, cpu: "icssm0-pru0", cgt: "ti-pru-cgt", board: "am263x-cc", os: "fw"},
+    { device: device, cpu: "icssm0-pru1", cgt: "ti-pru-cgt", board: "am263x-cc", os: "fw"},
 ];
 
 function getComponentProperty() {
@@ -77,7 +75,7 @@ function getComponentProperty() {
     property.dirPath = path.resolve(__dirname, "..");
     property.type = "executable";
     property.makefile = "pru";
-    property.name = "pru_i2s_pru0_array";
+    property.name = "pru_i2s_pru1_array";
     property.description = "pru_i2s Firmware for PRU-ICSS running at 225 MHz";
     property.isInternal = false;
     property.buildOptionCombos = buildOptionCombos;

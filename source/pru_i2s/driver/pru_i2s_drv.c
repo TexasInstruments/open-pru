@@ -54,6 +54,7 @@
 #include "pru_i2s/firmware/icss_pru_i2s_fw.h"
 /* FW image data */
 #include "pru_i2s/firmware/pru_i2s_pru0_array.h"  /* PRU0 */
+#include "pru_i2s/firmware/pru_i2s_pru1_array.h"  /* PRU1 */
 #define CONFIG_PRU_ICSS0 (0U)
 /* Number of ICSS instances */
 #define PRUI2S_NUM_ICSS_INST            ( 2 )
@@ -327,9 +328,8 @@ static PRUI2S_Config gPruI2sConfig[PRU_I2S_NUM_CONFIG] =
 static PRUI2S_PruFwImageInfo gPruFwImageInfo[PRU_I2S_NUM_PRU_IMAGE] =
 {
     {pru_prupru_i2s0_image_0_0, pru_prupru_i2s0_image_0_1, sizeof(pru_prupru_i2s0_image_0_0), sizeof(pru_prupru_i2s0_image_0_1)},
-    
+    {pru_prupru_i2s1_image_0_0, pru_prupru_i2s1_image_0_1, sizeof(pru_prupru_i2s1_image_0_0), sizeof(pru_prupru_i2s1_image_0_1)}
 };
-
 /* Flag indicate whether ICSS INTC initialized */
 static Bool gIcssIntcInitFlag[PRUI2S_NUM_ICSS_INST] = {FALSE, FALSE};
 /* PRU I2S ICSSG configuration info */

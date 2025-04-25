@@ -60,7 +60,7 @@ all: $(OBJS) $(CMD_SRCS)
 $(OBJDIR)/%.obj %.obj: %.asm
 	@echo 'Building file: "$^"'
 	@echo 'Invoking: PRU Compiler'
-	"$(CGT_TI_PRU_PATH)/bin/clpru" -DPRU0 -DSLICE0 -v4 --define=SOC_AM263X --define=PRU0 --define=ICSS_M_V_1_0 --define=I2S_TX --define=I2S_TX_DETECT_UNDERFLOW --include_path="${CG_TOOL_ROOT}/include" --include_path="${MCU_PLUS_SDK_PATH}/source" --include_path="${OPEN_PRU_PATH}/source" --include_path="${OPEN_PRU_PATH}/source/pru_i2s/firmware"  --define=_DEBUG_=1 -g --diag_warning=225 --diag_wrap=off --display_error_number --endian=little --preproc_with_compile --preproc_dependency="$(basename $(<F)).d_raw" $^
+	"$(CGT_TI_PRU_PATH)/bin/clpru" -DPRU0 -DSLICE0 -v4 --define=SOC_AM263X --define=PRU0 --define=I2S_TX --define=NUMBER_OF_TX_3 --define=I2S_TX_DETECT_UNDERFLOW --include_path="${CG_TOOL_ROOT}/include" --include_path="${MCU_PLUS_SDK_PATH}/source" --include_path="${OPEN_PRU_PATH}/source" --include_path="${OPEN_PRU_PATH}/source/pru_i2s/firmware"  --define=_DEBUG_=1 -g --diag_warning=225 --diag_wrap=off --display_error_number --endian=little --preproc_with_compile --preproc_dependency="$(basename $(<F)).d_raw" $^
 	@echo 'Finished building: "$^"'
 	@echo ' '
 
@@ -68,7 +68,7 @@ $(OBJDIR)/%.obj %.obj: %.asm
 pru_i2s_pru0_array_am263x-cc_icssm0-pru0_fw_ti-pru-cgt.out: $(OBJS) $(CMD_SRCS)
 	@echo 'Building target: "$@"'
 	@echo 'Invoking: PRU Linker'
-	"$(CGT_TI_PRU_PATH)/bin/clpru" -DPRU0 -DSLICE0 -v4 --define=SOC_AM263X --define=PRU0 --define=ICSS_M_V_1_0 --define=I2S_TX --define=I2S_TX_DETECT_UNDERFLOW  --define=_DEBUG_=1 -g --diag_warning=225 --diag_wrap=off --display_error_number --endian=little -z -m"pru_i2s_pru0_array_am263x-cc_icssm0-pru0_fw_ti-pru-cgt.map" --disable_auto_rts   --diag_wrap=off --display_error_number --warn_sections --xml_link_info="pru_i2s_pru0_array_am263x-cc_icssm0-pru0_fw_ti-pru-cgt_linkInfo.xml" --disable_auto_rts --disable_auto_rts --diag_suppress=10063-D --entry_point=main  --rom_model -o "pru_i2s_pru0_array_am263x-cc_icssm0-pru0_fw_ti-pru-cgt.out" $^
+	"$(CGT_TI_PRU_PATH)/bin/clpru" -DPRU0 -DSLICE0 -v4 --define=SOC_AM263X --define=PRU0 --define=I2S_TX --define=NUMBER_OF_TX_3 --define=I2S_TX_DETECT_UNDERFLOW  --define=_DEBUG_=1 -g --diag_warning=225 --diag_wrap=off --display_error_number --endian=little -z -m"pru_i2s_pru0_array_am263x-cc_icssm0-pru0_fw_ti-pru-cgt.map" --disable_auto_rts   --diag_wrap=off --display_error_number --warn_sections --xml_link_info="pru_i2s_pru0_array_am263x-cc_icssm0-pru0_fw_ti-pru-cgt_linkInfo.xml" --disable_auto_rts --disable_auto_rts --diag_suppress=10063-D --entry_point=main  --rom_model -o "pru_i2s_pru0_array_am263x-cc_icssm0-pru0_fw_ti-pru-cgt.out" $^
 	@echo 'Finished building target: "$@"'
 	@echo ' '
 	@$(MAKE) --no-print-directory post-build

@@ -102,7 +102,7 @@ CONTIUNE_INIT:
 
 
 
-
+	.if	$isdefed("I2S_TX")
 	; these 3 pseudoinstructions are used for each additional output bit
 	; move the bit of audio data we are going to output next to the LSb of r30_value
 	LSR	r30_value, ch0_data_tx, tx_sd_counter
@@ -110,7 +110,7 @@ CONTIUNE_INIT:
 	AND	r30_value, r30_value, 1
 	;Move the LSb to the required position
 	LSL r30_value, r30_value, I2S_INSTANCE1_SD_TX_PIN_SHIFT
-
+	.endif
 
 
 	.if	$isdefed("I2S_PROFILE_FW")
@@ -205,11 +205,7 @@ BCLK_RISING_EDGE_LOW:
 
 	; Read FS.
 	AND fs_level, r31, i2s_instance_fs_pin_pos
-	.if	$isdefed("I2S_TX")
-	.if	!$isdefed("I2S_RX")
-CONTINUE_TX_PROCESSING:
-	.endif
-	.endif
+CONTINUE_PROCESSING:
 	; if fs_counter = 0x0, then do tx buffer management
 	QBEQ	MANAGE_TX_BUFFERS, fs_counter, 0x0
 	.if $isdefed("SOC_AM64X")
@@ -306,7 +302,7 @@ LOAD_AUDIO_DATA:
 	JMP	BCLK_FALLING_EDGE_HIGH
 
 MANAGE_RX_BUFFERS:
-	JMP	CONTINUE_TX_PROCESSING
+	JMP	CONTINUE_PROCESSING
 
 MANAGE_TX_BUFFERS:
 	.if	$isdefed("I2S_TX")
@@ -381,9 +377,10 @@ STORE_TX_PING_PONG_STAT:
 
 BCLK_FALLING_EDGE_HIGH:
 
-
+	.if	$isdefed("I2S_TX")
 	; write to R30 as soon as we see the falling clock edge
 	MOV	r30, r30_value
+	.endif
 ff:
 	QBBS	ff, r31, I2S_INSTANCE_BCLK_PIN
 	
@@ -426,11 +423,13 @@ RESET_SD_COUNTER:
 PREPARE_INPUT:
 		; these 3 pseudoinstructions are used for each additional output bit
 	; move the bit of audio data we are going to output next to the LSb of r30_value
+	.if	$isdefed("I2S_TX")
 	LSR	r30_value, ch0_data_tx, tx_sd_counter
 	;Remove other bits
 	AND	r30_value, r30_value, 1
 	;Move the LSb to the required position
 	LSL r30_value, r30_value, I2S_INSTANCE1_SD_TX_PIN_SHIFT
+	.endif
 	JMP	BCLK_RISING_EDGE_LOW
 ERROR_HANDLING_UNDERFLOW:
 	SET err_stat, err_stat, I2S_TXUNDERFLOW_ERROR_POSITION

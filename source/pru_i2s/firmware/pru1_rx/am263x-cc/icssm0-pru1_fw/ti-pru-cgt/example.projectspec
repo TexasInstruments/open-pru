@@ -10,8 +10,8 @@
     </applicability>
 
     <project
-        title="Pru I2s Pru0 Array"
-        name = "pru_i2s_pru0_array_am263x-cc_icssm0-pru0_fw_ti-pru-cgt"
+        title="Pru I2s Pru1 Array"
+        name = "pru_i2s_pru1_array_am263x-cc_icssm0-pru1_fw_ti-pru-cgt"
         products="com.ti.OPEN_PRU;com.ti.MCU_PLUS_SDK_AMXXX"
         configurations="
             Release,
@@ -33,17 +33,16 @@
             -I${MCU_PLUS_SDK_PATH}/source
             -I${OPEN_PRU_PATH}/source
             -I${OPEN_PRU_PATH}/source/pru_i2s/firmware
-            -DPRU0
-            -DSLICE0
+            -DPRU1
+            -DSLICE1
             -v4
             -DSOC_AM263X
-            -DPRU0
-            -DI2S_TX
-            -DNUMBER_OF_TX_3
-            -DI2S_TX_DETECT_UNDERFLOW
+            -DPRU1
+            -DI2S_RX
+            -DI2S_RX_DETECT_OVERFLOW
         "
         linkerBuildOptions="
-            -m=pru_i2s_pru0_array.${ConfigName}.map
+            -m=pru_i2s_pru1_array.${ConfigName}.map
             --disable_auto_rts
             --disable_auto_rts
             --diag_suppress=10063-D
@@ -51,10 +50,10 @@
         "
 
         postBuildStep="
-            $(CG_TOOL_ROOT)/bin/hexpru --diag_wrap=off --array --array:name_prefix=pru_prupru_i2s0_image_0 -o pru_i2s_pru0_array.h  pru_i2s_pru0_array_am263x-cc_icssm0-pru0_fw_ti-pru-cgt.out;if ${CCS_HOST_OS} == linux cat ${OPEN_PRU_PATH}/mcu_plus_sdk/source/pru_io/firmware/pru_load_bin_copyright.h pru_i2s_pru0_array.h > ${OPEN_PRU_PATH}/source/pru_i2s/firmware/pru_i2s_pru0_array.h;if ${CCS_HOST_OS} == linux rm pru_i2s_pru0_array.h;if ${CCS_HOST_OS} == win32  $(CCS_INSTALL_DIR)/utils/cygwin/cat ${OPEN_PRU_PATH}/mcu_plus_sdk/source/pru_io/firmware/pru_load_bin_copyright.h pru_i2s_pru0_array.h > ${OPEN_PRU_PATH}/source/pru_i2s/firmware/pru_i2s_pru0_array.h;if ${CCS_HOST_OS} == win32  $(CCS_INSTALL_DIR)/utils/cygwin/rm pru_i2s_pru0_array.h;
+            $(CG_TOOL_ROOT)/bin/hexpru --diag_wrap=off --array --array:name_prefix=pru_prupru_i2s1_image_0 -o pru_i2s_pru1_array.h  pru_i2s_pru1_array_am263x-cc_icssm0-pru1_fw_ti-pru-cgt.out;if ${CCS_HOST_OS} == linux cat ${OPEN_PRU_PATH}/mcu_plus_sdk/source/pru_io/firmware/pru_load_bin_copyright.h pru_i2s_pru1_array.h > ${OPEN_PRU_PATH}/source/pru_i2s/firmware/pru_i2s_pru1_array.h;if ${CCS_HOST_OS} == linux rm pru_i2s_pru1_array.h;if ${CCS_HOST_OS} == win32  $(CCS_INSTALL_DIR)/utils/cygwin/cat ${OPEN_PRU_PATH}/mcu_plus_sdk/source/pru_io/firmware/pru_load_bin_copyright.h pru_i2s_pru1_array.h > ${OPEN_PRU_PATH}/source/pru_i2s/firmware/pru_i2s_pru1_array.h;if ${CCS_HOST_OS} == win32  $(CCS_INSTALL_DIR)/utils/cygwin/rm pru_i2s_pru1_array.h;
         "
 
-        description="A Pru I2s Pru0 Array FW project">
+        description="A Pru I2s Pru1 Array FW project">
 
         <configuration name="Debug"
             compilerBuildOptions="

@@ -36,14 +36,14 @@
 #include "ti_drivers_config.h"
 #include "ti_drivers_open_close.h"
 #include "ti_board_open_close.h"
-
+#include "data.h"
 #include "pru_i2s/include/pru_i2s_drv.h"
 #include <stdint.h>
-
 #include "ioexp_tca6416.h"
 #define TEST_PRUI2S0_IDX    ( 0 )   /* Test PRU I2S 0 index */
 #define TEST_PRUI2S1_IDX    ( 1 )   /* Test PRU I2S 1 index */
 
+#define TDM4 ( 1 ) /* TDM4 mode */ 
 /* Configure I2C IO Expander */
 void i2s_i2c_io_expander(void);
 /* PRU I2S 0 Tx IRQ handler */
@@ -55,43 +55,6 @@ void pruI2s0ErrIrqHandler(void *args);
 void pruI2s1RxIrqHandler(void *args);
 /* PRU I2S 1 Error IRQ handler */
 void pruI2s1ErrIrqHandler(void *args);
-
-/* Tx ping/pong buffer addresses in ICSSG SHMEM (local PRU view, not SoC view) */
-#define PRUI2S0_TX_PING_PONG_BASE_ADDR  ( 0x10000 )
-
-/* PRU I2S0 total Tx ping+pong buffer size in bytes
-    32 sample/channel * (4 byte/sample) * (2 channel/I2S) * (3 I2S/PP buffer) = 768 byte/PP buffer
-    768 byte/PP buffer * 2 PP buffer = 1536 bytes
-*/
-#define PRUI2S0_TX_PING_PONG_BUF_SZ     ( 1536 )
-/* PRU I2S0 total Tx ping+pong buffer size in 32-bit words */
-#define PRUI2S0_TX_PING_PONG_BUF_SZ_32B ( PRUI2S0_TX_PING_PONG_BUF_SZ/4 )
-
-/* PRU I2S1 total Rx ping+pong buffer size in bytes
-    32 sample/channel * (4 byte/sample) * (2 channel/I2S) * (2 I2S/PP buffer) = 512 byte/PP buffer
-    512 byte/PP buffer * 2 PP buffer = 1024 bytes
-*/
-#define PRUI2S1_RX_PING_PONG_BUF_SZ     ( 1536 )
-/* PRU I2S1 total Rx ping+pong buffer size in 32-bit words */
-#define PRUI2S1_RX_PING_PONG_BUF_SZ_32B ( PRUI2S1_RX_PING_PONG_BUF_SZ/4 )
-
-/* Rx ping/pong buffers */
-__attribute__((section(".PruI2s1RxPingPongBuf"))) int32_t gPruI2s1RxPingPongBuf[PRUI2S1_RX_PING_PONG_BUF_SZ_32B];
-
-/* Tx buffers -- interleaved format */
-#define TX_BUF_SZ       ( PRUI2S0_TX_PING_PONG_BUF_SZ/2*60 )    /* 60 PP buffers */
-#define TX_BUF_SZ_32B   ( TX_BUF_SZ/4 )
-__attribute__((section(".TxBuf"))) int32_t gPruI2s0TxBuf[TX_BUF_SZ_32B] = {0xaaaaffff,0x0000aaaa,0x0000ffff,0xaaaa0000,0xaaaaffff,0x0000aaaa,0x0000ffff,0xaaaa0000,0xaaaaffff,0x0000aaaa,0x0000ffff,0xaaaa0000,0xaaaaffff,0x0000aaaa,0x0000ffff,0xaaaa0000,0xaaaaffff,0x0000aaaa,0x0000ffff,0xaaaa0000,0xaaaaffff,0x0000aaaa,0x0000ffff,0xaaaa0000,0xaaaaffff,0x0000aaaa,0x0000ffff,0xaaaa0000,0xaaaaffff,0x0000aaaa,0x0000ffff,0xaaaa0000,
-0xaaaaffff,0x0000aaaa,0x0000ffff,0xaaaa0001,0xaaaaffff,0x0000aaaa,0x0000ffff,0xaaaa0000,0xaaaaffff,0x0000aaaa,0x0000ffff,0xaaaa0000,0xaaaaffff,0x0000aaaa,0x0000ffff,0xaaaa0000,0xaaaaffff,0x0000aaaa,0x0000ffff,0xaaaa0000,0xaaaaffff,0x0000aaaa,0x0000ffff,0xaaaa0000,0xaaaaffff,0x0000aaaa,0x0000ffff,0xaaaa0000,0xaaaaffff,0x0000aaaa,0x0000ffff,0xaaaa0000,
-0xaaaaffff,0x0000aaaa,0x0000ffff,0xaaaa0000,0xaaaaffff,0x0000aaaa,0x0000ffff,0xaaaa0000,0xaaaaffff,0x0000aaaa,0x0000ffff,0xaaaa0000,0xaaaaffff,0x0000aaaa,0x0000ffff,0xaaaa0000,0xaaaaffff,0x0000aaaa,0x0000ffff,0xaaaa0000,0xaaaaffff,0x0000aaaa,0x0000ffff,0xaaaa0000,0xaaaaffff,0x0000aaaa,0x0000ffff,0xaaaa0000,0xaaaaffff,0x0000aaaa,0x0000ffff,0xaaaa0000,
-0xaaaaffff,0x0000aaaa,0x0000ffff,0xaaaa0000,0xaaaaffff,0x0000aaaa,0x0000ffff,0xaaaa0000,0xaaaaffff,0x0000aaaa,0x0000ffff,0xaaaa0000,0xaaaaffff,0x0000aaaa,0x0000ffff,0xaaaa0000,0xaaaaffff,0x0000aaaa,0x0000ffff,0xaaaa0000,0xaaaaffff,0x0000aaaa,0x0000ffff,0xaaaa0000,0xaaaaffff,0x0000aaaa,0x0000ffff,0xaaaa0000,0xaaaaffff,0x0000aaaa,0x0000ffff,0xaaaa0000,
-0xaaaaffff,0x0000aaaa,0x0000ffff,0xaaaa0000,0xaaaaffff,0x0000aaaa,0x0000ffff,0xaaaa0000,0xaaaaffff,0x0000aaaa,0x0000ffff,0xaaaa0000,0xaaaaffff,0x0000aaaa,0x0000ffff,0xaaaa0000,0xaaaaffff,0x0000aaaa,0x0000ffff,0xaaaa0000,0xaaaaffff,0x0000aaaa,0x0000ffff,0xaaaa0000,0xaaaaffff,0x0000aaaa,0x0000ffff,0xaaaa0000,0xaaaaffff,0x0000aaaa,0x0000ffff,0xaaaa0000,
-0xaaaaffff,0x0000aaaa,0x0000ffff,0xaaaa0000,0xaaaaffff,0x0000aaaa,0x0000ffff,0xaaaa0000,0xaaaaffff,0x0000aaaa,0x0000ffff,0xaaaa0000,0xaaaaffff,0x0000aaaa,0x0000ffff,0xaaaa0000,0xaaaaffff,0x0000aaaa,0x0000ffff,0xaaaa0000,0xaaaaffff,0x0000aaaa,0x0000ffff,0xaaaa0000,0xaaaaffff,0x0000aaaa,0x0000ffff,0xaaaa0000,0xaaaaffff,0x0000aaaa,0x0000ffff,0xaaaa0000,
-0xaaaaffff,0x0000aaaa,0x0000ffff,0xaaaa0000,0xaaaaffff,0x0000aaaa,0x0000ffff,0xaaaa0000,0xaaaaffff,0x0000aaaa,0x0000ffff,0xaaaa0000,0xaaaaffff,0x0000aaaa,0x0000ffff,0xaaaa0000,0xaaaaffff,0x0000aaaa,0x0000ffff,0xaaaa0000,0xaaaaffff,0x0000aaaa,0x0000ffff,0xaaaa0000,0xaaaaffff,0x0000aaaa,0x0000ffff,0xaaaa0000,0xaaaaffff,0x0000aaaa,0x0000ffff,0xaaaa0000,
-0xaaaaffff,0x0000aaaa,0x0000ffff,0xaaaa0000,0xaaaaffff,0x0000aaaa,0x0000ffff,0xaaaa0000,0xaaaaffff,0x0000aaaa,0x0000ffff,0xaaaa0000,0xaaaaffff,0x0000aaaa,0x0000ffff,0xaaaa0000,0xaaaaffff,0x0000aaaa,0x0000ffff,0xaaaa0000,0xaaaaffff,0x0000aaaa,0x0000ffff,0xaaaa0000,0xaaaaffff,0x0000aaaa,0x0000ffff,0xaaaa0000,0xaaaaffff,0x0000aaaa,0x0000ffff,0xaaaa0000
-};
-
-
 
 /* Rx buffers -- interleaved format */
 #define RX_BUF_SZ       ( PRUI2S1_RX_PING_PONG_BUF_SZ/2*60 )    /* 60 PP buffers */
@@ -396,19 +359,21 @@ void pru_i2s_diagnostic_main(void *args)
            gPruI2s0WrtErrCnt++;
        }
         /* Wait for all PRU I2S events */
-        //SemaphoreP_pend(&gPruI2s1RxSemObj, SystemP_WAIT_FOREVER);
+#ifndef TDM4
+        SemaphoreP_pend(&gPruI2s1RxSemObj, SystemP_WAIT_FOREVER);
+#endif
         SemaphoreP_pend(&gPruI2s0TxSemObj, SystemP_WAIT_FOREVER);
         gLoopCnt++;
-
+#ifndef TDM4
         /* Read next PRU I2S1 Rx ping/pong buffer */
-//        PRUI2S_ioBufInit(&rdIoBuf);
-//        rdIoBuf.ioBufAddr = gPPruI2s1RxBuf;
-//        status = PRUI2S_read(hPruI2s1, &rdIoBuf);
-//        if (status != PRUI2S_DRV_SOK)
-//        {
-//            gPruI2s1RdErrCnt++;
-//        }
-        
+        PRUI2S_ioBufInit(&rdIoBuf);
+        rdIoBuf.ioBufAddr = gPPruI2s1RxBuf;
+        status = PRUI2S_read(hPruI2s1, &rdIoBuf);
+        if (status != PRUI2S_DRV_SOK)
+        {
+            gPruI2s1RdErrCnt++;
+        }
+#endif        
 #ifdef _DBG_PRUI2S_RX_TO_TX_LB
         pSrc32b = gPPruI2s1RxBuf;
         pDst32b = gPPruI2s0TxBuf;
@@ -439,16 +404,16 @@ void pru_i2s_diagnostic_main(void *args)
 #endif
         
 
-        
-//        /* Update PRU I2S1 Rx buffer pointer & count */
-//        gPruI2s1RxCnt += gPruI2s1XferSz;
-//        gPPruI2s1RxBuf += gPruI2s1XferSz;
-//        if (gPruI2s1RxCnt >= RX_BUF_SZ_32B)
-//        {
-//            gPPruI2s1RxBuf = &gPruI2s1RxBuf[0];
-//            gPruI2s1RxCnt = 0;
-//        }
-        
+#ifndef TDM4	        
+        /* Update PRU I2S1 Rx buffer pointer & count */
+        gPruI2s1RxCnt += gPruI2s1XferSz;
+        gPPruI2s1RxBuf += gPruI2s1XferSz;
+        if (gPruI2s1RxCnt >= RX_BUF_SZ_32B)
+        {
+            gPPruI2s1RxBuf = &gPruI2s1RxBuf[0];
+            gPruI2s1RxCnt = 0;
+        }
+#endif        
         /* Update PRU I2S0 Tx buffer pointer & count */
         gPruI2s0TxCnt += gPruI2s0XferSz;
         gPPruI2s0TxBuf += gPruI2s0XferSz;
