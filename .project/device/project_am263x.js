@@ -12,8 +12,10 @@ const device_defines = {
 
 const example_file_list = [
     "examples/pru_i2s_diagnostic/single_channel/.project/project.js",
-    "source/pru_i2s/firmware/pru0_tx/.project/project.js",
-    "source/pru_i2s/firmware/pru1_rx/.project/project.js",
+    "source/pru_i2s/firmware/TDM4/pru0_tx/.project/project.js",
+    "source/pru_i2s/firmware/TDM4/pru1_rx/.project/project.js",
+    "source/pru_i2s/firmware/I2S/pru0_tx/.project/project.js",
+    "source/pru_i2s/firmware/I2S/pru1_rx/.project/project.js",
 ];
 
 function getProjectSpecCpu(cpu) {

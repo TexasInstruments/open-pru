@@ -43,7 +43,22 @@
 #define TEST_PRUI2S0_IDX    ( 0 )   /* Test PRU I2S 0 index */
 #define TEST_PRUI2S1_IDX    ( 1 )   /* Test PRU I2S 1 index */
 
-#define TDM4 ( 1 ) /* TDM4 mode */ 
+#define TDM4 ( 1 ) /* TDM4 mode */
+#ifdef TDM4
+/* FW image data */
+#include "pru_i2s/firmware/TDM4/pru_i2s_tdm4_pru0_array.h"  /* PRU0 */
+#include "pru_i2s/firmware/TDM4/pru_i2s_tdm4_pru1_array.h"  /* PRU1 */
+#else
+/* FW image data */
+#include "pru_i2s/firmware/I2S/pru_i2s_pru0_array.h"  /* PRU0 */
+#include "pru_i2s/firmware/I2S/pru_i2s_pru1_array.h"  /* PRU1 */
+#endif
+/* PRU I2S PRU image info */
+static PRUI2S_PruFwImageInfo gPruFwImageInfo[PRU_I2S_NUM_PRU_IMAGE] =
+{
+    {pru_prupru_i2s0_image_0_0, pru_prupru_i2s0_image_0_1, sizeof(pru_prupru_i2s0_image_0_0), sizeof(pru_prupru_i2s0_image_0_1)},
+    {pru_prupru_i2s1_image_0_0, pru_prupru_i2s1_image_0_1, sizeof(pru_prupru_i2s1_image_0_0), sizeof(pru_prupru_i2s1_image_0_1)}
+};
 /* Configure I2C IO Expander */
 void i2s_i2c_io_expander(void);
 /* PRU I2S 0 Tx IRQ handler */
@@ -224,7 +239,7 @@ void pru_i2s_diagnostic_main(void *args)
     }
 
     /* Initialize PRU I2S driver */
-    status = PRUI2S_init(&numValidCfg);
+    status = PRUI2S_init(&numValidCfg, &gPruFwImageInfo);
     if (status == PRUI2S_DRV_SERR_INIT_FWIMG)
     {
         DebugP_log("WARNING: PRUI2S_init() no FW image for configuration\r\n");
