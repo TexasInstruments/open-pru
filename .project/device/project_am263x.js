@@ -14,7 +14,9 @@ const example_file_list = [
     "examples/empty/firmware/.project/project.js",
     "examples/empty/.project/project.js",
     "examples/gpio_toggle/firmware/.project/project.js",
-    "examples/gpio_toggle/.project/project.js"
+    "examples/gpio_toggle/.project/project.js",
+    "examples/intc_sys_event/firmware/.project/project.js",
+    "examples/intc_sys_event/.project/project.js"
 ];
 
 function getProjectSpecCpu(cpu) {
