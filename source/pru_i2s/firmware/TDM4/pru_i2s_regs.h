@@ -30,13 +30,12 @@
 ; OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ;
 
-prux_cycle_cnt   .set r3
-max_half_cycle_cnt  .set r4
+; define registers
     .if $isdefed("I2S_PROFILE_FW")
 prux_cycle_cnt_0   .set r0
 prux_cycle_cnt_1   .set r1
 scratchreg_cycle_cnt  .set    r2
-//prux_cycle_cnt   .set r3
+prux_cycle_cnt   .set r3
 cnt_buffer_address .set r4
 cnt_buffer_address_1 .set r5
     .endif
@@ -112,3 +111,4 @@ scratchreg2         .set    r25
     .if $isdefed("I2S_TX")
     .asg    r27.b3,    do_tx_underflow_error_check
     .endif
+    .asg r29.b0 ,  current_channel_no

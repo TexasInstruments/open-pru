@@ -119,7 +119,7 @@ I2S_ERR_STAT_ADD  .set    0x1C
 
 
 ;Load 4 bytes from memory to register.
-BYTES_TO_LOAD   .set 4
+BYTES_TO_LOAD   .set 4   ; 4 bytes to load from memory for 4 bytes per channel configuration
 
 
     .if $isdefed("PRU0")
@@ -137,8 +137,8 @@ I2S_SAMPLES_PER_CHANNEL_LESS_1  .set    15 ;I2S_SAMPLES_PER_CHANNEL-1
 I2S_SAMPLES_PER_CHANNEL         .set    32
 I2S_SAMPLES_PER_CHANNEL_LESS_1  .set    31 ;I2S_SAMPLES_PER_CHANNEL-1
     .endif
-
-
+TDM_CHANNELS                    .set    4 ; TDM channel slots used in TDM mode
+MAX_TDM_CHANNELS                .set    4 ; Maximum TDM Slots (TDM4/TDM8)
                                 .if $isdefed("PRU0")
 ; Compile-time Host event for I2S Tx, pr0_pru_mst_intr[2]_intr_req
 TRIGGER_HOST_I2S_TX_EVT         .set 18 ; 2+16

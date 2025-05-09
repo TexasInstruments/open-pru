@@ -43,7 +43,7 @@
 #define TEST_PRUI2S0_IDX    ( 0 )   /* Test PRU I2S 0 index */
 #define TEST_PRUI2S1_IDX    ( 1 )   /* Test PRU I2S 1 index */
 
-#define TDM4 ( 1 ) /* TDM4 mode */
+#define TDM4 ( 1 ) /* TDM4 mode  (change to 0 for I2S)*/ 
 #ifdef TDM4
 /* FW image data */
 #include "pru_i2s/firmware/TDM4/pru_i2s_tdm4_pru0_array.h"  /* PRU0 */
@@ -374,12 +374,9 @@ void pru_i2s_diagnostic_main(void *args)
            gPruI2s0WrtErrCnt++;
        }
         /* Wait for all PRU I2S events */
-#ifndef TDM4
         SemaphoreP_pend(&gPruI2s1RxSemObj, SystemP_WAIT_FOREVER);
-#endif
         SemaphoreP_pend(&gPruI2s0TxSemObj, SystemP_WAIT_FOREVER);
         gLoopCnt++;
-#ifndef TDM4
         /* Read next PRU I2S1 Rx ping/pong buffer */
         PRUI2S_ioBufInit(&rdIoBuf);
         rdIoBuf.ioBufAddr = gPPruI2s1RxBuf;
@@ -388,7 +385,6 @@ void pru_i2s_diagnostic_main(void *args)
         {
             gPruI2s1RdErrCnt++;
         }
-#endif        
 #ifdef _DBG_PRUI2S_RX_TO_TX_LB
         pSrc32b = gPPruI2s1RxBuf;
         pDst32b = gPPruI2s0TxBuf;
@@ -419,7 +415,6 @@ void pru_i2s_diagnostic_main(void *args)
 #endif
         
 
-#ifndef TDM4	        
         /* Update PRU I2S1 Rx buffer pointer & count */
         gPruI2s1RxCnt += gPruI2s1XferSz;
         gPPruI2s1RxBuf += gPruI2s1XferSz;
@@ -428,7 +423,6 @@ void pru_i2s_diagnostic_main(void *args)
             gPPruI2s1RxBuf = &gPruI2s1RxBuf[0];
             gPruI2s1RxCnt = 0;
         }
-#endif        
         /* Update PRU I2S0 Tx buffer pointer & count */
         gPruI2s0TxCnt += gPruI2s0XferSz;
         gPPruI2s0TxBuf += gPruI2s0XferSz;

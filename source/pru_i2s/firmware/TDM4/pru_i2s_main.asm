@@ -39,7 +39,6 @@
 
 	.include "pru_i2s_interface.h"
 	.include "pru_i2s_regs.h"
-
 main:
 ;enable cyclecount
 	lbco		&R0, c11, 0x00, 4
@@ -83,22 +82,28 @@ CONTIUNE_INIT:
 	.if	$isdefed("I2S_TX")
     LDI32   i2s_instance_fs_pin_pos, I2S_INSTANCE_FS_PIN_POS
 	.endif
+	.if	$isdefed("I2S_RX")
+    LDI32   i2s_instance_fs_pin_pos, I2S_INSTANCE_FS_PIN_POS
+    LDI32   i2s_instance1_sd_rx_pin_pos, I2S_INSTANCE1_SD_RX_PIN_POS
+    LDI32   i2s_instance2_sd_rx_pin_pos, I2S_INSTANCE2_SD_RX_PIN_POS
+	.endif
     
     LDI32	scratchreg2, I2S_TX_INSTANCE_PING_PONG_STAT_ADD
 	LDI32 	scratchreg0, 0x2
 	;Store 0x2 into TX_PING_PONG_STAT
 	SBBO	&scratchreg0, scratchreg2, 0, 1
 
-;	;I2S_RX_INSTANCE_PING_PONG_STAT_ADD = I2S_TX_INSTANCE_PING_PONG_STAT_ADD+1
-;	LDI32 	scratchreg0, 0x1
-;	;Store 0x1 into RX_PING_PONG_STAT
-;	SBBO	&scratchreg0, scratchreg2, 1, 1
+	;I2S_RX_INSTANCE_PING_PONG_STAT_ADD = I2S_TX_INSTANCE_PING_PONG_STAT_ADD+1
+	LDI32 	scratchreg0, 0x1
+	;Store 0x1 into RX_PING_PONG_STAT
+	SBBO	&scratchreg0, scratchreg2, 1, 1
 
 	;Start with Ping Buffer
 	LDI	tx_buffer_num, 0x1
 	;Start with Ping Buffer
-;	LDI	rx_buffer_num, 0x1
+	LDI	rx_buffer_num, 0x1
 	LDI	tx_sd_counter, I2S_SAMPLES_PER_CHANNEL_LESS_1
+	LDI current_channel_no,1
 
 
 
@@ -115,6 +120,14 @@ CONTIUNE_INIT:
 
 	.if	$isdefed("I2S_PROFILE_FW")
 	;Removed the Profiling code as there are no enough cycles on AM263 to do this.
+	.endif
+	.if	!$isdefed("I2S_TX")
+	.if	$isdefed("I2S_RX")
+	;Read the PING/PONG SEL address
+	LDI32	rx_ping_pong_sel_add, I2S_RX_BUF_PING_PONG_STAT_ADD
+	;Read the PING/PONG STAT address
+	LDI32	rx_ping_pong_stat_add, I2S_RX_INSTANCE_PING_PONG_STAT_ADD
+	.endif
 	.endif
 
 	.if	$isdefed("I2S_TX")
@@ -146,22 +159,22 @@ CONTIUNE_INIT:
 	.if	$isdefed("I2S_TX")
 	ADD	tx_buffer_address_end, tx_buffer_address, tx_buf_size
 	.endif
+	.if	$isdefed("I2S_RX")
+	ADD	rx_buffer_address_end, rx_buffer_address, rx_buf_size
+	.endif
 	;Initialize the PONG buffer addresses
 	.if	$isdefed("I2S_TX")
 	MOV	tx_pong_buffer_address, tx_buffer_address_end
 	.endif
+	.if	$isdefed("I2S_RX")
+	MOV rx_pong_buffer_address, rx_buffer_address_end
+	ADD rx_pong_buffer_address, rx_pong_buffer_address, 1
+	.endif
 	.if	$isdefed("I2S_TX")
-	.if $isdefed("SOC_AM64X")
-	;Read the first 4 bytes from Ping buffer
-	LBBO	&scratchreg0, tx_buffer_address, 0, 4
-	ADD	tx_buffer_address, tx_buffer_address, 0x4
-	AND ch0_data_tx, scratchreg0.w0, scratchreg0.w0
-;	AND ch1_data_tx, scratchreg0.w2, scratchreg0.w2
-	.else
-	;Read the first 8/12 bytes from Ping buffer
+	;Read the first bytes from Ping buffer
 	LBBO	&ch0_data_tx, tx_buffer_address, 0, BYTES_TO_LOAD
 	ADD		tx_buffer_address, tx_buffer_address, BYTES_TO_LOAD
-	.endif
+	ADD current_channel_no,current_channel_no,1
 	.endif
 
 INITIAL_STATE:
@@ -205,7 +218,20 @@ BCLK_RISING_EDGE_LOW:
 
 	; Read FS.
 	AND fs_level, r31, i2s_instance_fs_pin_pos
-CONTINUE_PROCESSING:
+	.if	$isdefed("I2S_RX")
+	;Read I2S1 Rx data
+	AND ch0_rx_val_reg, r31, i2s_instance1_sd_rx_pin_pos
+	;Read I2S2 Rx data
+	AND ch1_rx_val_reg, r31, i2s_instance2_sd_rx_pin_pos
+
+	;Once the buffer is full, switch to new buffer
+	QBGT	MANAGE_RX_BUFFERS, rx_buffer_address_end, rx_buffer_address
+	.endif
+	.if	$isdefed("I2S_TX")
+	.if	!$isdefed("I2S_RX")
+CONTINUE_TX_PROCESSING:
+	.endif
+	.endif
 	; if fs_counter = 0x0, then do tx buffer management
 	QBEQ	MANAGE_TX_BUFFERS, fs_counter, 0x0
 	.if $isdefed("SOC_AM64X")
@@ -217,13 +243,18 @@ CONTINUE_PROCESSING:
 	QBEQ	LOAD_AUDIO_DATA, fs_counter, 0xD
 	.else
 	;if fs_counter = max(fs_counter) -1, then check FS before expected FS transition
-	QBEQ	CHECK_FS_1, fs_counter, 0x1E
+	QBEQ	CHECK_FS_1, fs_counter, (I2S_SAMPLES_PER_CHANNEL_LESS_1 - 1)
 	;if fs_counter = max(fs_counter), then check FS after expected FS transition
-	QBEQ	CHECK_FS_2, fs_counter, 0x1F
+	QBEQ	CHECK_FS_2, fs_counter, I2S_SAMPLES_PER_CHANNEL_LESS_1
 	;if fs_counter = max(fs_counter) -2, then load audio data
-	QBEQ	LOAD_AUDIO_DATA, fs_counter, 0x1D
+	QBEQ	LOAD_AUDIO_DATA, fs_counter, (I2S_SAMPLES_PER_CHANNEL_LESS_1 - 2)
 	.endif
-
+	;In case of Rx Only, Jump here after Sending Rx Notify to save PRU Cycles as we know fs_counter is 1.
+	.if	!$isdefed("I2S_TX")
+	.if	$isdefed("I2S_RX")
+CONTINUE_TX_PROCESSING:
+	.endif
+	.endif
 	;else, increment fs_counter and wait for falling edge
 	ADD	fs_counter, fs_counter, 0x1
 	.if	$isdefed("I2S_TX_DETECT_UNDERFLOW")
@@ -258,7 +289,7 @@ CHECK_FS_1:
 	;QBNE ERROR_HANDLING_FS, fs_level, fs_num
 
 	; pru_i2sle fs_num bit between 0 (L channel) and 1 (R channel)
-	XOR	fs_num, fs_num, 0x01
+;;	XOR	fs_num, fs_num, 0x01
 
 	; increment fs_counter and wait for falling edge
 	ADD	fs_counter, fs_counter, 0x1
@@ -294,7 +325,9 @@ LOAD_AUDIO_DATA:
 	; load audio data from ping-pong buffers
 	; note that scratch registers must be sequential
 	LBBO	&scratchreg0, tx_buffer_address, 0, BYTES_TO_LOAD
+	QBLT    DATA_LOAD_DONE, current_channel_no, TDM_CHANNELS
 	ADD	tx_buffer_address, tx_buffer_address, BYTES_TO_LOAD
+DATA_LOAD_DONE:
 	.endif
 	.endif
 	; increment fs_counter and wait for falling edge
@@ -302,7 +335,35 @@ LOAD_AUDIO_DATA:
 	JMP	BCLK_FALLING_EDGE_HIGH
 
 MANAGE_RX_BUFFERS:
-	JMP	CONTINUE_PROCESSING
+	.if	$isdefed("I2S_RX")
+	; if tx_buffer_address has reached the end of the buffer, point
+	; to the beginning of the next buffer and notify the host core to
+	; push fresh data to the buffer we just left.
+	; if we are on buffer1, point to buffer2
+	QBEQ	START_RX_BUFFER2, rx_buffer_num, 0x1
+
+	; else, start buffer1
+	MOV	rx_buffer_address, rx_ping_buffer_address
+	JMP	RX_CONTINUE
+
+START_RX_BUFFER2:
+	MOV	rx_buffer_address, rx_pong_buffer_address
+
+RX_CONTINUE:
+	ADD	rx_buffer_address_end, rx_buffer_address, rx_buf_size
+	; flip rx_buffer_num between 01_b and 01_b
+	XOR	rx_buffer_num, rx_buffer_num, 0x1
+	SBBO 	&rx_buffer_num, rx_ping_pong_sel_add, 0, 1
+	;set a condition to do Rx Overflow check
+	LDI 	do_rx_overflow_error_check, 1
+	; notify the host
+	;LDI    R31.w0, TRIGGER_HOST_I2S_RX_IRQ
+	.endif ;I2S_RX
+
+	.if	$isdefed("I2S_PROFILE_FW")
+	;Removed the Profiling code as there are no enough cycles on AM263 to do this.
+	.endif
+	JMP	CONTINUE_TX_PROCESSING
 
 MANAGE_TX_BUFFERS:
 	.if	$isdefed("I2S_TX")
@@ -383,7 +444,7 @@ BCLK_FALLING_EDGE_HIGH:
 	.endif
 ff:
 	QBBS	ff, r31, I2S_INSTANCE_BCLK_PIN
-	
+
 	;LDI	prux_cycle_cnt.b0, 0
 	;SBCO	&prux_cycle_cnt.b0, c11, 0xc, 1
 	.if	$isdefed("I2S_TX")
@@ -396,6 +457,38 @@ ff:
 	; notify the host
 	LDI    R31.w0, TRIGGER_HOST_I2S_TX_IRQ
 CONTINUE_TX_PROCESS:
+	.endif
+	.if	$isdefed("I2S_RX")
+	.if	$isdefed("I2S_RX_DETECT_OVERFLOW")
+	QBNE CONTINUE_RX_PROCESS, do_rx_overflow_error_check, 0x1
+	LDI do_rx_overflow_error_check, 0
+	;Read the Rx Ping Pong buffer stat from register address space
+	LBBO 	&rx_ping_pong_stat, rx_ping_pong_stat_add, 0, 1
+
+	;If rx_buffer_num is 0, this means FW has already filled PING buffer.
+	QBNE RX_PONG_BUF, rx_buffer_num, 0x0
+	;Check if the PONG buffer is consumed by R5F. If consumed, bit 1 will be set to 0 by R5F, else it will be 1.
+	QBBS ERROR_HANDLING_OVERFLOW, rx_ping_pong_stat, 1
+	;If 0, this means PONG buffer is consumed by R5F. SET the PING buffer status
+	SET rx_ping_pong_stat, rx_ping_pong_stat, 0
+	JMP STORE_RX_PING_PONG_STAT
+
+RX_PONG_BUF:
+	;Check if the PING buffer is consumed by R5F. If consumed, bit 0 will be set to 0 by R5F, else it will be 1.
+	QBBS ERROR_HANDLING_OVERFLOW, rx_ping_pong_stat, 0
+	;If 0, this means PING buffer is consumed by R5F. SET the PONG buffer status
+	;OR	rx_ping_pong_stat, rx_ping_pong_stat, 0x2
+	SET rx_ping_pong_stat, rx_ping_pong_stat, 1
+
+STORE_RX_PING_PONG_STAT:
+	SBBO 	&rx_ping_pong_stat, rx_ping_pong_stat_add, 0, 1
+	.endif ;I2S_RX_DETECT_OVERFLOW
+	; notify the host
+	LDI    R31.w0, TRIGGER_HOST_I2S_RX_IRQ
+	.endif
+CONTINUE_RX_PROCESS:
+	.if	$isdefed("I2S_PROFILE_FW")
+	;Removed the Profiling code as there are no enough cycles on AM263 to do this.
 	.endif
 	.if	$isdefed("I2S_TX")
 
@@ -415,8 +508,18 @@ RESET_SD_COUNTER:
 	AND ch0_data_tx, scratchreg0.w0, scratchreg0.w0
 	AND ch1_data_tx, scratchreg0.w2, scratchreg0.w2
 	.else
+	QBGE 	TX_DATA_LOADING, current_channel_no, TDM_CHANNELS
+	LDI32 	ch0_data_tx,0
+	QBA 	TX_DATA_LOADING_DONE
+TX_DATA_LOADING:
 	MOV ch0_data_tx, scratchreg0
-
+TX_DATA_LOADING_DONE:
+	QBNE NO_CH_RESET,current_channel_no, MAX_TDM_CHANNELS
+	LDI current_channel_no,1
+	QBA CH_UPDATE_DONE
+NO_CH_RESET:
+	ADD current_channel_no, current_channel_no, 1
+CH_UPDATE_DONE:
 	.endif
 	.endif
 
@@ -430,7 +533,49 @@ PREPARE_INPUT:
 	;Move the LSb to the required position
 	LSL r30_value, r30_value, I2S_INSTANCE1_SD_TX_PIN_SHIFT
 	.endif
+	.if	$isdefed("I2S_RX")
+	; Receive Data
+	; these 3 pseudoinstructions are used for each additional input bit
+	; Skip for the first time since the first receive bit is valid after one bitclock after FS level change. See I2S spec.
+	QBEQ SKIP, rx_sd_counter, I2S_SAMPLES_PER_CHANNEL
+	; Move the received bit to LSb position
+	LSR ch0_rx_val_reg, ch0_rx_val_reg, I2S_INSTANCE1_SD_RX_PIN_SHIFT
+	LSR ch1_rx_val_reg, ch1_rx_val_reg, I2S_INSTANCE2_SD_RX_PIN_SHIFT
+	; Shift it to the required position
+	LSL	ch0_rx_val_reg, ch0_rx_val_reg, rx_sd_counter
+	LSL	ch1_rx_val_reg, ch1_rx_val_reg, rx_sd_counter
+	; Append the bits of information to exisiting data
+	OR	ch0_data_rx, ch0_data_rx, ch0_rx_val_reg
+	OR	ch1_data_rx, ch1_data_rx, ch1_rx_val_reg
+	; Once all the data is received, store the audio data.
+	QBEQ STORE_AUDIO_DATA, rx_sd_counter, 0
+
+SKIP:
+	SUB rx_sd_counter, rx_sd_counter, 1
+	.endif
 	JMP	BCLK_RISING_EDGE_LOW
+
+STORE_AUDIO_DATA:
+	.if	$isdefed("I2S_RX")
+	; store 32 bits of audio data per channel.
+	QBLT    STORAGE_DONE,current_channel_no, TDM_CHANNELS
+	SBBO	&ch0_data_rx, rx_buffer_address, 0, BYTES_TO_LOAD
+	ADD	rx_buffer_address, rx_buffer_address, BYTES_TO_LOAD
+STORAGE_DONE:
+	ADD current_channel_no,current_channel_no,1
+	QBGE RX_CH_UPDATE_DONE,current_channel_no, MAX_TDM_CHANNELS
+	LDI current_channel_no,1
+RX_CH_UPDATE_DONE:
+
+	; Reset ch0_rx_val_reg, ch1_rx_val_reg, ch0_data_rx, ch1_data_rx to 0. All these register must be continuous
+	ZERO 	&ch0_rx_val_reg, 16
+	LDI	rx_sd_counter, I2S_SAMPLES_PER_CHANNEL_LESS_1
+	.endif
+	JMP	BCLK_RISING_EDGE_LOW
+ERROR_HANDLING_OVERFLOW:
+	SET err_stat, err_stat, I2S_RXOVERFLOW_ERROR_POSITION
+	JMP ERROR_HANDLING_NOTIFY
+
 ERROR_HANDLING_UNDERFLOW:
 	SET err_stat, err_stat, I2S_TXUNDERFLOW_ERROR_POSITION
 	JMP ERROR_HANDLING_NOTIFY
