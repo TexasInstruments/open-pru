@@ -27,10 +27,6 @@
         "AM64x",
         "AM243x_ALV_beta",
         "AM243x_ALX_beta",
-        "AM263x_beta", 
-        "AM263Px",
-        "AM261x_ZCZ",
-        "AM261x_ZFG",
     ],
     "contexts": {
         "AM64x": [{
@@ -191,70 +187,6 @@
         },{
             "name": "icss_g1_tx_pru1",
             "targetdbId": "icss_g1_tx_pru1"
-        }],
-        "AM263x_beta": [{
-            "name": "r5fss0-0",
-            "targetdbId": "Cortex_R5_0"
-        }, {
-            "name": "r5fss0-1",
-            "targetdbId": "Cortex_R5_1"
-        },{
-            "name": "r5fss1-0",
-            "targetdbId": "Cortex_R5_2"
-        }, {
-            "name": "r5fss1-1",
-            "targetdbId": "Cortex_R5_3"
-        }, {
-            "name": "hsm0-0",
-            "targetdbId": "Cortex_M4_0"
-        },{
-            "name": "icss_m0_pru0",
-            "targetdbId": "icss_m0_pru0"
-        },{
-            "name": "icss_m0_pru1",
-            "targetdbId": "icss_m0_pru1"
-        }],
-        "AM263Px": [{
-            "name": "r5fss0-0",
-            "targetdbId": "Cortex_R5_0"
-        }, {
-            "name": "r5fss0-1",
-            "targetdbId": "Cortex_R5_1"
-        },{
-            "name": "r5fss1-0",
-            "targetdbId": "Cortex_R5_2"
-        }, {
-            "name": "r5fss1-1",
-            "targetdbId": "Cortex_R5_3"
-        }, {
-            "name": "hsm0-0",
-            "targetdbId": "Cortex_M4_0"
-        },{
-            "name": "icss_m0_pru0",
-            "targetdbId": "icss_m0_pru0"
-        },{
-            "name": "icss_m0_pru1",
-            "targetdbId": "icss_m0_pru1"
-        }],
-        "AM261x_ZCZ": [{
-            "name": "r5fss0-0",
-            "targetdbId": "Cortex_R5_0"
-        }, {
-            "name": "r5fss0-1",
-            "targetdbId": "Cortex_R5_1"
-        },{
-            "name": "hsm0-0",
-            "targetdbId": "Cortex_M4_0"
-        }],
-        "AM261x_ZFG": [{
-            "name": "r5fss0-0",
-            "targetdbId": "Cortex_R5_0"
-        }, {
-            "name": "r5fss0-1",
-            "targetdbId": "Cortex_R5_1"
-        },{
-            "name": "hsm0-0",
-            "targetdbId": "Cortex_M4_0"
         }],
     },
     "pinmuxUIOptions": {
