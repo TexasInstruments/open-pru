@@ -39,7 +39,7 @@ const lflags = {
     ],
 };
 
-const readmeDoxygenPageTag = "EXAMPLES_PRU_EMPTY";
+const readmeDoxygenPageTag = "EXAMPLES_PRU_GPIO_TOGGLE";
 const syscfgfile = "../example.syscfg";
 const templates_pru =
 [
@@ -70,8 +70,10 @@ function getmakefilePruPostBuildSteps(cpu, board)
             core = "PRU0"
     }
 
-    return [
-        " $(CG_TOOL_ROOT)/bin/hexpru --diag_wrap=off --array --array:name_prefix="+ core + "Firmware  -o "+ core.toLocaleLowerCase() + "_load_bin.h " + "empty_" + board + "_" + cpu + "_fw_ti-pru-cgt.out; $(SED) -i '0r ${MCU_PLUS_SDK_PATH}/source/pru_io/firmware/pru_load_bin_copyright.h' "+ core.toLocaleLowerCase() + "_load_bin.h ; $(MOVE) "+ core.toLocaleLowerCase() + "_load_bin.h " + "${OPEN_PRU_PATH}/examples/empty/firmware/"+ board + "/" +core.toLocaleLowerCase() + "_load_bin.h "
+    return  [
+        "$(CG_TOOL_ROOT)/bin/hexpru --diag_wrap=off --array --array:name_prefix="+ core + "Firmware  -o "+ core.toLocaleLowerCase() + "_load_bin.h " + "gpio_toggle" + "_" + board + "_" + cpu + "_fw_ti-pru-cgt.out;"+ 
+        "$(CAT)  ${MCU_PLUS_SDK_PATH}/source/pru_io/firmware/pru_load_bin_copyright.h "+ core.toLocaleLowerCase() + "_load_bin.h > ${OPEN_PRU_PATH}/examples/gpio_toggle/firmware/"+ board + "/" +core.toLocaleLowerCase() + "_load_bin.h ;"+ 
+        "$(RM) "+ core.toLocaleLowerCase() + "_load_bin.h;"
     ];
 }
 
@@ -88,8 +90,12 @@ function getccsPruPostBuildSteps(cpu, board)
             core = "PRU0"
     }
 
-    return [
-        " $(CG_TOOL_ROOT)/bin/hexpru --diag_wrap=off --array --array:name_prefix="+ core + "Firmware  -o "+ core.toLocaleLowerCase() + "_load_bin.h " + "empty_" + board + "_" + cpu + "_fw_ti-pru-cgt.out; if ${CCS_HOST_OS} == win32 $(CCS_INSTALL_DIR)/utils/cygwin/sed -i '0r ${MCU_PLUS_SDK_PATH}/source/pru_io/firmware/pru_load_bin_copyright.h' "+ core.toLocaleLowerCase() + "_load_bin.h ; if ${CCS_HOST_OS} == linux sed -i '0r ${MCU_PLUS_SDK_PATH}/source/pru_io/firmware/pru_load_bin_copyright.h' "+ core.toLocaleLowerCase() + "_load_bin.h ;" + "if ${CCS_HOST_OS} == win32 move "+ core.toLocaleLowerCase() + "_load_bin.h " + "${OPEN_PRU_PATH}/examples/empty/firmware/"+ board + "/" +core.toLocaleLowerCase() + "_load_bin.h; if ${CCS_HOST_OS} == linux mv "+ core.toLocaleLowerCase() + "_load_bin.h " + "${OPEN_PRU_PATH}/examples/empty/firmware/"+ board + "/" +core.toLocaleLowerCase() + "_load_bin.h "
+    return  [
+        "$(CG_TOOL_ROOT)/bin/hexpru --diag_wrap=off --array --array:name_prefix="+ core + "Firmware  -o "+ core.toLocaleLowerCase() + "_load_bin.h " + "gpio_toggle" + "_" + board + "_" + cpu + "_fw_ti-pru-cgt.out;"+ 
+        "if ${CCS_HOST_OS} == linux cat ${MCU_PLUS_SDK_PATH}/source/pru_io/firmware/pru_load_bin_copyright.h "+ core.toLocaleLowerCase() + "_load_bin.h > ${OPEN_PRU_PATH}/examples/gpio_toggle/firmware/"+ board + "/" +core.toLocaleLowerCase() + "_load_bin.h ;"+ 
+        "if ${CCS_HOST_OS} == linux rm "+ core.toLocaleLowerCase() + "_load_bin.h;"+
+        "if ${CCS_HOST_OS} == win32  $(CCS_INSTALL_DIR)/utils/cygwin/cat ${MCU_PLUS_SDK_PATH}/source/pru_io/firmware/pru_load_bin_copyright.h "+ core.toLocaleLowerCase() + "_load_bin.h > ${OPEN_PRU_PATH}/examples/gpio_toggle/firmware/"+ board + "/" +core.toLocaleLowerCase() + "_load_bin.h ;"+ 
+        "if ${CCS_HOST_OS} == win32  $(CCS_INSTALL_DIR)/utils/cygwin/rm "+ core.toLocaleLowerCase() + "_load_bin.h;"
     ];
 }
 
@@ -99,9 +105,9 @@ function getComponentProperty() {
     property.dirPath = path.resolve(__dirname, "..");
     property.type = "executable";
     property.makefile = "pru";
-    property.name = "empty";
+    property.name = "gpio_toggle";
     property.isInternal = false;
-    property.description = "Empty PRU Project"
+    property.description = "GPIO Toggle PRU Project"
     property.buildOptionCombos = buildOptionCombos;
     property.pru_main_file = "main";
     property.pru_linker_file = "linker";
