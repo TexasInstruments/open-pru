@@ -79,9 +79,9 @@ clean:
 	-@echo ' '
 
 post-build:
-		- $(CG_TOOL_ROOT)/bin/hexpru --diag_wrap=off --array --array:name_prefix=PRU1Firmware  -o pru1_load_bin.h empty_am243x-lp_icss_g0_pru1_fw_ti-pru-cgt.out
-		- $(SED) -i '0r ${MCU_PLUS_SDK_PATH}/source/pru_io/firmware/pru_load_bin_copyright.h' pru1_load_bin.h 
-		- $(MOVE) pru1_load_bin.h ${OPEN_PRU_PATH}/examples/empty/firmware/am243x-lp/pru1_load_bin.h 
+		-$(CG_TOOL_ROOT)/bin/hexpru --diag_wrap=off --array --array:name_prefix=PRU1Firmware  -o pru1_load_bin.h empty_am243x-lp_icss_g0_pru1_fw_ti-pru-cgt.out
+		-$(CAT)  ${MCU_PLUS_SDK_PATH}/source/pru_io/firmware/pru_load_bin_copyright.h pru1_load_bin.h > ${OPEN_PRU_PATH}/examples/empty/firmware/am243x-lp/pru1_load_bin.h 
+		-$(RM) pru1_load_bin.h
 	-@echo ' '
 
 .PHONY: all clean
