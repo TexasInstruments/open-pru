@@ -27,6 +27,7 @@
         "AM64x",
         "AM243x_ALV_beta",
         "AM243x_ALX_beta",
+        "AM263x_beta",
     ],
     "contexts": {
         "AM64x": [{
@@ -187,6 +188,22 @@
         },{
             "name": "icss_g1_tx_pru1",
             "targetdbId": "icss_g1_tx_pru1"
+        }],
+          "AM263x_beta": [{
+            "name": "r5fss0-0",
+            "targetdbId": "r5fss0-0"
+        }, {
+            "name": "r5fss0-1",
+            "targetdbId": "r5fss0-1"
+        },{
+            "name": "r5fss1-0",
+            "targetdbId": "r5fss1-0"
+        }, {
+            "name": "r5fss1-1",
+            "targetdbId": "r5fss1-1"
+        }, {
+            "name": "hsm0-0",
+            "targetdbId": "hsm0-0"
         }],
     },
     "pinmuxUIOptions": {
