@@ -1,5 +1,5 @@
 
-MCU_PLUS_SDK_PATH ?= C:/ti/work/mcu_plus_sdk
+MCU_PLUS_SDK_PATH ?= C:\ti\mcu_plus_sdk
 DEVICE ?= am64x
 ifeq ($(OS),Windows_NT)
     TOOLS_PATH?=C:/ti
