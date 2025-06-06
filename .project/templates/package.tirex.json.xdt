@@ -13,7 +13,7 @@
         % if ((args.device == "am64x") || (args.device == "am243x") || (isDevelopmentMode)) {
         "license": "../../license.txt",
         % }
-        "devices": ["AM243x", "AM64x"],
+        "devices": ["AM243x", "AM64x", "AM261x", "AM263px", "AM263x"],
         "tags": ["SDK", "Baremetal", "FreeRTOS"],
         "description": "Welcome to OPEN PRU. This SDK contains examples, libraries and tools to develop RTOS and no-RTOS based applications for ARM R5F, ARM M4F CPUs and related peripherals.",
         "dependencies": [

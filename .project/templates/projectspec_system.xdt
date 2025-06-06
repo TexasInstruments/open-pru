@@ -1,11 +1,11 @@
 %%{
     products = "";
-    if((args.project.device == "am263px") && (args.utils.getProductNameProjectSpec(args.project.device) != "MCU_PLUS_SDK_AMXXX")) {
+    products+=`com.ti.${args.utils.getProductNameProjectSpec(args.projects.projects[0].device)};`
+    if(((args.project.device == "am263px") || (args.project.device == "am261x")) && (args.utils.getDependentProductNameProjectSpec(args.project.device) != "MCU_PLUS_SDK_AMXXX")) {
     products+="MCU-PLUS-SDK-"+args.project.device.toUpperCase()
     } else {
-    products+=`com.ti.${args.utils.getProductNameProjectSpec(args.project.projects[0].device)}`
+    products+=`com.ti.${args.utils.getDependentProductNameProjectSpec(args.project.projects[0].device)}`
     }
-    productName = args.utils.getProductNameProjectSpec(args.project.projects[0].device);
 %%}
 <?xml version="1.0" encoding="UTF-8"?>
 <projectSpec>
