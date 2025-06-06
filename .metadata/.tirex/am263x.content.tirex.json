@@ -1,0 +1,16 @@
+[
+    {
+        "resourceType": "web.page",
+        "resourceClass": [
+            "document"
+        ],
+        "name": "User Guide",
+        "location": "../../docs/api_guide_am263x/index.html",
+        "devtools": [],
+        "mainCategories": [
+            [
+                "Documents"
+            ]
+        ]
+    }
+]
