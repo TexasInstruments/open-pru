@@ -35,33 +35,50 @@ OPEN PRU is designed with user experience and simplicity in mind. The repository
 - Validated on Windows 10 64bit, higher versions may work
 - Validated on Ubuntu 18.04 64bit, higher versions may work
 
-**On Windows the dependencies have to be manually installed. Follow these steps**:
+#### Windows environment
 
-1. Download and install Code Composer Studio v12.8 from [here](https://www.ti.com/tool/download/CCSTUDIO "Code Composer Studio")
-   - Install at default folder: C:\ti
+**On Windows the dependencies can be manually installed or with the script `pru_dependencies.bat`**
 
-2. Download and install SysConfig 1.21.0 from [here](https://www.ti.com/tool/download/SYSCONFIG "SYSCONFIG 1.21.0")
-   - Install at default folder: C:/ti
+* With Script
 
-3. Download and install the PRU compiler
-   - [PRU-CGT-2-3](https://www.ti.com/tool/PRU-CGT) (ti-pru-cgt)
-   - Install at default folder: C:/ti
+   **NOTES**
+   - If the script is executed from any folder but `C:\ti`, it will be copied to `C:\ti` after running it and a second terminal screen will be opened with the location of the script. Please re-run script in the new terminal screen
+   - If OpenSSL is needed to be installed, when prompted select option to install binaries to /bin folder of installed path instead of Windows system path
+   - If after installing the dependencies the script is executed to verify the installed, it will show the same missing dependencies. 
+   The used terminal must be closed and re-opened to get the updated state (or PC must be restarted). This is a Windows limitation
 
-4. Download and install GCC for Cortex A53 (required only for AM64x developers)
-   - [GNU-A](https://developer.arm.com/-/media/Files/downloads/gnu-a/9.2-2019.12/binrel/gcc-arm-9.2-2019.12-mingw-w64-i686-aarch64-none-elf.tar.xz)
-   - [GNU-RM](https://developer.arm.com/-/media/Files/downloads/gnu-rm/7-2017q4/gcc-arm-none-eabi-7-2017-q4-major-win32.zip)
-   - Install at default folder: C:/ti
+   1. It is recommended to verify the dependencies that are already installed. Run the command `pru_dependencies.bat -v`, `pru_dependencies.bat -V` or `pru_dependencies.bat verify`
 
-5. Download and install Node.js v12.18.4 LTS
-   - Go to the [NodeJS Website](https://nodejs.org/en/) and use the installer to
-    download and install v12.18.4 of node. Install in the default directory.
-   - After successful installation, run an `npm ci` inside the `open-pru` folder like so:
-      ```bash
-      $ cd open-pru/
-      $ npm ci
-      ```
-   - To specify a proxy server, use the --proxy option followed by the proxy server link, like this: --proxy = <proxy server link>
-     This should install the node packages required for the open-pru.
+   2. To install the dependencies, run the command `pru_dependencies.bat -I [dependencies]`, `pru_dependencies.bat -i [dependencies]` or `pru_dependencies.bat install [dependencies]`
+
+   3. To get an assistance on how to use the script, run the command `pru_dependencies.bat -h` or `pru_dependencies.bat help`
+* Manual steps
+
+   1. Download and install Code Composer Studio v12.8 from [here](https://www.ti.com/tool/download/CCSTUDIO "Code Composer Studio")
+      - Install at default folder: C:\ti
+
+   2. Download and install SysConfig 1.21.0 from [here](https://www.ti.com/tool/download/SYSCONFIG "SYSCONFIG 1.21.0")
+      - Install at default folder: C:/ti
+
+   3. Download and install the PRU compiler
+      - [PRU-CGT-2-3](https://www.ti.com/tool/PRU-CGT) (ti-pru-cgt)
+      - Install at default folder: C:/ti
+
+   4. Download and install GCC for Cortex A53 (required only for AM64x developers)
+      - [GNU-A](https://developer.arm.com/-/media/Files/downloads/gnu-a/9.2-2019.12/binrel/gcc-arm-9.2-2019.12-mingw-w64-i686-aarch64-none-elf.tar.xz)
+      - [GNU-RM](https://developer.arm.com/-/media/Files/downloads/gnu-rm/7-2017q4/gcc-arm-none-eabi-7-2017-q4-major-win32.zip)
+      - Install at default folder: C:/ti
+
+   5. Download and install Node.js v12.18.4 LTS
+      - Go to the [NodeJS Website](https://nodejs.org/en/) and use the installer to
+      download and install v12.18.4 of node. Install in the default directory.
+      - After successful installation, run an `npm ci` inside the `open-pru` folder like so:
+         ```bash
+         $ cd open-pru/
+         $ npm ci
+         ```
+      - To specify a proxy server, use the --proxy option followed by the proxy server link, like this: --proxy = <proxy server link>
+      This should install the node packages required for the open-pru.
 
 ## Overview
 
