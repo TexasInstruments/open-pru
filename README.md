@@ -80,6 +80,51 @@ OPEN PRU is designed with user experience and simplicity in mind. The repository
       - To specify a proxy server, use the --proxy option followed by the proxy server link, like this: --proxy = <proxy server link>
       This should install the node packages required for the open-pru.
 
+#### Linux environment
+**On Linux the dependencies can be manually installed or with the script `pru_dependencies.sh`**
+
+* With Script
+
+   **NOTES**
+   - If the script is executed from any folder but `${HOME}/ti`, it will be copied to `${HOME}/ti` and executed from there automatically
+
+   1. It is recommended to verify the dependencies that are already installed. Run the command `./pru_dependencies.sh -v`, `./pru_dependencies.sh -V` or `./pru_dependencies.sh verify`
+
+   2. To install the dependencies, run the command `./pru_dependencies.sh -I [dependencies]`, `./pru_dependencies.sh -i [dependencies]` or `./pru_dependencies.sh install [dependencies]`
+
+   3. To get an assistance on how to use the script, run the command `./pru_dependencies.sh -h` or `./pru_dependencies.sh help`
+* Manual steps
+
+   1. Download and install Code Composer Studio v12.8 from [here](https://www.ti.com/tool/download/CCSTUDIO "Code Composer Studio")
+      - Install at default folder: ${HOME}/ti
+      - Some dependencies shall be installed before installing CCS. Use the command `sudo apt -y install libc6:i386 libusb-0.1-4 libgconf-2-4 libncurses5 libpython2.7 libtinfo5 build-essential` to install them.
+
+   2. Download and install SysConfig 1.21.0 from [here](https://www.ti.com/tool/download/SYSCONFIG "SYSCONFIG 1.21.0")
+      - Install at default folder: ${HOME}/ti
+
+   3. Download and install the PRU compiler
+      - [PRU-CGT-2-3](https://www.ti.com/tool/PRU-CGT) (ti-pru-cgt)
+      - Install at default folder: ${HOME}/ti
+
+   4. Download and install GCC for Cortex A53 (required only for AM64x developers)
+      - [GNU-A](https://developer.arm.com/-/media/Files/downloads/gnu-a/9.2-2019.12/binrel/gcc-arm-9.2-2019.12-x86_64-aarch64-none-elf.tar.xz)
+      - [GNU-RM](https://developer.arm.com/-/media/Files/downloads/gnu-rm/7-2017q4/gcc-arm-none-eabi-7-2017-q4-major-linux.tar.bz2)
+      - Install at default folder: ${HOME}/ti
+
+   5. Install Mono Runtime (required for creating bootloader images for application binaries)
+      - To install, use the command `sudo apt install mono-runtime`
+
+   6. Download and install Node.js v12.18.4 LTS
+      - Go to the [NodeJS Website](https://nodejs.org/en/) and use the installer to
+      download and install v12.18.4 of node. Install in the default directory.
+      - After successful installation, run an `npm ci` inside the `open-pru` folder like so:
+         ```bash
+         $ cd open-pru/
+         $ npm ci
+         ```
+      - To specify a proxy server, use the --proxy option followed by the proxy server link, like this: --proxy = <proxy server link>
+      This should install the node packages required for the open-pru.
+
 ## Overview
 
 The MCU+ SDK is a dependency when building OPEN PRU projects that include code for an MCU+ core, Users can either use the Prebuilt SDK installers for specific devices or clone the MCU+ SDK repository in `C:\ti`
