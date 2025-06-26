@@ -190,13 +190,16 @@ In general, the .project folder inside the new example should look similar to be
 
 This file uses 2 functions: getComponentProperty() and getComponentBuildProperty() where user can provide different values as per their requirements to build a PRU project of our choice, some of which are discussed as follows.
 
-- Change the name of the project by modifying the value property.name .
+- Change the name of the project by modifying the value project_name
+   - An example is given below
+      ```
+      let project_name = "new_example";
+      ```
 - Add a description for the project by modifying the value property.description . 
    - An example is given below
-          ```
-          property.name = "new_example";
-          property.description = "new example PRU Project"
-          ```
+      ```
+      property.description = "new example PRU Project";
+      ```
 - Provide the different build option combos, by modifying the value of property.buildOptionCombos. It takes in an array of JavaScript objects wherein one can specify the device, cpu, cgt, board and os. An example array of build option combos is given below.
    ```
    const buildOptionCombos = [
