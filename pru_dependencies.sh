@@ -257,7 +257,7 @@ function show_usage()
     echo "      --doxygen         Install Doxygen"
     echo "      --node            Install Node.js"
     echo "      --openssl         Install OpenSSL"
-    echo "      --clone_sdk       Clone MCU+ SDK"
+    echo "      --clone_sdk       Clone MCU+ SDK repository"
     echo "      --am243x_sdk      Install MCU+ SDK for AM243x"
     echo "      --am64xx_sdk      Install MCU+ SDK for AM64xx"
     echo "      --pru             Install PRU-CGT"
@@ -268,7 +268,7 @@ function show_usage()
     echo "      --ti_clang        Install TI ARM Clang"
     echo "      --gcc_a53         Install GCC for Cortex A53"
     echo "      --gcc_r5          Install GCC for Cortex R5"
-    echo "      --all             Install all dependencies"
+    echo "      --all             Install all tools and MCU+ SDK repository"
 
 }
 

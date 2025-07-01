@@ -154,6 +154,7 @@ if "%1" == "--all" (
     set "NODEJS=1"
     set "OPENSSL=1"
     set "PRU_CGT=1"
+    set "MCU_SDK=1"
 )
 shift
 goto parse_args
@@ -245,10 +246,10 @@ echo  --python: install python, pip and west
 echo  --doxygen: install Doxygen
 echo  --node: install Node.js
 echo  --openssl: install OpenSSL
-echo  --clone_sdk: clone MCU+ SDK
+echo  --clone_sdk: clone MCU+ SDK repository
 echo  --am243x_sdk: install MCU+ SDK for AM243x
 echo  --am64xx_sdk: install MCU+ SDK for AM64xx
 echo  --pru: install PRU-CGT
-echo  --all: Install all dependencies
+echo  --all: Install all tools and MCU+ SDK repository
 
 :end

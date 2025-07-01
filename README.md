@@ -127,7 +127,7 @@ OPEN PRU is designed with user experience and simplicity in mind. The repository
 
 ## Overview
 
-The MCU+ SDK is a dependency when building OPEN PRU projects that include code for an MCU+ core, Users can either use the Prebuilt SDK installers for specific devices or clone the MCU+ SDK repository in `C:\ti`
+The MCU+ SDK is a dependency when building OPEN PRU projects that include code for an MCU+ core. Users can either use the Prebuilt SDK installers for specific devices or clone the MCU+ SDK repository in `C:\ti` (Windows environment) or ${HOME}/ti (Linux environment).
 
 ---
 **NOTE**
@@ -144,11 +144,20 @@ The MCU+ SDK is a dependency when building OPEN PRU projects that include code f
 ---
 
 #### Option 1: Prebuilt SDK installers for specific devices are available at below links. Please note that installers are packaged specifically to each device to reduce size.
-- [AM243x MCU+ SDK](https://www.ti.com/tool/MCU-PLUS-SDK-AM243X)
-- [AM64x  MCU+ SDK](https://www.ti.com/tool/MCU-PLUS-SDK-AM64X)
-- [AM261x MCU+ SDK](https://www.ti.com/tool/MCU-PLUS-SDK-AM261X)
-- [AM263Px MCU+ SDK](https://www.ti.com/tool/MCU-PLUS-SDK-AM263PX)
-- [AM263x MCU+ SDK](https://www.ti.com/tool/MCU-PLUS-SDK-AM263X)
+Please use the links below to download the installers:
+   - [AM243x MCU+ SDK](https://www.ti.com/tool/MCU-PLUS-SDK-AM243X)
+   - [AM64x  MCU+ SDK](https://www.ti.com/tool/MCU-PLUS-SDK-AM64X)
+   - [AM261x MCU+ SDK](https://www.ti.com/tool/MCU-PLUS-SDK-AM261X)
+   - [AM263Px MCU+ SDK](https://www.ti.com/tool/MCU-PLUS-SDK-AM263PX)
+   - [AM263x MCU+ SDK](https://www.ti.com/tool/MCU-PLUS-SDK-AM263X)  
+
+It is possible also to use the script:
+- For AM243x: run the command `pru_dependencies.bat -I --am243x_sdk`, `pru_dependencies.bat -i --am243x_sdk` or `pru_dependencies.bat install --am243x_sdk` (Windows environment) or
+`./pru_dependencies.sh -I --am243x_sdk`, `./pru_dependencies.sh -i --am243x_sdk` or `./pru_dependencies.sh install --am243x_sdk` (Linux environment)
+
+- For AM64x: run the command `pru_dependencies.bat -I --am64xx_sdk`, `pru_dependencies.bat -i --am64xx_sdk` or `pru_dependencies.bat install --am64xx_sdk` (Windows environment) or
+`./pru_dependencies.sh -I --am64xx_sdk`, `./pru_dependencies.sh -i --am64xx_sdk` or `./pru_dependencies.sh install --am64xx_sdk` (Linux environment)
+
    ```bash
    make gen-buildfiles DEVICE=am64x MCU_PLUS_SDK_PATH=<MCU_PLUS_SDK_INSTALL_PATH>
    make gen-buildfiles DEVICE=am243x MCU_PLUS_SDK_PATH=<MCU_PLUS_SDK_INSTALL_PATH>
@@ -158,7 +167,13 @@ The MCU+ SDK is a dependency when building OPEN PRU projects that include code f
    ```
 
 #### Option 2: MCU+ SDK repository is core for all the Sitara MCU and MPU devices, checkout README.md to clone
+Please use the link below to clone the repository:
 - [MCU PLUS SDK](https://github.com/TexasInstruments/mcupsdk-core)
+
+It is possible also to use the script:
+- run the command `pru_dependencies.bat -I --clone_sdk`, `pru_dependencies.bat -i --clone_sdk` or `pru_dependencies.bat install --clone_sdk` (Windows environment) or
+`./pru_dependencies.sh -I --clone_sdk`, `./pru_dependencies.sh -i --clone_sdk` or `./pru_dependencies.sh install --clone_sdk` (Linux environment)
+
    ```bash
    make gen-buildfiles DEVICE=am64x MCU_PLUS_SDK_PATH=<MCU_PLUS_SDK_INSTALL_PATH> GEN_BUILDFILES_TARGET=development 
    make gen-buildfiles DEVICE=am243x MCU_PLUS_SDK_PATH=<MCU_PLUS_SDK_INSTALL_PATH> GEN_BUILDFILES_TARGET=development
