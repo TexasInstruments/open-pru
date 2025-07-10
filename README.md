@@ -39,9 +39,10 @@ OPEN PRU is designed with user experience and simplicity in mind. The repository
 
 **On Windows the dependencies can be manually installed or with the script `pru_dependencies.bat`**
 
-* With Script
+* With Script (AM243x & AM64x only)
 
    **NOTES**
+   - By default, the script checks for and installs MCU+ SDK 11.0. In order to use a different SDK version, edit the **version numbers** in pru_dependencies.bat to match the versions listed in the MCU+ SDK docs > Getting Started > Download, Install, and Setup sections.
    - If the script is executed from any folder but `C:\ti`, it will be copied to `C:\ti` after running it and a second terminal screen will be opened with the location of the script. Please re-run script in the new terminal screen
    - If OpenSSL is needed to be installed, when prompted select option to install binaries to /bin folder of installed path instead of Windows system path
    - If after installing the dependencies the script is executed to verify the installed, it will show the same missing dependencies. 
@@ -83,9 +84,10 @@ OPEN PRU is designed with user experience and simplicity in mind. The repository
 #### Linux environment
 **On Linux the dependencies can be manually installed or with the script `pru_dependencies.sh`**
 
-* With Script
+* With Script (AM243x & AM64x only)
 
    **NOTES**
+   - By default, the script checks for and installs MCU+ SDK 11.0. In order to use a different SDK version, edit the **version numbers** in pru_dependencies.sh to match the versions listed in the MCU+ SDK docs > Getting Started > Download, Install, and Setup sections.
    - If the script is executed from any folder but `${HOME}/ti`, it will be copied to `${HOME}/ti` and executed from there automatically
 
    1. It is recommended to verify the dependencies that are already installed. Run the command `./pru_dependencies.sh -v`, `./pru_dependencies.sh -V` or `./pru_dependencies.sh verify`
