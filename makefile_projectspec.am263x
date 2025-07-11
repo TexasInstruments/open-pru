@@ -14,6 +14,35 @@ BUILD_COMBO_EXAMPLE_PROJECTSPEC_BUILD_PRIVATE_ALL += empty_am263x-lp_icss_m0_pru
 BUILD_COMBO_EXAMPLE_PROJECTSPEC_BUILD_PRIVATE_ALL += empty_am263x-cc_icss_m0_pru1_fw_ti-pru-cgt_build
 BUILD_COMBO_EXAMPLE_PROJECTSPEC_BUILD_PRIVATE_ALL += empty_pru_io_am263x-cc_r5fss0-0_freertos_ti-arm-clang_build
 BUILD_COMBO_EXAMPLE_PROJECTSPEC_BUILD_PRIVATE_ALL += empty_pru_io_am263x-lp_r5fss0-0_freertos_ti-arm-clang_build
+BUILD_COMBO_EXAMPLE_PROJECTSPEC_BUILD_PRIVATE_ALL += gpio_toggle_am263x-lp_icss_m0_pru0_fw_ti-pru-cgt_build
+BUILD_COMBO_EXAMPLE_PROJECTSPEC_BUILD_PRIVATE_ALL += gpio_toggle_am263x-cc_icss_m0_pru0_fw_ti-pru-cgt_build
+BUILD_COMBO_EXAMPLE_PROJECTSPEC_BUILD_PRIVATE_ALL += gpio_toggle_am263x-lp_icss_m0_pru1_fw_ti-pru-cgt_build
+BUILD_COMBO_EXAMPLE_PROJECTSPEC_BUILD_PRIVATE_ALL += gpio_toggle_am263x-cc_icss_m0_pru1_fw_ti-pru-cgt_build
+BUILD_COMBO_EXAMPLE_PROJECTSPEC_BUILD_PRIVATE_ALL += gpio_pru_io_am263x-lp_r5fss0-0_freertos_ti-arm-clang_build
+BUILD_COMBO_EXAMPLE_PROJECTSPEC_BUILD_PRIVATE_ALL += intc_mcu_am263x-lp_icss_m0_pru0_fw_ti-pru-cgt_build
+BUILD_COMBO_EXAMPLE_PROJECTSPEC_BUILD_PRIVATE_ALL += intc_mcu_am263x-cc_icss_m0_pru0_fw_ti-pru-cgt_build
+BUILD_COMBO_EXAMPLE_PROJECTSPEC_BUILD_PRIVATE_ALL += intc_mcu_am263x-lp_icss_m0_pru1_fw_ti-pru-cgt_build
+BUILD_COMBO_EXAMPLE_PROJECTSPEC_BUILD_PRIVATE_ALL += intc_mcu_am263x-cc_icss_m0_pru1_fw_ti-pru-cgt_build
+BUILD_COMBO_EXAMPLE_PROJECTSPEC_BUILD_PRIVATE_ALL += intc_pru_io_am263x-cc_r5fss0-0_freertos_ti-arm-clang_build
+BUILD_COMBO_EXAMPLE_PROJECTSPEC_BUILD_PRIVATE_ALL += intc_pru_io_am263x-lp_r5fss0-0_freertos_ti-arm-clang_build
+BUILD_COMBO_EXAMPLE_PROJECTSPEC_BUILD_PRIVATE_ALL += mac_am263x-lp_icss_m0_pru0_fw_ti-pru-cgt_build
+BUILD_COMBO_EXAMPLE_PROJECTSPEC_BUILD_PRIVATE_ALL += mac_am263x-cc_icss_m0_pru0_fw_ti-pru-cgt_build
+BUILD_COMBO_EXAMPLE_PROJECTSPEC_BUILD_PRIVATE_ALL += mac_am263x-lp_icss_m0_pru1_fw_ti-pru-cgt_build
+BUILD_COMBO_EXAMPLE_PROJECTSPEC_BUILD_PRIVATE_ALL += mac_am263x-cc_icss_m0_pru1_fw_ti-pru-cgt_build
+BUILD_COMBO_EXAMPLE_PROJECTSPEC_BUILD_PRIVATE_ALL += mac_pru_io_am263x-cc_r5fss0-0_freertos_ti-arm-clang_build
+BUILD_COMBO_EXAMPLE_PROJECTSPEC_BUILD_PRIVATE_ALL += mac_pru_io_am263x-lp_r5fss0-0_freertos_ti-arm-clang_build
+BUILD_COMBO_EXAMPLE_PROJECTSPEC_BUILD_PRIVATE_ALL += mac_multiply_am263x-lp_icss_m0_pru0_fw_ti-pru-cgt_build
+BUILD_COMBO_EXAMPLE_PROJECTSPEC_BUILD_PRIVATE_ALL += mac_multiply_am263x-cc_icss_m0_pru0_fw_ti-pru-cgt_build
+BUILD_COMBO_EXAMPLE_PROJECTSPEC_BUILD_PRIVATE_ALL += mac_multiply_am263x-lp_icss_m0_pru1_fw_ti-pru-cgt_build
+BUILD_COMBO_EXAMPLE_PROJECTSPEC_BUILD_PRIVATE_ALL += mac_multiply_am263x-cc_icss_m0_pru1_fw_ti-pru-cgt_build
+BUILD_COMBO_EXAMPLE_PROJECTSPEC_BUILD_PRIVATE_ALL += mac_multiply_pru_io_am263x-cc_r5fss0-0_freertos_ti-arm-clang_build
+BUILD_COMBO_EXAMPLE_PROJECTSPEC_BUILD_PRIVATE_ALL += mac_multiply_pru_io_am263x-lp_r5fss0-0_freertos_ti-arm-clang_build
+BUILD_COMBO_EXAMPLE_PROJECTSPEC_BUILD_PRIVATE_ALL += crc_am263x-lp_icss_m0_pru0_fw_ti-pru-cgt_build
+BUILD_COMBO_EXAMPLE_PROJECTSPEC_BUILD_PRIVATE_ALL += crc_am263x-cc_icss_m0_pru0_fw_ti-pru-cgt_build
+BUILD_COMBO_EXAMPLE_PROJECTSPEC_BUILD_PRIVATE_ALL += crc_am263x-lp_icss_m0_pru1_fw_ti-pru-cgt_build
+BUILD_COMBO_EXAMPLE_PROJECTSPEC_BUILD_PRIVATE_ALL += crc_am263x-cc_icss_m0_pru1_fw_ti-pru-cgt_build
+BUILD_COMBO_EXAMPLE_PROJECTSPEC_BUILD_PRIVATE_ALL += crc_pru_io_am263x-cc_r5fss0-0_freertos_ti-arm-clang_build
+BUILD_COMBO_EXAMPLE_PROJECTSPEC_BUILD_PRIVATE_ALL += crc_pru_io_am263x-lp_r5fss0-0_freertos_ti-arm-clang_build
 # Various Private System Example Projectspec Build Targets
 
 all: $(BUILD_COMBO_EXAMPLE_PROJECTSPEC_BUILD_ALL)
@@ -38,6 +67,93 @@ all-private: $(BUILD_COMBO_EXAMPLE_PROJECTSPEC_BUILD_PRIVATE_ALL)
  empty_pru_io_am263x-lp_r5fss0-0_freertos_ti-arm-clang_build:
 	$(MAKE) -C examples/empty/am263x-lp/r5fss0-0_freertos/ti-arm-clang -f makefile_projectspec all
 
+ gpio_toggle_am263x-lp_icss_m0_pru0_fw_ti-pru-cgt_build:
+	$(MAKE) -C academy/gpio/gpio_toggle/firmware/am263x-lp/icss_m0_pru0_fw/ti-pru-cgt -f makefile_projectspec all
+
+ gpio_toggle_am263x-cc_icss_m0_pru0_fw_ti-pru-cgt_build:
+	$(MAKE) -C academy/gpio/gpio_toggle/firmware/am263x-cc/icss_m0_pru0_fw/ti-pru-cgt -f makefile_projectspec all
+
+ gpio_toggle_am263x-lp_icss_m0_pru1_fw_ti-pru-cgt_build:
+	$(MAKE) -C academy/gpio/gpio_toggle/firmware/am263x-lp/icss_m0_pru1_fw/ti-pru-cgt -f makefile_projectspec all
+
+ gpio_toggle_am263x-cc_icss_m0_pru1_fw_ti-pru-cgt_build:
+	$(MAKE) -C academy/gpio/gpio_toggle/firmware/am263x-cc/icss_m0_pru1_fw/ti-pru-cgt -f makefile_projectspec all
+
+ gpio_pru_io_am263x-lp_r5fss0-0_freertos_ti-arm-clang_build:
+	$(MAKE) -C academy/gpio/gpio_toggle/am263x-lp/r5fss0-0_freertos/ti-arm-clang -f makefile_projectspec all
+
+ intc_mcu_am263x-lp_icss_m0_pru0_fw_ti-pru-cgt_build:
+	$(MAKE) -C academy/intc/intc_mcu/firmware/am263x-lp/icss_m0_pru0_fw/ti-pru-cgt -f makefile_projectspec all
+
+ intc_mcu_am263x-cc_icss_m0_pru0_fw_ti-pru-cgt_build:
+	$(MAKE) -C academy/intc/intc_mcu/firmware/am263x-cc/icss_m0_pru0_fw/ti-pru-cgt -f makefile_projectspec all
+
+ intc_mcu_am263x-lp_icss_m0_pru1_fw_ti-pru-cgt_build:
+	$(MAKE) -C academy/intc/intc_mcu/firmware/am263x-lp/icss_m0_pru1_fw/ti-pru-cgt -f makefile_projectspec all
+
+ intc_mcu_am263x-cc_icss_m0_pru1_fw_ti-pru-cgt_build:
+	$(MAKE) -C academy/intc/intc_mcu/firmware/am263x-cc/icss_m0_pru1_fw/ti-pru-cgt -f makefile_projectspec all
+
+ intc_pru_io_am263x-cc_r5fss0-0_freertos_ti-arm-clang_build:
+	$(MAKE) -C academy/intc/intc_mcu/am263x-cc/r5fss0-0_freertos/ti-arm-clang -f makefile_projectspec all
+
+ intc_pru_io_am263x-lp_r5fss0-0_freertos_ti-arm-clang_build:
+	$(MAKE) -C academy/intc/intc_mcu/am263x-lp/r5fss0-0_freertos/ti-arm-clang -f makefile_projectspec all
+
+ mac_am263x-lp_icss_m0_pru0_fw_ti-pru-cgt_build:
+	$(MAKE) -C academy/mac/mac/firmware/am263x-lp/icss_m0_pru0_fw/ti-pru-cgt -f makefile_projectspec all
+
+ mac_am263x-cc_icss_m0_pru0_fw_ti-pru-cgt_build:
+	$(MAKE) -C academy/mac/mac/firmware/am263x-cc/icss_m0_pru0_fw/ti-pru-cgt -f makefile_projectspec all
+
+ mac_am263x-lp_icss_m0_pru1_fw_ti-pru-cgt_build:
+	$(MAKE) -C academy/mac/mac/firmware/am263x-lp/icss_m0_pru1_fw/ti-pru-cgt -f makefile_projectspec all
+
+ mac_am263x-cc_icss_m0_pru1_fw_ti-pru-cgt_build:
+	$(MAKE) -C academy/mac/mac/firmware/am263x-cc/icss_m0_pru1_fw/ti-pru-cgt -f makefile_projectspec all
+
+ mac_pru_io_am263x-cc_r5fss0-0_freertos_ti-arm-clang_build:
+	$(MAKE) -C academy/mac/mac/am263x-cc/r5fss0-0_freertos/ti-arm-clang -f makefile_projectspec all
+
+ mac_pru_io_am263x-lp_r5fss0-0_freertos_ti-arm-clang_build:
+	$(MAKE) -C academy/mac/mac/am263x-lp/r5fss0-0_freertos/ti-arm-clang -f makefile_projectspec all
+
+ mac_multiply_am263x-lp_icss_m0_pru0_fw_ti-pru-cgt_build:
+	$(MAKE) -C academy/mac/mac_multiply/firmware/am263x-lp/icss_m0_pru0_fw/ti-pru-cgt -f makefile_projectspec all
+
+ mac_multiply_am263x-cc_icss_m0_pru0_fw_ti-pru-cgt_build:
+	$(MAKE) -C academy/mac/mac_multiply/firmware/am263x-cc/icss_m0_pru0_fw/ti-pru-cgt -f makefile_projectspec all
+
+ mac_multiply_am263x-lp_icss_m0_pru1_fw_ti-pru-cgt_build:
+	$(MAKE) -C academy/mac/mac_multiply/firmware/am263x-lp/icss_m0_pru1_fw/ti-pru-cgt -f makefile_projectspec all
+
+ mac_multiply_am263x-cc_icss_m0_pru1_fw_ti-pru-cgt_build:
+	$(MAKE) -C academy/mac/mac_multiply/firmware/am263x-cc/icss_m0_pru1_fw/ti-pru-cgt -f makefile_projectspec all
+
+ mac_multiply_pru_io_am263x-cc_r5fss0-0_freertos_ti-arm-clang_build:
+	$(MAKE) -C academy/mac/mac_multiply/am263x-cc/r5fss0-0_freertos/ti-arm-clang -f makefile_projectspec all
+
+ mac_multiply_pru_io_am263x-lp_r5fss0-0_freertos_ti-arm-clang_build:
+	$(MAKE) -C academy/mac/mac_multiply/am263x-lp/r5fss0-0_freertos/ti-arm-clang -f makefile_projectspec all
+
+ crc_am263x-lp_icss_m0_pru0_fw_ti-pru-cgt_build:
+	$(MAKE) -C academy/crc/crc/firmware/am263x-lp/icss_m0_pru0_fw/ti-pru-cgt -f makefile_projectspec all
+
+ crc_am263x-cc_icss_m0_pru0_fw_ti-pru-cgt_build:
+	$(MAKE) -C academy/crc/crc/firmware/am263x-cc/icss_m0_pru0_fw/ti-pru-cgt -f makefile_projectspec all
+
+ crc_am263x-lp_icss_m0_pru1_fw_ti-pru-cgt_build:
+	$(MAKE) -C academy/crc/crc/firmware/am263x-lp/icss_m0_pru1_fw/ti-pru-cgt -f makefile_projectspec all
+
+ crc_am263x-cc_icss_m0_pru1_fw_ti-pru-cgt_build:
+	$(MAKE) -C academy/crc/crc/firmware/am263x-cc/icss_m0_pru1_fw/ti-pru-cgt -f makefile_projectspec all
+
+ crc_pru_io_am263x-cc_r5fss0-0_freertos_ti-arm-clang_build:
+	$(MAKE) -C academy/crc/crc/am263x-cc/r5fss0-0_freertos/ti-arm-clang -f makefile_projectspec all
+
+ crc_pru_io_am263x-lp_r5fss0-0_freertos_ti-arm-clang_build:
+	$(MAKE) -C academy/crc/crc/am263x-lp/r5fss0-0_freertos/ti-arm-clang -f makefile_projectspec all
+
 
 
 BUILD_COMBO_EXAMPLE_PROJECTSPEC_CLEAN_ALL =
@@ -52,6 +168,35 @@ BUILD_COMBO_EXAMPLE_PROJECTSPEC_CLEAN_PRIVATE_ALL += empty_am263x-lp_icss_m0_pru
 BUILD_COMBO_EXAMPLE_PROJECTSPEC_CLEAN_PRIVATE_ALL += empty_am263x-cc_icss_m0_pru1_fw_ti-pru-cgt_clean
 BUILD_COMBO_EXAMPLE_PROJECTSPEC_CLEAN_PRIVATE_ALL += empty_pru_io_am263x-cc_r5fss0-0_freertos_ti-arm-clang_clean
 BUILD_COMBO_EXAMPLE_PROJECTSPEC_CLEAN_PRIVATE_ALL += empty_pru_io_am263x-lp_r5fss0-0_freertos_ti-arm-clang_clean
+BUILD_COMBO_EXAMPLE_PROJECTSPEC_CLEAN_PRIVATE_ALL += gpio_toggle_am263x-lp_icss_m0_pru0_fw_ti-pru-cgt_clean
+BUILD_COMBO_EXAMPLE_PROJECTSPEC_CLEAN_PRIVATE_ALL += gpio_toggle_am263x-cc_icss_m0_pru0_fw_ti-pru-cgt_clean
+BUILD_COMBO_EXAMPLE_PROJECTSPEC_CLEAN_PRIVATE_ALL += gpio_toggle_am263x-lp_icss_m0_pru1_fw_ti-pru-cgt_clean
+BUILD_COMBO_EXAMPLE_PROJECTSPEC_CLEAN_PRIVATE_ALL += gpio_toggle_am263x-cc_icss_m0_pru1_fw_ti-pru-cgt_clean
+BUILD_COMBO_EXAMPLE_PROJECTSPEC_CLEAN_PRIVATE_ALL += gpio_pru_io_am263x-lp_r5fss0-0_freertos_ti-arm-clang_clean
+BUILD_COMBO_EXAMPLE_PROJECTSPEC_CLEAN_PRIVATE_ALL += intc_mcu_am263x-lp_icss_m0_pru0_fw_ti-pru-cgt_clean
+BUILD_COMBO_EXAMPLE_PROJECTSPEC_CLEAN_PRIVATE_ALL += intc_mcu_am263x-cc_icss_m0_pru0_fw_ti-pru-cgt_clean
+BUILD_COMBO_EXAMPLE_PROJECTSPEC_CLEAN_PRIVATE_ALL += intc_mcu_am263x-lp_icss_m0_pru1_fw_ti-pru-cgt_clean
+BUILD_COMBO_EXAMPLE_PROJECTSPEC_CLEAN_PRIVATE_ALL += intc_mcu_am263x-cc_icss_m0_pru1_fw_ti-pru-cgt_clean
+BUILD_COMBO_EXAMPLE_PROJECTSPEC_CLEAN_PRIVATE_ALL += intc_pru_io_am263x-cc_r5fss0-0_freertos_ti-arm-clang_clean
+BUILD_COMBO_EXAMPLE_PROJECTSPEC_CLEAN_PRIVATE_ALL += intc_pru_io_am263x-lp_r5fss0-0_freertos_ti-arm-clang_clean
+BUILD_COMBO_EXAMPLE_PROJECTSPEC_CLEAN_PRIVATE_ALL += mac_am263x-lp_icss_m0_pru0_fw_ti-pru-cgt_clean
+BUILD_COMBO_EXAMPLE_PROJECTSPEC_CLEAN_PRIVATE_ALL += mac_am263x-cc_icss_m0_pru0_fw_ti-pru-cgt_clean
+BUILD_COMBO_EXAMPLE_PROJECTSPEC_CLEAN_PRIVATE_ALL += mac_am263x-lp_icss_m0_pru1_fw_ti-pru-cgt_clean
+BUILD_COMBO_EXAMPLE_PROJECTSPEC_CLEAN_PRIVATE_ALL += mac_am263x-cc_icss_m0_pru1_fw_ti-pru-cgt_clean
+BUILD_COMBO_EXAMPLE_PROJECTSPEC_CLEAN_PRIVATE_ALL += mac_pru_io_am263x-cc_r5fss0-0_freertos_ti-arm-clang_clean
+BUILD_COMBO_EXAMPLE_PROJECTSPEC_CLEAN_PRIVATE_ALL += mac_pru_io_am263x-lp_r5fss0-0_freertos_ti-arm-clang_clean
+BUILD_COMBO_EXAMPLE_PROJECTSPEC_CLEAN_PRIVATE_ALL += mac_multiply_am263x-lp_icss_m0_pru0_fw_ti-pru-cgt_clean
+BUILD_COMBO_EXAMPLE_PROJECTSPEC_CLEAN_PRIVATE_ALL += mac_multiply_am263x-cc_icss_m0_pru0_fw_ti-pru-cgt_clean
+BUILD_COMBO_EXAMPLE_PROJECTSPEC_CLEAN_PRIVATE_ALL += mac_multiply_am263x-lp_icss_m0_pru1_fw_ti-pru-cgt_clean
+BUILD_COMBO_EXAMPLE_PROJECTSPEC_CLEAN_PRIVATE_ALL += mac_multiply_am263x-cc_icss_m0_pru1_fw_ti-pru-cgt_clean
+BUILD_COMBO_EXAMPLE_PROJECTSPEC_CLEAN_PRIVATE_ALL += mac_multiply_pru_io_am263x-cc_r5fss0-0_freertos_ti-arm-clang_clean
+BUILD_COMBO_EXAMPLE_PROJECTSPEC_CLEAN_PRIVATE_ALL += mac_multiply_pru_io_am263x-lp_r5fss0-0_freertos_ti-arm-clang_clean
+BUILD_COMBO_EXAMPLE_PROJECTSPEC_CLEAN_PRIVATE_ALL += crc_am263x-lp_icss_m0_pru0_fw_ti-pru-cgt_clean
+BUILD_COMBO_EXAMPLE_PROJECTSPEC_CLEAN_PRIVATE_ALL += crc_am263x-cc_icss_m0_pru0_fw_ti-pru-cgt_clean
+BUILD_COMBO_EXAMPLE_PROJECTSPEC_CLEAN_PRIVATE_ALL += crc_am263x-lp_icss_m0_pru1_fw_ti-pru-cgt_clean
+BUILD_COMBO_EXAMPLE_PROJECTSPEC_CLEAN_PRIVATE_ALL += crc_am263x-cc_icss_m0_pru1_fw_ti-pru-cgt_clean
+BUILD_COMBO_EXAMPLE_PROJECTSPEC_CLEAN_PRIVATE_ALL += crc_pru_io_am263x-cc_r5fss0-0_freertos_ti-arm-clang_clean
+BUILD_COMBO_EXAMPLE_PROJECTSPEC_CLEAN_PRIVATE_ALL += crc_pru_io_am263x-lp_r5fss0-0_freertos_ti-arm-clang_clean
 # Various Private System Example Projectspec Clean Targets
 
 clean: $(BUILD_COMBO_EXAMPLE_PROJECTSPEC_CLEAN_ALL)
@@ -76,6 +221,93 @@ clean-private: $(BUILD_COMBO_EXAMPLE_PROJECTSPEC_CLEAN_PRIVATE_ALL)
  empty_pru_io_am263x-lp_r5fss0-0_freertos_ti-arm-clang_clean:
 	$(MAKE) -C examples/empty/am263x-lp/r5fss0-0_freertos/ti-arm-clang -f makefile_projectspec clean
 
+ gpio_toggle_am263x-lp_icss_m0_pru0_fw_ti-pru-cgt_clean:
+	$(MAKE) -C academy/gpio/gpio_toggle/firmware/am263x-lp/icss_m0_pru0_fw/ti-pru-cgt -f makefile_projectspec clean
+
+ gpio_toggle_am263x-cc_icss_m0_pru0_fw_ti-pru-cgt_clean:
+	$(MAKE) -C academy/gpio/gpio_toggle/firmware/am263x-cc/icss_m0_pru0_fw/ti-pru-cgt -f makefile_projectspec clean
+
+ gpio_toggle_am263x-lp_icss_m0_pru1_fw_ti-pru-cgt_clean:
+	$(MAKE) -C academy/gpio/gpio_toggle/firmware/am263x-lp/icss_m0_pru1_fw/ti-pru-cgt -f makefile_projectspec clean
+
+ gpio_toggle_am263x-cc_icss_m0_pru1_fw_ti-pru-cgt_clean:
+	$(MAKE) -C academy/gpio/gpio_toggle/firmware/am263x-cc/icss_m0_pru1_fw/ti-pru-cgt -f makefile_projectspec clean
+
+ gpio_pru_io_am263x-lp_r5fss0-0_freertos_ti-arm-clang_clean:
+	$(MAKE) -C academy/gpio/gpio_toggle/am263x-lp/r5fss0-0_freertos/ti-arm-clang -f makefile_projectspec clean
+
+ intc_mcu_am263x-lp_icss_m0_pru0_fw_ti-pru-cgt_clean:
+	$(MAKE) -C academy/intc/intc_mcu/firmware/am263x-lp/icss_m0_pru0_fw/ti-pru-cgt -f makefile_projectspec clean
+
+ intc_mcu_am263x-cc_icss_m0_pru0_fw_ti-pru-cgt_clean:
+	$(MAKE) -C academy/intc/intc_mcu/firmware/am263x-cc/icss_m0_pru0_fw/ti-pru-cgt -f makefile_projectspec clean
+
+ intc_mcu_am263x-lp_icss_m0_pru1_fw_ti-pru-cgt_clean:
+	$(MAKE) -C academy/intc/intc_mcu/firmware/am263x-lp/icss_m0_pru1_fw/ti-pru-cgt -f makefile_projectspec clean
+
+ intc_mcu_am263x-cc_icss_m0_pru1_fw_ti-pru-cgt_clean:
+	$(MAKE) -C academy/intc/intc_mcu/firmware/am263x-cc/icss_m0_pru1_fw/ti-pru-cgt -f makefile_projectspec clean
+
+ intc_pru_io_am263x-cc_r5fss0-0_freertos_ti-arm-clang_clean:
+	$(MAKE) -C academy/intc/intc_mcu/am263x-cc/r5fss0-0_freertos/ti-arm-clang -f makefile_projectspec clean
+
+ intc_pru_io_am263x-lp_r5fss0-0_freertos_ti-arm-clang_clean:
+	$(MAKE) -C academy/intc/intc_mcu/am263x-lp/r5fss0-0_freertos/ti-arm-clang -f makefile_projectspec clean
+
+ mac_am263x-lp_icss_m0_pru0_fw_ti-pru-cgt_clean:
+	$(MAKE) -C academy/mac/mac/firmware/am263x-lp/icss_m0_pru0_fw/ti-pru-cgt -f makefile_projectspec clean
+
+ mac_am263x-cc_icss_m0_pru0_fw_ti-pru-cgt_clean:
+	$(MAKE) -C academy/mac/mac/firmware/am263x-cc/icss_m0_pru0_fw/ti-pru-cgt -f makefile_projectspec clean
+
+ mac_am263x-lp_icss_m0_pru1_fw_ti-pru-cgt_clean:
+	$(MAKE) -C academy/mac/mac/firmware/am263x-lp/icss_m0_pru1_fw/ti-pru-cgt -f makefile_projectspec clean
+
+ mac_am263x-cc_icss_m0_pru1_fw_ti-pru-cgt_clean:
+	$(MAKE) -C academy/mac/mac/firmware/am263x-cc/icss_m0_pru1_fw/ti-pru-cgt -f makefile_projectspec clean
+
+ mac_pru_io_am263x-cc_r5fss0-0_freertos_ti-arm-clang_clean:
+	$(MAKE) -C academy/mac/mac/am263x-cc/r5fss0-0_freertos/ti-arm-clang -f makefile_projectspec clean
+
+ mac_pru_io_am263x-lp_r5fss0-0_freertos_ti-arm-clang_clean:
+	$(MAKE) -C academy/mac/mac/am263x-lp/r5fss0-0_freertos/ti-arm-clang -f makefile_projectspec clean
+
+ mac_multiply_am263x-lp_icss_m0_pru0_fw_ti-pru-cgt_clean:
+	$(MAKE) -C academy/mac/mac_multiply/firmware/am263x-lp/icss_m0_pru0_fw/ti-pru-cgt -f makefile_projectspec clean
+
+ mac_multiply_am263x-cc_icss_m0_pru0_fw_ti-pru-cgt_clean:
+	$(MAKE) -C academy/mac/mac_multiply/firmware/am263x-cc/icss_m0_pru0_fw/ti-pru-cgt -f makefile_projectspec clean
+
+ mac_multiply_am263x-lp_icss_m0_pru1_fw_ti-pru-cgt_clean:
+	$(MAKE) -C academy/mac/mac_multiply/firmware/am263x-lp/icss_m0_pru1_fw/ti-pru-cgt -f makefile_projectspec clean
+
+ mac_multiply_am263x-cc_icss_m0_pru1_fw_ti-pru-cgt_clean:
+	$(MAKE) -C academy/mac/mac_multiply/firmware/am263x-cc/icss_m0_pru1_fw/ti-pru-cgt -f makefile_projectspec clean
+
+ mac_multiply_pru_io_am263x-cc_r5fss0-0_freertos_ti-arm-clang_clean:
+	$(MAKE) -C academy/mac/mac_multiply/am263x-cc/r5fss0-0_freertos/ti-arm-clang -f makefile_projectspec clean
+
+ mac_multiply_pru_io_am263x-lp_r5fss0-0_freertos_ti-arm-clang_clean:
+	$(MAKE) -C academy/mac/mac_multiply/am263x-lp/r5fss0-0_freertos/ti-arm-clang -f makefile_projectspec clean
+
+ crc_am263x-lp_icss_m0_pru0_fw_ti-pru-cgt_clean:
+	$(MAKE) -C academy/crc/crc/firmware/am263x-lp/icss_m0_pru0_fw/ti-pru-cgt -f makefile_projectspec clean
+
+ crc_am263x-cc_icss_m0_pru0_fw_ti-pru-cgt_clean:
+	$(MAKE) -C academy/crc/crc/firmware/am263x-cc/icss_m0_pru0_fw/ti-pru-cgt -f makefile_projectspec clean
+
+ crc_am263x-lp_icss_m0_pru1_fw_ti-pru-cgt_clean:
+	$(MAKE) -C academy/crc/crc/firmware/am263x-lp/icss_m0_pru1_fw/ti-pru-cgt -f makefile_projectspec clean
+
+ crc_am263x-cc_icss_m0_pru1_fw_ti-pru-cgt_clean:
+	$(MAKE) -C academy/crc/crc/firmware/am263x-cc/icss_m0_pru1_fw/ti-pru-cgt -f makefile_projectspec clean
+
+ crc_pru_io_am263x-cc_r5fss0-0_freertos_ti-arm-clang_clean:
+	$(MAKE) -C academy/crc/crc/am263x-cc/r5fss0-0_freertos/ti-arm-clang -f makefile_projectspec clean
+
+ crc_pru_io_am263x-lp_r5fss0-0_freertos_ti-arm-clang_clean:
+	$(MAKE) -C academy/crc/crc/am263x-lp/r5fss0-0_freertos/ti-arm-clang -f makefile_projectspec clean
+
 
 
 BUILD_COMBO_EXAMPLE_PROJECTSPEC_EXPORT_ALL =
@@ -90,6 +322,35 @@ BUILD_COMBO_EXAMPLE_PROJECTSPEC_EXPORT_PRIVATE_ALL += empty_am263x-lp_icss_m0_pr
 BUILD_COMBO_EXAMPLE_PROJECTSPEC_EXPORT_PRIVATE_ALL += empty_am263x-cc_icss_m0_pru1_fw_ti-pru-cgt_export
 BUILD_COMBO_EXAMPLE_PROJECTSPEC_EXPORT_PRIVATE_ALL += empty_pru_io_am263x-cc_r5fss0-0_freertos_ti-arm-clang_export
 BUILD_COMBO_EXAMPLE_PROJECTSPEC_EXPORT_PRIVATE_ALL += empty_pru_io_am263x-lp_r5fss0-0_freertos_ti-arm-clang_export
+BUILD_COMBO_EXAMPLE_PROJECTSPEC_EXPORT_PRIVATE_ALL += gpio_toggle_am263x-lp_icss_m0_pru0_fw_ti-pru-cgt_export
+BUILD_COMBO_EXAMPLE_PROJECTSPEC_EXPORT_PRIVATE_ALL += gpio_toggle_am263x-cc_icss_m0_pru0_fw_ti-pru-cgt_export
+BUILD_COMBO_EXAMPLE_PROJECTSPEC_EXPORT_PRIVATE_ALL += gpio_toggle_am263x-lp_icss_m0_pru1_fw_ti-pru-cgt_export
+BUILD_COMBO_EXAMPLE_PROJECTSPEC_EXPORT_PRIVATE_ALL += gpio_toggle_am263x-cc_icss_m0_pru1_fw_ti-pru-cgt_export
+BUILD_COMBO_EXAMPLE_PROJECTSPEC_EXPORT_PRIVATE_ALL += gpio_pru_io_am263x-lp_r5fss0-0_freertos_ti-arm-clang_export
+BUILD_COMBO_EXAMPLE_PROJECTSPEC_EXPORT_PRIVATE_ALL += intc_mcu_am263x-lp_icss_m0_pru0_fw_ti-pru-cgt_export
+BUILD_COMBO_EXAMPLE_PROJECTSPEC_EXPORT_PRIVATE_ALL += intc_mcu_am263x-cc_icss_m0_pru0_fw_ti-pru-cgt_export
+BUILD_COMBO_EXAMPLE_PROJECTSPEC_EXPORT_PRIVATE_ALL += intc_mcu_am263x-lp_icss_m0_pru1_fw_ti-pru-cgt_export
+BUILD_COMBO_EXAMPLE_PROJECTSPEC_EXPORT_PRIVATE_ALL += intc_mcu_am263x-cc_icss_m0_pru1_fw_ti-pru-cgt_export
+BUILD_COMBO_EXAMPLE_PROJECTSPEC_EXPORT_PRIVATE_ALL += intc_pru_io_am263x-cc_r5fss0-0_freertos_ti-arm-clang_export
+BUILD_COMBO_EXAMPLE_PROJECTSPEC_EXPORT_PRIVATE_ALL += intc_pru_io_am263x-lp_r5fss0-0_freertos_ti-arm-clang_export
+BUILD_COMBO_EXAMPLE_PROJECTSPEC_EXPORT_PRIVATE_ALL += mac_am263x-lp_icss_m0_pru0_fw_ti-pru-cgt_export
+BUILD_COMBO_EXAMPLE_PROJECTSPEC_EXPORT_PRIVATE_ALL += mac_am263x-cc_icss_m0_pru0_fw_ti-pru-cgt_export
+BUILD_COMBO_EXAMPLE_PROJECTSPEC_EXPORT_PRIVATE_ALL += mac_am263x-lp_icss_m0_pru1_fw_ti-pru-cgt_export
+BUILD_COMBO_EXAMPLE_PROJECTSPEC_EXPORT_PRIVATE_ALL += mac_am263x-cc_icss_m0_pru1_fw_ti-pru-cgt_export
+BUILD_COMBO_EXAMPLE_PROJECTSPEC_EXPORT_PRIVATE_ALL += mac_pru_io_am263x-cc_r5fss0-0_freertos_ti-arm-clang_export
+BUILD_COMBO_EXAMPLE_PROJECTSPEC_EXPORT_PRIVATE_ALL += mac_pru_io_am263x-lp_r5fss0-0_freertos_ti-arm-clang_export
+BUILD_COMBO_EXAMPLE_PROJECTSPEC_EXPORT_PRIVATE_ALL += mac_multiply_am263x-lp_icss_m0_pru0_fw_ti-pru-cgt_export
+BUILD_COMBO_EXAMPLE_PROJECTSPEC_EXPORT_PRIVATE_ALL += mac_multiply_am263x-cc_icss_m0_pru0_fw_ti-pru-cgt_export
+BUILD_COMBO_EXAMPLE_PROJECTSPEC_EXPORT_PRIVATE_ALL += mac_multiply_am263x-lp_icss_m0_pru1_fw_ti-pru-cgt_export
+BUILD_COMBO_EXAMPLE_PROJECTSPEC_EXPORT_PRIVATE_ALL += mac_multiply_am263x-cc_icss_m0_pru1_fw_ti-pru-cgt_export
+BUILD_COMBO_EXAMPLE_PROJECTSPEC_EXPORT_PRIVATE_ALL += mac_multiply_pru_io_am263x-cc_r5fss0-0_freertos_ti-arm-clang_export
+BUILD_COMBO_EXAMPLE_PROJECTSPEC_EXPORT_PRIVATE_ALL += mac_multiply_pru_io_am263x-lp_r5fss0-0_freertos_ti-arm-clang_export
+BUILD_COMBO_EXAMPLE_PROJECTSPEC_EXPORT_PRIVATE_ALL += crc_am263x-lp_icss_m0_pru0_fw_ti-pru-cgt_export
+BUILD_COMBO_EXAMPLE_PROJECTSPEC_EXPORT_PRIVATE_ALL += crc_am263x-cc_icss_m0_pru0_fw_ti-pru-cgt_export
+BUILD_COMBO_EXAMPLE_PROJECTSPEC_EXPORT_PRIVATE_ALL += crc_am263x-lp_icss_m0_pru1_fw_ti-pru-cgt_export
+BUILD_COMBO_EXAMPLE_PROJECTSPEC_EXPORT_PRIVATE_ALL += crc_am263x-cc_icss_m0_pru1_fw_ti-pru-cgt_export
+BUILD_COMBO_EXAMPLE_PROJECTSPEC_EXPORT_PRIVATE_ALL += crc_pru_io_am263x-cc_r5fss0-0_freertos_ti-arm-clang_export
+BUILD_COMBO_EXAMPLE_PROJECTSPEC_EXPORT_PRIVATE_ALL += crc_pru_io_am263x-lp_r5fss0-0_freertos_ti-arm-clang_export
 # Various Private System Example Projectspec Export Targets
 
 export: $(BUILD_COMBO_EXAMPLE_PROJECTSPEC_EXPORT_ALL)
@@ -113,6 +374,93 @@ export-private: $(BUILD_COMBO_EXAMPLE_PROJECTSPEC_EXPORT_PRIVATE_ALL)
 
  empty_pru_io_am263x-lp_r5fss0-0_freertos_ti-arm-clang_export:
 	$(MAKE) -C examples/empty/am263x-lp/r5fss0-0_freertos/ti-arm-clang -f makefile_projectspec export
+
+ gpio_toggle_am263x-lp_icss_m0_pru0_fw_ti-pru-cgt_export:
+	$(MAKE) -C academy/gpio/gpio_toggle/firmware/am263x-lp/icss_m0_pru0_fw/ti-pru-cgt -f makefile_projectspec export
+
+ gpio_toggle_am263x-cc_icss_m0_pru0_fw_ti-pru-cgt_export:
+	$(MAKE) -C academy/gpio/gpio_toggle/firmware/am263x-cc/icss_m0_pru0_fw/ti-pru-cgt -f makefile_projectspec export
+
+ gpio_toggle_am263x-lp_icss_m0_pru1_fw_ti-pru-cgt_export:
+	$(MAKE) -C academy/gpio/gpio_toggle/firmware/am263x-lp/icss_m0_pru1_fw/ti-pru-cgt -f makefile_projectspec export
+
+ gpio_toggle_am263x-cc_icss_m0_pru1_fw_ti-pru-cgt_export:
+	$(MAKE) -C academy/gpio/gpio_toggle/firmware/am263x-cc/icss_m0_pru1_fw/ti-pru-cgt -f makefile_projectspec export
+
+ gpio_pru_io_am263x-lp_r5fss0-0_freertos_ti-arm-clang_export:
+	$(MAKE) -C academy/gpio/gpio_toggle/am263x-lp/r5fss0-0_freertos/ti-arm-clang -f makefile_projectspec export
+
+ intc_mcu_am263x-lp_icss_m0_pru0_fw_ti-pru-cgt_export:
+	$(MAKE) -C academy/intc/intc_mcu/firmware/am263x-lp/icss_m0_pru0_fw/ti-pru-cgt -f makefile_projectspec export
+
+ intc_mcu_am263x-cc_icss_m0_pru0_fw_ti-pru-cgt_export:
+	$(MAKE) -C academy/intc/intc_mcu/firmware/am263x-cc/icss_m0_pru0_fw/ti-pru-cgt -f makefile_projectspec export
+
+ intc_mcu_am263x-lp_icss_m0_pru1_fw_ti-pru-cgt_export:
+	$(MAKE) -C academy/intc/intc_mcu/firmware/am263x-lp/icss_m0_pru1_fw/ti-pru-cgt -f makefile_projectspec export
+
+ intc_mcu_am263x-cc_icss_m0_pru1_fw_ti-pru-cgt_export:
+	$(MAKE) -C academy/intc/intc_mcu/firmware/am263x-cc/icss_m0_pru1_fw/ti-pru-cgt -f makefile_projectspec export
+
+ intc_pru_io_am263x-cc_r5fss0-0_freertos_ti-arm-clang_export:
+	$(MAKE) -C academy/intc/intc_mcu/am263x-cc/r5fss0-0_freertos/ti-arm-clang -f makefile_projectspec export
+
+ intc_pru_io_am263x-lp_r5fss0-0_freertos_ti-arm-clang_export:
+	$(MAKE) -C academy/intc/intc_mcu/am263x-lp/r5fss0-0_freertos/ti-arm-clang -f makefile_projectspec export
+
+ mac_am263x-lp_icss_m0_pru0_fw_ti-pru-cgt_export:
+	$(MAKE) -C academy/mac/mac/firmware/am263x-lp/icss_m0_pru0_fw/ti-pru-cgt -f makefile_projectspec export
+
+ mac_am263x-cc_icss_m0_pru0_fw_ti-pru-cgt_export:
+	$(MAKE) -C academy/mac/mac/firmware/am263x-cc/icss_m0_pru0_fw/ti-pru-cgt -f makefile_projectspec export
+
+ mac_am263x-lp_icss_m0_pru1_fw_ti-pru-cgt_export:
+	$(MAKE) -C academy/mac/mac/firmware/am263x-lp/icss_m0_pru1_fw/ti-pru-cgt -f makefile_projectspec export
+
+ mac_am263x-cc_icss_m0_pru1_fw_ti-pru-cgt_export:
+	$(MAKE) -C academy/mac/mac/firmware/am263x-cc/icss_m0_pru1_fw/ti-pru-cgt -f makefile_projectspec export
+
+ mac_pru_io_am263x-cc_r5fss0-0_freertos_ti-arm-clang_export:
+	$(MAKE) -C academy/mac/mac/am263x-cc/r5fss0-0_freertos/ti-arm-clang -f makefile_projectspec export
+
+ mac_pru_io_am263x-lp_r5fss0-0_freertos_ti-arm-clang_export:
+	$(MAKE) -C academy/mac/mac/am263x-lp/r5fss0-0_freertos/ti-arm-clang -f makefile_projectspec export
+
+ mac_multiply_am263x-lp_icss_m0_pru0_fw_ti-pru-cgt_export:
+	$(MAKE) -C academy/mac/mac_multiply/firmware/am263x-lp/icss_m0_pru0_fw/ti-pru-cgt -f makefile_projectspec export
+
+ mac_multiply_am263x-cc_icss_m0_pru0_fw_ti-pru-cgt_export:
+	$(MAKE) -C academy/mac/mac_multiply/firmware/am263x-cc/icss_m0_pru0_fw/ti-pru-cgt -f makefile_projectspec export
+
+ mac_multiply_am263x-lp_icss_m0_pru1_fw_ti-pru-cgt_export:
+	$(MAKE) -C academy/mac/mac_multiply/firmware/am263x-lp/icss_m0_pru1_fw/ti-pru-cgt -f makefile_projectspec export
+
+ mac_multiply_am263x-cc_icss_m0_pru1_fw_ti-pru-cgt_export:
+	$(MAKE) -C academy/mac/mac_multiply/firmware/am263x-cc/icss_m0_pru1_fw/ti-pru-cgt -f makefile_projectspec export
+
+ mac_multiply_pru_io_am263x-cc_r5fss0-0_freertos_ti-arm-clang_export:
+	$(MAKE) -C academy/mac/mac_multiply/am263x-cc/r5fss0-0_freertos/ti-arm-clang -f makefile_projectspec export
+
+ mac_multiply_pru_io_am263x-lp_r5fss0-0_freertos_ti-arm-clang_export:
+	$(MAKE) -C academy/mac/mac_multiply/am263x-lp/r5fss0-0_freertos/ti-arm-clang -f makefile_projectspec export
+
+ crc_am263x-lp_icss_m0_pru0_fw_ti-pru-cgt_export:
+	$(MAKE) -C academy/crc/crc/firmware/am263x-lp/icss_m0_pru0_fw/ti-pru-cgt -f makefile_projectspec export
+
+ crc_am263x-cc_icss_m0_pru0_fw_ti-pru-cgt_export:
+	$(MAKE) -C academy/crc/crc/firmware/am263x-cc/icss_m0_pru0_fw/ti-pru-cgt -f makefile_projectspec export
+
+ crc_am263x-lp_icss_m0_pru1_fw_ti-pru-cgt_export:
+	$(MAKE) -C academy/crc/crc/firmware/am263x-lp/icss_m0_pru1_fw/ti-pru-cgt -f makefile_projectspec export
+
+ crc_am263x-cc_icss_m0_pru1_fw_ti-pru-cgt_export:
+	$(MAKE) -C academy/crc/crc/firmware/am263x-cc/icss_m0_pru1_fw/ti-pru-cgt -f makefile_projectspec export
+
+ crc_pru_io_am263x-cc_r5fss0-0_freertos_ti-arm-clang_export:
+	$(MAKE) -C academy/crc/crc/am263x-cc/r5fss0-0_freertos/ti-arm-clang -f makefile_projectspec export
+
+ crc_pru_io_am263x-lp_r5fss0-0_freertos_ti-arm-clang_export:
+	$(MAKE) -C academy/crc/crc/am263x-lp/r5fss0-0_freertos/ti-arm-clang -f makefile_projectspec export
 
 
 
@@ -140,6 +488,35 @@ help:
 	@echo  $(MAKE) -s -C examples/empty/firmware/am263x-cc/icss_m0_pru1_fw/ti-pru-cgt -f makefile_projectspec [export all clean]
 	@echo  $(MAKE) -s -C examples/empty/am263x-cc/r5fss0-0_freertos/ti-arm-clang -f makefile_projectspec [export all clean]
 	@echo  $(MAKE) -s -C examples/empty/am263x-lp/r5fss0-0_freertos/ti-arm-clang -f makefile_projectspec [export all clean]
+	@echo  $(MAKE) -s -C academy/gpio/gpio_toggle/firmware/am263x-lp/icss_m0_pru0_fw/ti-pru-cgt -f makefile_projectspec [export all clean]
+	@echo  $(MAKE) -s -C academy/gpio/gpio_toggle/firmware/am263x-cc/icss_m0_pru0_fw/ti-pru-cgt -f makefile_projectspec [export all clean]
+	@echo  $(MAKE) -s -C academy/gpio/gpio_toggle/firmware/am263x-lp/icss_m0_pru1_fw/ti-pru-cgt -f makefile_projectspec [export all clean]
+	@echo  $(MAKE) -s -C academy/gpio/gpio_toggle/firmware/am263x-cc/icss_m0_pru1_fw/ti-pru-cgt -f makefile_projectspec [export all clean]
+	@echo  $(MAKE) -s -C academy/gpio/gpio_toggle/am263x-lp/r5fss0-0_freertos/ti-arm-clang -f makefile_projectspec [export all clean]
+	@echo  $(MAKE) -s -C academy/intc/intc_mcu/firmware/am263x-lp/icss_m0_pru0_fw/ti-pru-cgt -f makefile_projectspec [export all clean]
+	@echo  $(MAKE) -s -C academy/intc/intc_mcu/firmware/am263x-cc/icss_m0_pru0_fw/ti-pru-cgt -f makefile_projectspec [export all clean]
+	@echo  $(MAKE) -s -C academy/intc/intc_mcu/firmware/am263x-lp/icss_m0_pru1_fw/ti-pru-cgt -f makefile_projectspec [export all clean]
+	@echo  $(MAKE) -s -C academy/intc/intc_mcu/firmware/am263x-cc/icss_m0_pru1_fw/ti-pru-cgt -f makefile_projectspec [export all clean]
+	@echo  $(MAKE) -s -C academy/intc/intc_mcu/am263x-cc/r5fss0-0_freertos/ti-arm-clang -f makefile_projectspec [export all clean]
+	@echo  $(MAKE) -s -C academy/intc/intc_mcu/am263x-lp/r5fss0-0_freertos/ti-arm-clang -f makefile_projectspec [export all clean]
+	@echo  $(MAKE) -s -C academy/mac/mac/firmware/am263x-lp/icss_m0_pru0_fw/ti-pru-cgt -f makefile_projectspec [export all clean]
+	@echo  $(MAKE) -s -C academy/mac/mac/firmware/am263x-cc/icss_m0_pru0_fw/ti-pru-cgt -f makefile_projectspec [export all clean]
+	@echo  $(MAKE) -s -C academy/mac/mac/firmware/am263x-lp/icss_m0_pru1_fw/ti-pru-cgt -f makefile_projectspec [export all clean]
+	@echo  $(MAKE) -s -C academy/mac/mac/firmware/am263x-cc/icss_m0_pru1_fw/ti-pru-cgt -f makefile_projectspec [export all clean]
+	@echo  $(MAKE) -s -C academy/mac/mac/am263x-cc/r5fss0-0_freertos/ti-arm-clang -f makefile_projectspec [export all clean]
+	@echo  $(MAKE) -s -C academy/mac/mac/am263x-lp/r5fss0-0_freertos/ti-arm-clang -f makefile_projectspec [export all clean]
+	@echo  $(MAKE) -s -C academy/mac/mac_multiply/firmware/am263x-lp/icss_m0_pru0_fw/ti-pru-cgt -f makefile_projectspec [export all clean]
+	@echo  $(MAKE) -s -C academy/mac/mac_multiply/firmware/am263x-cc/icss_m0_pru0_fw/ti-pru-cgt -f makefile_projectspec [export all clean]
+	@echo  $(MAKE) -s -C academy/mac/mac_multiply/firmware/am263x-lp/icss_m0_pru1_fw/ti-pru-cgt -f makefile_projectspec [export all clean]
+	@echo  $(MAKE) -s -C academy/mac/mac_multiply/firmware/am263x-cc/icss_m0_pru1_fw/ti-pru-cgt -f makefile_projectspec [export all clean]
+	@echo  $(MAKE) -s -C academy/mac/mac_multiply/am263x-cc/r5fss0-0_freertos/ti-arm-clang -f makefile_projectspec [export all clean]
+	@echo  $(MAKE) -s -C academy/mac/mac_multiply/am263x-lp/r5fss0-0_freertos/ti-arm-clang -f makefile_projectspec [export all clean]
+	@echo  $(MAKE) -s -C academy/crc/crc/firmware/am263x-lp/icss_m0_pru0_fw/ti-pru-cgt -f makefile_projectspec [export all clean]
+	@echo  $(MAKE) -s -C academy/crc/crc/firmware/am263x-cc/icss_m0_pru0_fw/ti-pru-cgt -f makefile_projectspec [export all clean]
+	@echo  $(MAKE) -s -C academy/crc/crc/firmware/am263x-lp/icss_m0_pru1_fw/ti-pru-cgt -f makefile_projectspec [export all clean]
+	@echo  $(MAKE) -s -C academy/crc/crc/firmware/am263x-cc/icss_m0_pru1_fw/ti-pru-cgt -f makefile_projectspec [export all clean]
+	@echo  $(MAKE) -s -C academy/crc/crc/am263x-cc/r5fss0-0_freertos/ti-arm-clang -f makefile_projectspec [export all clean]
+	@echo  $(MAKE) -s -C academy/crc/crc/am263x-lp/r5fss0-0_freertos/ti-arm-clang -f makefile_projectspec [export all clean]
 	@echo  .
 	@echo  System Example ProjectSpec build targets,
 	@echo  =========================================

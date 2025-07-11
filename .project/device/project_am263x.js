@@ -12,7 +12,17 @@ const device_defines = {
 const example_file_list = [
     /*NOTE: Always add PRU firware project first to ensure R5F picks latest firmware header when all examples are built at once using makefile*/
     "examples/empty/firmware/.project/project.js",
-    "examples/empty/.project/project.js"
+    "examples/empty/.project/project.js",
+    "academy/gpio/gpio_toggle/firmware/.project/project.js",
+    "academy/gpio/gpio_toggle/.project/project.js",
+    "academy/intc/intc_mcu/firmware/.project/project.js",
+    "academy/intc/intc_mcu/.project/project.js",
+    "academy/mac/mac/firmware/.project/project.js",
+    "academy/mac/mac/.project/project.js",
+    "academy/mac/mac_multiply/firmware/.project/project.js",
+    "academy/mac/mac_multiply/.project/project.js",
+    "academy/crc/crc/firmware/.project/project.js",
+    "academy/crc/crc/.project/project.js"
 ];
 
 function getProjectSpecCpu(cpu) {
