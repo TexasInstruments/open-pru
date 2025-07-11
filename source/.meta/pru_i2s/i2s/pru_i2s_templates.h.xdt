@@ -1,0 +1,65 @@
+%%{
+    let module = system.modules[args[0]];
+%%}
+/*
+ * I2S
+ */
+
+/* I2S Instance Macros */
+
+#define CONFIG_I2S_NUM_INSTANCES               `module.$instances.length`
+% for(let i = 0; i < module.$instances.length; i++) {
+    % let instance = module.$instances[i];
+    % let Mode = 0;
+    % let Slice = 0 ;
+    % let icssInst = 0;
+    % let isIcssm = 0;
+    %if(instance.instance === "ICSSG1")
+    %{
+       % if(instance.PRU_ICSSG1_PRU.$assign === "PRU_ICSSG1_PRU1")
+       %{
+          % Slice = 1;
+       %}
+        % icssInst = 1;
+
+    %}
+    %else if(instance.instance === "ICSSG0")
+    %{
+       %if(instance.PRU_ICSSG0_PRU.$assign === "PRU_ICSSG0_PRU1")
+       %{
+          % Slice = 1;
+       %}
+
+    %}
+     /*Macro for am263x/am261x */
+    % if(instance.instance === "ICSSM" || instance.instance === "ICSSM0" || instance.instance === "ICSSM1")
+    % {
+        % if(instance.PRU_Slice == "PRU1")
+        % {
+            % Slice = 1;
+        % }
+#define  PRUICSSM                        1      
+        %if(instance.instance === "ICSSM1")
+        %{
+        % icssInst = 1;
+        %}
+    % }
+    %if(instance.Mode === "I2S")
+    %{
+        % Mode = 0;
+
+    %}
+    %else
+    %{
+        % Mode = 1;
+    %}
+#define `instance.$name`_BOOSTER_PACK     `instance.Booster_Pack & 1`
+#define `instance.$name`                  (`i`)
+#define `instance.$name`_CHANNEL0         (`instance.channel_0 & 1`)
+#define `instance.$name`_CHANNEL1         (`instance.channel_1 & 1`)
+#define `instance.$name`_CHANNEL2         (`instance.channel_2 & 1`)
+#define `instance.$name`_MODE             (`Mode`)
+#define `instance.$name`_BOOSTER_PACK     `instance.Booster_Pack & 1`
+#define  PRU_ICSSGx_PRU_SLICE            `Slice`
+#define  PRUICSSx                          (`icssInst`)
+% }

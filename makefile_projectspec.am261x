@@ -4,6 +4,7 @@
 
 BUILD_COMBO_EXAMPLE_PROJECTSPEC_BUILD_ALL =
 # Various Example Projectspec Build Targets
+BUILD_COMBO_EXAMPLE_PROJECTSPEC_BUILD_ALL += pru_i2s_diagnostic_single_channel_am261x-lp_r5fss0-0_freertos_ti-arm-clang_build
 # Various System Example Projectspec Build Targets
 
 BUILD_COMBO_EXAMPLE_PROJECTSPEC_BUILD_PRIVATE_ALL =
@@ -14,6 +15,10 @@ BUILD_COMBO_EXAMPLE_PROJECTSPEC_BUILD_PRIVATE_ALL += empty_am261x-lp_icss_m0_pru
 BUILD_COMBO_EXAMPLE_PROJECTSPEC_BUILD_PRIVATE_ALL += empty_am261x-som_icss_m0_pru1_fw_ti-pru-cgt_build
 BUILD_COMBO_EXAMPLE_PROJECTSPEC_BUILD_PRIVATE_ALL += empty_pru_io_am261x-som_r5fss0-0_freertos_ti-arm-clang_build
 BUILD_COMBO_EXAMPLE_PROJECTSPEC_BUILD_PRIVATE_ALL += empty_pru_io_am261x-lp_r5fss0-0_freertos_ti-arm-clang_build
+BUILD_COMBO_EXAMPLE_PROJECTSPEC_BUILD_PRIVATE_ALL += pru_i2s_tdm4_pru0_array_am261x-lp_icssm0-pru0_fw_ti-pru-cgt_build
+BUILD_COMBO_EXAMPLE_PROJECTSPEC_BUILD_PRIVATE_ALL += pru_i2s_tdm4_pru1_array_am261x-lp_icssm0-pru1_fw_ti-pru-cgt_build
+BUILD_COMBO_EXAMPLE_PROJECTSPEC_BUILD_PRIVATE_ALL += pru_i2s_pru0_array_am261x-lp_icssm0-pru0_fw_ti-pru-cgt_build
+BUILD_COMBO_EXAMPLE_PROJECTSPEC_BUILD_PRIVATE_ALL += pru_i2s_pru1_array_am261x-lp_icssm0-pru1_fw_ti-pru-cgt_build
 # Various Private System Example Projectspec Build Targets
 
 all: $(BUILD_COMBO_EXAMPLE_PROJECTSPEC_BUILD_ALL)
@@ -38,10 +43,26 @@ all-private: $(BUILD_COMBO_EXAMPLE_PROJECTSPEC_BUILD_PRIVATE_ALL)
  empty_pru_io_am261x-lp_r5fss0-0_freertos_ti-arm-clang_build:
 	$(MAKE) -C examples/empty/am261x-lp/r5fss0-0_freertos/ti-arm-clang -f makefile_projectspec all
 
+ pru_i2s_diagnostic_single_channel_am261x-lp_r5fss0-0_freertos_ti-arm-clang_build:
+	$(MAKE) -C examples/pru_i2s_diagnostic/single_channel/am261x-lp/r5fss0-0_freertos/ti-arm-clang -f makefile_projectspec all
+
+ pru_i2s_tdm4_pru0_array_am261x-lp_icssm0-pru0_fw_ti-pru-cgt_build:
+	$(MAKE) -C source/pru_i2s/firmware/TDM4/pru0_tx/am261x-lp/icssm0-pru0_fw/ti-pru-cgt -f makefile_projectspec all
+
+ pru_i2s_tdm4_pru1_array_am261x-lp_icssm0-pru1_fw_ti-pru-cgt_build:
+	$(MAKE) -C source/pru_i2s/firmware/TDM4/pru1_rx/am261x-lp/icssm0-pru1_fw/ti-pru-cgt -f makefile_projectspec all
+
+ pru_i2s_pru0_array_am261x-lp_icssm0-pru0_fw_ti-pru-cgt_build:
+	$(MAKE) -C source/pru_i2s/firmware/I2S/pru0_tx/am261x-lp/icssm0-pru0_fw/ti-pru-cgt -f makefile_projectspec all
+
+ pru_i2s_pru1_array_am261x-lp_icssm0-pru1_fw_ti-pru-cgt_build:
+	$(MAKE) -C source/pru_i2s/firmware/I2S/pru1_rx/am261x-lp/icssm0-pru1_fw/ti-pru-cgt -f makefile_projectspec all
+
 
 
 BUILD_COMBO_EXAMPLE_PROJECTSPEC_CLEAN_ALL =
 # Various Example Projectspec Clean Targets
+BUILD_COMBO_EXAMPLE_PROJECTSPEC_CLEAN_ALL += pru_i2s_diagnostic_single_channel_am261x-lp_r5fss0-0_freertos_ti-arm-clang_clean
 # Various System Example Projectspec Clean Targets
 
 BUILD_COMBO_EXAMPLE_PROJECTSPEC_CLEAN_PRIVATE_ALL =
@@ -52,6 +73,10 @@ BUILD_COMBO_EXAMPLE_PROJECTSPEC_CLEAN_PRIVATE_ALL += empty_am261x-lp_icss_m0_pru
 BUILD_COMBO_EXAMPLE_PROJECTSPEC_CLEAN_PRIVATE_ALL += empty_am261x-som_icss_m0_pru1_fw_ti-pru-cgt_clean
 BUILD_COMBO_EXAMPLE_PROJECTSPEC_CLEAN_PRIVATE_ALL += empty_pru_io_am261x-som_r5fss0-0_freertos_ti-arm-clang_clean
 BUILD_COMBO_EXAMPLE_PROJECTSPEC_CLEAN_PRIVATE_ALL += empty_pru_io_am261x-lp_r5fss0-0_freertos_ti-arm-clang_clean
+BUILD_COMBO_EXAMPLE_PROJECTSPEC_CLEAN_PRIVATE_ALL += pru_i2s_tdm4_pru0_array_am261x-lp_icssm0-pru0_fw_ti-pru-cgt_clean
+BUILD_COMBO_EXAMPLE_PROJECTSPEC_CLEAN_PRIVATE_ALL += pru_i2s_tdm4_pru1_array_am261x-lp_icssm0-pru1_fw_ti-pru-cgt_clean
+BUILD_COMBO_EXAMPLE_PROJECTSPEC_CLEAN_PRIVATE_ALL += pru_i2s_pru0_array_am261x-lp_icssm0-pru0_fw_ti-pru-cgt_clean
+BUILD_COMBO_EXAMPLE_PROJECTSPEC_CLEAN_PRIVATE_ALL += pru_i2s_pru1_array_am261x-lp_icssm0-pru1_fw_ti-pru-cgt_clean
 # Various Private System Example Projectspec Clean Targets
 
 clean: $(BUILD_COMBO_EXAMPLE_PROJECTSPEC_CLEAN_ALL)
@@ -76,10 +101,26 @@ clean-private: $(BUILD_COMBO_EXAMPLE_PROJECTSPEC_CLEAN_PRIVATE_ALL)
  empty_pru_io_am261x-lp_r5fss0-0_freertos_ti-arm-clang_clean:
 	$(MAKE) -C examples/empty/am261x-lp/r5fss0-0_freertos/ti-arm-clang -f makefile_projectspec clean
 
+ pru_i2s_diagnostic_single_channel_am261x-lp_r5fss0-0_freertos_ti-arm-clang_clean:
+	$(MAKE) -C examples/pru_i2s_diagnostic/single_channel/am261x-lp/r5fss0-0_freertos/ti-arm-clang -f makefile_projectspec clean
+
+ pru_i2s_tdm4_pru0_array_am261x-lp_icssm0-pru0_fw_ti-pru-cgt_clean:
+	$(MAKE) -C source/pru_i2s/firmware/TDM4/pru0_tx/am261x-lp/icssm0-pru0_fw/ti-pru-cgt -f makefile_projectspec clean
+
+ pru_i2s_tdm4_pru1_array_am261x-lp_icssm0-pru1_fw_ti-pru-cgt_clean:
+	$(MAKE) -C source/pru_i2s/firmware/TDM4/pru1_rx/am261x-lp/icssm0-pru1_fw/ti-pru-cgt -f makefile_projectspec clean
+
+ pru_i2s_pru0_array_am261x-lp_icssm0-pru0_fw_ti-pru-cgt_clean:
+	$(MAKE) -C source/pru_i2s/firmware/I2S/pru0_tx/am261x-lp/icssm0-pru0_fw/ti-pru-cgt -f makefile_projectspec clean
+
+ pru_i2s_pru1_array_am261x-lp_icssm0-pru1_fw_ti-pru-cgt_clean:
+	$(MAKE) -C source/pru_i2s/firmware/I2S/pru1_rx/am261x-lp/icssm0-pru1_fw/ti-pru-cgt -f makefile_projectspec clean
+
 
 
 BUILD_COMBO_EXAMPLE_PROJECTSPEC_EXPORT_ALL =
 # Various Example Projectspec Export Targets
+BUILD_COMBO_EXAMPLE_PROJECTSPEC_EXPORT_ALL += pru_i2s_diagnostic_single_channel_am261x-lp_r5fss0-0_freertos_ti-arm-clang_export
 # Various System Example Projectspec Export Targets
 
 BUILD_COMBO_EXAMPLE_PROJECTSPEC_EXPORT_PRIVATE_ALL =
@@ -90,6 +131,10 @@ BUILD_COMBO_EXAMPLE_PROJECTSPEC_EXPORT_PRIVATE_ALL += empty_am261x-lp_icss_m0_pr
 BUILD_COMBO_EXAMPLE_PROJECTSPEC_EXPORT_PRIVATE_ALL += empty_am261x-som_icss_m0_pru1_fw_ti-pru-cgt_export
 BUILD_COMBO_EXAMPLE_PROJECTSPEC_EXPORT_PRIVATE_ALL += empty_pru_io_am261x-som_r5fss0-0_freertos_ti-arm-clang_export
 BUILD_COMBO_EXAMPLE_PROJECTSPEC_EXPORT_PRIVATE_ALL += empty_pru_io_am261x-lp_r5fss0-0_freertos_ti-arm-clang_export
+BUILD_COMBO_EXAMPLE_PROJECTSPEC_EXPORT_PRIVATE_ALL += pru_i2s_tdm4_pru0_array_am261x-lp_icssm0-pru0_fw_ti-pru-cgt_export
+BUILD_COMBO_EXAMPLE_PROJECTSPEC_EXPORT_PRIVATE_ALL += pru_i2s_tdm4_pru1_array_am261x-lp_icssm0-pru1_fw_ti-pru-cgt_export
+BUILD_COMBO_EXAMPLE_PROJECTSPEC_EXPORT_PRIVATE_ALL += pru_i2s_pru0_array_am261x-lp_icssm0-pru0_fw_ti-pru-cgt_export
+BUILD_COMBO_EXAMPLE_PROJECTSPEC_EXPORT_PRIVATE_ALL += pru_i2s_pru1_array_am261x-lp_icssm0-pru1_fw_ti-pru-cgt_export
 # Various Private System Example Projectspec Export Targets
 
 export: $(BUILD_COMBO_EXAMPLE_PROJECTSPEC_EXPORT_ALL)
@@ -113,6 +158,21 @@ export-private: $(BUILD_COMBO_EXAMPLE_PROJECTSPEC_EXPORT_PRIVATE_ALL)
 
  empty_pru_io_am261x-lp_r5fss0-0_freertos_ti-arm-clang_export:
 	$(MAKE) -C examples/empty/am261x-lp/r5fss0-0_freertos/ti-arm-clang -f makefile_projectspec export
+
+ pru_i2s_diagnostic_single_channel_am261x-lp_r5fss0-0_freertos_ti-arm-clang_export:
+	$(MAKE) -C examples/pru_i2s_diagnostic/single_channel/am261x-lp/r5fss0-0_freertos/ti-arm-clang -f makefile_projectspec export
+
+ pru_i2s_tdm4_pru0_array_am261x-lp_icssm0-pru0_fw_ti-pru-cgt_export:
+	$(MAKE) -C source/pru_i2s/firmware/TDM4/pru0_tx/am261x-lp/icssm0-pru0_fw/ti-pru-cgt -f makefile_projectspec export
+
+ pru_i2s_tdm4_pru1_array_am261x-lp_icssm0-pru1_fw_ti-pru-cgt_export:
+	$(MAKE) -C source/pru_i2s/firmware/TDM4/pru1_rx/am261x-lp/icssm0-pru1_fw/ti-pru-cgt -f makefile_projectspec export
+
+ pru_i2s_pru0_array_am261x-lp_icssm0-pru0_fw_ti-pru-cgt_export:
+	$(MAKE) -C source/pru_i2s/firmware/I2S/pru0_tx/am261x-lp/icssm0-pru0_fw/ti-pru-cgt -f makefile_projectspec export
+
+ pru_i2s_pru1_array_am261x-lp_icssm0-pru1_fw_ti-pru-cgt_export:
+	$(MAKE) -C source/pru_i2s/firmware/I2S/pru1_rx/am261x-lp/icssm0-pru1_fw/ti-pru-cgt -f makefile_projectspec export
 
 
 
@@ -140,6 +200,11 @@ help:
 	@echo  $(MAKE) -s -C examples/empty/firmware/am261x-som/icss_m0_pru1_fw/ti-pru-cgt -f makefile_projectspec [export all clean]
 	@echo  $(MAKE) -s -C examples/empty/am261x-som/r5fss0-0_freertos/ti-arm-clang -f makefile_projectspec [export all clean]
 	@echo  $(MAKE) -s -C examples/empty/am261x-lp/r5fss0-0_freertos/ti-arm-clang -f makefile_projectspec [export all clean]
+	@echo  $(MAKE) -s -C examples/pru_i2s_diagnostic/single_channel/am261x-lp/r5fss0-0_freertos/ti-arm-clang -f makefile_projectspec [export all clean]
+	@echo  $(MAKE) -s -C source/pru_i2s/firmware/TDM4/pru0_tx/am261x-lp/icssm0-pru0_fw/ti-pru-cgt -f makefile_projectspec [export all clean]
+	@echo  $(MAKE) -s -C source/pru_i2s/firmware/TDM4/pru1_rx/am261x-lp/icssm0-pru1_fw/ti-pru-cgt -f makefile_projectspec [export all clean]
+	@echo  $(MAKE) -s -C source/pru_i2s/firmware/I2S/pru0_tx/am261x-lp/icssm0-pru0_fw/ti-pru-cgt -f makefile_projectspec [export all clean]
+	@echo  $(MAKE) -s -C source/pru_i2s/firmware/I2S/pru1_rx/am261x-lp/icssm0-pru1_fw/ti-pru-cgt -f makefile_projectspec [export all clean]
 	@echo  .
 	@echo  System Example ProjectSpec build targets,
 	@echo  =========================================

@@ -1,0 +1,5 @@
+% for(let subTemplate of args) {
+    % if (subTemplate.driver_config) {
+`system.getTemplate(subTemplate.driver_config)(subTemplate.moduleName)`
+    % }
+% }

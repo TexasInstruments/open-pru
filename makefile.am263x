@@ -46,6 +46,19 @@ help:
 	@echo  $(MAKE) -s -C examples/empty/firmware/am263x-cc/icss_m0_pru1_fw/ti-pru-cgt [all clean syscfg-gui syscfg]
 	@echo  $(MAKE) -s -C examples/empty/am263x-cc/r5fss0-0_freertos/ti-arm-clang [all clean syscfg-gui syscfg]
 	@echo  $(MAKE) -s -C examples/empty/am263x-lp/r5fss0-0_freertos/ti-arm-clang [all clean syscfg-gui syscfg]
+	@echo  $(MAKE) -s -f makefile.am263x pru_i2s_r5f.ti-arm-clang
+	@echo  .
+	@echo  Library clean targets,
+	@echo  ======================
+	@echo  $(MAKE) -s -f makefile.am263x pru_i2s_r5f.ti-arm-clang_clean
+	@echo  .
+	@echo  Example build targets,
+	@echo  ======================
+	@echo  $(MAKE) -s -C examples/pru_i2s_diagnostic/single_channel/am263x-cc/r5fss0-0_freertos/ti-arm-clang [all clean syscfg-gui syscfg]
+	@echo  $(MAKE) -s -C source/pru_i2s/firmware/TDM4/pru0_tx/am263x-cc/icssm0-pru0_fw/ti-pru-cgt [all clean syscfg-gui syscfg]
+	@echo  $(MAKE) -s -C source/pru_i2s/firmware/TDM4/pru1_rx/am263x-cc/icssm0-pru1_fw/ti-pru-cgt [all clean syscfg-gui syscfg]
+	@echo  $(MAKE) -s -C source/pru_i2s/firmware/I2S/pru0_tx/am263x-cc/icssm0-pru0_fw/ti-pru-cgt [all clean syscfg-gui syscfg]
+	@echo  $(MAKE) -s -C source/pru_i2s/firmware/I2S/pru1_rx/am263x-cc/icssm0-pru1_fw/ti-pru-cgt [all clean syscfg-gui syscfg]
 	@echo  .
 	@echo  System Example build targets,
 	@echo  =============================
@@ -56,6 +69,11 @@ help:
 
 # Combine all Components
 BUILD_COMBO_ALL =
+BUILD_COMBO_pru_i2s = pru_i2s_r5f.ti-arm-clang
+
+
+# Combine all Components
+BUILD_COMBO_ALL = $(BUILD_COMBO_pru_i2s)
 
 
 # Combine all Pre-built Components
@@ -79,6 +97,17 @@ libs-private: $(BUILD_COMBO_PRIVATE_ALL)
 
 # Combine all Components Clean
 BUILD_COMBO_CLEAN_ALL =
+$(BUILD_COMBO_pru_i2s):
+	$(MAKE) -C source/pru_i2s -f makefile.am263x.$(subst pru_i2s_,,$@) all
+
+
+
+# Various Component Clean Targets
+BUILD_COMBO_CLEAN_pru_i2s = pru_i2s_r5f.ti-arm-clang_clean
+
+
+# Combine all Components Clean
+BUILD_COMBO_CLEAN_ALL = $(BUILD_COMBO_CLEAN_pru_i2s)
 
 
 # Combine all Pre-built Components Clean
@@ -96,6 +125,17 @@ libs-prebuilt-clean: $(BUILD_COMBO_PREBUILT_CLEAN_ALL)
 
 # Combine all Components Scrub Targets
 BUILD_COMBO_SCRUB_ALL =
+$(BUILD_COMBO_CLEAN_pru_i2s):
+	$(MAKE) -C source/pru_i2s -f makefile.am263x.$(subst pru_i2s_,,$(subst _clean,,$@)) clean
+
+
+
+# Various Component Scrub Targets
+BUILD_COMBO_SCRUB_pru_i2s = pru_i2s_r5f.ti-arm-clang_scrub_scrub
+
+
+# Combine all Components Scrub Targets
+BUILD_COMBO_SCRUB_ALL = $(BUILD_COMBO_SCRUB_pru_i2s)
 
 # Combine all Pre-built Components Scrub Targets
 BUILD_COMBO_PREBUILT_SCRUB_ALL =
@@ -108,6 +148,13 @@ libs-prebuilt-scrub: $(BUILD_COMBO_PREBUILT_SCRUB_ALL)
 
 BUILD_COMBO_EXAMPLE_ALL =
 # Various Example Targets
+$(BUILD_COMBO_SCRUB_pru_i2s):
+	$(MAKE) -C source/pru_i2s -f makefile.am263x.$(subst pru_i2s_,,$(subst _scrub,,$@)) scrub
+
+
+BUILD_COMBO_EXAMPLE_ALL =
+# Various Example Targets
+BUILD_COMBO_EXAMPLE_ALL += pru_i2s_diagnostic_single_channel_am263x-cc_r5fss0-0_freertos_ti-arm-clang
 
 # Various System Example Targets
 
@@ -121,6 +168,10 @@ BUILD_COMBO_EXAMPLE_PRIVATE_ALL += empty_am263x-lp_icss_m0_pru1_fw_ti-pru-cgt
 BUILD_COMBO_EXAMPLE_PRIVATE_ALL += empty_am263x-cc_icss_m0_pru1_fw_ti-pru-cgt
 BUILD_COMBO_EXAMPLE_PRIVATE_ALL += empty_pru_io_am263x-cc_r5fss0-0_freertos_ti-arm-clang
 BUILD_COMBO_EXAMPLE_PRIVATE_ALL += empty_pru_io_am263x-lp_r5fss0-0_freertos_ti-arm-clang
+BUILD_COMBO_EXAMPLE_PRIVATE_ALL += pru_i2s_tdm4_pru0_array_am263x-cc_icssm0-pru0_fw_ti-pru-cgt
+BUILD_COMBO_EXAMPLE_PRIVATE_ALL += pru_i2s_tdm4_pru1_array_am263x-cc_icssm0-pru1_fw_ti-pru-cgt
+BUILD_COMBO_EXAMPLE_PRIVATE_ALL += pru_i2s_pru0_array_am263x-cc_icssm0-pru0_fw_ti-pru-cgt
+BUILD_COMBO_EXAMPLE_PRIVATE_ALL += pru_i2s_pru1_array_am263x-cc_icssm0-pru1_fw_ti-pru-cgt
 # Various Private System Example Targets
 
 
@@ -147,10 +198,25 @@ examples-private: $(BUILD_COMBO_EXAMPLE_PRIVATE_ALL)
 
  empty_pru_io_am263x-lp_r5fss0-0_freertos_ti-arm-clang:
 	$(MAKE) -C examples/empty/am263x-lp/r5fss0-0_freertos/ti-arm-clang -f makefile all
+ pru_i2s_diagnostic_single_channel_am263x-cc_r5fss0-0_freertos_ti-arm-clang:
+	$(MAKE) -C examples/pru_i2s_diagnostic/single_channel/am263x-cc/r5fss0-0_freertos/ti-arm-clang -f makefile all
+
+ pru_i2s_tdm4_pru0_array_am263x-cc_icssm0-pru0_fw_ti-pru-cgt:
+	$(MAKE) -C source/pru_i2s/firmware/TDM4/pru0_tx/am263x-cc/icssm0-pru0_fw/ti-pru-cgt -f makefile all
+
+ pru_i2s_tdm4_pru1_array_am263x-cc_icssm0-pru1_fw_ti-pru-cgt:
+	$(MAKE) -C source/pru_i2s/firmware/TDM4/pru1_rx/am263x-cc/icssm0-pru1_fw/ti-pru-cgt -f makefile all
+
+ pru_i2s_pru0_array_am263x-cc_icssm0-pru0_fw_ti-pru-cgt:
+	$(MAKE) -C source/pru_i2s/firmware/I2S/pru0_tx/am263x-cc/icssm0-pru0_fw/ti-pru-cgt -f makefile all
+
+ pru_i2s_pru1_array_am263x-cc_icssm0-pru1_fw_ti-pru-cgt:
+	$(MAKE) -C source/pru_i2s/firmware/I2S/pru1_rx/am263x-cc/icssm0-pru1_fw/ti-pru-cgt -f makefile all
 
 
 BUILD_COMBO_EXAMPLE_CLEAN_ALL =
 # Various Example Clean Targets
+BUILD_COMBO_EXAMPLE_CLEAN_ALL += pru_i2s_diagnostic_single_channel_am263x-cc_r5fss0-0_freertos_ti-arm-clang_clean
 # Various System Example Clean Targets
 
 
@@ -162,6 +228,10 @@ BUILD_COMBO_EXAMPLE_PRIVATE_CLEAN_ALL += empty_am263x-lp_icss_m0_pru1_fw_ti-pru-
 BUILD_COMBO_EXAMPLE_PRIVATE_CLEAN_ALL += empty_am263x-cc_icss_m0_pru1_fw_ti-pru-cgt_clean
 BUILD_COMBO_EXAMPLE_PRIVATE_CLEAN_ALL += empty_pru_io_am263x-cc_r5fss0-0_freertos_ti-arm-clang_clean
 BUILD_COMBO_EXAMPLE_PRIVATE_CLEAN_ALL += empty_pru_io_am263x-lp_r5fss0-0_freertos_ti-arm-clang_clean
+BUILD_COMBO_EXAMPLE_PRIVATE_CLEAN_ALL += pru_i2s_tdm4_pru0_array_am263x-cc_icssm0-pru0_fw_ti-pru-cgt_clean
+BUILD_COMBO_EXAMPLE_PRIVATE_CLEAN_ALL += pru_i2s_tdm4_pru1_array_am263x-cc_icssm0-pru1_fw_ti-pru-cgt_clean
+BUILD_COMBO_EXAMPLE_PRIVATE_CLEAN_ALL += pru_i2s_pru0_array_am263x-cc_icssm0-pru0_fw_ti-pru-cgt_clean
+BUILD_COMBO_EXAMPLE_PRIVATE_CLEAN_ALL += pru_i2s_pru1_array_am263x-cc_icssm0-pru1_fw_ti-pru-cgt_clean
 # Various Private System Example Targets
 
 examples-clean: $(BUILD_COMBO_EXAMPLE_CLEAN_ALL)
@@ -185,10 +255,25 @@ examples-private-clean: $(BUILD_COMBO_EXAMPLE_PRIVATE_CLEAN_ALL)
 
  empty_pru_io_am263x-lp_r5fss0-0_freertos_ti-arm-clang_clean:
 	$(MAKE) -C examples/empty/am263x-lp/r5fss0-0_freertos/ti-arm-clang -f makefile clean
+ pru_i2s_diagnostic_single_channel_am263x-cc_r5fss0-0_freertos_ti-arm-clang_clean:
+	$(MAKE) -C examples/pru_i2s_diagnostic/single_channel/am263x-cc/r5fss0-0_freertos/ti-arm-clang -f makefile clean
+
+ pru_i2s_tdm4_pru0_array_am263x-cc_icssm0-pru0_fw_ti-pru-cgt_clean:
+	$(MAKE) -C source/pru_i2s/firmware/TDM4/pru0_tx/am263x-cc/icssm0-pru0_fw/ti-pru-cgt -f makefile clean
+
+ pru_i2s_tdm4_pru1_array_am263x-cc_icssm0-pru1_fw_ti-pru-cgt_clean:
+	$(MAKE) -C source/pru_i2s/firmware/TDM4/pru1_rx/am263x-cc/icssm0-pru1_fw/ti-pru-cgt -f makefile clean
+
+ pru_i2s_pru0_array_am263x-cc_icssm0-pru0_fw_ti-pru-cgt_clean:
+	$(MAKE) -C source/pru_i2s/firmware/I2S/pru0_tx/am263x-cc/icssm0-pru0_fw/ti-pru-cgt -f makefile clean
+
+ pru_i2s_pru1_array_am263x-cc_icssm0-pru1_fw_ti-pru-cgt_clean:
+	$(MAKE) -C source/pru_i2s/firmware/I2S/pru1_rx/am263x-cc/icssm0-pru1_fw/ti-pru-cgt -f makefile clean
 
 
 BUILD_COMBO_EXAMPLE_SCRUB_ALL =
 # Various Example Scrub Targets
+BUILD_COMBO_EXAMPLE_SCRUB_ALL += pru_i2s_diagnostic_single_channel_am263x-cc_r5fss0-0_freertos_ti-arm-clang_scrub
 # Various System Example Scrub Targets
 
 
@@ -200,6 +285,10 @@ BUILD_COMBO_EXAMPLE_PRIVATE_SCRUB_ALL += empty_am263x-lp_icss_m0_pru1_fw_ti-pru-
 BUILD_COMBO_EXAMPLE_PRIVATE_SCRUB_ALL += empty_am263x-cc_icss_m0_pru1_fw_ti-pru-cgt_scrub
 BUILD_COMBO_EXAMPLE_PRIVATE_SCRUB_ALL += empty_pru_io_am263x-cc_r5fss0-0_freertos_ti-arm-clang_scrub
 BUILD_COMBO_EXAMPLE_PRIVATE_SCRUB_ALL += empty_pru_io_am263x-lp_r5fss0-0_freertos_ti-arm-clang_scrub
+BUILD_COMBO_EXAMPLE_PRIVATE_SCRUB_ALL += pru_i2s_tdm4_pru0_array_am263x-cc_icssm0-pru0_fw_ti-pru-cgt_scrub
+BUILD_COMBO_EXAMPLE_PRIVATE_SCRUB_ALL += pru_i2s_tdm4_pru1_array_am263x-cc_icssm0-pru1_fw_ti-pru-cgt_scrub
+BUILD_COMBO_EXAMPLE_PRIVATE_SCRUB_ALL += pru_i2s_pru0_array_am263x-cc_icssm0-pru0_fw_ti-pru-cgt_scrub
+BUILD_COMBO_EXAMPLE_PRIVATE_SCRUB_ALL += pru_i2s_pru1_array_am263x-cc_icssm0-pru1_fw_ti-pru-cgt_scrub
 # Various Private System Example Targets
 
 examples-scrub: $(BUILD_COMBO_EXAMPLE_SCRUB_ALL)
@@ -223,6 +312,20 @@ examples-scrub-private: $(BUILD_COMBO_EXAMPLE_PRIVATE_SCRUB_ALL)
 
  empty_pru_io_am263x-lp_r5fss0-0_freertos_ti-arm-clang_scrub:
 	$(MAKE) -C examples/empty/am263x-lp/r5fss0-0_freertos/ti-arm-clang -f makefile scrub
+ pru_i2s_diagnostic_single_channel_am263x-cc_r5fss0-0_freertos_ti-arm-clang_scrub:
+	$(MAKE) -C examples/pru_i2s_diagnostic/single_channel/am263x-cc/r5fss0-0_freertos/ti-arm-clang -f makefile scrub
+
+ pru_i2s_tdm4_pru0_array_am263x-cc_icssm0-pru0_fw_ti-pru-cgt_scrub:
+	$(MAKE) -C source/pru_i2s/firmware/TDM4/pru0_tx/am263x-cc/icssm0-pru0_fw/ti-pru-cgt -f makefile scrub
+
+ pru_i2s_tdm4_pru1_array_am263x-cc_icssm0-pru1_fw_ti-pru-cgt_scrub:
+	$(MAKE) -C source/pru_i2s/firmware/TDM4/pru1_rx/am263x-cc/icssm0-pru1_fw/ti-pru-cgt -f makefile scrub
+
+ pru_i2s_pru0_array_am263x-cc_icssm0-pru0_fw_ti-pru-cgt_scrub:
+	$(MAKE) -C source/pru_i2s/firmware/I2S/pru0_tx/am263x-cc/icssm0-pru0_fw/ti-pru-cgt -f makefile scrub
+
+ pru_i2s_pru1_array_am263x-cc_icssm0-pru1_fw_ti-pru-cgt_scrub:
+	$(MAKE) -C source/pru_i2s/firmware/I2S/pru1_rx/am263x-cc/icssm0-pru1_fw/ti-pru-cgt -f makefile scrub
 
 
 sbl: libs
