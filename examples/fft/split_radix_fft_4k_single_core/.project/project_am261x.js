@@ -1,19 +1,19 @@
 let path = require('path');
 
-let device = "am243x";
+let device = "am261x";
 
 let project_name = "split_radix_fft_4k_single_core";
 
 const files = {
     common: [
-    "AM243x_PRU0.cmd",
-    "butterfly_length_2.asm",
-    "fft_windowed_4k.asm",
-    "window_function_4k.asm",
-    "lut_load.asm",
-    "fft_macros.inc",
-    "main.asm"
-    ],
+        "AM261x_PRU0.cmd",
+        "butterfly_length_2.asm",
+        "fft_windowed_4k.asm",
+        "window_function_4k.asm",
+        "lut_load.asm",
+        "fft_macros.inc",
+        "main.asm"
+        ],
 };
 
 /* Relative to where the makefile will be generated
@@ -35,7 +35,7 @@ const includes = {
 
 const lnkfiles = {
     common: [
-        "AM243x_PRU0.cmd",
+        "AM261x_PRU0.cmd",
     ]
 };
 
@@ -46,15 +46,14 @@ const lflags = {
     ],
 };
 
-const readmeDoxygenPageTag = "EXAMPLES_FFT_AM243";
-
+const readmeDoxygenPageTag = "EXAMPLES_FFT_AM261";
 const templates_pru =
 [
-    
+
 ];
 
 const buildOptionCombos = [
-    { device: device, cpu: "icss_g0_pru0", cgt: "ti-pru-cgt", board: "am243x-lp", os: "fw"}
+    { device: device, cpu: "icss_m0_pru0", cgt: "ti-pru-cgt", board: "am261x-lp", os: "fw"},
 ];
 
 function getmakefilePruPostBuildSteps(cpu, board)
@@ -63,26 +62,15 @@ function getmakefilePruPostBuildSteps(cpu, board)
 
     switch(cpu)
     {
-        case "icss_g0_tx_pru1":
-            core = "TXPRU1"
-            break;
-        case "icss_g0_tx_pru0":
-            core = "TXPRU0"
-            break;
-        case "icss_g0_rtu_pru1":
-            core = "RTUPRU1"
-            break;
-        case "icss_g0_rtu_pru0":
-            core = "RTUPRU0"
-            break;
-        case "icss_g0_pru1":
+        case "icss_m0_pru1":
             core = "PRU1"
             break;
-        case "icss_g0_pru0":
+        case "icss_m0_pru0":
             core = "PRU0"
     }
+
     return  [
-        
+    
     ]; 
 }
 
@@ -92,25 +80,14 @@ function getccsPruPostBuildSteps(cpu, board)
 
     switch(cpu)
     {
-        case "icss_g0_tx_pru1":
-            core = "TXPRU1"
-            break;
-        case "icss_g0_tx_pru0":
-            core = "TXPRU0"
-            break;
-        case "icss_g0_rtu_pru1":
-            core = "RTUPRU1"
-            break;
-        case "icss_g0_rtu_pru0":
-            core = "RTUPRU0"
-            break;
-        case "icss_g0_pru1":
+        case "icss_m0_pru1":
             core = "PRU1"
             break;
-        case "icss_g0_pru0":
+        case "icss_m0_pru0":
             core = "PRU0"
     }
-    return  [
+
+    return [
         
     ]; 
 }
@@ -123,8 +100,9 @@ function getComponentProperty() {
     property.makefile = "pru";
     property.name = project_name;
     property.isInternal = false;
-    property.description = "Real valued 4K FFT using split-radix algorithm for AM243"
+    property.description = "Real valued 4K FFT using split-radix algorithm"
     property.buildOptionCombos = buildOptionCombos;
+    property.isSkipTopLevelBuild = true;
     property.skipUpdatingTirex = true;
 
     return property;
@@ -136,8 +114,8 @@ function getComponentBuildProperty(buildOption) {
     build_property.files = files;
     build_property.filedirs = filedirs;
     build_property.lnkfiles = lnkfiles;
-    build_property.includes = includes;
     build_property.lflags = lflags;
+    build_property.includes = includes;
     build_property.templates = templates_pru;
     build_property.readmeDoxygenPageTag = readmeDoxygenPageTag;
     build_property.projecspecFileAction = "copy";

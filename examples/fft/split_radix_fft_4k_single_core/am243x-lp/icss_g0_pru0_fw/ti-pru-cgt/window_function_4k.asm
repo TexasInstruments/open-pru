@@ -39,22 +39,9 @@
     .sect    ".text:window_function_4k"
     .clink
     .global  ||FN_WINDOW_PLUS_BOR_4k||
-
-; Macros
-W_COEF_BRAM_ADDR    .set 0x00            ; broadside RAM Base Address for Window Coefficients
-; config for Broadside RAM - bit 15 : auto-increment enable(1),  bits 8-0 : RAM Address
-W_COEF_BRAM_CONFIG  .set ((1<<15) + W_COEF_BRAM_ADDR)
-BS_RAM              .set 0x30            ; broadside ID for PRU Broadside-RAM
-MPY_MAC             .set 0               ; broadside ID for MAC
-XFR2VBUS_RD0        .set 0x60            ; broadside ID for xfr2vbus channel used
-SPAD_REG            .set 10              ; bank 10 used as scratchpad
-IP_RAM_ADDR_BASE    .set 0x00000
-IP_RAM_ADDR_1       .set IP_RAM_ADDR_BASE
-IP_RAM_ADDR_2       .set IP_RAM_ADDR_BASE + ((4096*4)-32)
-LOOP_COUNT          .set (4096/(8*2))    ; Single loop handles 16 inputs
-BRV_LUT_OFFSET      .set 0
-BRV_RAM_ADDR_BASE   .set 0x1E000      ; base address(local) of bit-reversed index LUT memory
-OP_RAM_ADDR_BASE    .set 0x14000      ; base address(local) of output memory
+; File includes
+    .include  "pru_io\firmware\common\icss_xfer_defines.inc"
+    .include "fft_macros.inc"
 
 ;register assignments
     .asg r1 , bor_lut_addr_base
@@ -104,13 +91,14 @@ OP_RAM_ADDR_BASE    .set 0x14000      ; base address(local) of output memory
     ;       bit-order reversal on inputs.
     ;
     ;*******************************************
+    xout PRU_SPAD_B1_XID, &r3.w2, 2              ; save return PC to SPAD (unused SPAD 11 used)
     ;set ip value indexs(offsets?)
     ldi ip_ram_idx_1, IP_RAM_ADDR_1
     ldi ip_ram_idx_2, IP_RAM_ADDR_2
     ldi32 bor_lut_addr_base, BRV_RAM_ADDR_BASE   ; initialize base address of bit order reveresed index LUT
     ldi ip_dram_brv_lut_offset, BRV_LUT_OFFSET   ; initialize base offet of bit-reversed index LUT
     ldi32 op_mem_addr_base, OP_RAM_ADDR_BASE     ; initialize base address of output memory
-    ldi loop_count, LOOP_COUNT  ; load loop count for interation over corresponding input values for each core
+    ldi loop_count, WF_LOOP_COUNT  ; load loop count for interation over corresponding input values for each core
     ldi complement_mask, 0x07FC ; initialize value for complementing the index (for accessing 4096 values)
 
     ;**********************Outer Loop***************************
@@ -119,8 +107,8 @@ OP_RAM_ADDR_BASE    .set 0x14000      ; base address(local) of output memory
     loop POST_MUL, loop_count
 
     lbco &w_coef_reg_base, c28, ip_ram_idx_1, 32  ; load first set of 8 input values
-    xout SPAD_REG, &w_coef_reg_base, 32         ; save to scratchpad
-    xin XFR2VBUS_RD0, &w_coef_reg_base, 32      ; load 8 window coefficients (RD_AUTO enabled)
+    xout PRU_SPAD_B0_XID, &w_coef_reg_base, 32         ; save to scratchpad
+    xin XFR2VBUSP_RD0_XID, &w_coef_reg_base, 32      ; load 8 window coefficients (RD_AUTO enabled)
     lbco &ip_reg_base, c28, ip_ram_idx_2, 32    ; load second set of 8 input values
 
     ;*******Bit order reverse Index Storage Procedure - 4k********************************
@@ -147,8 +135,8 @@ OP_RAM_ADDR_BASE    .set 0x14000      ; base address(local) of output memory
     ;**************************
     mov mul_opr_reg_1, w_coef_reg_base           ; load window coefficient
     mov mul_opr_reg_2, ip_reg_val_7              ; move input value from second input set
-    xin SPAD_REG, &w_coef_reg_base, 4            ; Load first input during 1 cycle MUL delay
-    xin MPY_MAC, &mul_prd_reg_low, 8             ; get product in lower and upper registers
+    xin PRU_SPAD_B0_XID, &w_coef_reg_base, 4            ; Load first input during 1 cycle MUL delay
+    xin MAC_XID, &mul_prd_reg_low, 8             ; get product in lower and upper registers
     ;round upper product value based on msb of lower product value
     lsr mul_prd_reg_low, mul_prd_reg_low, 31                ; get msb of lower product value
     add mul_prd_reg_low, mul_prd_reg_upp, mul_prd_reg_low   ; add msb from previous step
@@ -159,7 +147,7 @@ OP_RAM_ADDR_BASE    .set 0x14000      ; base address(local) of output memory
 
     mov mul_opr_reg_2, w_coef_reg_base  ; load input value from first input set
     nop
-    xin MPY_MAC, &mul_prd_reg_low, 8    ; get product lower and upper 32 bits after 1 cycle delay
+    xin MAC_XID, &mul_prd_reg_low, 8    ; get product lower and upper 32 bits after 1 cycle delay
     ;round upper product value based on msb of lower product value
     lsr mul_prd_reg_low, mul_prd_reg_low, 31                 ; get msb of lower product value
     add mul_prd_reg_low, mul_prd_reg_upp, mul_prd_reg_low    ; add msb from previous step
@@ -172,8 +160,8 @@ OP_RAM_ADDR_BASE    .set 0x14000      ; base address(local) of output memory
     ;**************************
     mov mul_opr_reg_1, w_coef_reg_1              ; load window coefficient
     mov mul_opr_reg_2, ip_reg_val_6              ; move input value from second input set
-    xin SPAD_REG, &w_coef_reg_1, 4               ; Load first input during 1 cycle MUL delay
-    xin MPY_MAC, &mul_prd_reg_low, 8             ; get product in lower and upper registers
+    xin PRU_SPAD_B0_XID, &w_coef_reg_1, 4               ; Load first input during 1 cycle MUL delay
+    xin MAC_XID, &mul_prd_reg_low, 8             ; get product in lower and upper registers
     ;round upper product value based on msb of lower product value
     lsr mul_prd_reg_low, mul_prd_reg_low, 31                   ; get msb of lower product value
     add mul_prd_reg_low, mul_prd_reg_upp, mul_prd_reg_low      ; add msb from previous step
@@ -186,7 +174,7 @@ OP_RAM_ADDR_BASE    .set 0x14000      ; base address(local) of output memory
 
     mov mul_opr_reg_2, w_coef_reg_1                    ; load input value from first input set
     nop
-    xin MPY_MAC, &mul_prd_reg_low, 8                   ; get product lower and upper 32 bits
+    xin MAC_XID, &mul_prd_reg_low, 8                   ; get product lower and upper 32 bits
     ;round upper product value based on msb of lower product value
     lsr mul_prd_reg_low, mul_prd_reg_low, 31                 ; get msb of lower product value
     add mul_prd_reg_low, mul_prd_reg_upp, mul_prd_reg_low    ; add msb from previous step
@@ -201,8 +189,8 @@ OP_RAM_ADDR_BASE    .set 0x14000      ; base address(local) of output memory
     ;**************************
     mov mul_opr_reg_1, w_coef_reg_2               ; load window coefficient
     mov mul_opr_reg_2, ip_reg_val_5               ; move input value from second input set
-    xin SPAD_REG, &w_coef_reg_2, 4                ; Load first input during 1 cycle MUL delay
-    xin MPY_MAC, &mul_prd_reg_low, 8              ; get product in lower and upper registers
+    xin PRU_SPAD_B0_XID, &w_coef_reg_2, 4                ; Load first input during 1 cycle MUL delay
+    xin MAC_XID, &mul_prd_reg_low, 8              ; get product in lower and upper registers
     ;round upper product value based on msb of lower product value
     lsr mul_prd_reg_low, mul_prd_reg_low, 31                   ; get msb of lower product value
     add mul_prd_reg_low, mul_prd_reg_upp, mul_prd_reg_low      ; add msb from previous step
@@ -215,7 +203,7 @@ OP_RAM_ADDR_BASE    .set 0x14000      ; base address(local) of output memory
 
     mov mul_opr_reg_2, w_coef_reg_2                   ; load input value from first input set
     nop
-    xin MPY_MAC, &mul_prd_reg_low, 8                  ; get product lower and upper 32 bits
+    xin MAC_XID, &mul_prd_reg_low, 8                  ; get product lower and upper 32 bits
     ;round upper product value based on msb of lower product value
     lsr mul_prd_reg_low, mul_prd_reg_low, 31                   ; get msb of lower product value
     add mul_prd_reg_low, mul_prd_reg_upp, mul_prd_reg_low      ; add msb from previous step
@@ -231,8 +219,8 @@ OP_RAM_ADDR_BASE    .set 0x14000      ; base address(local) of output memory
     ;**************************
     mov mul_opr_reg_1, w_coef_reg_3                ; load window coefficient
     mov mul_opr_reg_2, ip_reg_val_4                ; move input value from second input set
-    xin SPAD_REG, &w_coef_reg_3, 4                 ; Load first input during 1 cycle MUL delay
-    xin MPY_MAC, &mul_prd_reg_low, 8               ; get product in lower and upper registers
+    xin PRU_SPAD_B0_XID, &w_coef_reg_3, 4                 ; Load first input during 1 cycle MUL delay
+    xin MAC_XID, &mul_prd_reg_low, 8               ; get product in lower and upper registers
     ;round upper product value based on msb of lower product value
     lsr mul_prd_reg_low, mul_prd_reg_low, 31                   ; get msb of lower product value
     add mul_prd_reg_low, mul_prd_reg_upp, mul_prd_reg_low      ; add msb from previous step
@@ -245,7 +233,7 @@ OP_RAM_ADDR_BASE    .set 0x14000      ; base address(local) of output memory
 
     mov mul_opr_reg_2, w_coef_reg_3                   ; load input value from first input set
     nop
-    xin MPY_MAC, &mul_prd_reg_low, 8                  ; get product lower and upper 32 bits
+    xin MAC_XID, &mul_prd_reg_low, 8                  ; get product lower and upper 32 bits
     ;round upper product value based on msb of lower product value
     lsr mul_prd_reg_low, mul_prd_reg_low, 31                   ; get msb of lower product value
     add mul_prd_reg_low, mul_prd_reg_upp, mul_prd_reg_low      ; add msb from previous step
@@ -261,8 +249,8 @@ OP_RAM_ADDR_BASE    .set 0x14000      ; base address(local) of output memory
     ;**************************
     mov mul_opr_reg_1, w_coef_reg_4                ; load window coefficient
     mov mul_opr_reg_2, ip_reg_val_3                ; move input value from second input set
-    xin SPAD_REG, &w_coef_reg_4, 4                 ; Load first input during 1 cycle MUL delay
-    xin MPY_MAC, &mul_prd_reg_low, 8               ; get product in lower and upper registers
+    xin PRU_SPAD_B0_XID, &w_coef_reg_4, 4                 ; Load first input during 1 cycle MUL delay
+    xin MAC_XID, &mul_prd_reg_low, 8               ; get product in lower and upper registers
     ;round upper product value based on msb of lower product value
     lsr mul_prd_reg_low, mul_prd_reg_low, 31                   ; get msb of lower product value
     add mul_prd_reg_low, mul_prd_reg_upp, mul_prd_reg_low      ; add msb from previous step
@@ -275,7 +263,7 @@ OP_RAM_ADDR_BASE    .set 0x14000      ; base address(local) of output memory
 
     mov mul_opr_reg_2, w_coef_reg_4                ; load input value from first input set
     nop
-    xin MPY_MAC, &mul_prd_reg_low, 8               ; get product lower and upper 32 bits
+    xin MAC_XID, &mul_prd_reg_low, 8               ; get product lower and upper 32 bits
     ;round upper product value based on msb of lower product value
     lsr mul_prd_reg_low, mul_prd_reg_low, 31                 ; get msb of lower product value
     add mul_prd_reg_low, mul_prd_reg_upp, mul_prd_reg_low    ; add msb from previous step
@@ -291,8 +279,8 @@ OP_RAM_ADDR_BASE    .set 0x14000      ; base address(local) of output memory
     ;**************************
     mov mul_opr_reg_1, w_coef_reg_5                ; load window coefficient
     mov mul_opr_reg_2, ip_reg_val_2                ; move input value from second input set
-    xin SPAD_REG, &w_coef_reg_5, 4                 ; Load first input during 1 cycle MUL delay
-    xin MPY_MAC, &mul_prd_reg_low, 8               ; get product in lower and upper registers
+    xin PRU_SPAD_B0_XID, &w_coef_reg_5, 4                 ; Load first input during 1 cycle MUL delay
+    xin MAC_XID, &mul_prd_reg_low, 8               ; get product in lower and upper registers
     ;round upper product value based on msb of lower product value
     lsr mul_prd_reg_low, mul_prd_reg_low, 31                   ; get msb of lower product value
     add mul_prd_reg_low, mul_prd_reg_upp, mul_prd_reg_low      ; add msb from previous step
@@ -305,7 +293,7 @@ OP_RAM_ADDR_BASE    .set 0x14000      ; base address(local) of output memory
 
     mov mul_opr_reg_2, w_coef_reg_5                   ; load input value from first input set
     nop
-    xin MPY_MAC, &mul_prd_reg_low, 8                  ; get product lower and upper 32 bits
+    xin MAC_XID, &mul_prd_reg_low, 8                  ; get product lower and upper 32 bits
     ;round upper product value based on msb of lower product value
     lsr mul_prd_reg_low, mul_prd_reg_low, 31                 ; get msb of lower product value
     add mul_prd_reg_low, mul_prd_reg_upp, mul_prd_reg_low    ; add msb from previous step
@@ -321,8 +309,8 @@ OP_RAM_ADDR_BASE    .set 0x14000      ; base address(local) of output memory
     ;**************************
     mov mul_opr_reg_1, w_coef_reg_6               ; load window coefficient
     mov mul_opr_reg_2, ip_reg_val_1               ; move input value from second input set
-    xin SPAD_REG, &w_coef_reg_6, 4                ; Load first input during 1 cycle MUL delay
-    xin MPY_MAC, &mul_prd_reg_low, 8              ; get product in lower and upper registers
+    xin PRU_SPAD_B0_XID, &w_coef_reg_6, 4                ; Load first input during 1 cycle MUL delay
+    xin MAC_XID, &mul_prd_reg_low, 8              ; get product in lower and upper registers
     ;round upper product value based on msb of lower product value
     lsr mul_prd_reg_low, mul_prd_reg_low, 31                   ; get msb of lower product value
     add mul_prd_reg_low, mul_prd_reg_upp, mul_prd_reg_low      ; add msb from previous step
@@ -335,7 +323,7 @@ OP_RAM_ADDR_BASE    .set 0x14000      ; base address(local) of output memory
 
     mov mul_opr_reg_2, w_coef_reg_6                   ; load input value from first input set
     nop
-    xin MPY_MAC, &mul_prd_reg_low, 8                  ; get product lower and upper 32 bits
+    xin MAC_XID, &mul_prd_reg_low, 8                  ; get product lower and upper 32 bits
     ;round upper product value based on msb of lower product value
     lsr mul_prd_reg_low, mul_prd_reg_low, 31                   ; get msb of lower product value
     add mul_prd_reg_low, mul_prd_reg_upp, mul_prd_reg_low      ; add msb from previous step
@@ -351,8 +339,8 @@ OP_RAM_ADDR_BASE    .set 0x14000      ; base address(local) of output memory
     ;**************************
     mov mul_opr_reg_1, w_coef_reg_7                ; load window coefficient
     mov mul_opr_reg_2, ip_reg_base                 ; move input value from second input set
-    xin SPAD_REG, &w_coef_reg_7, 4                 ; Load first input during 1 cycle MUL delay
-    xin MPY_MAC, &mul_prd_reg_low, 8               ; get product in lower and upper registers
+    xin PRU_SPAD_B0_XID, &w_coef_reg_7, 4                 ; Load first input during 1 cycle MUL delay
+    xin MAC_XID, &mul_prd_reg_low, 8               ; get product in lower and upper registers
     ;round upper product value based on msb of lower product value
     lsr mul_prd_reg_low, mul_prd_reg_low, 31                   ; get msb of lower product value
     add mul_prd_reg_low, mul_prd_reg_upp, mul_prd_reg_low      ; add msb from previous step
@@ -365,7 +353,7 @@ OP_RAM_ADDR_BASE    .set 0x14000      ; base address(local) of output memory
 
     mov mul_opr_reg_2, w_coef_reg_7                      ; load input value from firt input set
     nop
-    xin MPY_MAC, &mul_prd_reg_low, 8                     ; get product lower and upper 32 bits
+    xin MAC_XID, &mul_prd_reg_low, 8                     ; get product lower and upper 32 bits
     ;round upper product value based on msb of lower product value
     lsr mul_prd_reg_low, mul_prd_reg_low, 31                   ; get msb of lower product value
     add mul_prd_reg_low, mul_prd_reg_upp, mul_prd_reg_low      ; add msb from previous step
@@ -383,8 +371,8 @@ OP_RAM_ADDR_BASE    .set 0x14000      ; base address(local) of output memory
 
 ;*********** Outer Loop ends **************************************************
 POST_MUL:
-
-    jmp r3.w2                                      ; exit function
+    xin PRU_SPAD_B1_XID, &r3.w2, 2                ; restore return PC from SPAD
+    jmp r3.w2                                     ; exit function
 .endasmfunc
 
 ;*****************************************************************************

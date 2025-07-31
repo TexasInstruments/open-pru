@@ -46,22 +46,7 @@
 
 ; File includes
 	.include  "pru_io\firmware\common\icss_xfer_defines.inc"
-
-; Macros
-M                      .set 12               ; M = 12 for N = 4096
-ONE_OVER_ROOT_TWO_Q32  .set 0xB504F333       ; (1/root(2))*2^(32) ;check accuracy
-MPY_MAC                .set 0
-WC_RAM_ADDR_BASE       .set 0x30018000       ; base address of window coefficients in memory
-                                             ;   (IMP! Global address required)
-OP_RAM_ADDR_BASE .set 0x14000                ; base address of output memory
-X_BASE_ADDRESS   .set (OP_RAM_ADDR_BASE - 4) ; base address shifted by 1 to deal with indexes/
-                                             ;   that starts at 1 instead of 0
-FDB_BSRAM              .set 0x1E             ; broadside ID for FDB_BSRAM
-FDB_BSRAM_CONFIG       .set 0x180
-SPAD_B0                .set 10               ; broadside ID for ScratchPad Bank 10
-BSWAP_4_8              .set 0xA1             ; broadside ID for 4_8 byte swap
-XFR2VBUS_RD0           .set 0x60             ; broadside ID for XFR2VBUS
-FFT_SIZE               .set (4096*4)         ; 4096 point FFT. 4 Bytes per input samples
+    .include  "fft_macros.inc"
 
 ;register assignments
     .asg r0    , x_base_addr
@@ -101,7 +86,7 @@ FFT_SIZE               .set (4096*4)         ; 4096 point FFT. 4 Bytes per input
     .asg r22    , ID
     .asg r23    , temp_3
     .asg r24    , temp_4
-    .asg r25.b0 , mul_config_reg_b0
+    .asg r25.w0 , tw_fac_idx
     .asg r28    , mul_opr_reg_1
     .asg r29    , mul_opr_reg_2
     .asg r26    , mul_prd_reg_low
@@ -131,14 +116,15 @@ FFT_SIZE               .set (4096*4)         ; 4096 point FFT. 4 Bytes per input
     ;*                    as the window coefficients are applied by the algorithm   *
     ;********************************************************************************
     ;configuration of window coefficients for xfer2vbus
-    ldi r18, 0x101                       ; Config: auto read mode on, read size-32 bit
+    ldi r18, 0x5                         ; Config: auto read mode on, read size-32 bit
     ldi32 r19, WC_RAM_ADDR_BASE          ; start address of window coefficients
-    xout XFR2VBUS_RD0, &r18, 8           ; set configuration and address
-    xin XFR2VBUS_RD0, &r2, 32            ; drain fifo to clear already loaded values
+    xout XFR2VBUSP_RD0_XID, &r18, 8           ; set configuration and address
+    xin XFR2VBUSP_RD0_XID, &r2, 32            ; drain fifo to clear already loaded values
 WAIT_DATA_READY1:                        ; wait till data is ready for the first set/
                                          ;      of window coefficients
-    xin     XFR2VBUS_RD0, &r18, 1
+    xin     XFR2VBUSP_RD0_XID, &r18, 1
     qbne    WAIT_DATA_READY1, r18.b0, 5
+
     jal r3.w2, FN_WINDOW_PLUS_BOR_4k     ; apply window function and bit-order reversal
 
     jal r3.w2, FN_LENGTH_2_BUTTERFLY     ; calculate the l-2 butterflies
@@ -147,9 +133,13 @@ WAIT_DATA_READY1:                        ; wait till data is ready for the first
     ldi N, FFT_SIZE
     ldi N2, (2*4)
     ldi32 x_base_addr, X_BASE_ADDRESS   ; set base address of data samples
+    .if (FFT_DEVICE == AM243)
     ; configure fdb bs_ram to auto-increment and load base address as 0x00
     ldi  r10, (1<<15)
-    xout  FDB_BSRAM, &r10, 2
+    xout  FDB_DATA_XID, &r10, 2
+    .else
+    zero &tw_fac_idx, 2
+    .endif
     ;** [ note :twiddle factors are only loaded from bs-ram on alternate loops] **
     ldi bsram_fdb_fetch_cycle, 0        ; set fetch cycle for twiddle factors to 0
 
@@ -202,7 +192,7 @@ FOR_LOOP_I_1:
     ldi32 mul_opr_reg_2, ONE_OVER_ROOT_TWO_Q32              ; load multiplicant
     add mul_opr_reg_1, x_i3, x_i4                           ; X[I3] + X[I4]
     nop                                                     ; wait 1 cycle
-    xin MPY_MAC, &mul_prd_reg_low, 8                        ; get unsigned product.
+    xin MAC_XID, &mul_prd_reg_low, 8                        ; get unsigned product.
     qbbc    SIGNCHECK_COMPLETE_1, mul_opr_reg_1, 31         ; sign check for x value
     sub     mul_prd_reg_upp, mul_prd_reg_upp, mul_opr_reg_2 ; correction to get signed product
 SIGNCHECK_COMPLETE_1:
@@ -219,7 +209,7 @@ SIGNCHECK_COMPLETE_1:
     ;********************************************************************************
     sub mul_opr_reg_1, x_i3, x_i4     ; do subtraction and move to register for multiplication
     nop                                                     ; wait 1 cycle
-    xin MPY_MAC, &mul_prd_reg_low, 8                        ; get unsigned product.
+    xin MAC_XID , &mul_prd_reg_low, 8                        ; get unsigned product.
     qbbc    SIGNCHECK_COMPLETE_2, mul_opr_reg_1, 31         ; sign check for x value
     sub     mul_prd_reg_upp, mul_prd_reg_upp, mul_opr_reg_2 ; correction to get signed product
 SIGNCHECK_COMPLETE_2:
@@ -253,13 +243,21 @@ FOR_LOOP_J:
     ;************************************************************************************
     qbgt END_FOR_LOOP_J, N8, index_j                    ; loop till J>N8
     qbbs SKIP_TWIDDLE_FETCH, bsram_fdb_fetch_cycle, 0   ; load new values in even fetch cycles
-    xin FDB_BSRAM, &CC1, 32                             ; fetch two sets of cos(A), sin(A),
+    .if (FFT_DEVICE == AM261)
+    lbco &CC1, C24, tw_fac_idx, 32                      ; fetch two sets of cos(A), sin(A),
                                                         ;   cos(3A), sin(3A) from LUT
-    xout SPAD_B0, &CC1_next, 16                         ; save second set of values for the next cycle
+    add tw_fac_idx, tw_fac_idx, 32                      ; increment index for loading next set
+    .else
+    xin FDB_DATA_XID, &CC1, 32                          ; fetch two sets of cos(A), sin(A),
+                                                        ;   cos(3A), sin(3A) from LUT
+    add tw_fac_idx, tw_fac_idx, 32                      ; (!) TEST
+    .endif
+
+    xout PRU_SPAD_B0_XID, &CC1_next, 16       ; save second set of values for the next cycle
     jmp POST_TWIDDLE_FETCH
 SKIP_TWIDDLE_FETCH:
-    xin SPAD_B0, &CC1_next, 16                          ; get saved values from previous cycle
-    xin BSWAP_4_8, &CC1, 16                             ; byte-swap using broadside 4_8 function
+    xin PRU_SPAD_B0_XID, &CC1_next, 16        ; get saved values from previous cycle
+    xin BSWAP_4_8_XID, &CC1, 16               ; byte-swap using broadside 4_8 function
 POST_TWIDDLE_FETCH:
     add bsram_fdb_fetch_cycle, bsram_fdb_fetch_cycle, 1 ; increment fetch cycle
 
@@ -271,7 +269,7 @@ DO_WHILE_LOOP_2:
 FOR_LOOP_I_2:
     qbge END_FOR_LOOP_I_2, N, index_i                   ; loop till I>=N
     add I1, index_i, index_j                            ; I1 = I + J
-    add    I2, I1, N4                                   ; I2 = I1 + N4
+    add I2, I1, N4                                      ; I2 = I1 + N4
     add I3, I2, N4                                      ; I3 = I2 + N4
     add I4, I3, N4                                      ; I4 = I3 + N4
     add I5, index_i, N4                                 ; I5 = I + N4 - J + 2
@@ -292,7 +290,7 @@ FOR_LOOP_I_2:
     lbbo &mul_opr_reg_1, x_base_addr, I3, 4                   ; load X[I3] to multiplicant register
     mov mul_opr_reg_2, CC1                                    ; move CC1(Q32) for multiplication
     nop                                                       ; wait 1 cycle
-    xin MPY_MAC, &mul_prd_reg_low, 8                          ; get product [note:]no rounding/scaling here
+    xin MAC_XID , &mul_prd_reg_low, 8                         ; get product [note:]no rounding/scaling here
                                                               ;  as CC1 can be stored as Q32. unsigned product
                                                               ;  available in Q24 format in upper mul reg
     qbbc    SIGNCHECK_COMPLETE_XI3_CC1, mul_opr_reg_1, 31     ; sign check for x value
@@ -301,7 +299,7 @@ SIGNCHECK_COMPLETE_XI3_CC1:
     mov temp_1, mul_prd_reg_upp                               ; (X[I3] * CC1) in temp1
     mov mul_opr_reg_2, SS1                                    ; move SS1(Q32) for multiplication
     nop                                                       ; wait 1 cycle
-    xin MPY_MAC, &mul_prd_reg_low, 8                          ; get unsigned product
+    xin MAC_XID , &mul_prd_reg_low, 8                         ; get unsigned product
     qbbc    SIGNCHECK_COMPLETE_XI3_SS1, mul_opr_reg_1, 31     ; sign check for x value
     sub     mul_prd_reg_upp, mul_prd_reg_upp, mul_opr_reg_2   ; correction to get signed product
 SIGNCHECK_COMPLETE_XI3_SS1:
@@ -309,14 +307,14 @@ SIGNCHECK_COMPLETE_XI3_SS1:
     lbbo &mul_opr_reg_1, x_base_addr, I7, 4                   ; load X[I7] to multiplicant register
     mov mul_opr_reg_2, CC1                                    ; move CC1(Q32) for multiplication
     nop                                                       ; wait 1 cycle
-    xin MPY_MAC, &mul_prd_reg_low, 8                          ; get unsigned product
+    xin MAC_XID , &mul_prd_reg_low, 8                         ; get unsigned product
     qbbc    SIGNCHECK_COMPLETE_XI7_CC1, mul_opr_reg_1, 31     ; sign check for x value
     sub     mul_prd_reg_upp, mul_prd_reg_upp, mul_opr_reg_2   ; correction to get signed product
 SIGNCHECK_COMPLETE_XI7_CC1:
     sub temp_2, mul_prd_reg_upp, temp_2                       ; temp_2 --> (X[I7] * CC1 - X[I3] * SS1)
     mov mul_opr_reg_2, SS1                                    ; move SS1(Q32) for multiplication
     nop                                                       ; wait 1 cycle
-    xin MPY_MAC, &mul_prd_reg_low, 8                          ; get unsigned product
+    xin MAC_XID , &mul_prd_reg_low, 8                         ; get unsigned product
     qbbc    SIGNCHECK_COMPLETE_XI7_SS1, mul_opr_reg_1, 31     ; sign check for x value
     sub     mul_prd_reg_upp, mul_prd_reg_upp, mul_opr_reg_2   ; correction to get signed product
 SIGNCHECK_COMPLETE_XI7_SS1:
@@ -335,7 +333,7 @@ SIGNCHECK_COMPLETE_XI7_SS1:
     mov mul_opr_reg_2, CC3                                    ; move CC3(Q24) for multiplication
                                                               ;[note:]CC3 signed so cannot use Q32
     nop                                                       ; wait 1 cycle
-    xin MPY_MAC, &mul_prd_reg_low, 8                          ; get unsigned product
+    xin MAC_XID , &mul_prd_reg_low, 8                         ; get unsigned product
     qbbc    SIGNCHECK_COMPLETE_XI4_CC3_1, mul_opr_reg_1, 31   ; sign check for x value
     sub     mul_prd_reg_upp, mul_prd_reg_upp, mul_opr_reg_2   ; correction to get signed product
 SIGNCHECK_COMPLETE_XI4_CC3_1:
@@ -347,7 +345,7 @@ SIGNCHECK_COMPLETE_XI4_CC3_2:
                                                               ;     (X[I4] * CC3) in Q24 format in temp_3
     mov mul_opr_reg_2, SS3                                    ; move SS3(Q32) for multiplication
     nop                                                       ; wait 1 cycle
-    xin MPY_MAC, &mul_prd_reg_low, 8                          ; get unsigned product
+    xin MAC_XID , &mul_prd_reg_low, 8                         ; get unsigned product
     qbbc    SIGNCHECK_COMPLETE_XI4_SS3, mul_opr_reg_1, 31     ; sign check for x value
     sub     mul_prd_reg_upp, mul_prd_reg_upp, mul_opr_reg_2   ; correction to get signed product
 SIGNCHECK_COMPLETE_XI4_SS3:
@@ -355,7 +353,7 @@ SIGNCHECK_COMPLETE_XI4_SS3:
     lbbo &mul_opr_reg_1, x_base_addr, I8, 4                   ; load X[I8] to multiplicant register
     mov mul_opr_reg_2, CC3                                    ; move CC3(Q24) for multiplication
     nop                                                       ; wait 1 cycle
-    xin MPY_MAC, &mul_prd_reg_low, 8                          ; get unsigned product
+    xin MAC_XID , &mul_prd_reg_low, 8                          ; get unsigned product
     qbbc    SIGNCHECK_COMPLETE_XI8_CC3_1, mul_opr_reg_1, 31   ; sign check for x value
     sub     mul_prd_reg_upp, mul_prd_reg_upp, mul_opr_reg_2   ; correction to get signed product
 SIGNCHECK_COMPLETE_XI8_CC3_1:
@@ -369,7 +367,7 @@ SIGNCHECK_COMPLETE_XI8_CC3_2:
     sub temp_4, mul_opr_reg_2, temp_4                         ; temp_4 --> (X[I8] * CC3 - X[I4] * SS3)
     mov mul_opr_reg_2, SS3                                    ; move SS3(Q32) for multiplication
     nop                                                       ; wait 1 cycle
-    xin MPY_MAC, &mul_prd_reg_low, 8                          ; get unsigned product
+    xin MAC_XID , &mul_prd_reg_low, 8                         ; get unsigned product
     qbbc    SIGNCHECK_COMPLETE_XI8_SS3, mul_opr_reg_1, 31     ; sign check for x value
     sub     mul_prd_reg_upp, mul_prd_reg_upp, mul_opr_reg_2   ; correction to get signed product
 SIGNCHECK_COMPLETE_XI8_SS3:
@@ -417,7 +415,7 @@ END_FOR_LOOP_J:
 ********************For Loop J ends*****************
 END_FOR_LOOP_K:
 ********************For Loop K*******************************************
-    xin PRU_SPAD_B0_XID, &r3.w2, 2                ; restore return PC from SPAD
+    xin PRU_SPAD_B2_XID, &r3.w2, 2                ; restore return PC from SPAD
     jmp        r3.w2                              ; return from function
 .endasmfunc
 

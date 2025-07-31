@@ -28,58 +28,53 @@
 ; (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 ; OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-;*********************************************************************
-; File: lut_load.asm
+******************************************************************
+; File: fft_macros.inc
 ;
 ; Description:
-;       This file implements the function that loads necessary LUTs
-;
-;*********************************************************************
+;       Include file that defines fft related constant macros
+;       
+;*****************************************************************
 
-    .sect       ".text:lut_load"
-    .clink
-    .global     ||FN_LOAD_LUT_VALUES||
+AM243                     .set 0x1
+AM261                     .set 0x2
+FFT_DEVICE                .set AM243
+FFT_SIZE_NUM .set 4096        ;  4096 point FFT
+FFT_SIZE         .set (FFT_SIZE_NUM*4)               ; memory size for 4 Bytes per input samples
+OP_RAM_ADDR_BASE .set 0x14000
+X_BASE_ADDRESS   .set (OP_RAM_ADDR_BASE - 4) ; base address shifted by 1 to deal with indexes/
+                                             ;  that starts at 1 instead of 0
 
-; File includes
-	.include  "pru_io\firmware\common\icss_xfer_defines.inc"
+    .if (FFT_DEVICE == AM261)
+WC_RAM_ADDR_BASE       .set 0x78000000       ; base address of window coefficients in memory
+                                             ;   (IMP! Global address required)
+    .else
+WC_RAM_ADDR_BASE       .set 0x30018000       ; base address of window coefficients in memory
+                                             ;   (IMP! Global address required)
+    .endif
+M                      .set 12               ; M= log2(FFT_SIZE_NUM), M = 12 for FFT_SIZE_NUM  = 4096
+ONE_OVER_ROOT_TWO_Q32  .set 0xB504F333       ; (1/root(2))*2^(32)  (Q32 format)
+FDB_BSRAM_CONFIG       .set 0x180    ; Config for FDB General Purpose mode
 
-; Macros
+    .if (FFT_DEVICE == AM243)
 TW_FACTOR_START_ADDRESS      .set 0x1A000   ; local address of initial location of Twiddle factors in Shared Memory
+    .else
+TW_FACTOR_START_ADDRESS      .set 0x0000
+    .endif
+
 TW_FACTOR_SPACE              .set 0x3F50    ; required space for 32 bit twiddle factors for 4k FFT
 TW_FACTOR_END_ADDRESS        .set TW_FACTOR_START_ADDRESS + TW_FACTOR_SPACE ;
 TW_FACTOR_BRAM_ADDR          .set 0x00      ; fdb broadside RAM Base Address for Storing Twiddle Factors
 ; config for Broadside RAM : bit 15 - auto-increment enable, bits 8-0 - RAM Address
 TW_FACTOR_FDB_BRAM_CONFIG    .set ((1<<15) + TW_FACTOR_BRAM_ADDR) ; auto-increment : enable, base address : 0x000
-XID_FDB_BSRAM                .set 0x1E
-
-.asmfunc
-||FN_LOAD_LUT_VALUES||:
-    ;*************************************************
-    ;   Function : FN_LOAD_LUT_VALUES
-    ;
-    ;   Description:
-    ;       Loads Twiddle factors to FDB BS-RAM.
-    ;
-    ;*************************************************
-    xout PRU_SPAD_B0_XID, &r3.w2, 2       ; save return PC to SPAD
-    ldi32 r12, TW_FACTOR_START_ADDRESS    ; shared memory tw factor address start
-    ldi32 r13, TW_FACTOR_END_ADDRESS      ; shared memory LUT range end
-
-    ldi  r10, TW_FACTOR_FDB_BRAM_CONFIG   ; load configuration
-    xout  XID_FDB_BSRAM, &r10, 2          ; configure fdb-bs_ram to auto-increment and load base address as 0x000
-TW_LUT_LOAD:
-    qbge LUT_LOAD_END, r13, r12
-    lbbo &r2, r12, 0, 32                  ; load 8 values, 4 bytes each, to r2-r9
-    xout  XID_FDB_BSRAM, &r2, 32          ; save to fdb-bs-ram
-    add r12, r12, 32                      ; increment memory address
-    jmp TW_LUT_LOAD
-LUT_LOAD_END:
-    xin PRU_SPAD_B0_XID, &r3.w2, 2        ; restore PC
-
-    jmp        r3.w2                      ; return from function
-.endasmfunc
-
-;*****************************************************************************
-;*                                     END
-;*****************************************************************************
+; config for Broadside RAM - bit 15 : auto-increment enable(1),  bits 8-0 : RAM Address
+IP_RAM_ADDR_BASE    .set 0x00000
+IP_RAM_ADDR_1       .set IP_RAM_ADDR_BASE
+IP_RAM_ADDR_2       .set IP_RAM_ADDR_BASE + (FFT_SIZE-32)
+WF_LOOP_COUNT          .set (4096/(8*2))    ; Single loop handles 16 inputs
+BRV_LUT_OFFSET      .set 0
+    .if (FFT_DEVICE == AM243)
+BRV_RAM_ADDR_BASE    .set 0x1E000        ; BRV LUT local address
+    .else
+BRV_RAM_ADDR_BASE    .set 0x78002000      ; BRV address
+    .endif

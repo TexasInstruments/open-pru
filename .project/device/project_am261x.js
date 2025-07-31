@@ -22,7 +22,8 @@ const example_file_list = [
     "academy/mac/mac_multiply/firmware/.project/project.js",
     "academy/mac/mac_multiply/.project/project.js",
     "academy/crc/crc/firmware/.project/project.js",
-    "academy/crc/crc/.project/project.js"
+    "academy/crc/crc/.project/project.js",
+    "examples/fft/split_radix_fft_4k_single_core/.project/project.js"
 ];
 
 function getProjectSpecCpu(cpu) {
