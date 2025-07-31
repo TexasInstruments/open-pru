@@ -1,8 +1,8 @@
-export OPEN_PRU_PATH?=$(abspath ../../../../../..)
+export OPEN_PRU_PATH?=$(abspath ../../../../../../..)
 include $(OPEN_PRU_PATH)/imports.mak
 
 # Define build outputs
-OUTPUT_NAME := split_radix_fft_post_processing_am243x-lp_icss_g0_pru0_fw
+OUTPUT_NAME := split_radix_fft_4k_am243x-lp_icss_g0_pru0_fw
 HEX_ARRAY_PREFIX := PRU0Firmware
 GEN_DIR := generated
 TARGET := $(GEN_DIR)/$(OUTPUT_NAME).out
@@ -10,7 +10,7 @@ TARGET_HEX := $(GEN_DIR)/$(OUTPUT_NAME).h
 
 # MCU+ projects: rename & move hex array output
 MCU_HEX_NAME := pru0_load_bin.h
-MCU_HEX_PATH := $(OPEN_PRU_PATH)/examples/fft/split_radix_fft_post_processing/am243x-lp/$(MCU_HEX_NAME)
+MCU_HEX_PATH := $(OPEN_PRU_PATH)/examples/fft/split_radix_fft_4k_single_core/firmware/am243x-lp/$(MCU_HEX_NAME)
 
 # which directories to search for assembly & C source files?
 FILES_PATH := .. ../../.. .
