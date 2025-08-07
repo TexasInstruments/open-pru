@@ -21,6 +21,7 @@ const example_file_list = [
     "examples/spi_loopback/spi_loopback_app/.project/project.js",
     "examples/fft/split_radix_fft_4k_single_core/.project/project.js",
     "examples/fft/split_radix_fft_post_processing/.project/project.js",
+    "examples/multicore_scheduler/.project/project.js",
 ];
 
 function getProjectSpecCpu(cpu) {
