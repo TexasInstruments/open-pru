@@ -4,7 +4,7 @@ include ../imports.mak
 #SUBDIRS := fft
 #SUBDIRS_MCUPLUS := empty pru_emif spi_loopback
 SUBDIRS :=
-SUBDIRS_MCUPLUS := empty
+SUBDIRS_MCUPLUS := empty pru_emif
 SUBDIRS_LINUX :=
 
 ifeq ($(BUILD_MCUPLUS),y)
