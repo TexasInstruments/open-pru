@@ -2,7 +2,7 @@ include ../imports.mak
 
 # which projects will be built?
 SUBDIRS := fft
-SUBDIRS_MCUPLUS := empty pru_emif spi_loopback
+SUBDIRS_MCUPLUS := empty pru_emif #spi_loopback
 SUBDIRS_LINUX :=
 
 ifeq ($(BUILD_MCUPLUS),y)
