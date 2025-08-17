@@ -1,0 +1,184 @@
+# Critical blockers that MUST prevent code from reaching production
+pr_compliances:
+  - title: "Undocumented Timing Requirements"
+    compliance_label: true
+    objective: "Ensure all timing-critical code sections have documented cycle counts and execution times for PRU assembly or C code"
+    success_criteria: |
+      - "All macros and functions have documented PEAK cycles"
+      - "Worst-case execution time (WCET) is specified"
+      - "Real-time constraints are clearly documented"
+      - "Timing validation test results are provided"
+    failure_criteria: |
+      - "Any timing-critical code without cycle count documentation"
+      - "Missing WCET analysis for real-time functions"
+      - "Undocumented timing assumptions"
+      - "No timing validation evidence"
+
+  - title: "Non-Deterministic Code Paths"
+    compliance_label: true
+    objective: "Ensure all code paths have predictable, bounded execution times for PRU assembly or C code"
+    success_criteria: |
+      - "All code paths have documented execution times"
+      - "No variable-length operations in critical sections"
+      - "Conditional branches have balanced timing"
+      - "Interrupt handlers have bounded execution time"
+    failure_criteria: |
+      - "Code paths with unpredictable execution times"
+      - "Variable-length loops in critical sections"
+      - "Unbalanced conditional branches"
+      - "Unbounded interrupt processing"
+
+  - title: "Unbounded Loops"
+    compliance_label: true
+    objective: "Prevent infinite loops that could hang the PRU indefinitely unless explicitly marked via comment"
+    success_criteria:
+      - "All loops have maximum iteration limits"
+      - "Timeout mechanisms implemented for wait conditions"
+      - "Loop bounds are validated and documented"
+      - "Error handling for timeout conditions"
+    failure_criteria:
+      - "Any loop without maximum iteration limit"
+      - "Wait conditions without timeout"
+      - "Recursive calls without depth limits"
+      - "Polling loops without exit conditions"
+
+  - title: "Register Corruption"
+    compliance_label: true
+    objective: "Ensure register state is preserved across function calls and interrupts"
+    success_criteria: |
+      - "All functions preserve caller's register state"
+      - "Interrupt handlers save and restore context"
+      - "Register usage is documented"
+      - "No unintended register modifications"
+    failure_criteria: |
+      - "Functions that modify caller's registers without saving"
+      - "Interrupt handlers without context preservation"
+      - "Undocumented register side effects"
+      - "Register aliasing conflicts"
+
+  - title: "Memory Bounds Violations"
+    compliance_label: true
+    objective: "Prevent memory access outside allocated boundaries"
+    success_criteria: |
+      - "All memory accesses have bounds checking"
+      - "Array indices are validated"
+      - "Pointer arithmetic is bounds-checked"
+      - "Memory allocation limits are enforced"
+    failure_criteria: |
+      - "Memory access without bounds checking"
+      - "Unchecked array indexing"
+      - "Pointer arithmetic without validation"
+      - "Buffer overflow potential"
+
+  - title: "Missing Critical Error Handling"
+    compliance_label: true
+    objective: "Ensure all critical operations have proper error handling"
+    success_criteria: |
+      - "All critical API calls check return values"
+      - "Error conditions are properly handled"
+      - "System state is preserved on errors"
+      - "Error recovery mechanisms are implemented"
+    failure_criteria: |
+      - "Critical API calls without error checking"
+      - "Ignored error conditions"
+      - "System continues with undefined state"
+      - "No error recovery mechanisms"
+
+  - title: "Silent Failures"
+    compliance_label: true
+    objective: "Ensure all error conditions are properly reported and handled"
+    success_criteria: |
+      - "All error conditions generate appropriate responses"
+      - "Error codes are defined and documented"
+      - "Failure modes are clearly identified"
+      - "Error reporting mechanisms are implemented"
+    failure_criteria: |
+      - "Error conditions that are ignored"
+      - "Missing error code definitions"
+      - "Undefined failure behavior"
+      - "No error reporting mechanism"
+
+  - title: "Uncontrolled GPIO States"
+    compliance_label: true
+    objective: "Ensure GPIO pins are left in safe states under all conditions"
+    success_criteria: |
+      - "All GPIO pins have defined safe states"
+      - "Cleanup code sets pins to safe states"
+      - "Error paths include GPIO cleanup"
+      - "Hardware safety requirements are met"
+    failure_criteria: |
+      - "GPIO pins left in undefined states"
+      - "Missing cleanup for critical pins"
+      - "No safe state definitions"
+      - "Hardware safety violations"
+
+  - title: "Missing Watchdog Handling"
+    compliance_label: true
+    objective: "Ensure watchdog is properly serviced to prevent system resets"
+    success_criteria: |
+      - "Watchdog is serviced in all long-running operations"
+      - "Service intervals are within watchdog timeout"
+      - "Watchdog configuration is documented"
+      - "Timeout handling is implemented"
+    failure_criteria: |
+      - "Long operations without watchdog service"
+      - "Service intervals exceed timeout"
+      - "Missing watchdog configuration"
+      - "No timeout handling"
+
+  - title: "Race Conditions in Shared Memory"
+    compliance_label: true
+    objective: "Prevent data corruption from concurrent access to shared resources"
+    success_criteria: |
+      - "Shared memory access is properly synchronized"
+      - "Memory barriers are used where needed"
+      - "Atomic operations for critical updates"
+      - "Data consistency is guaranteed"
+    failure_criteria: |
+      - "Unsynchronized shared memory access"
+      - "Missing memory barriers"
+      - "Non-atomic critical updates"
+      - "Potential data corruption"
+
+  - title: "Missing Synchronization Between PRUs"
+    compliance_label: true
+    objective: "Ensure proper coordination between multiple PRU cores"
+    success_criteria: |
+      - "Inter-PRU communication is synchronized"
+      - "Shared resources have access control"
+      - "Synchronization primitives are used"
+      - "Coordination protocols are documented"
+    failure_criteria: |
+      - "Unsynchronized inter-PRU communication"
+      - "Uncontrolled shared resource access"
+      - "Missing synchronization primitives"
+      - "Undocumented coordination"
+
+  - title: "Missing Parameter Validation"
+    compliance_label: true
+    objective: "Ensure all function/macro parameters are validated"
+    success_criteria: |
+      - "All parameters have range validation"
+      - "Invalid parameters generate compile errors"
+      - "Parameter constraints are documented"
+      - "Validation is comprehensive"
+    failure_criteria: |
+      - "Parameters without validation"
+      - "Missing range checks"
+      - "Undocumented parameter constraints"
+      - "Incomplete validation"
+
+  - title: "Hardcoded Magic Numbers"
+    compliance_label: true
+    objective: "Ensure all numeric constants are properly defined and documented"
+    success_criteria: |
+      - "All constants are named and defined"
+      - "Magic numbers are replaced with symbolic names"
+      - "Constant definitions are documented"
+      - "Values are explained and justified"
+    failure_criteria: |
+      - "Unexplained numeric literals"
+      - "Missing constant definitions"
+      - "Undocumented magic numbers"
+      - "Unclear value meanings"
+      
