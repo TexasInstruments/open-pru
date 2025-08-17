@@ -1,0 +1,14 @@
+[github_app]
+pr_commands = [
+    "/describe",
+    "/review",
+    "/improve",
+    "/compliance",
+]
+handle_push_trigger = true
+push_commands = [
+    "/describe",
+    "/review",
+    "/improve",
+    "/compliance",
+]
