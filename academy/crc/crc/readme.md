@@ -23,8 +23,7 @@ This implementation is particularly useful in applications requiring data integr
 
  Parameter      | Value
  ---------------|-----------
- ICSSM          | ICSSM0 - PRU0, PRU1
-                | ICSSM1 (only in am261x) - PRU0, PRU1
+ ICSSM          | ICSSM0 - PRU0, PRU1; ICSSM1 (only in am261x) - PRU0, PRU1
  Toolchain      | pru-cgt
  Board          | am261x-lp, am261x-som, am263px-cc, am263px-lp, am263x-cc, am263x-lp
  Example folder | academy/crc/crc/
