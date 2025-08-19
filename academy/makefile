@@ -2,8 +2,7 @@ include ../imports.mak
 
 # which projects will be built?
 SUBDIRS := crc/crc mac/mac mac/mac_multiply
-#SUBDIRS_MCUPLUS :=  intc/intc_mcu
-SUBDIRS_MCUPLUS := gpio/gpio_toggle
+SUBDIRS_MCUPLUS := gpio/gpio_toggle intc/intc_mcu
 SUBDIRS_LINUX :=
 
 ifeq ($(BUILD_MCUPLUS),y)

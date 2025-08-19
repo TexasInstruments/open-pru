@@ -24,12 +24,7 @@ The successful completion of this interrupt sequence can be verified by checking
 
  Parameter      | Value
  ---------------|-----------
-<<<<<<< HEAD
  ICSSM          | ICSSM0 - PRU0, PRU1; ICSSM1 (only in am261x) - PRU0, PRU1
-=======
- ICSSM          | ICSSM0 - PRU0, PRU1
-                | ICSSM1 (only in am261x) - PRU0, PRU1
->>>>>>> 559f50c (academy/intc/intc_mcu: update make paths)
  Toolchain      | pru-cgt
  Board          | am261x-lp, am263px-cc, am263px-lp, am263x-cc, am263x-lp
  Example folder | academy/intc/intc_mcu
