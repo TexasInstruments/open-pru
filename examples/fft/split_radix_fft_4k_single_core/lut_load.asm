@@ -42,7 +42,7 @@
     .global     ||FN_LOAD_LUT_VALUES||
 
 ; File includes
-	.include  "icss_xfer_defines.inc"
+	.include  "pru_io\firmware\common\icss_xfer_defines.inc"
 
 ; Macros
 TW_FACTOR_START_ADDRESS      .set 0x1A000   ; local address of initial location of Twiddle factors in Shared Memory

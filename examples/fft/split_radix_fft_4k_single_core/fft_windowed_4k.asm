@@ -45,7 +45,7 @@
     .global   ||FN_WINDOW_PLUS_BOR_4k||
 
 ; File includes
-	.include  "icss_xfer_defines.inc"
+	.include  "pru_io\firmware\common\icss_xfer_defines.inc"
 
 ; Macros
 M                      .set 12               ; M = 12 for N = 4096

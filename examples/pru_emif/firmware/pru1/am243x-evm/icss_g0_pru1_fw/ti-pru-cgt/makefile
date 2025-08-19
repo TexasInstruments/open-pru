@@ -80,7 +80,7 @@ clean:
 	-@echo ' '
 
 post-build:
-		-$(CG_TOOL_ROOT)/bin/hexpru --diag_wrap=off --array --array:name_prefix=pru_emif_data_pru1 -o pru_emif_data_pru1_bin.h pru_emif_data_pru1_fw_am243x-evm_icss_g0_pru1_fw_ti-pru-cgt.out
+		-$(CG_TOOL_ROOT)/bin/hexpru --diag_wrap=off --array --array:name_prefix=prue_emif_data_pru1 -o pru_emif_data_pru1_bin.h pru_emif_data_pru1_fw_am243x-evm_icss_g0_pru1_fw_ti-pru-cgt.out
 		- $(SED) -i '0r ${MCU_PLUS_SDK_PATH}/source/pru_io/firmware/pru_load_bin_copyright.h' pru_emif_data_pru1_bin.h 
 		- $(MOVE) pru_emif_data_pru1_bin.h ${OPEN_PRU_PATH}/examples/pru_emif/pru_emif_app/Firmware/pru_emif_data_pru1_bin.h
 	-@echo ' '
