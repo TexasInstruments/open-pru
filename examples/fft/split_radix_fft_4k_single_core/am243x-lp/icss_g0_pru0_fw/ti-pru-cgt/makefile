@@ -92,7 +92,7 @@ clean:
 
 post-build:
 		-$(CG_TOOL_ROOT)/bin/hexpru --diag_wrap=off --array --array:name_prefix=PRU0Firmware  -o pru0_load_bin.h split_radix_fft_4k_single_core_am243x-lp_icss_g0_pru0_fw_ti-pru-cgt.out
-		-$(CAT)  ${MCU_PLUS_SDK_PATH}/source/pru_io/firmware/pru_load_bin_copyright.h pru0_load_bin.h > ${OPEN_PRU_PATH}/examples/split_radix_fft_4k_single_core/firmware/am243x-lp/pru0_load_bin.h 
+		-$(CAT)  ${MCU_PLUS_SDK_PATH}/source/pru_io/firmware/pru_load_bin_copyright.h pru0_load_bin.h > ${OPEN_PRU_PATH}/examples/fft/split_radix_fft_4k_single_core/am243x-lp/pru0_load_bin.h
 		-$(RM) pru0_load_bin.h
 	-@echo ' '
 
