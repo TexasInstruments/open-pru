@@ -1,8 +1,8 @@
 include ../imports.mak
 
 # which projects will be built?
-SUBDIRS := crc/crc mac/mac
-#SUBDIRS_MCUPLUS := gpio/gpio_toggle intc/intc_mcu mac/mac_multiply
+SUBDIRS := crc/crc mac/mac mac/mac_multiply
+#SUBDIRS_MCUPLUS := gpio/gpio_toggle intc/intc_mcu
 SUBDIRS_MCUPLUS :=
 SUBDIRS_LINUX :=
 
