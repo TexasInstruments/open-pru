@@ -22,13 +22,11 @@ The final result is stored across two PRU registers:
 - R26: Contains the lower 32 bits of the result
 - R27: Contains the upper 32 bits of the result
 
-
 # Supported Combinations
 
  Parameter      | Value
  ---------------|-----------
- ICSSM          | ICSSM0 - PRU0, PRU1, ICSSM1 (only in am261x) - PRU0, PRU1 
+ ICSSM          | ICSSM0 - PRU0, PRU1; ICSSM1 (only in am261x) - PRU0, PRU1
  Toolchain      | pru-cgt
  Board          | am261x-lp, am261x-som, am263px-cc, am263px-lp, am263x-cc, am263x-lp
- Example folder | examples/pru_io/mac/
-
+ Example folder | academy/mac/mac/
