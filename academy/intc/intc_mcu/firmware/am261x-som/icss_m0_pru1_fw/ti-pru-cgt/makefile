@@ -80,7 +80,7 @@ clean:
 
 post-build:
 		-$(CG_TOOL_ROOT)/bin/hexpru --diag_wrap=off --array --array:name_prefix=PRU1Firmware  -o pru1_load_bin.h intc_mcu_am261x-som_icss_m0_pru1_fw_ti-pru-cgt.out
-		-$(CAT)  ${MCU_PLUS_SDK_PATH}/source/pru_io/firmware/pru_load_bin_copyright.h pru1_load_bin.h > ${OPEN_PRU_PATH}/examples/intc_mcu/firmware/am261x-som/pru1_load_bin.h 
+		-$(CAT)  ${MCU_PLUS_SDK_PATH}/source/pru_io/firmware/pru_load_bin_copyright.h pru1_load_bin.h > ${OPEN_PRU_PATH}/academy/intc/intc_mcu/firmware/am261x-som/pru1_load_bin.h 
 		-$(RM) pru1_load_bin.h
 	-@echo ' '
 
