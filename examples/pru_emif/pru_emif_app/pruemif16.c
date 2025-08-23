@@ -59,7 +59,7 @@ typedef struct PruFwImageInfo_s {
 /* PRU image info */
 static PruFwImageInfo gPruFwImageInfo[PRUEMIF16_NUM_PRU_IMAGE] =
 {
-    {pru_emif_addr_pru0_0, sizeof(pruemif_addr_pru0_0), 0, NULL, 0, 0}, /* PRU0 FW */
+    {pru_emif_addr_pru0_0, sizeof(pru_emif_addr_pru0_0), 0, NULL, 0, 0}, /* PRU0 FW */
     {pru_emif_data_pru1_0, sizeof(pru_emif_data_pru1_0), 0, NULL, 0, 0}, /* PRU1 FW */
 };
 

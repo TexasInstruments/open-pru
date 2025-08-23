@@ -80,7 +80,7 @@ clean:
 
 post-build:
 		-$(CG_TOOL_ROOT)/bin/hexpru --diag_wrap=off --array --array:name_prefix=PRU1Firmware  -o pru1_load_bin.h gpio_toggle_am261x-lp_icss_m0_pru1_fw_ti-pru-cgt.out
-		-$(CAT)  ${MCU_PLUS_SDK_PATH}/source/pru_io/firmware/pru_load_bin_copyright.h pru1_load_bin.h > ${OPEN_PRU_PATH}/examples/gpio_toggle/firmware/am261x-lp/pru1_load_bin.h 
+		-$(CAT)  ${MCU_PLUS_SDK_PATH}/source/pru_io/firmware/pru_load_bin_copyright.h pru1_load_bin.h > ${OPEN_PRU_PATH}/academy/gpio/gpio_toggle/firmware/am261x-lp/pru1_load_bin.h 
 		-$(RM) pru1_load_bin.h
 	-@echo ' '
 

@@ -79,9 +79,6 @@ clean:
 	-@echo ' '
 
 post-build:
-		-$(CG_TOOL_ROOT)/bin/hexpru --diag_wrap=off --array --array:name_prefix=PRU1Firmware  -o pru1_load_bin.h mac_multiply_am263x-cc_icss_m0_pru1_fw_ti-pru-cgt.out
-		-$(CAT)  ${MCU_PLUS_SDK_PATH}/source/pru_io/firmware/pru_load_bin_copyright.h pru1_load_bin.h > ${OPEN_PRU_PATH}/examples/mac_multiply/firmware/am263x-cc/pru1_load_bin.h 
-		-$(RM) pru1_load_bin.h
 	-@echo ' '
 
 .PHONY: all clean
