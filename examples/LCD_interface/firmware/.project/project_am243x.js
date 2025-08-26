@@ -2,12 +2,22 @@ let path = require('path');
 
 let device = "am243x";
 
-const files = {
+const files_pru0 = {
     common: [
-        "main.asm",
+        "main_pru0.asm",
+        "lcd_pru0_macro.h",
         "linker.cmd"
     ],
 };
+
+const files_pru1 = {
+    common: [
+        "main_pru1.asm",
+        "lcd_pru1_macro.h",
+        "linker.cmd"
+    ],
+};
+
 
 /* Relative to where the makefile will be generated
  * Typically at <example_folder>/<BOARD>/<core_os_combo>/<compiler>
@@ -52,11 +62,6 @@ const buildOptionCombos = [
     { device: device, cpu: "icss_g0_pru0", cgt: "ti-pru-cgt", board: "am243x-lp", os: "fw"},
     { device: device, cpu: "icss_g0_pru1", cgt: "ti-pru-cgt", board: "am243x-lp", os: "fw"},
 
-    { device: device, cpu: "icss_g0_rtu_pru0", cgt: "ti-pru-cgt", board: "am243x-lp", os: "fw"},
-    { device: device, cpu: "icss_g0_rtu_pru1", cgt: "ti-pru-cgt", board: "am243x-lp", os: "fw"},
-
-    { device: device, cpu: "icss_g0_tx_pru0", cgt: "ti-pru-cgt", board: "am243x-lp", os: "fw"},
-    { device: device, cpu: "icss_g0_tx_pru1", cgt: "ti-pru-cgt", board: "am243x-lp", os: "fw"},
 ];
 
 function getmakefilePruPostBuildSteps(cpu, board)
@@ -139,13 +144,20 @@ function getComponentProperty() {
 function getComponentBuildProperty(buildOption) {
     let build_property = {};
 
-    build_property.files = files;
+    if(buildOption.cpu=="icss_g0_pru0"){
+        build_property.files = files_pru0;
+    }
+    else if(buildOption.cpu=="icss_g0_pru1"){
+        build_property.files = files_pru1;
+    }
+    else build_property.files = files_pru0;
+
     build_property.filedirs = filedirs;
     build_property.lnkfiles = lnkfiles;
     build_property.includes = includes;
     build_property.lflags = lflags;
     build_property.templates = templates_pru;
-    build_property.projecspecFileAction = "copy";
+    build_property.projecspecFileAction = "link";
     build_property.skipMakefileCcsBootimageGen = true;
     build_property.ccsPruPostBuildSteps = getccsPruPostBuildSteps(buildOption.cpu, buildOption.board);
     build_property.makefilePruPostBuildSteps = getmakefilePruPostBuildSteps(buildOption.cpu, buildOption.board);

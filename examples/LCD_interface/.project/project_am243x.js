@@ -97,7 +97,7 @@ function getComponentBuildProperty(buildOption) {
     build_property.libdirs = libdirs_freertos;
     build_property.libs = libs_freertos_r5f;
     build_property.templates = templates_freertos_r5f;
-    
+    build_property.projecspecFileAction = "link";    
     return build_property;
 }
 
@@ -105,3 +105,5 @@ module.exports = {
     getComponentProperty,
     getComponentBuildProperty,
 };
+
+

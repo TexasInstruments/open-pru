@@ -67,9 +67,11 @@
         ></configuration>
         <pathVariable name="MCU_PLUS_SDK_PATH" path="${COM_TI_MCU_PLUS_SDK_AM243X_INSTALL_DIR}" scope="project" />
         <pathVariable name="OPEN_PRU_PATH" path="${COM_TI_OPEN_PRU_INSTALL_DIR}" scope="project" />
-        <file path="../../../main.asm" openOnCreation="false" excludeFromBuild="false" action="copy">
+        <file path="../main_pru0.asm" openOnCreation="false" excludeFromBuild="false" action="link">
         </file>
-        <file path="./linker.cmd" openOnCreation="false" excludeFromBuild="false" action="copy">
+        <file path="../lcd_pru0_macro.h" openOnCreation="false" excludeFromBuild="false" action="link">
+        </file>
+        <file path="./linker.cmd" openOnCreation="false" excludeFromBuild="false" action="link">
         </file>
     </project>
 </projectSpec>

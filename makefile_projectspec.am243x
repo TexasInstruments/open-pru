@@ -23,10 +23,6 @@ BUILD_COMBO_EXAMPLE_PROJECTSPEC_BUILD_ALL += empty_pru_io_am243x-evm_r5fss0-0_fr
 BUILD_COMBO_EXAMPLE_PROJECTSPEC_BUILD_ALL += empty_pru_io_am243x-lp_r5fss0-0_freertos_ti-arm-clang_build
 BUILD_COMBO_EXAMPLE_PROJECTSPEC_BUILD_ALL += LCD_interface_am243x-lp_icss_g0_pru0_fw_ti-pru-cgt_build
 BUILD_COMBO_EXAMPLE_PROJECTSPEC_BUILD_ALL += LCD_interface_am243x-lp_icss_g0_pru1_fw_ti-pru-cgt_build
-BUILD_COMBO_EXAMPLE_PROJECTSPEC_BUILD_ALL += LCD_interface_am243x-lp_icss_g0_rtu_pru0_fw_ti-pru-cgt_build
-BUILD_COMBO_EXAMPLE_PROJECTSPEC_BUILD_ALL += LCD_interface_am243x-lp_icss_g0_rtu_pru1_fw_ti-pru-cgt_build
-BUILD_COMBO_EXAMPLE_PROJECTSPEC_BUILD_ALL += LCD_interface_am243x-lp_icss_g0_tx_pru0_fw_ti-pru-cgt_build
-BUILD_COMBO_EXAMPLE_PROJECTSPEC_BUILD_ALL += LCD_interface_am243x-lp_icss_g0_tx_pru1_fw_ti-pru-cgt_build
 BUILD_COMBO_EXAMPLE_PROJECTSPEC_BUILD_ALL += LCD_interface_am243x-lp_r5fss0-0_freertos_ti-arm-clang_build
 # Various System Example Projectspec Build Targets
 
@@ -86,18 +82,6 @@ all-private: $(BUILD_COMBO_EXAMPLE_PROJECTSPEC_BUILD_PRIVATE_ALL)
  LCD_interface_am243x-lp_icss_g0_pru1_fw_ti-pru-cgt_build:
 	$(MAKE) -C examples/LCD_interface/firmware/am243x-lp/icss_g0_pru1_fw/ti-pru-cgt -f makefile_projectspec all
 
- LCD_interface_am243x-lp_icss_g0_rtu_pru0_fw_ti-pru-cgt_build:
-	$(MAKE) -C examples/LCD_interface/firmware/am243x-lp/icss_g0_rtu_pru0_fw/ti-pru-cgt -f makefile_projectspec all
-
- LCD_interface_am243x-lp_icss_g0_rtu_pru1_fw_ti-pru-cgt_build:
-	$(MAKE) -C examples/LCD_interface/firmware/am243x-lp/icss_g0_rtu_pru1_fw/ti-pru-cgt -f makefile_projectspec all
-
- LCD_interface_am243x-lp_icss_g0_tx_pru0_fw_ti-pru-cgt_build:
-	$(MAKE) -C examples/LCD_interface/firmware/am243x-lp/icss_g0_tx_pru0_fw/ti-pru-cgt -f makefile_projectspec all
-
- LCD_interface_am243x-lp_icss_g0_tx_pru1_fw_ti-pru-cgt_build:
-	$(MAKE) -C examples/LCD_interface/firmware/am243x-lp/icss_g0_tx_pru1_fw/ti-pru-cgt -f makefile_projectspec all
-
  LCD_interface_am243x-lp_r5fss0-0_freertos_ti-arm-clang_build:
 	$(MAKE) -C examples/LCD_interface/am243x-lp/r5fss0-0_freertos/ti-arm-clang -f makefile_projectspec all
 
@@ -121,10 +105,6 @@ BUILD_COMBO_EXAMPLE_PROJECTSPEC_CLEAN_ALL += empty_pru_io_am243x-evm_r5fss0-0_fr
 BUILD_COMBO_EXAMPLE_PROJECTSPEC_CLEAN_ALL += empty_pru_io_am243x-lp_r5fss0-0_freertos_ti-arm-clang_clean
 BUILD_COMBO_EXAMPLE_PROJECTSPEC_CLEAN_ALL += LCD_interface_am243x-lp_icss_g0_pru0_fw_ti-pru-cgt_clean
 BUILD_COMBO_EXAMPLE_PROJECTSPEC_CLEAN_ALL += LCD_interface_am243x-lp_icss_g0_pru1_fw_ti-pru-cgt_clean
-BUILD_COMBO_EXAMPLE_PROJECTSPEC_CLEAN_ALL += LCD_interface_am243x-lp_icss_g0_rtu_pru0_fw_ti-pru-cgt_clean
-BUILD_COMBO_EXAMPLE_PROJECTSPEC_CLEAN_ALL += LCD_interface_am243x-lp_icss_g0_rtu_pru1_fw_ti-pru-cgt_clean
-BUILD_COMBO_EXAMPLE_PROJECTSPEC_CLEAN_ALL += LCD_interface_am243x-lp_icss_g0_tx_pru0_fw_ti-pru-cgt_clean
-BUILD_COMBO_EXAMPLE_PROJECTSPEC_CLEAN_ALL += LCD_interface_am243x-lp_icss_g0_tx_pru1_fw_ti-pru-cgt_clean
 BUILD_COMBO_EXAMPLE_PROJECTSPEC_CLEAN_ALL += LCD_interface_am243x-lp_r5fss0-0_freertos_ti-arm-clang_clean
 # Various System Example Projectspec Clean Targets
 
@@ -184,18 +164,6 @@ clean-private: $(BUILD_COMBO_EXAMPLE_PROJECTSPEC_CLEAN_PRIVATE_ALL)
  LCD_interface_am243x-lp_icss_g0_pru1_fw_ti-pru-cgt_clean:
 	$(MAKE) -C examples/LCD_interface/firmware/am243x-lp/icss_g0_pru1_fw/ti-pru-cgt -f makefile_projectspec clean
 
- LCD_interface_am243x-lp_icss_g0_rtu_pru0_fw_ti-pru-cgt_clean:
-	$(MAKE) -C examples/LCD_interface/firmware/am243x-lp/icss_g0_rtu_pru0_fw/ti-pru-cgt -f makefile_projectspec clean
-
- LCD_interface_am243x-lp_icss_g0_rtu_pru1_fw_ti-pru-cgt_clean:
-	$(MAKE) -C examples/LCD_interface/firmware/am243x-lp/icss_g0_rtu_pru1_fw/ti-pru-cgt -f makefile_projectspec clean
-
- LCD_interface_am243x-lp_icss_g0_tx_pru0_fw_ti-pru-cgt_clean:
-	$(MAKE) -C examples/LCD_interface/firmware/am243x-lp/icss_g0_tx_pru0_fw/ti-pru-cgt -f makefile_projectspec clean
-
- LCD_interface_am243x-lp_icss_g0_tx_pru1_fw_ti-pru-cgt_clean:
-	$(MAKE) -C examples/LCD_interface/firmware/am243x-lp/icss_g0_tx_pru1_fw/ti-pru-cgt -f makefile_projectspec clean
-
  LCD_interface_am243x-lp_r5fss0-0_freertos_ti-arm-clang_clean:
 	$(MAKE) -C examples/LCD_interface/am243x-lp/r5fss0-0_freertos/ti-arm-clang -f makefile_projectspec clean
 
@@ -219,10 +187,6 @@ BUILD_COMBO_EXAMPLE_PROJECTSPEC_EXPORT_ALL += empty_pru_io_am243x-evm_r5fss0-0_f
 BUILD_COMBO_EXAMPLE_PROJECTSPEC_EXPORT_ALL += empty_pru_io_am243x-lp_r5fss0-0_freertos_ti-arm-clang_export
 BUILD_COMBO_EXAMPLE_PROJECTSPEC_EXPORT_ALL += LCD_interface_am243x-lp_icss_g0_pru0_fw_ti-pru-cgt_export
 BUILD_COMBO_EXAMPLE_PROJECTSPEC_EXPORT_ALL += LCD_interface_am243x-lp_icss_g0_pru1_fw_ti-pru-cgt_export
-BUILD_COMBO_EXAMPLE_PROJECTSPEC_EXPORT_ALL += LCD_interface_am243x-lp_icss_g0_rtu_pru0_fw_ti-pru-cgt_export
-BUILD_COMBO_EXAMPLE_PROJECTSPEC_EXPORT_ALL += LCD_interface_am243x-lp_icss_g0_rtu_pru1_fw_ti-pru-cgt_export
-BUILD_COMBO_EXAMPLE_PROJECTSPEC_EXPORT_ALL += LCD_interface_am243x-lp_icss_g0_tx_pru0_fw_ti-pru-cgt_export
-BUILD_COMBO_EXAMPLE_PROJECTSPEC_EXPORT_ALL += LCD_interface_am243x-lp_icss_g0_tx_pru1_fw_ti-pru-cgt_export
 BUILD_COMBO_EXAMPLE_PROJECTSPEC_EXPORT_ALL += LCD_interface_am243x-lp_r5fss0-0_freertos_ti-arm-clang_export
 # Various System Example Projectspec Export Targets
 
@@ -282,18 +246,6 @@ export-private: $(BUILD_COMBO_EXAMPLE_PROJECTSPEC_EXPORT_PRIVATE_ALL)
  LCD_interface_am243x-lp_icss_g0_pru1_fw_ti-pru-cgt_export:
 	$(MAKE) -C examples/LCD_interface/firmware/am243x-lp/icss_g0_pru1_fw/ti-pru-cgt -f makefile_projectspec export
 
- LCD_interface_am243x-lp_icss_g0_rtu_pru0_fw_ti-pru-cgt_export:
-	$(MAKE) -C examples/LCD_interface/firmware/am243x-lp/icss_g0_rtu_pru0_fw/ti-pru-cgt -f makefile_projectspec export
-
- LCD_interface_am243x-lp_icss_g0_rtu_pru1_fw_ti-pru-cgt_export:
-	$(MAKE) -C examples/LCD_interface/firmware/am243x-lp/icss_g0_rtu_pru1_fw/ti-pru-cgt -f makefile_projectspec export
-
- LCD_interface_am243x-lp_icss_g0_tx_pru0_fw_ti-pru-cgt_export:
-	$(MAKE) -C examples/LCD_interface/firmware/am243x-lp/icss_g0_tx_pru0_fw/ti-pru-cgt -f makefile_projectspec export
-
- LCD_interface_am243x-lp_icss_g0_tx_pru1_fw_ti-pru-cgt_export:
-	$(MAKE) -C examples/LCD_interface/firmware/am243x-lp/icss_g0_tx_pru1_fw/ti-pru-cgt -f makefile_projectspec export
-
  LCD_interface_am243x-lp_r5fss0-0_freertos_ti-arm-clang_export:
 	$(MAKE) -C examples/LCD_interface/am243x-lp/r5fss0-0_freertos/ti-arm-clang -f makefile_projectspec export
 
@@ -342,10 +294,6 @@ help:
 	@echo  $(MAKE) -s -C examples/empty/am243x-lp/r5fss0-0_freertos/ti-arm-clang -f makefile_projectspec [export all clean]
 	@echo  $(MAKE) -s -C examples/LCD_interface/firmware/am243x-lp/icss_g0_pru0_fw/ti-pru-cgt -f makefile_projectspec [export all clean]
 	@echo  $(MAKE) -s -C examples/LCD_interface/firmware/am243x-lp/icss_g0_pru1_fw/ti-pru-cgt -f makefile_projectspec [export all clean]
-	@echo  $(MAKE) -s -C examples/LCD_interface/firmware/am243x-lp/icss_g0_rtu_pru0_fw/ti-pru-cgt -f makefile_projectspec [export all clean]
-	@echo  $(MAKE) -s -C examples/LCD_interface/firmware/am243x-lp/icss_g0_rtu_pru1_fw/ti-pru-cgt -f makefile_projectspec [export all clean]
-	@echo  $(MAKE) -s -C examples/LCD_interface/firmware/am243x-lp/icss_g0_tx_pru0_fw/ti-pru-cgt -f makefile_projectspec [export all clean]
-	@echo  $(MAKE) -s -C examples/LCD_interface/firmware/am243x-lp/icss_g0_tx_pru1_fw/ti-pru-cgt -f makefile_projectspec [export all clean]
 	@echo  $(MAKE) -s -C examples/LCD_interface/am243x-lp/r5fss0-0_freertos/ti-arm-clang -f makefile_projectspec [export all clean]
 	@echo  .
 	@echo  System Example ProjectSpec build targets,
