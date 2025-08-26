@@ -51,7 +51,7 @@
 PRUICSS_Handle gPruIcss0Handle;
 
 
-void lcd_interface_main(void *args)
+void LCD_interface_main(void *args)
 {
      Drivers_open(); // check return status
 
@@ -67,9 +67,31 @@ void lcd_interface_main(void *args)
      status = PRUICSS_initMemory(gPruIcss0Handle, PRUICSS_DATARAM(PRUICSS_PRU1));
      DebugP_assert(status != 0);
 
-     status = PRUICSS_loadFirmware(gPruIcss0Handle, PRUICSS_PRU0, PRU0Firmware_0, sizeof(PRU0Firmware_0));
-     DebugP_assert(SystemP_SUCCESS == status);
+     /* ---------- pin-mux configuration --------------------- */
+
+
+     // unlock PADMMR config register
+     // partition 0
+     HW_WR_REG32(0x000f1008, 0x68EF3490);
+     HW_WR_REG32(0x000f100c, 0xD172BC5A);
+
+     // unlock PADMMR config register
+     // partition 1
+     HW_WR_REG32(0x000f5008, 0x68EF3490);
+     HW_WR_REG32(0x000f500c, 0xD172BC5A);
+     /* padconfig for PRG0_PWM2_A2  BP.40 */
+     HW_WR_REG32(0x000F4048, 0x00010009);
+
+     /* ---------- PWM in init mode  --------------------- */
+
+     // force PWM2 trip mode to move to init state
+     HW_WR_REG32(0x30026138, 0x0003ff00);
+     HW_WR_REG32(0x30026138, 0x0004ff00);
+
+
      status = PRUICSS_loadFirmware(gPruIcss0Handle, PRUICSS_PRU1, PRU1Firmware_0, sizeof(PRU1Firmware_0));
+     DebugP_assert(SystemP_SUCCESS == status);
+     status = PRUICSS_loadFirmware(gPruIcss0Handle, PRUICSS_PRU0, PRU0Firmware_0, sizeof(PRU0Firmware_0));
      DebugP_assert(SystemP_SUCCESS == status);
 
      while (1)
