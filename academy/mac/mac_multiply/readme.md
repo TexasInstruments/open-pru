@@ -26,8 +26,8 @@ This simple demonstration shows how the PRU's hardware acceleration can be utili
 
  Parameter      | Value
  ---------------|-----------
- ICSSM          | ICSSM0 - PRU0, PRU1, ICSSM1 (only in am261x) - PRU0, PRU1 
+ ICSSM          | ICSSM0 - PRU0, PRU1; ICSSM1 (only in am261x) - PRU0, PRU1
  Toolchain      | pru-cgt
  Board          | am261x-lp, am261x-som, am263px-cc, am263px-lp, am263x-cc, am263x-lp
- Example folder | examples/pru_io/crc/
+ Example folder | academy/mac/mac_multiply
 

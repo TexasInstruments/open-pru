@@ -46,7 +46,7 @@
         "
 
         postBuildStep="
-            $(CG_TOOL_ROOT)/bin/hexpru --diag_wrap=off --array --array:name_prefix=PRU1Firmware  -o pru1_load_bin.h intc_mcu_am263x-cc_icss_m0_pru1_fw_ti-pru-cgt.out;if ${CCS_HOST_OS} == linux cat ${MCU_PLUS_SDK_PATH}/source/pru_io/firmware/pru_load_bin_copyright.h pru1_load_bin.h > ${OPEN_PRU_PATH}/examples/intc_mcu/firmware/am263x-cc/pru1_load_bin.h ;if ${CCS_HOST_OS} == linux rm pru1_load_bin.h;if ${CCS_HOST_OS} == win32  $(CCS_INSTALL_DIR)/utils/cygwin/cat ${MCU_PLUS_SDK_PATH}/source/pru_io/firmware/pru_load_bin_copyright.h pru1_load_bin.h > ${OPEN_PRU_PATH}/examples/intc_mcu/firmware/am263x-cc/pru1_load_bin.h ;if ${CCS_HOST_OS} == win32  $(CCS_INSTALL_DIR)/utils/cygwin/rm pru1_load_bin.h;
+            $(CG_TOOL_ROOT)/bin/hexpru --diag_wrap=off --array --array:name_prefix=PRU1Firmware  -o pru1_load_bin.h intc_mcu_am263x-cc_icss_m0_pru1_fw_ti-pru-cgt.out;if ${CCS_HOST_OS} == linux cat ${MCU_PLUS_SDK_PATH}/source/pru_io/firmware/pru_load_bin_copyright.h pru1_load_bin.h > ${OPEN_PRU_PATH}/academy/intc/intc_mcu/firmware/am263x-cc/pru1_load_bin.h ;if ${CCS_HOST_OS} == linux rm pru1_load_bin.h;if ${CCS_HOST_OS} == win32  $(CCS_INSTALL_DIR)/utils/cygwin/cat ${MCU_PLUS_SDK_PATH}/source/pru_io/firmware/pru_load_bin_copyright.h pru1_load_bin.h > ${OPEN_PRU_PATH}/academy/intc/intc_mcu/firmware/am263x-cc/pru1_load_bin.h ;if ${CCS_HOST_OS} == win32  $(CCS_INSTALL_DIR)/utils/cygwin/rm pru1_load_bin.h;
         "
 
         description="A Intc Mcu FW project">
