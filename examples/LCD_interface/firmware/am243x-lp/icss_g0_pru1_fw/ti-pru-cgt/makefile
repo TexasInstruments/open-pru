@@ -14,13 +14,13 @@ CMD_SRCS += \
 	linker.cmd \
 
 ASM_SRCS += \
-	main.asm \
+	main_pru1.asm \
 
 OBJS += \
-	main.obj \
+	main_pru1.obj \
 
 ASM_DEPS += \
-	main.d \
+	main_pru1.d \
 
 OBJDIR := .
 

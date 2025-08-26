@@ -1,8 +1,9 @@
 /**
  * These arguments were used when this file was generated. They will be automatically applied on subsequent loads
  * via the GUI or CLI. Run CLI with '--help' for additional information on how to override these arguments.
- * @cliArgs --device "AM243x_ALX_beta" --package "ALX" --part "ALX" --context "r5fss0-0" --product "MCU_PLUS_SDK@07.03.01"
- * @versions {"data":"2021040816","timestamp":"2021040816","tool":"1.8.1+1900","templates":null}
+ * @cliArgs --device "AM243x_ALX_beta" --part "ALX" --package "ALX" --context "r5fss0-0" --product "OPEN_PRU@07.03.01" --product "MCU_PLUS_SDK_AM243x@10.00.00"
+ * @v2CliArgs --device "AM2434" --package "FCCSP (ALX)" --context "r5fss0-0" --product "OPEN_PRU@07.03.01" --product "MCU_PLUS_SDK_AM243x@10.00.00"
+ * @versions {"tool":"1.21.0+3721"}
  */
 
 /**
@@ -10,6 +11,14 @@
  */
 const pruicss         = scripting.addModule("/drivers/pruicss/pruicss", {}, false);
 const pruicss1        = pruicss.addInstance();
+const debug_log       = scripting.addModule("/kernel/dpl/debug_log");
+const dpl_cfg         = scripting.addModule("/kernel/dpl/dpl_cfg");
+const mpu_armv7       = scripting.addModule("/kernel/dpl/mpu_armv7", {}, false);
+const mpu_armv71      = mpu_armv7.addInstance();
+const mpu_armv72      = mpu_armv7.addInstance();
+const mpu_armv73      = mpu_armv7.addInstance();
+const mpu_armv74      = mpu_armv7.addInstance();
+const mpu_armv75      = mpu_armv7.addInstance();
 const default_linker  = scripting.addModule("/memory_configurator/default_linker", {}, false);
 const default_linker1 = default_linker.addInstance();
 const general         = scripting.addModule("/memory_configurator/general", {}, false);
@@ -29,20 +38,78 @@ const section9        = section.addInstance();
 const section10       = section.addInstance();
 const section11       = section.addInstance();
 
-const debug_log  = scripting.addModule("/kernel/dpl/debug_log");
-const dpl_cfg = scripting.addModule("/kernel/dpl/dpl_cfg");
-const mpu_armv7  = scripting.addModule("/kernel/dpl/mpu_armv7", {}, false);
-const mpu_armv71 = mpu_armv7.addInstance();
-const mpu_armv72 = mpu_armv7.addInstance();
-const mpu_armv73 = mpu_armv7.addInstance();
-const mpu_armv74 = mpu_armv7.addInstance();
-const mpu_armv75 = mpu_armv7.addInstance();
-
 /**
  * Write custom configuration values to the imported modules.
  */
-pruicss1.$name                           = "CONFIG_PRU_ICSS0";
-pruicss1.AdditionalICSSSettings[0].$name = "CONFIG_PRU_ICSS_IO0";
+pruicss1.$name                                                           = "CONFIG_PRU_ICSS0";
+pruicss1.iepSyncMode                                                     = true;
+pruicss1.AdditionalICSSSettings[0].$name                                 = "CONFIG_PRU_ICSS_IO0";
+pruicss1.AdditionalICSSSettings[0].PruGPIO.create(2);
+pruicss1.AdditionalICSSSettings[0].PruGPIO[0].$name                      = "CONFIG_PRU_ICSS_GPIO0";
+pruicss1.AdditionalICSSSettings[0].PruGPIO[0].PRU_ICSSG0_PRU.$assign     = "PRU_ICSSG0_PRU0";
+pruicss1.AdditionalICSSSettings[0].PruGPIO[0].PRU_ICSSG0_PRU.GPO0.$used  = true;
+pruicss1.AdditionalICSSSettings[0].PruGPIO[0].PRU_ICSSG0_PRU.GPO1.$used  = true;
+pruicss1.AdditionalICSSSettings[0].PruGPIO[0].PRU_ICSSG0_PRU.GPO11.$used = true;
+pruicss1.AdditionalICSSSettings[0].PruGPIO[0].PRU_ICSSG0_PRU.GPO12.$used = true;
+pruicss1.AdditionalICSSSettings[0].PruGPIO[0].PRU_ICSSG0_PRU.GPO13.$used = true;
+pruicss1.AdditionalICSSSettings[0].PruGPIO[0].PRU_ICSSG0_PRU.GPO14.$used = true;
+pruicss1.AdditionalICSSSettings[0].PruGPIO[0].PRU_ICSSG0_PRU.GPO15.$used = true;
+pruicss1.AdditionalICSSSettings[0].PruGPIO[0].PRU_ICSSG0_PRU.GPO16.$used = true;
+pruicss1.AdditionalICSSSettings[0].PruGPIO[0].PRU_ICSSG0_PRU.GPO17.$used = true;
+pruicss1.AdditionalICSSSettings[0].PruGPIO[0].PRU_ICSSG0_PRU.GPO18.$used = true;
+pruicss1.AdditionalICSSSettings[0].PruGPIO[0].PRU_ICSSG0_PRU.GPO19.$used = true;
+pruicss1.AdditionalICSSSettings[0].PruGPIO[0].PRU_ICSSG0_PRU.GPO2.$used  = true;
+pruicss1.AdditionalICSSSettings[0].PruGPIO[0].PRU_ICSSG0_PRU.GPO3.$used  = true;
+pruicss1.AdditionalICSSSettings[0].PruGPIO[0].PRU_ICSSG0_PRU.GPO4.$used  = true;
+pruicss1.AdditionalICSSSettings[0].PruGPIO[0].PRU_ICSSG0_PRU.GPO5.$used  = true;
+pruicss1.AdditionalICSSSettings[0].PruGPIO[0].PRU_ICSSG0_PRU.GPO6.$used  = true;
+pruicss1.AdditionalICSSSettings[0].PruGPIO[0].PRU_ICSSG0_PRU.GPO7.$used  = true;
+pruicss1.AdditionalICSSSettings[0].PruGPIO[0].PRU_ICSSG0_PRU.GPO8.$used  = true;
+pruicss1.AdditionalICSSSettings[0].PruGPIO[1].$name                      = "CONFIG_PRU_ICSS_GPIO1";
+pruicss1.AdditionalICSSSettings[0].PruGPIO[1].PRU_ICSSG0_PRU.$assign     = "PRU_ICSSG0_PRU1";
+pruicss1.AdditionalICSSSettings[0].PruGPIO[1].PRU_ICSSG0_PRU.GPO0.$used  = true;
+pruicss1.AdditionalICSSSettings[0].PruGPIO[1].PRU_ICSSG0_PRU.GPO1.$used  = true;
+pruicss1.AdditionalICSSSettings[0].PruGPIO[1].PRU_ICSSG0_PRU.GPO11.$used = true;
+pruicss1.AdditionalICSSSettings[0].PruGPIO[1].PRU_ICSSG0_PRU.GPO12.$used = true;
+pruicss1.AdditionalICSSSettings[0].PruGPIO[1].PRU_ICSSG0_PRU.GPO13.$used = true;
+pruicss1.AdditionalICSSSettings[0].PruGPIO[1].PRU_ICSSG0_PRU.GPO15.$used = true;
+pruicss1.AdditionalICSSSettings[0].PruGPIO[1].PRU_ICSSG0_PRU.GPO16.$used = true;
+pruicss1.AdditionalICSSSettings[0].PruGPIO[1].PRU_ICSSG0_PRU.GPO2.$used  = true;
+pruicss1.AdditionalICSSSettings[0].PruGPIO[1].PRU_ICSSG0_PRU.GPO6.$used  = true;
+
+debug_log.enableUartLog        = true;
+debug_log.uartLog.$name        = "CONFIG_UART_CONSOLE";
+debug_log.uartLog.UART.$assign = "USART0";
+
+const uart_v0_template  = scripting.addModule("/drivers/uart/v0/uart_v0_template", {}, false);
+const uart_v0_template1 = uart_v0_template.addInstance({}, false);
+uart_v0_template1.$name = "drivers_uart_v0_uart_v0_template0";
+debug_log.uartLog.child = uart_v0_template1;
+
+mpu_armv71.$name             = "CONFIG_MPU_REGION0";
+mpu_armv71.size              = 31;
+mpu_armv71.attributes        = "Device";
+mpu_armv71.accessPermissions = "Supervisor RD+WR, User RD";
+mpu_armv71.allowExecute      = false;
+
+mpu_armv72.$name             = "CONFIG_MPU_REGION1";
+mpu_armv72.size              = 15;
+mpu_armv72.accessPermissions = "Supervisor RD+WR, User RD";
+
+mpu_armv73.$name             = "CONFIG_MPU_REGION2";
+mpu_armv73.baseAddr          = 0x41010000;
+mpu_armv73.size              = 15;
+mpu_armv73.accessPermissions = "Supervisor RD+WR, User RD";
+
+mpu_armv74.$name             = "CONFIG_MPU_REGION3";
+mpu_armv74.accessPermissions = "Supervisor RD+WR, User RD";
+mpu_armv74.baseAddr          = 0x70000000;
+mpu_armv74.size              = 21;
+
+mpu_armv75.$name             = "CONFIG_MPU_REGION4";
+mpu_armv75.baseAddr          = 0x60000000;
+mpu_armv75.size              = 28;
+mpu_armv75.accessPermissions = "Supervisor RD, User RD";
 
 default_linker1.$name = "memory_configurator_default_linker0";
 
@@ -211,39 +278,37 @@ section11.output_section.create(1);
 section11.output_section[0].$name     = ".bss.nocache";
 section11.output_section[0].alignment = 0;
 
-debug_log.enableUartLog        = true;
-debug_log.uartLog.$name        = "CONFIG_UART_CONSOLE";
-debug_log.uartLog.UART.$assign = "USART0";
-
-mpu_armv71.$name             = "CONFIG_MPU_REGION0";
-mpu_armv71.size              = 31;
-mpu_armv71.attributes        = "Device";
-mpu_armv71.accessPermissions = "Supervisor RD+WR, User RD";
-mpu_armv71.allowExecute      = false;
-
-mpu_armv72.$name             = "CONFIG_MPU_REGION1";
-mpu_armv72.size              = 15;
-mpu_armv72.accessPermissions = "Supervisor RD+WR, User RD";
-
-mpu_armv73.$name             = "CONFIG_MPU_REGION2";
-mpu_armv73.baseAddr          = 0x41010000;
-mpu_armv73.size              = 15;
-mpu_armv73.accessPermissions = "Supervisor RD+WR, User RD";
-
-mpu_armv74.$name             = "CONFIG_MPU_REGION3";
-mpu_armv74.accessPermissions = "Supervisor RD+WR, User RD";
-mpu_armv74.baseAddr          = 0x70000000;
-mpu_armv74.size              = 21;
-
-mpu_armv75.$name             = "CONFIG_MPU_REGION4";
-mpu_armv75.baseAddr          = 0x60000000;
-mpu_armv75.size              = 28;
-mpu_armv75.accessPermissions = "Supervisor RD, User RD";
-
 /**
  * Pinmux solution for unlocked pins/peripherals. This ensures that minor changes to the automatic solver in a future
  * version of the tool will not impact the pinmux you originally saw.  These lines can be completely deleted in order to
  * re-solve from scratch.
  */
-debug_log.uartLog.UART.RXD.$suggestSolution = "B10";
-debug_log.uartLog.UART.TXD.$suggestSolution = "B11";
+pruicss1.AdditionalICSSSettings[0].PruGPIO[0].PRU_ICSSG0_PRU.GPO0.$suggestSolution  = "PRG0_PRU0_GPO0";
+pruicss1.AdditionalICSSSettings[0].PruGPIO[0].PRU_ICSSG0_PRU.GPO1.$suggestSolution  = "PRG0_PRU0_GPO1";
+pruicss1.AdditionalICSSSettings[0].PruGPIO[0].PRU_ICSSG0_PRU.GPO11.$suggestSolution = "PRG0_PRU0_GPO11";
+pruicss1.AdditionalICSSSettings[0].PruGPIO[0].PRU_ICSSG0_PRU.GPO12.$suggestSolution = "PRG0_PRU0_GPO12";
+pruicss1.AdditionalICSSSettings[0].PruGPIO[0].PRU_ICSSG0_PRU.GPO13.$suggestSolution = "PRG0_PRU0_GPO13";
+pruicss1.AdditionalICSSSettings[0].PruGPIO[0].PRU_ICSSG0_PRU.GPO14.$suggestSolution = "PRG0_PRU0_GPO14";
+pruicss1.AdditionalICSSSettings[0].PruGPIO[0].PRU_ICSSG0_PRU.GPO15.$suggestSolution = "PRG0_PRU0_GPO15";
+pruicss1.AdditionalICSSSettings[0].PruGPIO[0].PRU_ICSSG0_PRU.GPO16.$suggestSolution = "PRG0_PRU0_GPO16";
+pruicss1.AdditionalICSSSettings[0].PruGPIO[0].PRU_ICSSG0_PRU.GPO17.$suggestSolution = "PRG0_PRU0_GPO17";
+pruicss1.AdditionalICSSSettings[0].PruGPIO[0].PRU_ICSSG0_PRU.GPO18.$suggestSolution = "PRG0_PRU0_GPO18";
+pruicss1.AdditionalICSSSettings[0].PruGPIO[0].PRU_ICSSG0_PRU.GPO19.$suggestSolution = "PRG0_PRU0_GPO19";
+pruicss1.AdditionalICSSSettings[0].PruGPIO[0].PRU_ICSSG0_PRU.GPO2.$suggestSolution  = "PRG0_PRU0_GPO2";
+pruicss1.AdditionalICSSSettings[0].PruGPIO[0].PRU_ICSSG0_PRU.GPO3.$suggestSolution  = "PRG0_PRU0_GPO3";
+pruicss1.AdditionalICSSSettings[0].PruGPIO[0].PRU_ICSSG0_PRU.GPO4.$suggestSolution  = "PRG0_PRU0_GPO4";
+pruicss1.AdditionalICSSSettings[0].PruGPIO[0].PRU_ICSSG0_PRU.GPO5.$suggestSolution  = "PRG0_PRU0_GPO5";
+pruicss1.AdditionalICSSSettings[0].PruGPIO[0].PRU_ICSSG0_PRU.GPO6.$suggestSolution  = "PRG0_PRU0_GPO6";
+pruicss1.AdditionalICSSSettings[0].PruGPIO[0].PRU_ICSSG0_PRU.GPO7.$suggestSolution  = "PRG0_PRU0_GPO7";
+pruicss1.AdditionalICSSSettings[0].PruGPIO[0].PRU_ICSSG0_PRU.GPO8.$suggestSolution  = "PRG0_PRU0_GPO8";
+pruicss1.AdditionalICSSSettings[0].PruGPIO[1].PRU_ICSSG0_PRU.GPO0.$suggestSolution  = "PRG0_PRU1_GPO0";
+pruicss1.AdditionalICSSSettings[0].PruGPIO[1].PRU_ICSSG0_PRU.GPO1.$suggestSolution  = "PRG0_PRU1_GPO1";
+pruicss1.AdditionalICSSSettings[0].PruGPIO[1].PRU_ICSSG0_PRU.GPO11.$suggestSolution = "PRG0_PRU1_GPO11";
+pruicss1.AdditionalICSSSettings[0].PruGPIO[1].PRU_ICSSG0_PRU.GPO12.$suggestSolution = "PRG0_PRU1_GPO12";
+pruicss1.AdditionalICSSSettings[0].PruGPIO[1].PRU_ICSSG0_PRU.GPO13.$suggestSolution = "PRG0_PRU1_GPO13";
+pruicss1.AdditionalICSSSettings[0].PruGPIO[1].PRU_ICSSG0_PRU.GPO15.$suggestSolution = "PRG0_PRU1_GPO15";
+pruicss1.AdditionalICSSSettings[0].PruGPIO[1].PRU_ICSSG0_PRU.GPO16.$suggestSolution = "PRG0_PRU1_GPO16";
+pruicss1.AdditionalICSSSettings[0].PruGPIO[1].PRU_ICSSG0_PRU.GPO2.$suggestSolution  = "PRG0_PRU1_GPO2";
+pruicss1.AdditionalICSSSettings[0].PruGPIO[1].PRU_ICSSG0_PRU.GPO6.$suggestSolution  = "PRG0_PRU1_GPO6";
+debug_log.uartLog.UART.RXD.$suggestSolution                                         = "UART0_RXD";
+debug_log.uartLog.UART.TXD.$suggestSolution                                         = "UART0_TXD";
