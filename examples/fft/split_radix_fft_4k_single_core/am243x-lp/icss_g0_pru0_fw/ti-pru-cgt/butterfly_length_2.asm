@@ -41,11 +41,8 @@
     .clink
     .global   ||FN_LENGTH_2_BUTTERFLY||
 
-; Macros
-OP_RAM_ADDR_BASE .set 0x14000
-X_BASE_ADDRESS   .set (OP_RAM_ADDR_BASE - 4) ; base address shifted by 1 to deal with indexes/
-                                             ;  that starts at 1 instead of 0
-FFT_SIZE         .set (4096*4)               ; 4096 point FFT. 4 Bytes per input samples
+; File includes
+    .include  "fft_macros.inc"
 
 ;register assignments
     .asg r2     ,     I0

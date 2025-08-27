@@ -45,6 +45,9 @@
   .global   ||FN_FFT_4k_WINDOWED||
   .global   ||FN_LOAD_LUT_VALUES||
 
+  ; File includes
+      .include "fft_macros.inc"
+
 main:
     ; configure FDB-RAM as General Purpose
     ldi32 r11, 0x00033064   ; load MII_G_RT_FDB_GEN_CFG2 MMR address
@@ -60,12 +63,13 @@ main:
     zero &r25.b0, 1     ; clear r25[0] for MUL only mode
     xout 0, &r25.b0, 1  ; load MUL only mode for MAC
 
-    ;load LUT values from shared-ram and save to bs-ram
+    .if (FFT_DEVICE == AM243)
+    ; load LUT values from shared-ram and save to bs-ram
     jal r3.w2, FN_LOAD_LUT_VALUES
-
+    .endif
     ; call window function + FFT
     jal r3.w2, FN_FFT_4k_WINDOWED
 
-    halt    ;end program
+	halt   ;end program
 
 

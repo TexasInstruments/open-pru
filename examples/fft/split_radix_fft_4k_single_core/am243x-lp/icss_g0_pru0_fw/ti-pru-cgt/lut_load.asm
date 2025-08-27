@@ -1,3 +1,5 @@
+<<<<<<< HEAD:examples/fft/split_radix_fft_4k_single_core/lut_load.asm
+=======
 ; Copyright (C) 2024-2025 Texas Instruments Incorporated - http://www.ti.com/
 ;
 ; Redistribution and use in source and binary forms, with or without
@@ -42,17 +44,8 @@
     .global     ||FN_LOAD_LUT_VALUES||
 
 ; File includes
-	.include  "icss_xfer_defines.inc"
-
-; Macros
-TW_FACTOR_START_ADDRESS      .set 0x1A000   ; local address of initial location of Twiddle factors in Shared Memory
-TW_FACTOR_SPACE              .set 0x3F50    ; required space for 32 bit twiddle factors for 4k FFT
-TW_FACTOR_END_ADDRESS        .set TW_FACTOR_START_ADDRESS + TW_FACTOR_SPACE ;
-TW_FACTOR_BRAM_ADDR          .set 0x00      ; fdb broadside RAM Base Address for Storing Twiddle Factors
-; config for Broadside RAM : bit 15 - auto-increment enable, bits 8-0 - RAM Address
-TW_FACTOR_FDB_BRAM_CONFIG    .set ((1<<15) + TW_FACTOR_BRAM_ADDR) ; auto-increment : enable, base address : 0x000
-XID_FDB_BSRAM                .set 0x1E
-
+	.include  "pru_io\firmware\common\icss_xfer_defines.inc"
+    .include "fft_macros.inc"
 .asmfunc
 ||FN_LOAD_LUT_VALUES||:
     ;*************************************************
@@ -67,19 +60,19 @@ XID_FDB_BSRAM                .set 0x1E
     ldi32 r13, TW_FACTOR_END_ADDRESS      ; shared memory LUT range end
 
     ldi  r10, TW_FACTOR_FDB_BRAM_CONFIG   ; load configuration
-    xout  XID_FDB_BSRAM, &r10, 2          ; configure fdb-bs_ram to auto-increment and load base address as 0x000
+    xout  FDB_DATA_XID, &r10, 2           ; configure fdb-bs_ram to auto-increment and load base address as 0x000
 TW_LUT_LOAD:
     qbge LUT_LOAD_END, r13, r12
     lbbo &r2, r12, 0, 32                  ; load 8 values, 4 bytes each, to r2-r9
-    xout  XID_FDB_BSRAM, &r2, 32          ; save to fdb-bs-ram
+    xout  FDB_DATA_XID, &r2, 32           ; save to fdb-bs-ram
     add r12, r12, 32                      ; increment memory address
     jmp TW_LUT_LOAD
 LUT_LOAD_END:
     xin PRU_SPAD_B0_XID, &r3.w2, 2        ; restore PC
-
     jmp        r3.w2                      ; return from function
 .endasmfunc
 
 ;*****************************************************************************
 ;*                                     END
 ;*****************************************************************************
+>>>>>>> ec40cc0 (AM261x support added):examples/fft/split_radix_fft_4k_single_core/am243x-lp/icss_g0_pru0_fw/ti-pru-cgt/lut_load.asm
