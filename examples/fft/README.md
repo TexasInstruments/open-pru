@@ -6,47 +6,56 @@
 </div>
 
 ## Introduction
-The code performs a real valued 4096-point Fast-Fourier Transform on 4096 discrete input samples in the ICSS Shared Memory. The specific implementation makes use of a Real-valued DIT Split-Radix algorithm and runs on ICSSG PRU0.  
+The code performs a real valued 4096-point Fast-Fourier Transform on 4096 discrete input samples in the ICSS Shared Memory. The implementation makes use of a Real-valued DIT Split-Radix algorithm and has two versions that each runs on ICSSG PRU0 and ICSSM PRU0.  
 
 ## Overview
 The algorithm assumes input samples in Q24 format to be present in the configured memory space. The current implementation assumes unsigned inputs which are common for ADC measurement values. 
 
-The function that performs the FFT gets executed once in the provided implementation, which could also be configured to be repeatedly triggered by a particular event (for example, when input samples are ready). There is a window function(hanning window by default) applied to the input samples in the beginning, which can be configured to be a different window function if needed by changing the loaded LUT. 
+The function that performs the FFT gets executed once in the provided implementation, which could also be configured to repeatedly be triggered by a particular event (for example, when input samples are ready). There is a window function(hanning window by default) applied to the input samples in the beginning, which can be configured to be a different window function if needed by changing the loaded LUT. 
 
 After execution, the output samples, in frequency domain, will be present in specified shared memory location in the following order : $${Re(0), Re(1),.., Re(N/2), Im((N/2)-1),.., Im(1)}$$ 
 
 ## Instructions 
 
 1. Get the 'fft' folder from the repository which contains the project, data and utility scripts.  
-2. Import the project 'split_radix_fft_4k_single_core' inside the 'fft' folder into the CCS workspace. 
+2. Naviagte to the 'split_radix_fft_4k_single_core' folder inside the 'fft' folder and import the device specific project into the CCS workspace. 
 3. Build the Project. 
-4. Launch Target Configuration and connect to core ICSS_G0_PRU_0.
-5. Edit the 'load_memory.js' file in the 'utilities' folder and set the variable 'DatPath' as the path to the 'data' folder inside 'fft':
+4. Launch Target Configuration and connect to an R5SS core.
+5. Edit the 'load_memory.js' file in the 'utilities' folder and configure the following :
+
+    a. Set variable 'Device' as string "AM243" or "AM261" according to your device
+    ```
+    var Device = "AM243";    //change to "AM261" for the other supported device
+    ```
+    b. variable 'DatPath' as the path to the 'data' folder inside 'fft':
     ```
     var DatPath = "<add_your_data_folder_path_here>"; //data location
     ```
 6. Open Scripting Console in CCS(View -> Scripting Console)
 
-7. Run the load_memory.js using the following command to load the sample inputs and look-up tables(LUTs) into ICSSG shared memory (replace "\<add_your_js_file_path_here\>" with the absolute address to 'utilities'):
+7. Run the load_memory.js using the following command to load the sample inputs and look-up tables(LUTs) into designated memories for the particular device (replace "\<add_your_js_file_path_here\>" with the absolute address to 'utilities'):
     ```
 
     loadJSFile "<add_your_js_file_path_here>//utilities//load_memory.js"
 
     ```
-    Now the following data are loaded into the mentioned locations in memory:
+    Now the following data are loaded into the mentioned locations in memory by default configurations:
 
         1. sample_input_4k.dat
             (The sample input dat file contains 4096 discrete samples of a sinusoidal wave that is offsetted to make all values positive) 
-            Shared Mem : 0x10000 - 0x13FFC 
+            ICSS Shared Mem : 0x10000 - 0x13FFC 
         2. hanning_window_q32_4K_halved.dat
-            Shared Mem : 0x18000 - 0x19FFC
+            AM243x(ICSSG) : ICSS Shared Mem : 0x18000 - 0x19FFC
+            AM261x(ICSSM) : TCMA : 0x78000000 - 0x78001FFC
         3. twiddle_factor_lut_4k.dat
-            Shared Mem : 0x1A000 - 0x1DF4C
+            AM243x(ICSSG) : ICSS Shared Mem : 0x1A000 - 0x1DF4C
+            AM261x(ICSSM) : ICSSS Data Mem(0 and 1) : 0x0000 - 0x3F4C
         4. bit_reversed_values_9bit.dat
-            Shared Mem : 0x1E000 - 0x1E3FC
+            AM243x(ICSSG) : ICSS Shared Mem : 0x1E000 - 0x1E3FC
+            AM261x(ICSSM) : TCMA : 0x78002000 - 0x780023FC
     To perform FFT on input sample sets other than the provided samples, replace the values in input memory range (0x10000 - 0x13FFC) with the new inputs in Q24 format and continue. Current implementationn supports only positive inputs, as is the case with common ADC outputs.
 
-8. Load the binary(.out file) to the connected core and run. 
+8. Connect to PRU0 of ICSSG/ICSSM according to the device, load the binary(.out file) to the connected core and run. 
 9. After successful execution, the output can be found starting at the address 'OP_RAM_ADDR_BASE' (0x14000 to 0x17FFC)of the shared memory.The output is present in memory in the following format:
     ```
     | Re(0) | Re(1) |.. | Re(N/2) | Im((N/2)-1) |..| Im(1) |
@@ -55,7 +64,7 @@ After execution, the output samples, in frequency domain, will be present in spe
 
 
 ### Post Processing
-The output values can be exported and processed to extract FFT Magnitude and Phase information. As an example of how fft magnitude information can be extracted from this output, we have included another example in the fft folder that calculates the magnitude information from fft output. 
+The output values can be exported and processed to extract FFT Magnitude and Phase information. As an example of how fft magnitude information can be extracted from this output, another example has been included in the fft folder that calculates the magnitude information from fft output for ICSSG. 
 
 To run the post processing code , follow these steps:
 1. Import the 'split_radix_fft_post_processing' project into CCS.
@@ -116,21 +125,31 @@ The SNR value for the results from our implementation is seen to be very close t
 A closer zoomed analysis reveals the peaks to be near 0th and 13th frequency bins which corresponds to the 0Hz (DC offset) and 50Hz(Frequency of the input sample data):
 <figure>
 <img src="images/results_fft_mag_zoomed.png" alt="results_fft_mag_zoomed" width="1000">
-<figcaption>Fig.5 :FFT Magnitude plot - Zoomed in</figcaption>
+<figcaption>Fig.5 : FFT Magnitude plot - Zoomed in</figcaption>
 </figure>
 
 
 
 The FFT execution timings are as follows:
-
 Algorithm : 4096-point Real-valued DIT Split-Radix algorithm 
+
+**AM243x**:
+
 | FFT stage         | # Cycles | Execution time on PRU @333Mhz |
 |--------------|:-----:|:-----------:|
 | Window Function           |  42677 |  0.128 ms       |
 | fft core algo     |  426485 |    1.28 ms       |
 | Complete execution (excluding initializations) |  469239 |  1.41 ms |
 
-Following are the Resource Usage:
+**AM261x**:
+
+| FFT stage         | # Cycles | Execution time on PRU @200Mhz |
+|--------------|:-----:|:-----------:|
+| Complete execution (excluding initializations) |  483400  |  2.42 ms |
+
+Following is the **Resource Usage**:
+
+**AM243x**:
 | Memory ||
 |--------------|:-----:|
 | Instruction Memory           |  1832 Bytes |       
@@ -139,6 +158,20 @@ Following are the Resource Usage:
 | Broadside Accelerators ||
 |--------------|:-----:|
 | PRU_ICSSG Filter Data Base (as Broadside RAM) |16 KB|
+| PRU_ICSSG Scratch Pad Memory |Bank 0, Bank 2|
+| PRU Multiplier ||
+| PRU_ICSSG XFR2VBUS Hardware Accelerator ||
+
+**AM261x**:
+| Memory ||
+|--------------|:-----:|
+| Instruction Memory           |  1728 Bytes |       
+| ICSSM Shared Memory     |  32000 Bytes |         
+| ICSSM Data Memory     |  16204 Bytes |         
+| R5FSS0_CORE0_ATCM     |  9212 Bytes |         
+
+| Broadside Accelerators ||
+|--------------|:-----:|
 | PRU_ICSSG Scratch Pad Memory |Bank 0, Bank 2|
 | PRU Multiplier ||
 | PRU_ICSSG XFR2VBUS Hardware Accelerator ||
@@ -181,7 +214,7 @@ The window coefficients are stored as a Look-up Table (LUT) in the shared memory
 <figcaption>Fig.6 Application of Window coefficients</figcaption>
 </figure>
 
-The window coefficients are loaded into the shared memory, from where we make use of xfer2vbus data accelerator for loading 8 window coefficients together into the registers. The accelerator works by pre-loading a certain number of window coefficients into an XFR2VBUS RX buffer, from where the broadside connection enables us to load these values to the registers in a single cycle. Before the first set of coefficients are loaded, there is a wait involved to make sure all window coefficients are loaded into the buffer. Auto read mode is enabled such that everytime the coefficients are read from the buffer, the transfer of next set of window coefficients is initiated. This transfer happens in the background while we perform operations using the already loaded coefficients and by the time the next set is needed, it can be loaded into the registers in a single cycle, without any wait time involved. 
+The window coefficients are loaded into the ICSSG Shared Memory(for AM243x) or a memory external to ICSS like TCMA of ARM R5 core(for AM261x), from where we make use of xfer2vbus data accelerator for loading 8 window coefficients together into the registers. The accelerator works by pre-loading a certain number of window coefficients into an XFR2VBUS RX buffer, from where the broadside connection enables us to load these values to the registers in a single cycle. Before the first set of coefficients are loaded, there is a wait involved to make sure all window coefficients are loaded into the buffer. Auto read mode is enabled such that everytime the coefficients are read from the buffer, the transfer of next set of window coefficients is initiated. This transfer happens in the background while we perform operations using the already loaded coefficients and by the time the next set is needed, it can be loaded into the registers in a single cycle, without any wait time involved. 
 
 The 8 loaded window coefficients have to be multiplied with 16 input values as described earlier. Due to register space limitation, half of these values are moved to the scratchpad after they are loaded. For multiplication, first the window coefficient is moved to one of the multiplication operand registers. The first input to be multiplied with this coefficient is moved to the second operand register ad multiplication is performed. Later, the second input which is present in scratchpad is moved similarly  to obtain the second required product. The obtained product has to be stored in a different index to perform bit-order reversed sorting of the inputs which is discussed in the 
 next section. The algorithm can be visualized in the combined image showing both steps below. 
@@ -252,13 +285,15 @@ The l-shaped butterflies operate on 4 inputs at a time and the indexing scheme w
 
 To deal with general-case butterflies, the twiddle factors for multiplication are pre-computed and stored as a Look-up Table in the order that they are required. When a twiddle factor, which is an exponential function, is decomposed into its constituent Cos and Sin components, the l-shaped butterfly computation loop requires four values namely, $cos(A)$, $sin(A)$, $cos(3*A)$ and $sin(3*A)$. The value of A is given by: $$ A = \frac{2\pi}{N2} $$,  where N2 starts at 2 and gets multiplied by 2 every stage. 
 
-The twiddle factors are stored in the FDB-BS RAM that works like a normal Broadside RAM in general purpose mode. To make use of the 16KB space available fully, we store each two sets of these 4 values(4 Bytes each) in each page(32 Bytes) of FDB-BS RAM. The values are pre-computed and stored in exactly the order they are accessed using the reference C-code mentioned before. The auto-increment feature of BS-RAM increments the address by one-page everytime a read happens. Because of this, two set of twiddle factors in the current page are fetched together. The second set is stored in scratch-pad and is used in the next 'fetch cycle', when a new set of twiddle factors are required. A dedicated variable keeps track of the parity of the fetch cycle and loads 2 sets of twiddle factors every even cycle. This mechanism is explained in the figure below: 
+The twiddle factors, in the case of AM243x implementation, are stored in the FDB-BS RAM that works like a normal Broadside RAM in general purpose mode. To make use of the 16KB space available fully, we store each two sets of these 4 values(4 Bytes each) in each page(32 Bytes) of FDB-BS RAM. The values are pre-computed and stored in exactly the order they are accessed using the reference C-code mentioned before. The auto-increment feature of BS-RAM increments the address by one-page everytime a read happens. Because of this, two set of twiddle factors in the current page are fetched together. The second set is stored in scratch-pad and is used in the next 'fetch cycle', when a new set of twiddle factors are required. A dedicated variable keeps track of the parity of the fetch cycle and loads 2 sets of twiddle factors every even cycle. This mechanism is explained in the figure below: 
 
 <figure>
 <img src="images/twiddle_factor_alt_cyc_fetch.png" alt="twiddle factor alternate cycle fetch" width = "800">
 <figcaption>Fig.13 Alternate-cycle fetch of twiddle factors </figcaption>
 </figure>
 
+The twiddle factors for AM261x implementation is stored in 16KB ICSS Data RAM (over two 8KB slices) and is loaded normally resulting in further delay than the single cycle load in AM243x.
+  
 ## References
 
 <a id="1">[1]</a> 
