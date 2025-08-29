@@ -9,20 +9,12 @@ HOME_TI=~/ti
 CCS_VERSION=12.8.1
 CCS_VERSION_WEB=$CCS_VERSION.00005
 CCS_PATH_VERSION=$(echo $CCS_VERSION | tr -d '._')
-SYSCONFIG_PATH=1.21.2
-SYSCONFIG_VERSION=1.21.2.3837
-SYSCONFIG_VERSION_WEB=1.21.2_3837
-TI_ARM_VERSION=4.0.1.LTS
-DOXY_VERSION=1.8.20
 GCC_AARCH64_VERSION=9.2-2019.12
 GCC_ARM_VERSION=7-2017-q4-major
 GCC_ARM_VERSION_FOLDER=7-2017q4
 PRU_VERSION=2.3.3
-MCU_SDK_VERSION=11_00_00_15
-MCU_SDK_VERSION_PATH=$(echo $MCU_SDK_VERSION | tr '_' '.')
 
-function verify_dependencies()
-{
+function verify_dependencies() {
     echo "##### Python #####"
     which python3 > nul 2>&1 && (echo found) || (echo Please install Python using the command pru_dependencies.sh -I --python)
     echo "##### pip #####"
@@ -104,8 +96,106 @@ function verify_dependencies()
     rm -r nul
 }
 
-function install_dependencies()
-{
+function list_sdkVersion() {
+    SOC=$1  # Ex: AM243X, AM64X, AM263X, AM263PX, AM261X
+
+    TOOL_URL="https://www.ti.com/tool/download/MCU-PLUS-SDK-${SOC}"
+    URL_BASE="https://dr-download.ti.com/software-development/software-development-kit-sdk/MD-ouHbHEm1PK"
+
+    echo "Searching for available versions of MCU-PLUS-SDK-${SOC}..."
+    SDK_VERSIONS=($(wget -qO- "$TOOL_URL" \
+          | grep -Eo "MCU-PLUS-SDK-${SOC}/[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+" \
+          | sed "s#MCU-PLUS-SDK-${SOC}/##" \
+          | sort -rV | uniq))
+
+    if [ ${#SDK_VERSIONS[@]} -eq 0 ]; then
+        echo "No available versions found for $SOC. Please check if the name is correct."
+        return 1
+    fi
+
+    echo ""
+    echo "Available versions for $SOC:"
+    for i in "${!SDK_VERSIONS[@]}"; do
+        printf "%d) %s\n" "$((i+1))" "${SDK_VERSIONS[$i]}"
+    done
+
+    echo ""
+    read -p "Enter the number of the version you want to download: " choice
+    if ! [[ "$choice" =~ ^[0-9]+$ ]] || [ "$choice" -lt 1 ] || [ "$choice" -gt "${#SDK_VERSIONS[@]}" ]; then
+        echo "Invalid choice. Exiting."
+        return 1
+    fi
+
+    SDK_VERSION="${SDK_VERSIONS[$((choice-1))]}"
+    VERSION_URL=$(echo "$SDK_VERSION" | sed 's/\./_/g')
+
+    if [[ "$SDK_VERSION" == 08.* ]] && [[ "$SOC" == "AM243X" || "$SOC" == "AM64X" ]]; then
+        echo ""
+        echo "ATTENTION: Version $SDK_VERSION cannot be downloaded automatically."
+        echo "It requires login on the TI website for secure download."
+        echo "Please access the link below manually to download:"
+        echo "${TOOL_URL}/${SDK_VERSION}"
+        return 0
+    fi
+
+    DOWNLOAD_LINK="$URL_BASE/${SDK_VERSION}/mcu_plus_sdk_${SOC,,}_${VERSION_URL}-linux-x64-installer.run"
+
+    echo ""
+    echo "Selected version: $SDK_VERSION"
+    echo "Starting download: $DOWNLOAD_LINK"
+
+    wget --show-progress -c "$DOWNLOAD_LINK"
+}
+
+function install_sysconfigLatest() {
+    SYSCONFIG_URL="https://www.ti.com/tool/download/SYSCONFIG"
+    SYSCONFIG_BASE="https://dr-download.ti.com/software-development/ide-configuration-compiler-or-debugger/MD-nsUM6f7Vvb"
+    
+    # Get the latest version
+    SYSCONFIG_VERSION=$(wget -qO- "$SYSCONFIG_URL" \
+        | grep -Eo 'SYSCONFIG/[0-9]+\.[0-9]+\.[0-9]+.[0-9]+' \
+        | sed 's#SYSCONFIG/##' \
+        | sort -rV | head -n 1)
+
+    echo "Latest version found: $SYSCONFIG_VERSION"
+
+    # The product page has the real download link (dr-download)
+    VERSION_URL=$(echo "$SYSCONFIG_VERSION" | sed 's/\.\([0-9]\+\)$/_\1/')
+    DOWNLOAD_LINK="$SYSCONFIG_BASE/${SYSCONFIG_VERSION}/sysconfig-${VERSION_URL}-setup.run"
+
+    echo "Download link detected:"
+    echo "$DOWNLOAD_LINK"
+
+    wget --show-progress -c "$DOWNLOAD_LINK"
+
+    chmod +x SysConfig*.run && ./SysConfig*.run
+}
+
+function install_ClangLatest() {
+    CLANG_URL="https://www.ti.com/tool/download/ARM-CGT-CLANG"
+    CLANG_BASE="https://dr-download.ti.com/software-development/ide-configuration-compiler-or-debugger/MD-ayxs93eZNN"
+
+    # Get the latest version
+    CLANG_VERSION=$(wget -qO- "$CLANG_URL" \
+        | grep -Eo 'CLANG/[0-9]+\.[0-9]+\.[0-9]+.LTS+' \
+        | sed 's#CLANG/##' \
+        | sort -rV | head -n 1)
+
+    echo "Latest version found: $CLANG_VERSION"
+
+    # The product page has the real download link (dr-download)
+    VERSION_URL=$(echo "$CLANG_VERSION" | sed 's/\.\([0-9]\+\)$/_\1/')
+    DOWNLOAD_LINK="$CLANG_BASE/${CLANG_VERSION}/ti_cgt_armllvm_${VERSION_URL}_linux-x64_installer.bin"
+
+    echo "Download link detected:"
+    echo "$DOWNLOAD_LINK"
+
+    wget --show-progress -c "$DOWNLOAD_LINK"
+
+    chmod +x ti_cgt_armllvm_*.bin && ./ti_cgt_armllvm_*.bin
+}
+
+function install_dependencies() {
     if [ $PYTHON -eq 1 ]; then
         echo "##### Installing python #####"
         if which python3 >/dev/null 2>&1; then
@@ -177,20 +267,34 @@ function install_dependencies()
             make gen-buildfiles DEVICE=am243x GEN_BUILDFILES_TARGET=development
         fi
     fi
-    if [ $AM243x_SDK -eq 1 ]; then
-        echo "##### Installing MCU+SDK for AM243x #####"
-        wget https://dr-download.ti.com/software-development/software-development-kit-sdk/MD-ouHbHEm1PK/$MCU_SDK_VERSION_PATH/mcu_plus_sdk_am243x_"$MCU_SDK_VERSION"-linux-x64-installer.run
-        chmod +x mcu_plus_sdk_am243x_"$MCU_SDK_VERSION"-linux-x64-installer.run && ./mcu_plus_sdk_am243x_"$MCU_SDK_VERSION"-linux-x64-installer.run
+    if [ $AM243X_SDK -eq 1 ]; then
+        echo "##### Installing MCU+SDK for AM243x #####",
+        list_sdkVersion AM243X
+        chmod +x mcu_plus_sdk_am243x_*.run && ./mcu_plus_sdk_am243x_*.run
     fi
     if [ $AM64XX_SDK -eq 1 ]; then
         echo "##### Installing MCU+SDK for AM64xx #####"
-        wget https://dr-download.ti.com/software-development/software-development-kit-sdk/MD-SfkcjYAjGS/$MCU_SDK_VERSION_PATH/mcu_plus_sdk_am64x_"$MCU_SDK_VERSION"-linux-x64-installer.run
-        chmod +x mcu_plus_sdk_am64x_"$MCU_SDK_VERSION"-linux-x64-installer.run && ./mcu_plus_sdk_am64x_"$MCU_SDK_VERSION"-linux-x64-installer.run
+        list_sdkVersion AM64X
+        chmod +x mcu_plus_sdk_am64x_*.run && ./mcu_plus_sdk_am64x_*.run
+    fi
+    if [ $AM263X_SDK -eq 1 ]; then
+        echo "##### Installing MCU+SDK for AM263x #####",
+        list_sdkVersion AM263X
+        chmod +x mcu_plus_sdk_am263x_*.run && ./mcu_plus_sdk_am263x_*.run
+    fi
+    if [ $AM263PX_SDK -eq 1 ]; then
+        echo "##### Installing MCU+SDK for AM263Px #####",
+        list_sdkVersion AM263PX
+        chmod +x mcu_plus_sdk_am263px_*.run && ./mcu_plus_sdk_am263px_*.run
+    fi
+    if [ $AM261X_SDK -eq 1 ]; then
+        echo "##### Installing MCU+SDK for AM261x #####",
+        list_sdkVersion AM261X
+        chmod +x mcu_plus_sdk_am261x_*.run && ./mcu_plus_sdk_am261x_*.run
     fi
     if [ $TI_CLANG -eq 1 ]; then
         echo "##### Installing TI ARM Clang #####"
-        wget https://dr-download.ti.com/software-development/ide-configuration-compiler-or-debugger/MD-ayxs93eZNN/$TI_ARM_VERSION/ti_cgt_armllvm_"$TI_ARM_VERSION"_linux-x64_installer.bin
-        chmod +x ti_cgt_armllvm_"$TI_ARM_VERSION"_linux-x64_installer.bin && ./ti_cgt_armllvm_"$TI_ARM_VERSION"_linux-x64_installer.bin
+        install_ClangLatest
     fi
     if [ $GCC_A53 -eq 1 ]; then 
         echo "##### Installing GCC for Cortex A53 #####"
@@ -225,8 +329,7 @@ function install_dependencies()
     fi
     if [ $SYSCONFIG -eq 1 ]; then
         echo "##### Installing SysConfig #####"
-        wget https://dr-download.ti.com/software-development/ide-configuration-compiler-or-debugger/MD-nsUM6f7Vvb/$SYSCONFIG_VERSION/sysconfig-$SYSCONFIG_VERSION_WEB-setup.run
-        chmod +x sysconfig-$SYSCONFIG_VERSION_WEB-setup.run && ./sysconfig-$SYSCONFIG_VERSION_WEB-setup.run
+        install_sysconfigLatest
     fi
     if [ $CCS -eq 1 ]; then
         echo "##### Installing Code Composer Studio #####"
@@ -246,8 +349,7 @@ function install_dependencies()
     rm -r nul
 }
 
-function show_usage()
-{
+function show_usage() {
     echo "Usage: $0 [options]"
     echo "Options:"
     echo "    -h, help            Show this help message"
@@ -260,6 +362,9 @@ function show_usage()
     echo "      --clone_sdk       Clone MCU+ SDK repository"
     echo "      --am243x_sdk      Install MCU+ SDK for AM243x"
     echo "      --am64xx_sdk      Install MCU+ SDK for AM64xx"
+    echo "      --am263x_sdk      Install MCU+ SDK for AM263x"
+    echo "      --am263px_sdk     Install MCU+ SDK for AM263Px"
+    echo "      --am261x_sdk      Install MCU+ SDK for AM261x"
     echo "      --pru             Install PRU-CGT"
     echo "      --mono            Install Mono Runtime"
     echo "      --make            Install Make"
@@ -294,8 +399,11 @@ DOXYGEN=0
 NODEJS=0
 OPENSSL=0
 CLONE_SDK=0
-AM243x_SDK=0
+AM243X_SDK=0
 AM64XX_SDK=0
+AM263X_SDK=0
+AM263PX_SDK=0
+AM261X_SDK=0
 PRU=0
 MONO_RUNTIME=0
 MAKE=0
@@ -335,10 +443,19 @@ while [[ $# -gt 0 ]]; do
                         CLONE_SDK=1
                         ;;
                     --am243x_sdk)
-                        AM243x_SDK=1
+                        AM243X_SDK=1
                         ;;
                     --am64xx_sdk)
                         AM64XX_SDK=1
+                        ;;
+                    --am263x_sdk)
+                        AM263X_SDK=1
+                        ;;
+                    --am263px_sdk)
+                        AM263PX_SDK=1
+                        ;;
+                    --am261x_sdk)
+                        AM261X_SDK=1
                         ;;
                     --pru)
                         PRU=1
@@ -395,3 +512,4 @@ while [[ $# -gt 0 ]]; do
     esac
     shift
 done
+
