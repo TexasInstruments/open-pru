@@ -1,33 +1,35 @@
 export OPEN_PRU_PATH?=$(abspath ../../../../../..)
 include $(OPEN_PRU_PATH)/imports.mak
 
-# Add inputs and outputs from these tool invocations to the build variables
-CMD_SRCS += \
-	linker.cmd \
-
-ASM_SRCS += \
-	main.asm \
-
+# Define build outputs
 OUTPUT_NAME := empty_am261x-lp_icss_m0_pru0_fw_ti-pru-cgt
 GEN_DIR := generated
+
+# Create an object file for each assembly and C source file.
+# Add an entry for every *.asm and *.c source file like this:
+# OBJECTS := $(GEN_DIR)/asm_filename.obj $(GEN_DIR)/c_filename.obj
+OBJECTS := $(GEN_DIR)/main.obj
+
+# Linker command file
+CMD_SRCS := linker.cmd
+
 TARGET := $(GEN_DIR)/$(OUTPUT_NAME).out
 MAP := $(GEN_DIR)/$(OUTPUT_NAME).map
 XML_LINK_INFO := $(GEN_DIR)/$(OUTPUT_NAME)_linkInfo.xml
 
-OBJ_DIR := $(GEN_DIR)
-SYSCFG_DIR := ./syscfg
 FILES_PATH := .. ../../.. .
 vpath %.asm $(FILES_PATH)
 vpath %.cmd $(FILES_PATH)
-vpath %.obj $(OBJ_DIR)
-OBJS += $(GEN_DIR)/main.obj
+vpath %.obj $(GEN_DIR)
+
+SYSCFG_DIR := $(GEN_DIR)/syscfg
 
 # All Target
-all: $(OBJS) $(CMD_SRCS)
+all: $(OBJECTS) $(CMD_SRCS)
 	@$(MAKE) --no-print-directory -Onone "$(TARGET)"
 
 # Each subdirectory must supply rules for building sources it contributes
-$(OBJ_DIR)/%.obj %.obj: %.asm
+$(GEN_DIR)/%.obj %.obj: %.asm
 	@mkdir -p $(GEN_DIR)
 	@echo 'Building file: "$^"'
 	@echo 'Invoking: PRU Compiler'
@@ -36,7 +38,7 @@ $(OBJ_DIR)/%.obj %.obj: %.asm
 	@echo ' '
 
 # Tool invocations
-$(TARGET): $(OBJS) $(CMD_SRCS)
+$(TARGET): $(OBJECTS) $(CMD_SRCS)
 	@echo 'Building target: "$@"'
 	@echo 'Invoking: PRU Linker'
 	"$(CGT_TI_PRU_PATH)/bin/clpru" -DPRU0 -DSLICE0 -v4 --define=SOC_AM261X  --define=_DEBUG_=1 -g --diag_warning=225 --diag_wrap=off --display_error_number --endian=little -z -m$(MAP) --disable_auto_rts   --diag_wrap=off --display_error_number --warn_sections --xml_link_info=$(XML_LINK_INFO) --disable_auto_rts --entry_point=main --diag_suppress=10063-D  --rom_model -o $(TARGET) $^
