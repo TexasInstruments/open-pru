@@ -4,7 +4,6 @@
 export OPEN_PRU_PATH?=$(abspath ../../../../../..)
 include $(OPEN_PRU_PATH)/imports.mak
 SYSCFG_DIR := $(CCS_PROJECT_DEBUG)/syscfg
-CG_TOOL_ROOT := $(CGT_TI_PRU_PATH)
 
 # Add inputs and outputs from these tool invocations to the build variables
 CMD_SRCS += \
@@ -54,7 +53,7 @@ all: $(OBJS) $(CMD_SRCS)
 $(OBJDIR)/%.obj %.obj: %.asm
 	@echo 'Building file: "$^"'
 	@echo 'Invoking: PRU Compiler'
-	"$(CGT_TI_PRU_PATH)/bin/clpru" -DPRU1 -DSLICE1 -v4 --define=SOC_AM64X --include_path="${CG_TOOL_ROOT}/include" --include_path="${MCU_PLUS_SDK_PATH}/source" --include_path="${OPEN_PRU_PATH}/source" --include_path="${MCU_PLUS_SDK_PATH}/source/pru_io/firmware/common"  --define=_DEBUG_=1 -g --diag_warning=225 --diag_wrap=off --display_error_number --endian=little --preproc_with_compile --preproc_dependency="$(basename $(<F)).d_raw" $^
+	"$(CGT_TI_PRU_PATH)/bin/clpru" -DPRU1 -DSLICE1 -v4 --define=SOC_AM64X --include_path="${CGT_TI_PRU_PATH}/include" --include_path="${MCU_PLUS_SDK_PATH}/source" --include_path="${OPEN_PRU_PATH}/source" --include_path="${MCU_PLUS_SDK_PATH}/source/pru_io/firmware/common"  --define=_DEBUG_=1 -g --diag_warning=225 --diag_wrap=off --display_error_number --endian=little --preproc_with_compile --preproc_dependency="$(basename $(<F)).d_raw" $^
 	@echo 'Finished building: "$^"'
 	@echo ' '
 
@@ -76,7 +75,7 @@ clean:
 	-@echo ' '
 
 post-build:
-		-$(CG_TOOL_ROOT)/bin/hexpru --diag_wrap=off --array --array:name_prefix=PRU1Firmware  -o pru1_load_bin.h empty_am64x-evm_icss_g0_pru1_fw_ti-pru-cgt.out
+		-$(CGT_TI_PRU_PATH)/bin/hexpru --diag_wrap=off --array --array:name_prefix=PRU1Firmware  -o pru1_load_bin.h empty_am64x-evm_icss_g0_pru1_fw_ti-pru-cgt.out
 		-$(CAT)  ${MCU_PLUS_SDK_PATH}/source/pru_io/firmware/pru_load_bin_copyright.h pru1_load_bin.h > ${OPEN_PRU_PATH}/examples/empty/firmware/am64x-evm/pru1_load_bin.h 
 		-$(RM) pru1_load_bin.h
 	-@echo ' '
