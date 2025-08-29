@@ -8,54 +8,30 @@ CMD_SRCS += \
 ASM_SRCS += \
 	main.asm \
 
-OBJS += \
-	main.obj \
-
-ASM_DEPS += \
-	main.d \
-
-OBJDIR := .
-
-SYSCFG_DIR := ./syscfg
-
-FILES_PATH_common = \
-	.. \
-	../../.. \
-	. \
-
-FILES_PATH := $(FILES_PATH_common)
-
-vpath %.asm $(FILES_PATH)
-vpath %.obj $(OBJDIR)
-vpath %.cmd $(FILES_PATH)
-
 OUTPUT_NAME := empty_am243x-evm_icss_g0_pru0_fw_ti-pru-cgt
-TARGET := $(OUTPUT_NAME).out
-MAP := $(OUTPUT_NAME).map
-XML_LINK_INFO := $(OUTPUT_NAME)_linkInfo.xml
+GEN_DIR := generated
+TARGET := $(GEN_DIR)/$(OUTPUT_NAME).out
+MAP := $(GEN_DIR)/$(OUTPUT_NAME).map
+XML_LINK_INFO := $(GEN_DIR)/$(OUTPUT_NAME)_linkInfo.xml
 
-# Add inputs and outputs from these tool invocations to the build variables
-EXE_OUTPUTS += \
-empty_am243x-evm_icss_g0_pru0_fw_ti-pru-cgt.out \
-
-EXE_OUTPUTS__QUOTED += \
-"empty_am243x-evm_icss_g0_pru0_fw_ti-pru-cgt.out" \
-
-BIN_OUTPUTS += \
-empty_am243x-evm_icss_g0_pru0_fw_ti-pru-cgt.hex \
-
-BIN_OUTPUTS__QUOTED += \
-"empty_am243x-evm_icss_g0_pru0_fw_ti-pru-cgt.hex" \
+OBJ_DIR := $(GEN_DIR)
+SYSCFG_DIR := ./syscfg
+FILES_PATH := .. ../../.. .
+vpath %.asm $(FILES_PATH)
+vpath %.cmd $(FILES_PATH)
+vpath %.obj $(OBJ_DIR)
+OBJS += $(GEN_DIR)/main.obj
 
 # All Target
 all: $(OBJS) $(CMD_SRCS)
 	@$(MAKE) --no-print-directory -Onone "$(TARGET)"
 
 # Each subdirectory must supply rules for building sources it contributes
-$(OBJDIR)/%.obj %.obj: %.asm
+$(OBJ_DIR)/%.obj %.obj: %.asm
+	@mkdir -p $(GEN_DIR)
 	@echo 'Building file: "$^"'
 	@echo 'Invoking: PRU Compiler'
-	"$(CGT_TI_PRU_PATH)/bin/clpru" -DPRU0 -DSLICE0 -v4 --define=SOC_AM243X --include_path="${CGT_TI_PRU_PATH}/include" --include_path="${MCU_PLUS_SDK_PATH}/source" --include_path="${OPEN_PRU_PATH}/source" --include_path="${MCU_PLUS_SDK_PATH}/source/pru_io/firmware/common"  --define=_DEBUG_=1 -g --diag_warning=225 --diag_wrap=off --display_error_number --endian=little --preproc_with_compile --preproc_dependency="$(basename $(<F)).d_raw" $^
+	"$(CGT_TI_PRU_PATH)/bin/clpru" -DPRU0 -DSLICE0 -v4 --define=SOC_AM243X --include_path="${CGT_TI_PRU_PATH}/include" --include_path="${MCU_PLUS_SDK_PATH}/source" --include_path="${OPEN_PRU_PATH}/source" --include_path="${MCU_PLUS_SDK_PATH}/source/pru_io/firmware/common"  --define=_DEBUG_=1 -g --diag_warning=225 --diag_wrap=off --display_error_number --endian=little --asm_directory=$(GEN_DIR) --obj_directory=$(GEN_DIR) --pp_directory=$(GEN_DIR) -ppd -ppa $^
 	@echo 'Finished building: "$^"'
 	@echo ' '
 
@@ -70,9 +46,7 @@ $(TARGET): $(OBJS) $(CMD_SRCS)
 
 # To clean generated files
 clean:
-	-$(RM) $(BIN_OUTPUTS__QUOTED)$(EXE_OUTPUTS__QUOTED)
-	-$(RM) $(OBJS)
-	-$(RM) $(ASM_DEPS)
+	-$(RMDIR) $(GEN_DIR)
 	-@echo 'Finished clean'
 	-@echo ' '
 
