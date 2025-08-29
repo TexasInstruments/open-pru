@@ -1,9 +1,5 @@
-#   Required input arguments :
-#   CCS_PROJECT_DEBUG=${CWD}   Use this input argument to include files from external paths
-
 export OPEN_PRU_PATH?=$(abspath ../../../../../..)
 include $(OPEN_PRU_PATH)/imports.mak
-SYSCFG_DIR := $(CCS_PROJECT_DEBUG)/syscfg
 
 # Add inputs and outputs from these tool invocations to the build variables
 CMD_SRCS += \
@@ -19,6 +15,8 @@ ASM_DEPS += \
 	main.d \
 
 OBJDIR := .
+
+SYSCFG_DIR := ./syscfg
 
 FILES_PATH_common = \
 	.. \
