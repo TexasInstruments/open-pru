@@ -1,6 +1,3 @@
-################################################################################
-# Automatically-generated file. Do not edit!
-################################################################################
 #   Required input arguments :
 #   CCS_PROJECT_DEBUG=${CWD}   Use this input argument to include files from external paths
 
