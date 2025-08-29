@@ -29,6 +29,10 @@ vpath %.asm $(FILES_PATH)
 vpath %.obj $(OBJDIR)
 vpath %.cmd $(FILES_PATH)
 
+OUTPUT_NAME := empty_am243x-evm_icss_g0_tx_pru0_fw_ti-pru-cgt
+TARGET := $(OUTPUT_NAME).out
+MAP := $(OUTPUT_NAME).map
+XML_LINK_INFO := $(OUTPUT_NAME)_linkInfo.xml
 
 # Add inputs and outputs from these tool invocations to the build variables
 EXE_OUTPUTS += \
@@ -45,7 +49,7 @@ BIN_OUTPUTS__QUOTED += \
 
 # All Target
 all: $(OBJS) $(CMD_SRCS)
-	@$(MAKE) --no-print-directory -Onone "empty_am243x-evm_icss_g0_tx_pru0_fw_ti-pru-cgt.out"
+	@$(MAKE) --no-print-directory -Onone "$(TARGET)"
 
 # Each subdirectory must supply rules for building sources it contributes
 $(OBJDIR)/%.obj %.obj: %.asm
@@ -56,10 +60,10 @@ $(OBJDIR)/%.obj %.obj: %.asm
 	@echo ' '
 
 # Tool invocations
-empty_am243x-evm_icss_g0_tx_pru0_fw_ti-pru-cgt.out: $(OBJS) $(CMD_SRCS)
+$(TARGET): $(OBJS) $(CMD_SRCS)
 	@echo 'Building target: "$@"'
 	@echo 'Invoking: PRU Linker'
-	"$(CGT_TI_PRU_PATH)/bin/clpru" -DTX_PRU0 -DSLICE0 -v4 --define=SOC_AM243X  --define=_DEBUG_=1 -g --diag_warning=225 --diag_wrap=off --display_error_number --endian=little -z -m"empty_am243x-evm_icss_g0_tx_pru0_fw_ti-pru-cgt.map" --disable_auto_rts   --diag_wrap=off --display_error_number --warn_sections --xml_link_info="empty_am243x-evm_icss_g0_tx_pru0_fw_ti-pru-cgt_linkInfo.xml" --disable_auto_rts --entry_point=main --diag_suppress=10063-D  --rom_model -o "empty_am243x-evm_icss_g0_tx_pru0_fw_ti-pru-cgt.out" $^
+	"$(CGT_TI_PRU_PATH)/bin/clpru" -DTX_PRU0 -DSLICE0 -v4 --define=SOC_AM243X  --define=_DEBUG_=1 -g --diag_warning=225 --diag_wrap=off --display_error_number --endian=little -z -m$(MAP) --disable_auto_rts   --diag_wrap=off --display_error_number --warn_sections --xml_link_info=$(XML_LINK_INFO) --disable_auto_rts --entry_point=main --diag_suppress=10063-D  --rom_model -o $(TARGET) $^
 	@echo 'Finished building target: "$@"'
 	@echo ' '
 	@$(MAKE) --no-print-directory post-build
@@ -73,7 +77,7 @@ clean:
 	-@echo ' '
 
 post-build:
-		-$(CGT_TI_PRU_PATH)/bin/hexpru --diag_wrap=off --array --array:name_prefix=TXPRU0Firmware  -o txpru0_load_bin.h empty_am243x-evm_icss_g0_tx_pru0_fw_ti-pru-cgt.out
+		-$(CGT_TI_PRU_PATH)/bin/hexpru --diag_wrap=off --array --array:name_prefix=TXPRU0Firmware  -o txpru0_load_bin.h $(TARGET)
 		-$(CAT)  ${MCU_PLUS_SDK_PATH}/source/pru_io/firmware/pru_load_bin_copyright.h txpru0_load_bin.h > ${OPEN_PRU_PATH}/examples/empty/firmware/am243x-evm/txpru0_load_bin.h 
 		-$(RM) txpru0_load_bin.h
 	-@echo ' '
