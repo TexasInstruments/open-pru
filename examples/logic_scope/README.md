@@ -44,7 +44,7 @@ The cores have to be synchronized once before they wait for the trigger together
 
 ## How to Run
 1. Connect the input signal to be traced to one of the channels in logic scope. If multiple signals are to be traced, connect all inputs to the configured channels.
-2. Build the PRU0 and RTU0 projects in "fft/examples/logic_scope" and load the projects to corresponding cores.
+2. Build the PRU0 and RTU0 projects in "examples/logic_scope" and load the projects to corresponding cores.
 3. Run the RTU0 project first, which is important for core synchronization. After the RTU0 project starts running, run the PRU0 project.
 
     Note :After both cores are up and running, the logic scope will actively sample for a low to high trigger on the configured channel. Once it detects the trigger, the configured number or samples will be collected in the configured memory. By default, a ~2MB will be stored in MS-RAM. 
