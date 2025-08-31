@@ -55,6 +55,7 @@ WC_RAM_ADDR_BASE       .set 0x30018000       ; base address of window coefficien
 M                      .set 12               ; M= log2(FFT_SIZE_NUM), M = 12 for FFT_SIZE_NUM  = 4096
 ONE_OVER_ROOT_TWO_Q32  .set 0xB504F333       ; (1/root(2))*2^(32)  (Q32 format)
 FDB_BSRAM_CONFIG       .set 0x180    ; Config for FDB General Purpose mode
+MII_G_RT_FDB_GEN_CFG2_ADDR .set 0x00033064  ; MII_G_RT_FDB_GEN_CFG2 MMR address
 
     .if (FFT_DEVICE == AM243)
 TW_FACTOR_START_ADDRESS      .set 0x1A000   ; local address of initial location of Twiddle factors in Shared Memory

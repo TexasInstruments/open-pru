@@ -49,9 +49,10 @@
 
 main:
     ; configure FDB-RAM as General Purpose
-    ldi32 r11, 0x00033064   ; load MII_G_RT_FDB_GEN_CFG2 MMR address
-    ldi32 r12, 0x180        ; set configuration
-    sbbo &r12, r11, 0, 4    ; write configuration to MMR
+    ; PEAK cycles: 8 cycles
+    ldi32 r11, MII_G_RT_FDB_GEN_CFG2_ADDR   ; load MII_G_RT_FDB_GEN_CFG2 MMR address (2 cycles)
+    ldi32 r12, FDB_BSRAM_CONFIG             ; set configuration (2 cycles)
+    sbbo &r12, r11, 0, 4                    ; write configuration to MMR (4 cycles)
     ;*
     ;* configure shared memory c28 pointer.
     ;* (nnnn = 0100) => c28 = 0x00010000
