@@ -39,20 +39,20 @@ vpath %.cmd $(FILES_PATH)
 
 # Add inputs and outputs from these tool invocations to the build variables
 EXE_OUTPUTS += \
-custom_frequency_generator_am243x-lp_icss_g0_pru0_fw_ti-pru-cgt.out \
+custom_frequency_generator_am243x-evm_icss_g0_pru0_fw_ti-pru-cgt.out \
 
 EXE_OUTPUTS__QUOTED += \
-"custom_frequency_generator_am243x-lp_icss_g0_pru0_fw_ti-pru-cgt.out" \
+"custom_frequency_generator_am243x-evm_icss_g0_pru0_fw_ti-pru-cgt.out" \
 
 BIN_OUTPUTS += \
-custom_frequency_generator_am243x-lp_icss_g0_pru0_fw_ti-pru-cgt.hex \
+custom_frequency_generator_am243x-evm_icss_g0_pru0_fw_ti-pru-cgt.hex \
 
 BIN_OUTPUTS__QUOTED += \
-"custom_frequency_generator_am243x-lp_icss_g0_pru0_fw_ti-pru-cgt.hex" \
+"custom_frequency_generator_am243x-evm_icss_g0_pru0_fw_ti-pru-cgt.hex" \
 
 # All Target
 all: $(OBJS) $(CMD_SRCS)
-	@$(MAKE) --no-print-directory -Onone "custom_frequency_generator_am243x-lp_icss_g0_pru0_fw_ti-pru-cgt.out"
+	@$(MAKE) --no-print-directory -Onone "custom_frequency_generator_am243x-evm_icss_g0_pru0_fw_ti-pru-cgt.out"
 
 # Each subdirectory must supply rules for building sources it contributes
 $(OBJDIR)/%.obj %.obj: %.asm
@@ -63,10 +63,10 @@ $(OBJDIR)/%.obj %.obj: %.asm
 	@echo ' '
 
 # Tool invocations
-custom_frequency_generator_am243x-lp_icss_g0_pru0_fw_ti-pru-cgt.out: $(OBJS) $(CMD_SRCS)
+custom_frequency_generator_am243x-evm_icss_g0_pru0_fw_ti-pru-cgt.out: $(OBJS) $(CMD_SRCS)
 	@echo 'Building target: "$@"'
 	@echo 'Invoking: PRU Linker'
-	"$(CGT_TI_PRU_PATH)/bin/clpru" -DPRU0 -DSLICE0 -v4 --define=SOC_AM243X  --define=_DEBUG_=1 -g --diag_warning=225 --diag_wrap=off --display_error_number --endian=little -z -m"custom_frequency_generator_am243x-lp_icss_g0_pru0_fw_ti-pru-cgt.map" --disable_auto_rts   --diag_wrap=off --display_error_number --warn_sections --xml_link_info="custom_frequency_generator_am243x-lp_icss_g0_pru0_fw_ti-pru-cgt_linkInfo.xml" --disable_auto_rts --entry_point=main --diag_suppress=10063-D  --rom_model -o "custom_frequency_generator_am243x-lp_icss_g0_pru0_fw_ti-pru-cgt.out" $^
+	"$(CGT_TI_PRU_PATH)/bin/clpru" -DPRU0 -DSLICE0 -v4 --define=SOC_AM243X  --define=_DEBUG_=1 -g --diag_warning=225 --diag_wrap=off --display_error_number --endian=little -z -m"custom_frequency_generator_am243x-evm_icss_g0_pru0_fw_ti-pru-cgt.map" --disable_auto_rts   --diag_wrap=off --display_error_number --warn_sections --xml_link_info="custom_frequency_generator_am243x-evm_icss_g0_pru0_fw_ti-pru-cgt_linkInfo.xml" --disable_auto_rts --entry_point=main --diag_suppress=10063-D  --rom_model -o "custom_frequency_generator_am243x-evm_icss_g0_pru0_fw_ti-pru-cgt.out" $^
 	@echo 'Finished building target: "$@"'
 	@echo ' '
 	@$(MAKE) --no-print-directory post-build
@@ -80,8 +80,8 @@ clean:
 	-@echo ' '
 
 post-build:
-		-$(CG_TOOL_ROOT)/bin/hexpru --diag_wrap=off --array --array:name_prefix=PRU0Firmware  -o pru0_load_bin.h custom_frequency_generator_am243x-lp_icss_g0_pru0_fw_ti-pru-cgt.out
-		-$(CAT)  ${MCU_PLUS_SDK_PATH}/source/pru_io/firmware/pru_load_bin_copyright.h pru0_load_bin.h > ${OPEN_PRU_PATH}/examples/custom_frequency_generator/am243x-lp/pru0_load_bin.h 
+		-$(CG_TOOL_ROOT)/bin/hexpru --diag_wrap=off --array --array:name_prefix=PRU0Firmware  -o pru0_load_bin.h custom_frequency_generator_am243x-evm_icss_g0_pru0_fw_ti-pru-cgt.out
+		-$(CAT)  ${MCU_PLUS_SDK_PATH}/source/pru_io/firmware/pru_load_bin_copyright.h pru0_load_bin.h > ${OPEN_PRU_PATH}/examples/custom_frequency_generator/am243x-evm/pru0_load_bin.h 
 		-$(RM) pru0_load_bin.h
 	-@echo ' '
 

@@ -3,7 +3,7 @@ include ../imports.mak
 # which projects will be built?
 SUBDIRS :=
 #TODO: add fft to SUBDIRS after make is fixed
-SUBDIRS_MCUPLUS := empty pru_emif
+SUBDIRS_MCUPLUS := empty pru_emif custom_frequency_generator
 #TODO: add spi_loopback to SUBDIRS_MCUPLUS after make is fixed
 SUBDIRS_LINUX :=
 
