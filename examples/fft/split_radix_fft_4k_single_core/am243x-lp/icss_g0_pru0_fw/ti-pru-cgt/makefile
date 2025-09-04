@@ -28,7 +28,7 @@ OBJECTS += $(patsubst %.c, $(GEN_DIR)/%.obj, $(notdir \
 	$(foreach directory, $(FILES_PATH), $(wildcard $(directory)/*.c))))
 
 # Linker command file
-COMMAND_FILES := linker.cmd
+COMMAND_FILES := AM243x_PRU0.cmd
 
 # Include paths
 INCLUDE := \
