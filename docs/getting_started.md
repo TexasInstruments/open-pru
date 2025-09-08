@@ -3,91 +3,114 @@
 <img src="https://upload.wikimedia.org/wikipedia/commons/b/ba/TexasInstruments-Logo.svg" width="150"><br/>
 # Getting Started with OPEN PRU
 
-[Supported HOST environments](#supported-host-environments) | [Which core will initialize the PRU?](#which-core-will-initialize-the-pru) | [Install dependencies (manual installation)](#install-dependencies-manual-installation) | [Install dependencies (script)](#install-dependencies-script) | [Generate buildfiles](#generate-buildfiles)
-
 </div>
+
+[Supported HOST environments](#supported-host-environments)  
+[Which core will initialize the PRU?](#which-core-will-initialize-the-pru)  
+[Install dependencies (manual installation)](#install-dependencies-manual-installation)  
+[Install dependencies (script)](#install-dependencies-script)  
+[Set up imports.mak](#set-up-importsmak)  
 
 ## Introduction
 
-This page discusses how to:
+This page discusses how to install the associated SDK and tools for your
+development platform (Windows or Linux). Dependencies can be installed
+manually, or with the pru_dependencies script (AM243x & AM64x only).
 
-1. Install the associated SDK and tools for your development platform (Windows or Linux). Install dependencies manually, or use the pru_dependencies script (AM243x, AM64x only)
-
-2. Generate project buildfiles
-
-After the OPEN PRU repository has been set up, refer back to the [README](./README.md) for build steps.
+After the OPEN PRU repository has been set up, refer back to the
+[README](./../README.md) for build steps.
 
 ## Supported HOST environments
 
-- Validated on Windows 10 64bit. Higher versions may work
+- Validated on Windows 10 64bit & Windows 11 64bit. Higher versions may work
 - Validated on Ubuntu 18.04 64bit & Ubuntu 22.04 64bit. Higher versions may work
 
 ## Which core will initialize the PRU?
 
-In your final design, the PRU cores must be initialized by another processor core. Depending on the processor, PRU cores can be initialized and controlled by cores running RTOS, bare metal, or Linux.
+In your final design, the PRU cores must be initialized by another processor
+core. Depending on the processor, PRU cores can be initialized and controlled by
+cores running RTOS, bare metal, or Linux.
 
-TI supports initializing the PRU from an RTOS/bare metal core on these processors:
+TI supports initializing the PRU from an RTOS or bare metal core on:
 - AM243x (R5F)
 - AM261x (R5F)
-- AM263x (R5F)
 - AM263px (R5F)
+- AM263x (R5F)
 - AM64x (R5F)
 
 TI supports initializing the PRU from Linux on these processors:
 - AM62x (A53)
 - AM64x (A53)
 
-TI supports RTOS & bare metal development through the MCU+ SDK, and Linux development through the Linux SDK.
+TI supports RTOS & bare metal development through the MCU+ SDK, and Linux
+development through the Linux SDK.
 
 ## Install dependencies (manual installation)
 
-AM243x & AM64x customers who will use the MCU+ SDK alongside PRU can install dependencies with the pru_dependencies script if they prefer. For those steps, refer to [Install dependencies (script)](#install-dependencies-script).
+AM243x & AM64x customers who will use the MCU+ SDK alongside PRU can install
+dependencies with the pru_dependencies script. For those steps, refer to
+[Install dependencies (script)](#install-dependencies-script).
 
-**Note:** In general, software dependencies should all be installed under the same folder. So Windows developers would put all software tools under C:\ti, and Linux developers would put all software tools under ${HOME}/ti.
+> [!NOTE]
+> Different releases of the open-pru repo are compatible with different SDK
+> versions. Please refer to the [release notes](./release_notes.md) for more
+> information.
 
-If you will initialize the PRU cores from an RTOS or bare metal core, follow the steps in [Windows or Linux: Install the MCU+ SDK & tools](#windows-or-linux-install-the-mcu-sdk--tools).
+> [!NOTE]
+> In general, software dependencies should all be installed under the same
+> folder. So Windows developers would put all software tools under C:\ti, and
+> Linux developers would put all software tools under ${HOME}/ti.
 
-If you will initialize the PRU cores from a Linux core, follow the steps in [Linux: Install the Linux SDK & tools](#linux-install-the-linux-sdk--tools).
+If you will initialize the PRU cores from an RTOS or bare metal core, follow the
+steps in [Windows or Linux: Install the MCU+ SDK & tools](#windows-or-linux-install-the-mcu-sdk--tools).
+
+If you will initialize the PRU cores from a Linux core, follow the steps in
+[Linux: Install the Linux SDK & tools](#linux-install-the-linux-sdk--tools).
 
 ### Windows or Linux: Install the MCU+ SDK & tools
 
-The MCU+ SDK is only a dependency when building OPEN PRU projects that include code for an MCU+ core.
+The MCU+ SDK is only a dependency when:
+1) Building OPEN PRU projects that include code for an MCU+ core
+2) Building OPEN PRU projects, where the PRU firmware includes code in the
+   MCU+ SDK (such as macros)
 
 #### Install the MCU+ SDK
 
-Users can either install the prebuilt MCU+ SDK, or clone the MCU+ SDK repository:
+Users can either install the prebuilt MCU+ SDK, or clone the MCU+ SDK
+repository. If you are not sure, we suggest using the prebuilt MCU+ SDK:
+   * The prebuilt SDK is packaged specifically for a single device, so it takes
+     up less hard drive space than the MCU+ SDK repo
+   * The CCS files in the OPEN PRU project need modification to work with the
+     MCU+ SDK repository
 
-1. Download the prebuilt MCU+ SDK. The prebuilt SDK takes up less space on the computer, since it is packaged specifically for a single device.
-
-Please use the links below to download the installers:
+**The prebuilt MCU+ SDK**
+installer can be downloaded here:
    - [AM243x MCU+ SDK](https://www.ti.com/tool/download/MCU-PLUS-SDK-AM243X)
    - [AM261x MCU+ SDK](https://www.ti.com/tool/download/MCU-PLUS-SDK-AM261X)
-   - [AM263x MCU+ SDK](https://www.ti.com/tool/download/MCU-PLUS-SDK-AM263X)
    - [AM263Px MCU+ SDK](https://www.ti.com/tool/download/MCU-PLUS-SDK-AM263PX)
+   - [AM263x MCU+ SDK](https://www.ti.com/tool/download/MCU-PLUS-SDK-AM263X)
    - [AM64x MCU+ SDK](https://www.ti.com/tool/download/MCU-PLUS-SDK-AM64X)
 
-2. Clone the [MCU+ SDK repository](https://github.com/TexasInstruments/mcupsdk-core). Follow the mcupsdk-core README.md file for additional steps.
+**The MCU+ SDK repository**
+can be cloned from
+[here](https://github.com/TexasInstruments/mcupsdk-core). Follow the
+mcupsdk-core README.md file for additional steps.
 
 #### Install the tools
 
-Users of the prebuilt MCU+ SDK, refer to the documentation associated with your specific SDK release. Users of the MCU+ SDK repository, refer to the documentation associated with the latest version of the MCU+ SDK.
+> [!NOTE]
+> Prebuilt MCU+ SDK users:
+> * Refer to the documentation associated with your specific SDK release
+>
+> MCU+ SDK repository users:
+> * Refer to the documentation associated with the latest version of the MCU+ SDK
 
-1. Install the versions of the tools that are listed in these pages:
+Install the versions of the tools that are listed in these pages:
    - MCU+ SDK docs > Getting Started > Download, Install, and Setup SDK and Tools
    - MCU+ SDK docs > Getting Started > Download, Install, and Setup CCS
      - Developers using a Linux computer, make sure to follow the additional steps at "CCS Linux Host Support"
-   
-2. Download and install Node.js v12.18.4 LTS. Then install the node packages required for the open-pru:
-   - Go to the [NodeJS Website](https://nodejs.org/en/) and use the installer to
-     download and install v12.18.4 of node. Install in the default directory.
-   - After successful installation, run an `npm ci` inside the `open-pru` folder like so:
-      ```bash
-      $ cd open-pru/
-      $ npm ci
-      ```
-      - To specify a proxy server, use the --proxy option followed by the proxy server link, like this: `--proxy = <proxy server link>`
 
-After installing all dependencies, continue to section [Generate buildfiles](#generate-buildfiles).
+After installing all dependencies, continue to section [Set up imports.mak](#set-up-importsmak).
 
 ### Linux: Install the Linux SDK & tools
 
@@ -97,7 +120,7 @@ The Linux SDK can only be installed on a Linux computer, not a Windows computer.
 
 The Linux SDK is only a dependency if building code that will run on a Linux A53 core.
 
-Please use the links below to download the Linux SDK:
+**The Linux SDK** installer can be downloaded here:
    - [AM62x Linux SDK](https://www.ti.com/tool/download/PROCESSOR-SDK-LINUX-AM62X)
    - [AM64x Linux SDK](https://www.ti.com/tool/download/PROCESSOR-SDK-LINUX-AM64X)
 
@@ -121,126 +144,134 @@ Please use the links below to download the Linux SDK:
    5. Install Mono Runtime (required for creating bootloader images for application binaries)
       - To install, use the command `sudo apt install mono-runtime`
 
-   6. Download and install Node.js v12.18.4 LTS
-      - Go to the [NodeJS Website](https://nodejs.org/en/) and use the installer to
-      download and install v12.18.4 of node. Install in the default directory.
-      - After successful installation, run an `npm ci` inside the `open-pru` folder like so:
-         ```bash
-         $ cd open-pru/
-         $ npm ci
-         ```
-      - To specify a proxy server, use the --proxy option followed by the proxy server link, like this: `--proxy = <proxy server link>`
-      This should install the node packages required for the open-pru.
-
-After installing all dependencies, continue to section [Generate buildfiles](#generate-buildfiles).
+After installing all dependencies, continue to section [Set up imports.mak](#set-up-importsmak).
 
 ## Install dependencies (script)
 
-The pru_dependencies scripts currently support installing MCU+ SDK and other dependencies on AM243x & AM64x. For all other devices, or for steps around installing the Linux SDK, please follow the steps at [Install dependencies (manual installation)](#install-dependencies-manual-installation).
+The pru_dependencies scripts currently support installing MCU+ SDK and other
+dependencies on **AM243x & AM64x**. For all other devices, or for steps when
+installing the Linux SDK, please follow the steps at
+[Install dependencies (manual installation)](#install-dependencies-manual-installation).
 
-**Note:** In general, software dependencies should all be installed under the same folder. So Windows developers would put all software tools under C:\ti, and Linux developers would put all software tools under ${HOME}/ti.
+> [!NOTE]
+> Different releases of the open-pru repo are compatible with different SDK
+> versions. Please refer to the [release notes](./release_notes.md) for more
+> information.
 
-If the OPEN PRU repo is installed on a Windows machine, follow the steps in [Windows: Use script `pru_dependencies.bat` to install SDK & tools](#windows-use-script-pru_dependenciesbat-to-install-sdk--tools).
+> [!NOTE]
+> In general, software dependencies should all be installed under the same
+> folder. So Windows developers would put all software tools under C:\ti, and
+> Linux developers would put all software tools under ${HOME}/ti.
 
-If the OPEN PRU repo is installed on a Linux machine, follow the steps in [Linux: Use script `pru_dependencies.sh` to install SDK & tools](#linux-use-script-pru_dependenciessh-to-install-sdk--tools).
+If the OPEN PRU repo is installed on a Windows machine, follow the steps in
+[Windows: Use script `pru_dependencies.bat` to install SDK & tools](#windows-use-script-pru_dependenciesbat-to-install-sdk--tools).
+
+If the OPEN PRU repo is installed on a Linux machine, follow the steps in
+[Linux: Use script `pru_dependencies.sh` to install SDK & tools](#linux-use-script-pru_dependenciessh-to-install-sdk--tools).
 
 ### Windows: Use script `pru_dependencies.bat` to install SDK & tools
 
 **NOTES**
 
-   - If the script is executed from any folder but `C:\ti`, it will be copied to `C:\ti` after running it and a second terminal screen will be opened with the location of the script. Please re-run script in the new terminal screen
-   - If OpenSSL is needed to be installed, when prompted select option to install binaries to /bin folder of installed path instead of Windows system path
-   - If after installing the dependencies the script is executed to verify the installed, it will show the same missing dependencies. 
-   The used terminal must be closed and re-opened to get the updated state (or PC must be restarted). This is a Windows limitation
+   - If the script is executed from any folder but `C:\ti`, then the script will
+     be copied to `C:\ti` after running. Then a second terminal screen will open
+     with the location of the script. Please re-run script in the new terminal
+     screen
+   - If OpenSSL is needed to be installed, when prompted select the option to
+     install binaries to /bin folder of installed path instead of the Windows
+     system path
+   - After installing dependencies, if the script is executed again in the same
+     terminal to verify the installation, the script will show the same missing
+     dependencies as the first run. This is a Windows limitation. Please close
+     and re-open the terminal in order to get the updated state.
 
 #### Install the MCU+ SDK
 
-By default, the script checks for and installs MCU+ SDK 11.0. In order to use a different SDK version, edit the **version numbers** in pru_dependencies.bat to match the desired SDK version from:
+By default, the script checks for and installs MCU+ SDK 11.0. In order to use a
+different SDK version, edit the **version numbers** in pru_dependencies.bat to
+match the desired SDK version from:
    - [AM243x MCU+ SDK](https://www.ti.com/tool/download/MCU-PLUS-SDK-AM243X)
    - [AM64x MCU+ SDK](https://www.ti.com/tool/download/MCU-PLUS-SDK-AM64X)
 
-- For AM243x: run the command `pru_dependencies.bat -I --am243x_sdk`, `pru_dependencies.bat -i --am243x_sdk` or `pru_dependencies.bat install --am243x_sdk`
-
-- For AM64x: run the command `pru_dependencies.bat -I --am64xx_sdk`, `pru_dependencies.bat -i --am64xx_sdk` or `pru_dependencies.bat install --am64xx_sdk`
+Run the pru_dependencies script like this:
+   - AM243x: `pru_dependencies.bat install --am243x_sdk`
+   - AM64x: `pru_dependencies.bat install --am64xx_sdk`
 
 Alternatively, the script can be used to clone the MCU+ SDK repository:
-
-- run the command `pru_dependencies.bat -I --clone_sdk`, `pru_dependencies.bat -i --clone_sdk` or `pru_dependencies.bat install --clone_sdk`
+   - `pru_dependencies.bat install --clone_sdk`
 
 #### Install the tools
 
-By default, the script checks for and installs the tool versions used with MCU+ SDK 11.0. If using a different SDK version, edit the **version numbers** in pru_dependencies.bat to match the versions listed in **the MCU+ SDK docs**, sections **Getting Started > Download, Install, and Setup SDK and Tools** and **Download, Install, and Setup CCS**.
+By default, the script checks for and installs the tool versions used with
+MCU+ SDK 11.0. If using a different SDK version, edit the **version numbers**
+in pru_dependencies.bat to match the versions listed in **the MCU+ SDK docs**,
+sections
+   - Getting Started > Download, Install, and Setup SDK and Tools
+   - Getting Started > Download, Install, and Setup CCS
 
-   1. It is recommended to verify the dependencies that are already installed. Run the command `pru_dependencies.bat -v`, `pru_dependencies.bat -V` or `pru_dependencies.bat verify`
+   1. Verify the dependencies that are already installed:
+       - `pru_dependencies.bat verify`
 
-   2. To install the dependencies, run the command `pru_dependencies.bat -I [dependencies]`, `pru_dependencies.bat -i [dependencies]` or `pru_dependencies.bat install [dependencies]`
+   2. Install dependencies:
+       - `pru_dependencies.bat install [dependencies]`
 
-   3. To get an assistance on how to use the script, run the command `pru_dependencies.bat -h` or `pru_dependencies.bat help`
+For assistance on how to use the script, run the command `pru_dependencies.bat help`.
 
-After installing all dependencies, continue to section [Generate buildfiles](#generate-buildfiles).
+After installing all dependencies, continue to section [Set up imports.mak](#set-up-importsmak).
 
 ### Linux: Use script `pru_dependencies.sh` to install SDK & tools
 
 **NOTES**
 
-- If the script is executed from any folder but `${HOME}/ti`, it will be copied to `${HOME}/ti` and executed from there automatically
+   - If the script is executed from any folder but `${HOME}/ti`, then the script
+     will be copied to `${HOME}/ti`. The script will execute from there automatically
 
 #### Install the MCU+ SDK
 
-By default, the script checks for and installs MCU+ SDK 11.0. In order to use a different SDK version, edit the **version numbers** in pru_dependencies.bat to match the desired SDK version from:
+By default, the script checks for and installs MCU+ SDK 11.0. In order to use a
+different SDK version, edit the **version numbers** in pru_dependencies.sh to
+match the desired SDK version from:
    - [AM243x MCU+ SDK](https://www.ti.com/tool/download/MCU-PLUS-SDK-AM243X)
    - [AM64x MCU+ SDK](https://www.ti.com/tool/download/MCU-PLUS-SDK-AM64X)
 
-- For AM243x: run the command `./pru_dependencies.sh -I --am243x_sdk`, `./pru_dependencies.sh -i --am243x_sdk` or `./pru_dependencies.sh install --am243x_sdk`
-
-- For AM64x: run the command `./pru_dependencies.sh -I --am64xx_sdk`, `./pru_dependencies.sh -i --am64xx_sdk` or `./pru_dependencies.sh install --am64xx_sdk`
+Run the pru_dependencies script like this:
+   - AM243x: `./pru_dependencies.sh install --am243x_sdk`
+   - AM64x: `./pru_dependencies.sh install --am64xx_sdk`
 
 Alternatively, the script can be used to clone the MCU+ SDK repository:
-
-- run the command `./pru_dependencies.sh -I --clone_sdk`, `./pru_dependencies.sh -i --clone_sdk` or `./pru_dependencies.sh install --clone_sdk`
+   - `./pru_dependencies.sh install --clone_sdk`
 
 #### Install the tools
 
-By default, the script checks for and installs the tool versions used with MCU+ SDK 11.0. If using a different SDK version, edit the **version numbers** in pru_dependencies.bat to match the versions listed in **the MCU+ SDK docs**, sections **Getting Started > Download, Install, and Setup SDK and Tools** and **Download, Install, and Setup CCS**.
+By default, the script checks for and installs the tool versions used with
+MCU+ SDK 11.0. If using a different SDK version, edit the **version numbers**
+in pru_dependencies.sh to match the versions listed in **the MCU+ SDK docs**,
+sections
+   - Getting Started > Download, Install, and Setup SDK and Tools
+   - Getting Started > Download, Install, and Setup CCS
 
-   1. It is recommended to verify the dependencies that are already installed. Run the command `./pru_dependencies.sh -v`, `./pru_dependencies.sh -V` or `./pru_dependencies.sh verify`
+   1. Verify the dependencies that are already installed:
+       - `./pru_dependencies.sh verify`
 
-   2. To install the dependencies, run the command `./pru_dependencies.sh -I [dependencies]`, `./pru_dependencies.sh -i [dependencies]` or `./pru_dependencies.sh install [dependencies]`
+   2. Install dependencies:
+       - `./pru_dependencies.sh install [dependencies]`
 
-   3. To get an assistance on how to use the script, run the command `./pru_dependencies.sh -h` or `./pru_dependencies.sh help`
+For assistance on how to use the script, run the command `./pru_dependencies.sh help`.
 
-## Generate buildfiles
+After installing all dependencies, continue to section [Set up imports.mak](#set-up-importsmak).
 
-These steps are used to generate makefiles and other build infrastructure for each OPEN PRU project.
+## Set up imports.mak
 
-**NOTES**
-- Use `gmake` in Windows, and `make` in Linux. gmake is present in CCS. Add the path to the CCS gmake at `C:\ti\ccsxxxx\ccs\utils\bin` to your windows PATH.
-- Unless mentioned otherwise, all `make` commands are invoked from the root folder of the `open-pru` repository.
-   ```bash
-   cd open-pru/
-   ```
-- Current supported device names are am243x, am261x, am263x, am263px, am64x
-- Pass one of these values for `"DEVICE="`
-- You can also build components (examples, tests or libraries) in the `release` or `debug`
-  profiles. To do this pass one of these values for `"PROFILE="`
----
+The imports.mak file contains the information that the OPEN PRU makefiles need
+in order to build on your computer.
 
-#### Option 1: If you installed the device-specific prebuilt MCU+ SDK:
+### Copy the default file
 
-   ```bash
-   make gen-buildfiles DEVICE=am64x MCU_PLUS_SDK_PATH=<MCU_PLUS_SDK_INSTALL_PATH>
-   make gen-buildfiles DEVICE=am243x MCU_PLUS_SDK_PATH=<MCU_PLUS_SDK_INSTALL_PATH>
-   make gen-buildfiles DEVICE=am261x MCU_PLUS_SDK_PATH=<MCU_PLUS_SDK_INSTALL_PATH>
-   make gen-buildfiles DEVICE=am263px MCU_PLUS_SDK_PATH=<MCU_PLUS_SDK_INSTALL_PATH>
-   make gen-buildfiles DEVICE=am263x MCU_PLUS_SDK_PATH=<MCU_PLUS_SDK_INSTALL_PATH>
-   ```
+Copy `open-pru/imports.mak.default` into a new file, `open-pru/imports.mak`.
 
-#### Option 2: If you cloned the MCU+ SDK repository:
+For ease of use, the new imports.mak file is already excluded from git tracking.
 
-   ```bash
-   make gen-buildfiles DEVICE=am64x MCU_PLUS_SDK_PATH=<MCU_PLUS_SDK_INSTALL_PATH> GEN_BUILDFILES_TARGET=development 
-   make gen-buildfiles DEVICE=am243x MCU_PLUS_SDK_PATH=<MCU_PLUS_SDK_INSTALL_PATH> GEN_BUILDFILES_TARGET=development
-   make gen-buildfiles DEVICE=am261x MCU_PLUS_SDK_PATH=<MCU_PLUS_SDK_INSTALL_PATH> GEN_BUILDFILES_TARGET=development
-   make gen-buildfiles DEVICE=am263px MCU_PLUS_SDK_PATH=<MCU_PLUS_SDK_INSTALL_PATH> GEN_BUILDFILES_TARGET=development
-   make gen-buildfiles DEVICE=am263x MCU_PLUS_SDK_PATH=<MCU_PLUS_SDK_INSTALL_PATH> GEN_BUILDFILES_TARGET=development
-   ```
+### Customize imports.mak for your computer
+
+Open imports.mak and update the settings based on your specific computer. Follow
+the `TODO` comments to see which settings need to be modified.
