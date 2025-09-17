@@ -1,9 +1,15 @@
 <div align="center">
 
 <img src="https://upload.wikimedia.org/wikipedia/commons/b/ba/TexasInstruments-Logo.svg" width="150"><br/>
+
 # Release Notes
 
 </div>
+
+[Viewing the release notes](#viewing-the-release-notes)  
+[Checking out a specific release](#checking-out-a-specific-release)  
+[Compatible SDKs](#compatible-sdks)  
+[Compatible versions of CCS & other tools](#compatible-versions-of-ccs--other-tools)  
 
 The open-pru repo does not have official software releases like the TI SDKs.
 
@@ -26,9 +32,7 @@ branch), checkout the tag like
 $ git checkout -b my-branch-name tag-name
 ```
 
-## Compatible SDK releases
-
-These SDK versions can be used to build projects in each tag release:
+## Compatible SDKs
 
 ### v2025.00.00
 
@@ -49,3 +53,15 @@ Older SDK versions are not supported with the open-pru infrastructure:
 | --- | ------ | ------ | ------- | ------ | ----- | ---- |
 | MCU+ SDK | 10.0 or earlier |  | 10.0 or earlier | 9.2 or earlier | N/A | 10.0 or earlier |
 
+## Compatible versions of CCS & other tools
+
+**MCU+ SDK users:**
+Use the CCS version, SysConfig version, and other tool versions
+listed in the MCU+ SDK "Getting Started" docs for your selected MCU+ SDK
+release. See [Getting Started with MCU+ SDK](./getting_started_mcuplus.md) for
+details.
+
+**Linux SDK users:**
+Use the CCS and tool versions listed in
+[Getting Started with Linux SDK](./getting_started_linux.md) when the open-pru
+repo is checked out to the specific release tag that you are using.
