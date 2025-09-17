@@ -11,7 +11,7 @@
 [OPEN PRU organization](#open-pru-organization)  
 [Building the examples](#building-the-examples)  
 [Information about using EVM boards](#information-about-using-evm-boards)  
-[Steps to add a new OPEN PRU project](#steps-to-add-a-new-open-pru-project)  
+[Creating a new OPEN PRU project](#creating-a-new-open-pru-project)  
 [Contributing to the OPEN PRU repo](#contributing-to-the-open-pru-repo)  
 [Technical Support](#technical-support)  
 
@@ -91,7 +91,7 @@ folder of the `open-pru` repository.
 
 #### Build the PRU firmware
 
-- Once you click on **build** in the PRU project, the PRU firmware header file is generated in the CCS release or debug folder. The PRU header file is moved to  `<open-pru/examples/pru_io/empty/firmware/device/>`
+- Once you click on **build** in the PRU project, the PRU firmware header file is generated in the CCS release or debug folder. The PRU header file is moved to  `<open-pru/examples/empty/firmware/device/>`
 
 #### Build the R5F firmware
 
@@ -118,15 +118,22 @@ Getting started guides of MCU+ SDK are specific to a particular device. The link
 - [AM263Px Getting Started Guide](https://software-dl.ti.com/mcu-plus-sdk/esd/AM263PX/latest/exports/docs/api_guide_am263px/GETTING_STARTED.html)
 - [AM263x Getting Started Guide](https://software-dl.ti.com/mcu-plus-sdk/esd/AM263X/latest/exports/docs/api_guide_am263x/GETTING_STARTED.html)
 
-## Steps to create a new OPEN PRU project
+## Creating a new OPEN PRU project
 
 An existing project can be copied into a new directory, or imported into CCS,
 to serve as a starting point for PRU development.
 
 For example, copy `examples/empty` to `examples/my_project`.
 
-Additional information about customizing PRU projects will be covered in the
-PRU Academy.
+my_project can now be built from the project directory:
+
+```
+$ cd /path/to/open-pru/examples/my_project
+$ make -s
+```
+
+For additional steps to create a new OPEN PRU project, refer to page
+[Creating a New Project in the OPEN PRU Repo](./docs/open_pru_create_new_project.md).
 
 ## Contributing to the OPEN PRU repo
 
