@@ -6,112 +6,118 @@
 
 </div>
 
-delete all processors, boards, and cores that are not used in your project from:
-1a) project/makefile
-1b) project/boards
-1c) project/firmware/boards
+This document provides high-level steps that apply to all processors. For more
+details, and a processor-specific example, please refer to
+**the PRU Academy > Getting Started Labs > Lab 1: How to Create a PRU Project**.
 
-find and replace old_project_name with new_project_name
-e.g., in the Linux terminal
-$ cd project
-$ grep -r old_project_name
-check that if you do a bulk find/replace, you will not mess up any variables
-$ grep -rli 'old_project_name' | xargs -i@ sed -i 's/old_project_name/new_project_name/g' @
+This document is focused on creating a starting point to develop PRU code.
+Information about adding MCU+ code to an OPEN PRU project is covered in
+**the PRU Academy > Getting Started Labs > Lab 1: How to Create a PRU Project >
+Creating an OpenPRU Project with MCU+ Code**.
 
-make any other updates needed to project/makefile
+Commands throughout this document will be given in the format used by the Linux
+terminal, or a Windows application like Git Bash.
 
-add project to open-pru/examples/makefile so that it builds from a top-level build
+## Copy existing project
 
-### Make infrastructure
+The easiest way to create a new project in the OPEN PRU repo is to copy an
+existing project into a new directory, or import an existing project into CCS.
+This copied project will serve as a starting point.
 
-Your project should build from a top-level make command. Like this:
+For example, copy `examples/empty` to `examples/my_project`.
 
+Since `empty` and `my_project` are in the same parent directory, `my_project`
+can be built from the project directory after updating any paths that use the
+project name. This is discussed more in section
+[Rename the project and update paths](#rename-the-project-and-update-paths).
 ```
-$ cd /path/to/open-pru
+$ cd /path/to/open-pru/examples/my_project
 $ make -s
 ```
 
-For details about how to set up the makefile infrastructure for your project,
-refer to
-[Creating a New Project in the OPEN PRU Repo](./open_pru_create_new_project.md) 
+This is the only "critical" step. You can now start development on `my_project`.
 
-So what makefile infrastructure do we need in order to build?
+The rest of this document discusses how to customize & clean up your
+project. If you plan to create a pull request to add your project to the main
+branch, please follow ALL of the following steps to make sure that your project
+can be maintained into the future.
 
-Let's say we are adding an example with MCU+ code to examples/new_project. This
-example runs on AM243x and AM64x.
+## Remove or replace unused processors, boards, and cores
 
-#### Which files need to be modified?
+If the project contains processors, boards, or cores that will not be used in
+your project, you should remove the unused components.
 
-We can use the empty example as a template.
+If your project uses processors, boards, or cores that were not in the original
+project, you will need to add them or modify existing files.
 
-open-pru/makefile
-* "make" is the same as "make all". The "make all" command passes a "make"
-  command to all subfolders listed in SUBDIRS
-* no modifications needed
+> [!NOTE]
+> Many PRU projects can be ported from one processor to another. However,
+> sometimes a project will use features of the PRU subsystem that cannot be
+> ported to other PRU subsystems. For example, PRU_ICSSG subsystems include
+> accelerators and additional PRU cores that do not exist on PRU-ICSSM
+> subsystems.
+>
+> We suggest checking that all the desired features exist before porting a
+> project to a new processor. This app note is a good starting point:
+> [PRU Subsystem Features Comparison](https://www.ti.com/lit/sprac90).
 
-open-pru/examples/makefile
-* "make all" passes a "make" command to all subfolders listed in SUBDIRS
-* We need to add new_project to this file
-* If this project only had PRU code, then we would list the project under
-  SUBDIRS :=
-* However, this project also has MCU+ code. Add new_project to
-  SUBDIRS_MCUPLUS := .
-  Now a top-level make command will only build the project if BUILD_MCUPLUS = y
-  in imports.mak
+These are the files & directories to modify or delete:
 
-open-pru/examples/new_project/makefile
-* Add a makefile in this directory. Let's start by copying the file
-  examples/empty/makefile
-* We will modify this file in the next section
+* `my_project/makefile`
+* `my_project/[boards]` or `my_project/[os]/[boards]`
+* `my_project/firmware/[boards]`
 
-Finally, there should be a makefile for every processor that is getting
-programmed in the project. Typical locations for these makefiles include:
+## Rename the project and update paths
 
-* open-pru/examples/new_project/firmware/board/pru-core/build-tool/makefile
-* open-pru/examples/new_project/board/non-pru-core/build-tool/makefile
+Find and replace the old project name and path with the new project name and
+path throughout the project.
 
-#### Modifying the project makefile
+## Customize the makefiles
 
-Now let's modify open-pru/examples/new_project/makefile.
+Within the project folder, there is a project makefile, and then makefiles for
+each core. There is a separate core makefile for every combination of processor
+and board. The project makefile calls all the other makefiles.
 
-Update the "project information" section:
-* PROJECT_NAME := new_project
-* SUPPORTED_PROCESSORS := am243x am64x
+Every directory above the project folder also includes a makefile. This allows
+us to build the project from higher level directories.
 
-"make all" builds the target that matches $(DEVICE) in imports.mak. So:
-* "make" with $(DEVICE) = am261x does nothing
-* "make" with $(DEVICE) = am243x runs all commands under the target called
-  am243x:
-* etc
+### Customize the project makefile
 
-First, remove all targets that do not apply for this project. Delete
-sections "am261x:", "am263px:", etc.
+Update:
 
-Next, make sure that the $(MAKE) commands under am243x: and am64x: have actual
-targets. Let's say that we are only building for ICSSG0_PRU0, ICSSG1_PRU0, and
-R5F0_0 on the EVM boards. Then we would update the makefile like this:
+* The include path for `imports.mak`
+* **Project information**
+* **Prebuild checks** (if any dependencies are added)
+* **Target definitions** (if not already updated)
 
-```
-am243x:
-# am243x-evm
-        $(MAKE) -C firmware/am243x-evm/icss_g0_pru0_fw/ti-pru-cgt $(ARGUMENTS)
-        $(MAKE) -C firmware/am243x-evm/icss_g1_pru0_fw/ti-pru-cgt $(ARGUMENTS)
-        $(MAKE) -C am243x-evm/r5fss0-0_freertos/ti-arm-clang $(ARGUMENTS)
+### Customize the core makefiles
 
-am64x:
-# am64x-evm
-        $(MAKE) -C firmware/am64x-evm/icss_g0_pru0_fw/ti-pru-cgt $(ARGUMENTS)
-        $(MAKE) -C firmware/am64x-evm/icss_g1_pru0_fw/ti-pru-cgt $(ARGUMENTS)
-        $(MAKE) -C am64x-evm/r5fss0-0_freertos/ti-arm-clang $(ARGUMENTS)
-```
+Update:
 
-#### Testing the make infrastructure
+* The include path for `imports.mak`
+* Section **Define build outputs**
+
+The makefile includes important information that you may need to modify later
+in development, like
+
+* Where to search for source files
+* Include paths
+* Compiler flags
+* Linker flags
+* Defines
+
+### Customize the parent directory
+
+Add my_project to the makefile in the parent directory. That allows the
+project to build from a top-level make command.
+
+#### Check the top level makefile
 
 First, make sure that the project make file builds from the project directory.
 Then, check that the project make builds from the top-level directory.
 
 ```
-$ cd /path/to/open-pru/examples/new_project
+$ cd /path/to/open-pru/examples/my_project
 
 // remove files from previous builds
 $ make -s clean
