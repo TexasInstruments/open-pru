@@ -125,7 +125,9 @@ to serve as a starting point for PRU development.
 
 For example, copy `examples/empty` to `examples/my_project`.
 
-my_project can now be built from the project directory:
+Since `empty` and `my_project` are in the same parent directory, `my_project`
+can be built from the project directory after updating any paths that use the
+project name:
 
 ```
 $ cd /path/to/open-pru/examples/my_project
