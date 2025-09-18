@@ -1,84 +1,149 @@
-################################################################################
-# Automatically-generated file. Do not edit!
-################################################################################
-#   Required input arguments :
-#   CCS_PROJECT_DEBUG=${CWD}   Use this input argument to include files from external paths
-
 export OPEN_PRU_PATH?=$(abspath ../../../../../..)
 include $(OPEN_PRU_PATH)/imports.mak
-SYSCFG_DIR := $(CCS_PROJECT_DEBUG)/syscfg
-CG_TOOL_ROOT := $(CGT_TI_PRU_PATH)
 
-# Add inputs and outputs from these tool invocations to the build variables
-CMD_SRCS += \
-	AM243x_PRU0.cmd \
+# Define build outputs
+OUTPUT_NAME := split_radix_fft_post_processing_am243x-lp_icss_g0_pru0_fw
+HEX_ARRAY_PREFIX := PRU0Firmware
+GEN_DIR := generated
+TARGET := $(GEN_DIR)/$(OUTPUT_NAME).out
+TARGET_HEX := $(GEN_DIR)/$(OUTPUT_NAME).h
 
-ASM_SRCS += \
+# MCU+ projects: rename & move hex array output
+MCU_HEX_NAME := pru0_load_bin.h
+MCU_HEX_PATH := $(OPEN_PRU_PATH)/examples/fft/split_radix_fft_post_processing/am243x-lp/$(MCU_HEX_NAME)
 
-OBJS += \
-
-ASM_DEPS += \
-
-OBJDIR := .
-
-FILES_PATH_common = \
-	.. \
-	../../.. \
-	. \
-
-FILES_PATH := $(FILES_PATH_common)
-
+# which directories to search for assembly & C source files?
+FILES_PATH := .. ../../.. .
 vpath %.asm $(FILES_PATH)
-vpath %.obj $(OBJDIR)
+vpath %.c $(FILES_PATH)
 vpath %.cmd $(FILES_PATH)
+vpath %.obj $(GEN_DIR)
+C_FILES := $(notdir $(foreach directory, $(FILES_PATH), $(wildcard $(directory)/*.c)))
+ASM_FILES := $(notdir $(foreach directory, $(FILES_PATH), $(wildcard $(directory)/*.asm)))
 
+# Generate an object file for every *.asm and *.c source file in FILES_PATH
+OBJECTS := $(patsubst %.asm, $(GEN_DIR)/%.obj, $(notdir \
+	$(foreach directory, $(FILES_PATH), $(wildcard $(directory)/*.asm))))
+OBJECTS += $(patsubst %.c, $(GEN_DIR)/%.obj, $(notdir \
+	$(foreach directory, $(FILES_PATH), $(wildcard $(directory)/*.c))))
 
-# Add inputs and outputs from these tool invocations to the build variables
-EXE_OUTPUTS += \
-split_radix_fft_post_processing_am243x-lp_icss_g0_pru0_fw_ti-pru-cgt.out \
+# Linker command file
+COMMAND_FILES := AM243x_PRU0.cmd
 
-EXE_OUTPUTS__QUOTED += \
-"split_radix_fft_post_processing_am243x-lp_icss_g0_pru0_fw_ti-pru-cgt.out" \
+# Include paths
+INCLUDE := \
+	--include_path=$(CGT_TI_PRU_PATH)/include \
+	--include_path=$(OPEN_PRU_PATH)/source
+ifeq ($(BUILD_MCUPLUS),y)
+INCLUDE += \
+	--include_path=$(MCU_PLUS_SDK_PATH)/source \
+	--include_path=$(MCU_PLUS_SDK_PATH)/source/pru_io/firmware/common
+endif
 
-BIN_OUTPUTS += \
-split_radix_fft_post_processing_am243x-lp_icss_g0_pru0_fw_ti-pru-cgt.hex \
+# Compiler flags (Defined in 'PRU Optimizing C/C++ Compiler User's Guide)
+# commonly modified flags include:
+#     silicon version: -v (3: PRUSS, PRU-ICSS; 4: PRU_ICSSG)
+#     C code optimization: -O (off, 0, 1, 2, 3, 4)
+CFLAGS := \
+	-v4 -O2 \
+	--display_error_number --diag_wrap=off --diag_warning=225 \
+	--asm_directory=$(GEN_DIR) --obj_directory=$(GEN_DIR) --pp_directory=$(GEN_DIR) \
+	-ppd -ppa -g --endian=little
 
-BIN_OUTPUTS__QUOTED += \
-"split_radix_fft_post_processing_am243x-lp_icss_g0_pru0_fw_ti-pru-cgt.hex" \
+# Linker flags (Defined in 'PRU Optimizing C/C++ Compiler User's Guide)
+LFLAGS := \
+	-m$(GEN_DIR)/$(OUTPUT_NAME).map --xml_link_info=$(GEN_DIR)/$(OUTPUT_NAME)_linkInfo.xml \
+	--display_error_number --diag_wrap=off --diag_warning=225 --diag_suppress=10063-D \
+	--warn_sections --reread_libs
+
+ifeq ($(C_FILES),)
+# PRU firmware is assembly-only
+# commonly modified flags include:
+#     entry point
+LFLAGS += \
+	--entry_point=main --disable_auto_rts --ram_model
+
+else
+# PRU firmware has C code
+# commonly modified flags include:
+#     stack size, heap size
+LFLAGS += \
+	--stack_size=0x100 --heap_size=0x100 \
+	-i$(CGT_TI_PRU_PATH)/lib -i$(CGT_TI_PRU_PATH)/include --library=libc.a
+endif
+
+# Defines (pass instance specific definitions to the program)
+# see --define or -D in 'PRU Optimizing C/C++ Compiler User's Guide'
+# For example, to define PRU0, ICSSG1, SOC_AM243X, and set _DEBUG_=1:
+# -DPRU0 -DICSSG1 --define=SOC_AM243X -D_DEBUG_=1
+DFLAGS :=
+
+# Libraries
+# see --library in 'PRU Optimizing C/C++ Compiler User's Guide'
+LIBS :=
+
+# Only build if tools are defined
+ifeq (,$(CGT_TI_PRU_PATH))
+all clean:
+	@echo 'CGT_TI_PRU_PATH not set. Make sure that:'
+	@echo ' 1) OPEN_PRU_PATH points to the open-pru repo'
+	@echo ' 2) imports.mak exists at OPEN_PRU_PATH'
+	@echo ' 3) Both the open-pru repo and imports.mak are set up as per'
+	@echo '    OPEN_PRU_PATH/docs/getting_started.md'
+else
 
 # All Target
-all: $(OBJS) $(CMD_SRCS)
-	@$(MAKE) --no-print-directory -Onone "split_radix_fft_post_processing_am243x-lp_icss_g0_pru0_fw_ti-pru-cgt.out"
+all: $(OBJECTS) $(COMMAND_FILES)
+	@$(MAKE) --no-print-directory -Onone "$(TARGET)"
 
-# Each subdirectory must supply rules for building sources it contributes
-$(OBJDIR)/%.obj %.obj: %.asm
+# Invoke the compiler on all assembly files in vpath to create the object files
+$(GEN_DIR)/%.obj: %.asm
+	$(MKDIR) $(GEN_DIR)
 	@echo 'Building file: "$^"'
 	@echo 'Invoking: PRU Compiler'
-	"$(CGT_TI_PRU_PATH)/bin/clpru" -DPRU0 -DSLICE0 -v4 --define=SOC_AM243X --include_path="${CG_TOOL_ROOT}/include" --include_path="${MCU_PLUS_SDK_PATH}/source" --include_path="${OPEN_PRU_PATH}/source" --include_path="${MCU_PLUS_SDK_PATH}/source/pru_io/firmware/common" --include_path="${CG_TOOL_ROOT}/include" --include_path="${CG_TOOL_ROOT}/lib"  --define=_DEBUG_=1 -g --diag_warning=225 --diag_wrap=off --display_error_number --endian=little --preproc_with_compile --preproc_dependency="$(basename $(<F)).d_raw" $^
+	"$(CGT_TI_PRU_PATH)/bin/clpru" $(INCLUDE) $(CFLAGS) $(DFLAGS) $^
 	@echo 'Finished building: "$^"'
 	@echo ' '
 
-# Tool invocations
-split_radix_fft_post_processing_am243x-lp_icss_g0_pru0_fw_ti-pru-cgt.out: $(OBJS) $(CMD_SRCS)
+# Invoke the compiler on all c files in vpath to create the object files
+$(GEN_DIR)/%.obj: %.c
+	$(MKDIR) $(GEN_DIR)
+	@echo 'Building file: $^'
+	@echo 'Invoking: PRU Compiler'
+	"$(CGT_TI_PRU_PATH)/bin/clpru" $(INCLUDE) $(CFLAGS) $(DFLAGS) $^
+	@echo 'Finished building: "$^"'
+	@echo ' '
+
+# Invoke the linker (-z flag) to make the .out file
+$(TARGET): $(OBJECTS) $(COMMAND_FILES)
 	@echo 'Building target: "$@"'
 	@echo 'Invoking: PRU Linker'
-	"$(CGT_TI_PRU_PATH)/bin/clpru" -DPRU0 -DSLICE0 -v4 --define=SOC_AM243X  --define=_DEBUG_=1 -g --diag_warning=225 --diag_wrap=off --display_error_number --endian=little -z -m"split_radix_fft_post_processing_am243x-lp_icss_g0_pru0_fw_ti-pru-cgt.map" --disable_auto_rts   --diag_wrap=off --display_error_number --warn_sections --xml_link_info="split_radix_fft_post_processing_am243x-lp_icss_g0_pru0_fw_ti-pru-cgt_linkInfo.xml" --disable_auto_rts --entry_point=main --diag_suppress=10063-D -i${CG_TOOL_ROOT}/lib -i${CG_TOOL_ROOT}/include -llibc.a  --rom_model -o "split_radix_fft_post_processing_am243x-lp_icss_g0_pru0_fw_ti-pru-cgt.out" $^
+	"$(CGT_TI_PRU_PATH)/bin/clpru" $(CFLAGS) -z $^ $(LFLAGS) -o $(TARGET) $(LIBS)
 	@echo 'Finished building target: "$@"'
 	@echo ' '
 	@$(MAKE) --no-print-directory post-build
 
 # To clean generated files
 clean:
-	-$(RM) $(BIN_OUTPUTS__QUOTED)$(EXE_OUTPUTS__QUOTED)
-	-$(RM) $(OBJS)
-	-$(RM) $(ASM_DEPS)
-	-@echo 'Finished clean'
-	-@echo ' '
+	-$(RMDIR) $(GEN_DIR)
+ifeq ($(BUILD_MCUPLUS),y)
+	-$(RM) $(MCU_HEX_PATH)
+endif
+	@echo 'Finished clean'
+	@echo ' '
+endif
 
+# Generate hex array
 post-build:
-		-$(CG_TOOL_ROOT)/bin/hexpru --diag_wrap=off --array --array:name_prefix=PRU0Firmware  -o pru0_load_bin.h split_radix_fft_post_processing_am243x-lp_icss_g0_pru0_fw_ti-pru-cgt.out
-		-$(CAT)  ${MCU_PLUS_SDK_PATH}/source/pru_io/firmware/pru_load_bin_copyright.h pru0_load_bin.h > ${OPEN_PRU_PATH}/examples/fft/split_radix_fft_post_processing/am243x-lp/pru0_load_bin.h
-		-$(RM) pru0_load_bin.h
-	-@echo ' '
+	-$(CGT_TI_PRU_PATH)/bin/hexpru --diag_wrap=off --array --array:name_prefix=$(HEX_ARRAY_PREFIX) -o $(TARGET_HEX) $(TARGET)
+	-$(CAT) $(OPEN_PRU_PATH)/source/firmware/pru_load_bin_copyright.h $(TARGET_HEX) > $(TARGET_HEX).temp
+	-$(MOVE) $(TARGET_HEX).temp $(TARGET_HEX)
+ifeq ($(BUILD_MCUPLUS),y)
+	-$(COPY) $(TARGET_HEX) $(MCU_HEX_PATH)
+endif
+	@echo ' '
 
 .PHONY: all clean
+
+# Include the dependencies that the compiler creates (-ppd and -ppa flags)
+-include $(OBJECTS:%.obj=%.pp)
