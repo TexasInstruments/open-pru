@@ -1,18 +1,7 @@
 include ../imports.mak
 
-# which projects will be built?
-SUBDIRS := fft
-SUBDIRS_MCUPLUS := empty pru_emif
-#TODO: add spi_loopback to SUBDIRS_MCUPLUS after make is fixed
-SUBDIRS_LINUX :=
-
-ifeq ($(BUILD_MCUPLUS),y)
-    SUBDIRS += $(SUBDIRS_MCUPLUS)
-endif
-
-ifeq ($(BUILD_LINUX),y)
-    SUBDIRS += $(SUBDIRS_LINUX)
-endif
+SUBDIRS := empty fft pru_emif
+#TODO: add spi_loopback to SUBDIRS after make is fixed
 
 # "make" or "make all" builds projects that match $(DEVICE) set in imports.mak
 all: ARGUMENTS = all
