@@ -58,10 +58,11 @@ MEMORY
 
 /* Specify the sections allocation into memory */
 SECTIONS {
+
 /* Forces _c_int00 to the start of PRU IRAM. Not necessary when */
 /* loading an ELF file, but useful when loading a binary        */
-    .text:_c_int00*    >  0x0, PAGE 0
 
+/*    .text:_c_int00*    >  0x0, PAGE 0 */
     .text              >  PRU_IMEM, PAGE 0
     .stack             >  PRU_DMEM_0_1, PAGE 1
     .bss               >  PRU_DMEM_0_1, PAGE 1
@@ -74,4 +75,5 @@ SECTIONS {
     .rofardata         >  PRU_DMEM_0_1, PAGE 1
     .farbss            >  PRU_DMEM_0_1, PAGE 1
     .fardata           >  PRU_DMEM_0_1, PAGE 1
+    .resource_table    >  PRU_DMEM_0_1, PAGE 1
 }

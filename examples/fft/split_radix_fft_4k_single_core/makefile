@@ -1,14 +1,13 @@
-include ../../imports.mak
+include ../../../imports.mak
 
 # project information
-PROJECT_NAME := fft
-SUPPORTED_PROCESSORS := am243x
+PROJECT_NAME := split_radix_fft_4k_single_core
+SUPPORTED_PROCESSORS := am243x am261x
 
 # Only build project if $(DEVICE) is in $(SUPPORTED_PROCESSORS)
 ifeq (,$(findstring $(DEVICE),$(SUPPORTED_PROCESSORS)))
 all clean:
 	@echo Project $(PROJECT_NAME) does not have a build option for $(DEVICE)
-
 else
 # "make" or "make all" builds projects that match $(DEVICE) set in imports.mak
 all: ARGUMENTS = all
@@ -28,7 +27,10 @@ pre_build_message:
 # PRU firmware should be built before any RTOS code that includes it
 am243x:
 # am243x-lp
-	$(MAKE) -C split_radix_fft_4k_single_core/am243x-lp/icss_g0_pru0_fw/ti-pru-cgt $(ARGUMENTS)
-	$(MAKE) -C split_radix_fft_post_processing/am243x-lp/icss_g0_pru0_fw/ti-pru-cgt $(ARGUMENTS)
+	$(MAKE) -C firmware/am243x-lp/icss_g0_pru0_fw/ti-pru-cgt $(ARGUMENTS)
+
+am261x:
+# am261x-lp
+	$(MAKE) -C firmware/am261x-lp/icss_m0_pru0_fw/ti-pru-cgt $(ARGUMENTS)
 
 .PHONY: all clean pre_build_message $(DEVICE) $(SUPPORTED_PROCESSORS)

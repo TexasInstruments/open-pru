@@ -1,7 +1,7 @@
 include ../imports.mak
 
 # which projects will be built?
-SUBDIRS := fft
+SUBDIRS := fft/split_radix_fft_4k_single_core fft/split_radix_fft_post_processing
 SUBDIRS_MCUPLUS := empty pru_emif
 #TODO: add spi_loopback to SUBDIRS_MCUPLUS after make is fixed
 SUBDIRS_LINUX :=
