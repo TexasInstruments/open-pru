@@ -2,7 +2,7 @@
 
 <img src="https://upload.wikimedia.org/wikipedia/commons/b/ba/TexasInstruments-Logo.svg" width="150"><br/>
 
-# Creating a New Project in the OPEN PRU Repo
+# Creating a New Project in the OpenPRU Repo
 
 </div>
 
@@ -11,7 +11,7 @@ details, and a processor-specific example, please refer to
 **the PRU Academy > Getting Started Labs > Lab 1: How to Create a PRU Project**.
 
 This document is focused on creating a starting point to develop PRU code.
-Information about adding MCU+ code to an OPEN PRU project is covered in
+Information about adding MCU+ code to an OpenPRU project is covered in
 **the PRU Academy > Getting Started Labs > Lab 1: How to Create a PRU Project >
 Creating an OpenPRU Project with MCU+ Code**.
 
@@ -20,7 +20,7 @@ terminal, or a Windows application like Git Bash.
 
 ## Copy existing project
 
-The easiest way to create a new project in the OPEN PRU repo is to copy an
+The easiest way to create a new project in the OpenPRU repo is to copy an
 existing project into a new directory, or import an existing project into CCS.
 This copied project will serve as a starting point.
 

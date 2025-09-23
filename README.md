@@ -1,25 +1,25 @@
 <div align="center">
 
 <img src="https://upload.wikimedia.org/wikipedia/commons/b/ba/TexasInstruments-Logo.svg" width="150"><br/>
-# OPEN PRU
+# OpenPRU
 
 </div>
 
 [Introduction](#introduction)  
 [Features](#features)  
 [Getting started](#getting-started)  
-[OPEN PRU organization](#open-pru-organization)  
+[OpenPRU organization](#open-pru-organization)  
 [Building the examples](#building-the-examples)  
 [Information about using EVM boards](#information-about-using-evm-boards)  
-[Creating a new OPEN PRU project](#creating-a-new-open-pru-project)  
-[Contributing to the OPEN PRU repo](#contributing-to-the-open-pru-repo)  
+[Creating a new OpenPRU project](#creating-a-new-open-pru-project)  
+[Contributing to the OpenPRU repo](#contributing-to-the-open-pru-repo)  
 [Technical Support](#technical-support)  
 
 ## Introduction
 
-OPEN PRU is a software development package that enables development on the PRU processor core. PRU cores are included in Texas Instruments (TI) Sitara devices and Jacinto class of devices.
+OpenPRU is a software development package that enables development on the PRU processor core. PRU cores are included in Texas Instruments (TI) Sitara devices and Jacinto class of devices.
 
-The OPEN PRU project currently supports these processors:
+The OpenPRU project currently supports these processors:
 
 - AM243x: [AM2431](https://www.ti.com/product/AM2431), [AM2432](https://www.ti.com/product/AM2432), [AM2434](https://www.ti.com/product/AM2434)
 - AM261x: [AM2612](https://www.ti.com/product/AM2612)
@@ -34,7 +34,7 @@ notes for information like compatible SDK versions on each release.
 
 ## Features
 
-The OPEN PRU project provides:
+The OpenPRU project provides:
   - [PRU Academy](./academy)
     - PRU Getting Started Labs (project creation, coding in assembly & C, compiling, loading PRU code, debugging PRU code)
     - Training labs (GPIO, interrupt controller, broadside accelerators, etc.)
@@ -47,13 +47,13 @@ The OPEN PRU project provides:
 
 ## Getting started
 
-Please follow the [Getting started steps](./docs/getting_started.md) to install dependencies and properly set up the OPEN PRU repository.
+Please follow the [Getting started steps](./docs/getting_started.md) to install dependencies and properly set up the OpenPRU repository.
 
-## OPEN PRU organization
+## OpenPRU organization
 
-For more information about the organization of both the OPEN PRU repo and the
-OPEN PRU projects, please refer to
-[OPEN PRU organization](./docs/open_pru_organization.md)
+For more information about the organization of both the OpenPRU repo and the
+OpenPRU projects, please refer to
+[OpenPRU organization](./docs/open_pru_organization.md)
 
 ## Building the examples 
 
@@ -69,8 +69,8 @@ OPEN PRU projects, please refer to
 > folder of the `open-pru` repository.
 
 Makefiles can be used to:
-   - build or clean all OPEN PRU projects
-   - build or clean a specific OPEN PRU project
+   - build or clean all OpenPRU projects
+   - build or clean a specific OpenPRU project
    - build or clean code for a specific core
 
 For detailed steps on how to use makefiles, run ```make help``` from the root
@@ -118,7 +118,7 @@ Getting started guides of MCU+ SDK are specific to a particular device. The link
 - [AM263Px Getting Started Guide](https://software-dl.ti.com/mcu-plus-sdk/esd/AM263PX/latest/exports/docs/api_guide_am263px/GETTING_STARTED.html)
 - [AM263x Getting Started Guide](https://software-dl.ti.com/mcu-plus-sdk/esd/AM263X/latest/exports/docs/api_guide_am263x/GETTING_STARTED.html)
 
-## Creating a new OPEN PRU project
+## Creating a new OpenPRU project
 
 An existing project can be copied into a new directory, or imported into CCS,
 to serve as a starting point for PRU development.
@@ -134,18 +134,18 @@ $ cd /path/to/open-pru/examples/my_project
 $ make -s
 ```
 
-For additional steps to create a new OPEN PRU project, refer to page
-[Creating a New Project in the OPEN PRU Repo](./docs/open_pru_create_new_project.md).
+For additional steps to create a new OpenPRU project, refer to page
+[Creating a New Project in the OpenPRU Repo](./docs/open_pru_create_new_project.md).
 
-## Contributing to the OPEN PRU repo
+## Contributing to the OpenPRU repo
 
-Please refer to [Contributing to the OPEN PRU project](./docs/contributing.md). 
+Please refer to [Contributing to the OpenPRU project](./docs/contributing.md). 
 
 ## Technical Support
 
 For questions to the TI apps team, reach out to us on
 [TI's E2E forums](https://e2e.ti.com/). Please note that support may be limited
-for OPEN PRU projects in the examples/ folder.
+for OpenPRU projects in the examples/ folder.
 
 The [open-pru Discussions tab](https://github.com/TexasInstruments/open-pru/discussions)
 is another place for discussion between community members.
