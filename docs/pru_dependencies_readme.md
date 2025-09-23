@@ -5,20 +5,20 @@
 > [!WARNING]
 > The "pru_dependencies" scripts are not recommended for use. We suggest
 > manually installing the dependencies for the open-pru repo by following the
-> [Getting Started with OPEN PRU](./getting_started.md) documentation.
+> [Getting Started with OpenPRU](./getting_started.md) documentation.
 
 > [!NOTE]
 > The "pru_dependencies" scripts currently only support installing MCU+ SDK 11.0
 > dependencies for AM243x & AM64x. Modifying the scripts to install anything else
 > is more effort than manually installing dependencies as documented in
-> the [Getting Started with OPEN PRU](./getting_started.md) documentation.
+> the [Getting Started with OpenPRU](./getting_started.md) documentation.
 
 ## Install dependencies
 
 The pru_dependencies scripts currently support installing MCU+ SDK and other
 dependencies on **AM243x & AM64x**. For all other devices, or for steps when
 installing the Linux SDK, please follow the steps at
-[Getting Started with OPEN PRU](./getting_started.md).
+[Getting Started with OpenPRU](./getting_started.md).
 
 > [!NOTE]
 > Different releases of the open-pru repo are compatible with different SDK
@@ -30,10 +30,10 @@ installing the Linux SDK, please follow the steps at
 > folder. So Windows developers would put all software tools under C:\ti, and
 > Linux developers would put all software tools under ${HOME}/ti.
 
-If the OPEN PRU repo is installed on a Windows machine, follow the steps in
+If the OpenPRU repo is installed on a Windows machine, follow the steps in
 [Windows: Use script `pru_dependencies.bat` to install SDK & tools](#windows-use-script-pru_dependenciesbat-to-install-sdk--tools).
 
-If the OPEN PRU repo is installed on a Linux machine, follow the steps in
+If the OpenPRU repo is installed on a Linux machine, follow the steps in
 [Linux: Use script `pru_dependencies.sh` to install SDK & tools](#linux-use-script-pru_dependenciessh-to-install-sdk--tools).
 
 ### Windows: Use script `pru_dependencies.bat` to install SDK & tools
@@ -125,5 +125,5 @@ sections
 
 For assistance on how to use the script, run the command `./pru_dependencies.sh help`.
 
-After installing all dependencies, continue to "Getting Started with OPEN PRU"
+After installing all dependencies, continue to "Getting Started with OpenPRU"
 section [Set up imports.mak](./getting_started.md#set-up-importsmak).

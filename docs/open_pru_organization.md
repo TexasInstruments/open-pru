@@ -1,7 +1,7 @@
 <div align="center">
 
 <img src="https://upload.wikimedia.org/wikipedia/commons/b/ba/TexasInstruments-Logo.svg" width="150"><br/>
-# OPEN PRU Organization
+# OpenPRU Organization
 
 </div>
 
@@ -62,14 +62,17 @@ pru_spi
 > operating systems, it is suggested to create a separate project for each
 > version of the PRU firmware.
 
-non-PRU source code typically follows the same pattern as the PRU source code:
+#### MCU+ source code
+
+MCU+ source code typically follows the same pattern as the PRU source code:
 
 ```
-source code that is shared across multiple cores, devices, or boards
-board/core/
-	source code that is specific to core
-	build-tool/
-		linker.cmd
-		makefile (can pass variables to customize the source
-			code per core, device, or board)
+mcuplus
+        source code that is shared across multiple cores, devices, or boards
+        board/core/
+		source code that is specific to core
+		build-tool/
+			linker.cmd
+			makefile (can pass variables to customize the source
+				code per core, device, or board)
 ```
