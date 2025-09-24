@@ -1,7 +1,7 @@
 <div align="center">
 
 <img src="https://upload.wikimedia.org/wikipedia/commons/b/ba/TexasInstruments-Logo.svg" width="150"><br/>
-# OPEN PRU Organization
+# OpenPRU Organization
 
 </div>
 

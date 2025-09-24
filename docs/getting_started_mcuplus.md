@@ -11,8 +11,8 @@
 [Set up imports.mak](#set-up-importsmak)  
 
 The MCU+ SDK is only a dependency when:
-1) Building OPEN PRU projects that include code for an MCU+ core
-2) Building OPEN PRU projects, where the PRU firmware includes code in the
+1) Building OpenPRU projects that include code for an MCU+ core
+2) Building OpenPRU projects, where the PRU firmware includes code in the
    MCU+ SDK (such as macros)
 
 ## Install the MCU+ SDK
@@ -21,7 +21,7 @@ Users can either install the prebuilt MCU+ SDK, or clone the MCU+ SDK
 repository. In general, we suggest using the prebuilt MCU+ SDK:
    * The prebuilt SDK is packaged specifically for a single device, so it takes
      up less hard drive space than the MCU+ SDK repo
-   * The CCS files in the OPEN PRU project need modification to work with the
+   * The CCS files in the OpenPRU project need modification to work with the
      MCU+ SDK repository
 
 **The prebuilt MCU+ SDK**
@@ -47,7 +47,7 @@ Install the versions of the tools that are listed in these pages:
 
 ## Set up imports.mak
 
-The imports.mak file contains the information that the OPEN PRU makefiles need
+The imports.mak file contains the information that the OpenPRU makefiles need
 in order to build on your computer.
 
 ### Copy the default file
@@ -63,5 +63,5 @@ the `TODO` comments to see which settings need to be modified.
 
 ## Next steps
 
-After the OPEN PRU repository has been set up, refer back to the
+After the OpenPRU repository has been set up, refer back to the
 [README](./../README.md) for build steps.
