@@ -7,7 +7,8 @@ SUPPORTED_PROCESSORS := am243x
 # Only build project if $(DEVICE) is in $(SUPPORTED_PROCESSORS)
 ifeq (,$(findstring $(DEVICE),$(SUPPORTED_PROCESSORS)))
 all clean:
-   @echo Project $(PROJECT_NAME) does not have a build option for $(DEVICE)
+	@echo Project $(PROJECT_NAME) does not have a build option for $(DEVICE)
+ 
 else
 # "make" or "make all" builds projects that match $(DEVICE) set in imports.mak
 all: ARGUMENTS = all
