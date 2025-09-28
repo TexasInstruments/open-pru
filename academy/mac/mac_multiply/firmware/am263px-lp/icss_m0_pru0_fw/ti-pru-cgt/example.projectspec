@@ -12,7 +12,7 @@
     <project
         title="Mac Multiply"
         name = "mac_multiply_am263px-lp_icss_m0_pru0_fw_ti-pru-cgt"
-        products="com.ti.OPEN_PRU;com.ti.MCU_PLUS_SDK_AMXXX"
+        products="com.ti.OPEN_PRU;MCU-PLUS-SDK-AM263PX"
         configurations="
             Release,
             Debug,
@@ -64,7 +64,7 @@
             linkerBuildOptions="
             "
         ></configuration>
-        <pathVariable name="MCU_PLUS_SDK_PATH" path="${COM_TI_MCU_PLUS_SDK_AMXXX_INSTALL_DIR}" scope="project" />
+        <pathVariable name="MCU_PLUS_SDK_PATH" path="${COM_TI_MCU_PLUS_SDK_AM263PX_INSTALL_DIR}" scope="project" />
         <pathVariable name="OPEN_PRU_PATH" path="${COM_TI_OPEN_PRU_INSTALL_DIR}" scope="project" />
         <file path="../../../main.asm" openOnCreation="false" excludeFromBuild="false" action="copy">
         </file>

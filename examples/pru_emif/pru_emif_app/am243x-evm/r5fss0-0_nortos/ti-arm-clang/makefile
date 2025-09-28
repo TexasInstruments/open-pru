@@ -65,7 +65,6 @@ INCLUDES_common := \
 	-I${OPEN_PRU_PATH}/examples/empty/am243x-evm \
 	-I${OPEN_PRU_PATH}/examples/pru_emif/pru_emif_app \
 	-I${OPEN_PRU_PATH}/examples/pru_emif \
-	-I${OPEN_PRU_PATH}/examples/pru_emif/pru_emif_app/Firmware \
 	-Igenerated \
 
 DEFINES_common := \
