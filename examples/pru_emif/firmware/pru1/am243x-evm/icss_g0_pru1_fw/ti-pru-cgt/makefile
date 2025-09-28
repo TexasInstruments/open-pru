@@ -58,15 +58,15 @@ all: $(OBJS) $(CMD_SRCS)
 $(OBJDIR)/%.obj %.obj: %.asm
 	@echo 'Building file: "$^"'
 	@echo 'Invoking: PRU Compiler'
-	"$(CGT_TI_PRU_PATH)/bin/clpru" -DPRU1 -DSLICE1 -v4 --define=SOC_AM243X --include_path="${CG_TOOL_ROOT}/include" --include_path="${MCU_PLUS_SDK_PATH}/source" --include_path="${OPEN_PRU_PATH}/source" --include_path="${MCU_PLUS_SDK_PATH}/source/pru_io/firmware/common" --include_path="${OPEN_PRU_PATH}/examples/pru_emif/firmware/include" --include_path="${OPEN_PRU_PATH}/examples/pru_emif/firmware/pru1"  --define=_DEBUG_=1 -g --diag_warning=225 --diag_wrap=off --display_error_number --endian=little --preproc_with_compile --preproc_dependency="$(basename $(<F)).d_raw" $^
+	"$(CGT_TI_PRU_PATH)/bin/clpru" -v4 --define=SOC_AM243X   --define=PRU1 --define=SLICE1 --include_path="${CG_TOOL_ROOT}/include" --include_path="${MCU_PLUS_SDK_PATH}/source" --include_path="${OPEN_PRU_PATH}/source" --include_path="${MCU_PLUS_SDK_PATH}/source/pru_io/firmware/common" --include_path="${OPEN_PRU_PATH}/examples/pru_emif/firmware/include" --include_path="${OPEN_PRU_PATH}/examples/pru_emif/firmware/pru1"  --define=_DEBUG_=1 -g --diag_warning=225 --diag_wrap=off --display_error_number --endian=little --preproc_with_compile --preproc_dependency="$(basename $(<F)).d_raw" $^
 	@echo 'Finished building: "$^"'
 	@echo ' '
-
+ 
 # Tool invocations
 pru_emif_data_pru1_fw_am243x-evm_icss_g0_pru1_fw_ti-pru-cgt.out: $(OBJS) $(CMD_SRCS)
 	@echo 'Building target: "$@"'
 	@echo 'Invoking: PRU Linker'
-	"$(CGT_TI_PRU_PATH)/bin/clpru" -DPRU1 -DSLICE1 -v4 --define=SOC_AM243X  --define=_DEBUG_=1 -g --diag_warning=225 --diag_wrap=off --display_error_number --endian=little -z -m"pru_emif_data_pru1_fw_am243x-evm_icss_g0_pru1_fw_ti-pru-cgt.map" --disable_auto_rts   --diag_wrap=off --display_error_number --warn_sections --xml_link_info="pru_emif_data_pru1_fw_am243x-evm_icss_g0_pru1_fw_ti-pru-cgt_linkInfo.xml" --disable_auto_rts --entry_point=main --diag_suppress=10063-D  --rom_model -o "pru_emif_data_pru1_fw_am243x-evm_icss_g0_pru1_fw_ti-pru-cgt.out" $^
+	"$(CGT_TI_PRU_PATH)/bin/clpru" -v4 --define=SOC_AM243X   --define=PRU1 --define=SLICE1 --define=_DEBUG_=1 -g --diag_warning=225 --diag_wrap=off --display_error_number --endian=little -z -m"pru_emif_data_pru1_fw_am243x-evm_icss_g0_pru1_fw_ti-pru-cgt.map" --disable_auto_rts   --diag_wrap=off --display_error_number --warn_sections --xml_link_info="pru_emif_data_pru1_fw_am243x-evm_icss_g0_pru1_fw_ti-pru-cgt_linkInfo.xml" --disable_auto_rts --entry_point=main --diag_suppress=10063-D  --rom_model -o "pru_emif_data_pru1_fw_am243x-evm_icss_g0_pru1_fw_ti-pru-cgt.out" $^
 	@echo 'Finished building target: "$@"'
 	@echo ' '
 	@$(MAKE) --no-print-directory post-build
