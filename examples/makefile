@@ -2,9 +2,9 @@ include ../imports.mak
 
 # which projects will be built?
 SUBDIRS :=
-#TODO: add fft to SUBDIRS after make is fixed
-SUBDIRS_MCUPLUS := empty pru_emif
-#TODO: add spi_loopback to SUBDIRS_MCUPLUS after make is fixed
+
+SUBDIRS_MCUPLUS := empty fft LCD_interface pru_emif spi_loopback
+
 SUBDIRS_LINUX :=
 
 ifeq ($(BUILD_MCUPLUS),y)
