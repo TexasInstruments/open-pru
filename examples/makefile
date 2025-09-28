@@ -1,7 +1,7 @@
 include ../imports.mak
 
 # which projects will be built?
-SUBDIRS :=  fft/split_radix_fft_4k_single_core fft/split_radix_fft_post_processing
+SUBDIRS := fft
 
 SUBDIRS_MCUPLUS := empty LCD_interface pru_emif spi_loopback
 
