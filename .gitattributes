@@ -1,0 +1,17 @@
+# Normalize line endings across all computers.
+# This prevents line endings from conflicting on Windows, Linux, etc.
+# If a file type is not specified below, Git will try to detect whether the file
+# is a binary file, and normalize the line endings if not.
+* text=auto
+
+# These files should always have normalized line endings.
+*.c text
+*.asm text
+*.cmd text
+
+# These file types are binaries. Git should not try to change line endings
+# for these files.
+*.png binary
+*.jpg binary
+*.lib binary
+*.out binary
