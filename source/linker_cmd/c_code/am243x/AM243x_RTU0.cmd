@@ -48,7 +48,7 @@ MEMORY
 	/* XXX: PRU_INTC_0x200 is part of INTC space, and is therefore commented
 	 * out as it conflicts with PRU_INTC size above. To use PRU_INTC_0x200,
 	 * split up the pruIntc structure and CT_INTC variable in
-	 * include/PROCESSOR/pru_intc.h */
+	 * source/include/c_code/PROCESSOR/pru_intc.h */
 	/*PRU_INTC_0x200: org = 0x00020200 len = 0x00001304	CREGISTER=6*/
 	PRU_UART	: org = 0x00028000 len = 0x00000038	CREGISTER=7
 	PRU_IEP0_0x100	: org = 0x0002E100 len = 0x0000021C	CREGISTER=8
