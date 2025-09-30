@@ -15,3 +15,6 @@
 *.jpg binary
 *.lib binary
 *.out binary
+
+# These file types should have Windows-style CLRF endings.
+*.bat text eol=crlf
