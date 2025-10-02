@@ -2,8 +2,7 @@ include ../imports.mak
 
 # which projects will be built?
 SUBDIRS := custom_frequency_generator logic_scope fft/split_radix_fft_4k_single_core fft/split_radix_fft_post_processing
-SUBDIRS_MCUPLUS := empty pru_emif
-#TODO: add spi_loopback to SUBDIRS_MCUPLUS after make is fixed
+SUBDIRS_MCUPLUS := empty pru_emif spi_loopback
 SUBDIRS_LINUX :=
 
 ifeq ($(BUILD_MCUPLUS),y)
