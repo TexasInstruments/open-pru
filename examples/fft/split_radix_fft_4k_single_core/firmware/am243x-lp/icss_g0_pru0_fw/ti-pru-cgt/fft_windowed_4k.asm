@@ -45,7 +45,7 @@
     .global   ||FN_WINDOW_PLUS_BOR_4k||
 
 ; File includes
-	.include  "icss_xfer_defines.inc"
+    .include  "icss_xfer_defines.inc"
     .include  "fft_macros.inc"
 
 ;register assignments

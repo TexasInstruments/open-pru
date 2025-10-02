@@ -42,7 +42,7 @@
     .global     ||FN_LOAD_LUT_VALUES||
 
 ; File includes
-	.include  "icss_xfer_defines.inc"
+    .include "icss_xfer_defines.inc"
     .include "fft_macros.inc"
 .asmfunc
 ||FN_LOAD_LUT_VALUES||:
