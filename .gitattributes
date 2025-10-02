@@ -9,12 +9,12 @@
 *.asm text
 *.cmd text
 
+# These file types should have Windows-style CRLF endings.
+*.bat text eol=crlf
+
 # These file types are binaries. Git should not try to change line endings
 # for these files.
 *.png binary
 *.jpg binary
 *.lib binary
 *.out binary
-
-# These file types should have Windows-style CLRF endings.
-*.bat text eol=crlf
