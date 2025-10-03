@@ -2,7 +2,7 @@
 
 <img src="https://upload.wikimedia.org/wikipedia/commons/b/ba/TexasInstruments-Logo.svg" width="150"><br/>
 
-# Contributing to the OPEN PRU project
+# Contributing to the OpenPRU project
 
 </div>
 
@@ -15,7 +15,7 @@
 
 ## Introduction
 
-Ready to contribute back to the OPEN PRU project? This page provides a checklist
+Ready to contribute back to the OpenPRU project? This page provides a checklist
 to simplify the contribution process.
 
 ## Coding guidelines
@@ -51,7 +51,7 @@ validate a project on hardware. This has a couple of impacts:
 * TI will rely on the project author to thoroughly validate their code. We are
   unable to manually validate all pull requests on hardware
     
-* Every time the OPEN PRU repository updates to a new version of SDK,
+* Every time the OpenPRU repository updates to a new version of SDK,
   TI does not re-validate all projects on hardware. Instead, TI uses a
   top-level build to check that all projects continue to compile. This is
   why it is so important to document the hardware-validated
@@ -65,7 +65,7 @@ Your project should build from a top-level make command.
 
 For details about how to set up the makefile infrastructure for your project,
 refer to
-[Creating a New Project in the OPEN PRU Repo](./open_pru_create_new_project.md) 
+[Creating a New Project in the OpenPRU Repo](./open_pru_create_new_project.md) 
 
 #### Testing the make infrastructure
 
