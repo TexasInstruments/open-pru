@@ -13,7 +13,7 @@ This example acts as a getting started point for PRU firmware development in ass
                 | ICSSM1 - PRU0, PRU1 (am261x only)
  Toolchain      | pru-cgt
  Board          | am64x-evm, am243x-evm, am243x-lp, am261x-lp, am261x-som, am263px-cc, am263px-lp, am263x-cc, am263x-lp
- Example folder | examples/pru_io/empty/
+ Example folder | examples/empty/
 
 # Steps to Run the Example
 
@@ -30,24 +30,12 @@ This example acts as a getting started point for PRU firmware development in ass
 
      - Launch a CCS debug session and run the executable, (see [for AM64x](https://software-dl.ti.com/mcu-plus-sdk/esd/AM64X/latest/exports/docs/api_guide_am64x/CCS_LAUNCH_PAGE.html), [for AM243x](https://software-dl.ti.com/mcu-plus-sdk/esd/AM243X/latest/exports/docs/api_guide_am243x/CCS_LAUNCH_PAGE.html), [for AM261x](https://software-dl.ti.com/mcu-plus-sdk/esd/AM261X/latest/exports/docs/api_guide_am261x/CCS_LAUNCH_PAGE.html), [for AM263x](https://software-dl.ti.com/mcu-plus-sdk/esd/AM263X/latest/exports/docs/api_guide_am263x/CCS_LAUNCH_PAGE.html), [for AM263Px](https://software-dl.ti.com/mcu-plus-sdk/esd/AM263PX/latest/exports/docs/api_guide_am263px/CCS_LAUNCH_PAGE.html))
 
-- **When using makefiles to build**, make sure to build the PRU firmware before attempting to build an example. For example,
-   to build a PRU firmware for empty example am243x-lp, run the following:
-     -    update MCU_PLUS_SDK_PATH in `<open-pru/makefile>` and `<open-pru/imports.mak>` 
-
-     -    ```bash
-          make -s -C examples/empty/firmware/am243x-lp/icss_g0_pru0_fw/ti-pru-cgt     all 
-          make -s -C examples/empty/firmware/am243x-lp/icss_g0_pru1_fw/ti-pru-cgt     all 
-          make -s -C examples/empty/firmware/am243x-lp/icss_g0_rtu_pru0_fw/ti-pru-cgt all
-          make -s -C examples/empty/firmware/am243x-lp/icss_g0_rtu_pru1_fw/ti-pru-cgt all
-          make -s -C examples/empty/firmware/am243x-lp/icss_g0_tx_pru0_fw/ti-pru-cgt  all
-          make -s -C examples/empty/firmware/am243x-lp/icss_g0_tx_pru1_fw/ti-pru-cgt  all
-          ```
-     - Once the PRU Firmware build is complete, to build the example run:
-          ```bash
-          make -s -C examples/empty/am243x-lp/r5fss0-0_freertos/ti-arm-clang all PROFILE=debug
-          ```
+- **When using makefiles to build**:
+     - For steps on how to use makefiles, run `make help` from the root folder
+       of the open-pru repository.
 
 # Writing PRU code
 
-* You can modify this example to write your own firmware. [Examples folder](../examples) contains some PRU projects which can act as reference. PRU sources are usually separated out in a `firmware/` subfolder in all these example project folders.
-* You can change the core in project properties to develop firmware for other PRU cores.
+* You can modify this example to write your own firmware. For more information,
+  refer to
+  [Creating a New Project in the OpenPRU Repo](../../docs/open_pru_create_new_project.md).
