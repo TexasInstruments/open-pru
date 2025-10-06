@@ -34,24 +34,19 @@ $ git checkout -b my-branch-name tag-name
 
 ## Compatible SDKs
 
-### v2025.00.00
+These SDK release versions can be used to build OpenPRU projects with a specific
+tag. The OpenPRU projects may require modifications before they can be built
+with older SDK versions. For more information, refer to
+[Using Older SDKs with OpenPRU](./using_older_sdks_with_open_pru.md).
 
-| SDK | am243x | am261x | am263px | am263x | am62x | am64x|
-| --- | ------ | ------ | ------- | ------ | ----- | ---- |
-| MCU+ SDK | 10.1, 11.0 | 10.0.1 | 10.1 | 10.0, 10.1 | N/A | 10.1, 11.0 |
+<details>
+  <summary>v2025.00.00</summary>
 
-These new SDK versions are not supported yet:
+  | SDK      | am243x      | am261x  | am263px | am263x  | am62x | am64x       |
+  | -------- | ----------- | ------- | ------- | ------- | ----- | ----------- |
+  | MCU+ SDK | 10.1 - 11.0 | 10.2 on | 10.2 on | 10.2 on | N/A   | 10.1 - 11.0 |
 
-| SDK | am243x | am261x | am263px | am263x | am62x | am64x|
-| --- | ------ | ------ | ------- | ------ | ----- | ---- |
-| MCU+ SDK | 11.1 | 10.2 | 10.2 | 10.2 | N/A | 11.1 |
-| Linux SDK | N/A | N/A | N/A | N/A | not yet | not yet |
-
-Older SDK versions are not supported with the open-pru infrastructure:
-
-| SDK | am243x | am261x | am263px | am263x | am62x | am64x|
-| --- | ------ | ------ | ------- | ------ | ----- | ---- |
-| MCU+ SDK | 10.0 or earlier |  | 10.0 or earlier | 9.2 or earlier | N/A | 10.0 or earlier |
+</details>
 
 ## Compatible versions of CCS & other tools
 
