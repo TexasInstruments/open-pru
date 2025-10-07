@@ -48,6 +48,10 @@
 
      .include "lcd_pru0_macro.h"
 
+;------------------------------------------------------------------------------
+; Constants and Macros
+;------------------------------------------------------------------------------
+
 ; defines
 ; broadside ID for scratch pad bankd
 SP0_ID     .set     10
@@ -58,13 +62,15 @@ SP2_ID     .set     12
 CLK        .set     8
 DE         .set     19
            .asg     Data_Red, b0   ; one to one match on red
-           .asg     Data_Green, w1   ; green data is in b11-18
-shit_green .set     3    ; move lsb from 8 to 11
+           .asg     Data_Green, w1 ; green data is in b11-18
+shit_green .set     3              ; move lsb from 8 to 11
 
+; Register Usage
 r1_init_reg        .set   r24
 nde_clk_mask_reg   .set   r25
 de_clk_mask_reg    .set   r26
 
+; Memory Address
 ONCHIP_SRAM .set     0x70000000  ; same for AM261 and AM243
 
 ; xfr2vbus read command for differnet size and mode
