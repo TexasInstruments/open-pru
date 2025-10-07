@@ -47,16 +47,15 @@
 ;***************************************************************************************
 
      .include "lcd_pru0_macro.h"
+; header has SP_BANK definieitons
+; SP_BANK0           .set   10
+; SP_BANK1           .set   11
+; SP_BANK2           .set   12
 
 ;------------------------------------------------------------------------------
 ; Constants and Macros
 ;------------------------------------------------------------------------------
 
-; defines
-; broadside ID for scratch pad bankd
-SP0_ID     .set     10
-SP1_ID     .set     11
-SP2_ID     .set     12
 
 ; pins
 CLK        .set     8
@@ -149,15 +148,15 @@ main:
     ; this scheme requres to run PRU1 before PRU0
     ldi    r0.w0, 0x0001
     ; clear response flag
-    xout   SP0_ID,&r0.b1, 1
+    xout   SP_BANK0,&r0.b1, 1
     ; set trigger
-    xout   SP0_ID, &r0.b0, 1
+    xout   SP_BANK0, &r0.b0, 1
     nop
-    xin    SP0_ID, &r0.b1, 1
+    xin    SP_BANK0, &r0.b1, 1
     qbbs   l_1st_comp, r0.b1, 0
-    xin    SP0_ID, &r0.b1, 1
+    xin    SP_BANK0, &r0.b1, 1
     qbbs   l_2nd_comp, r0.b1, 0
-    xin    SP0_ID, &r0.b1, 1
+    xin    SP_BANK0, &r0.b1, 1
     qbbs   l_3rd_comp, r0.b1, 0
     ; none occured
     halt
