@@ -37,12 +37,12 @@
 ;***************************************************************************************
 
     .if    !$defined("__lcd_pru1_macro_h")
-__lcd_pru0_macro_h    .set 1
+__lcd_pru1_macro_h    .set 1
 
 
-SP0_ID             .set   10
-SP1_ID             .set   11
-SP2_ID             .set   12
+SP_BANK0           .set   10
+SP_BANK1           .set   11
+SP_BANK2           .set   12
 
 ; xfr2vbus read widget
 RX_ID1             .set   0x61
