@@ -49,12 +49,7 @@
 ; includes
 
     .include "lcd_pru1_macro.h"
-
-; defines
-; broadside ID for scratch pad bankd
-SP0_ID      .set     10
-SP1_ID      .set     11
-SP2_ID      .set     12
+; SP_BANK0 id is specified in macro
 
 ; xfr2vbus widget
 RD_ID0      .set     0x60
@@ -83,13 +78,13 @@ HPORCH          .set 40
 DCLK            .set 7
 
 
-           ; register name assignmnet
-           .asg     r20.w2 , h_count
-           .asg     r22.w0 , h_count_max
-           .asg     r26    , line_counter_reg
-           .asg     r27    , pxl_cnt_reg
-           .asg     r28    , r1_init_reg
-           .asg     r29    , data_reg
+    ; register name assignmnet
+    .asg     r20.w2 , h_count
+    .asg     r22.w0 , h_count_max
+    .asg     r26    , line_counter_reg
+    .asg     r27    , pxl_cnt_reg
+    .asg     r28    , r1_init_reg
+    .asg     r29    , data_reg
 
 ; CCS/makefile specific settings
     .retain     ; Required for building .out with assembly file
@@ -124,7 +119,7 @@ l_lut_ret:
 
     ; init SP0 r0 = 0
     ldi    r0.w0, 0xff00            ; start sync sequence with PRU0 using SP0 and r0.b0
-    xout   SP0_ID, &r0.b0, 1
+    xout   SP_BANK0, &r0.b0, 1
 l_start:
 ;   set   output signal
     set    r30,r30, 0               ; set data output to 0 before start
@@ -132,9 +127,9 @@ l_start:
 ; wait for first flag from PRU0 in SPAD0
 ; requires to start PRU1 before PRU0
 l_wait_for_trigger:
-    xin    SP0_ID, &r0.b0, 1
+    xin    SP_BANK0, &r0.b0, 1
     qbne   l_wait_for_trigger, r0.b0, 1
-    xout   SP0_ID, &r0.b1, 1
+    xout   SP_BANK0, &r0.b1, 1
 
     nop                             ; wait period to align with PRU0
     nop                             ; 3 nops to cycle align both cores
