@@ -2,7 +2,7 @@
 
 <img src="https://upload.wikimedia.org/wikipedia/commons/b/ba/TexasInstruments-Logo.svg" width="150"><br/>
 
-# Getting Started with OPEN PRU
+# Getting Started with OpenPRU
 
 </div>
 
@@ -61,7 +61,7 @@ If you will initialize the PRU cores from a Linux core, follow the steps in
 
 ## Set up imports.mak
 
-The imports.mak file contains the information that the OPEN PRU makefiles need
+The imports.mak file contains the information that the OpenPRU makefiles need
 in order to build on your computer.
 
 ### Copy the default file
@@ -77,5 +77,5 @@ the `TODO` comments to see which settings need to be modified.
 
 ## Next steps
 
-After the OPEN PRU repository has been set up, refer back to the
+After the OpenPRU repository has been set up, refer back to the
 [README](./../README.md) for build steps.
