@@ -40,6 +40,23 @@
 #include <pru0_load_bin.h>
 #include <pru1_load_bin.h>
 
+/* register configuratoin defines */
+#define KICK_LOCK_VAL                           (0x00000000U)
+#define KICK0_UNLOCK_VAL                        (0x68EF3490U)
+#define KICK1_UNLOCK_VAL                        (0xD172BC5AU)
+/* PADMMR config register - partition 0 */
+#define KICK0_UNLOCK_P0_REG                     (0x000f1008U)
+#define KICK1_UNLOCK_P0_REG                     (0x000f100CU)
+/* PADMMR config register - partition 1 */
+#define KICK0_UNLOCK_P1_REG                     (0x000f5008U)
+#define KICK1_UNLOCK_P1_REG                     (0x000f500CU)
+/* padconfig for PRG0_PWM2_A2  BP.40 */
+#define PAD_PRG0_PWM2_A2_ADDR                   (0x000F4048U)
+#define PAD_GPO_MODE9                           (0x00010009U)
+/* ICSS_G PWM2 trip config - we use PWM2 intit state as GPO */
+#define ICSSG_PWM2_TRIP_CFG_REG                 (0x30026138U)
+#define PWM2_TRIP_CLEAR                         (0x0003ff00U)
+#define PWM2_TRIP_RESET                         (0x0004ff00U)
 
 /*
  *  This is an example project to show R5F
@@ -72,21 +89,21 @@ void LCD_interface_main(void *args)
 
      // unlock PADMMR config register
      // partition 0
-     HW_WR_REG32(0x000f1008, 0x68EF3490);
-     HW_WR_REG32(0x000f100c, 0xD172BC5A);
+     HW_WR_REG32(KICK0_UNLOCK_P0_REG, KICK0_UNLOCK_VAL);
+     HW_WR_REG32(KICK0_UNLOCK_P0_REG, KICK1_UNLOCK_VAL);
 
      // unlock PADMMR config register
      // partition 1
-     HW_WR_REG32(0x000f5008, 0x68EF3490);
-     HW_WR_REG32(0x000f500c, 0xD172BC5A);
+     HW_WR_REG32(KICK0_UNLOCK_P1_REG, KICK0_UNLOCK_VAL);
+     HW_WR_REG32(KICK0_UNLOCK_P1_REG, KICK1_UNLOCK_VAL);
      /* padconfig for PRG0_PWM2_A2  BP.40 */
-     HW_WR_REG32(0x000F4048, 0x00010009);
+     HW_WR_REG32(PAD_PRG0_PWM2_A2_ADDR, PAD_GPO_MODE9);
 
      /* ---------- PWM in init mode  --------------------- */
 
      // force PWM2 trip mode to move to init state
-     HW_WR_REG32(0x30026138, 0x0003ff00);
-     HW_WR_REG32(0x30026138, 0x0004ff00);
+     HW_WR_REG32(ICSSG_PWM2_TRIP_CFG_REG, PWM2_TRIP_CLEAR);
+     HW_WR_REG32(ICSSG_PWM2_TRIP_CFG_REG, PWM2_TRIP_RESET);
 
 
      status = PRUICSS_loadFirmware(gPruIcss0Handle, PRUICSS_PRU1, PRU1Firmware_0, sizeof(PRU1Firmware_0));
@@ -96,6 +113,7 @@ void LCD_interface_main(void *args)
 
      while (1)
      {
+      /* ARM is in idle loop, PRUs perform framebuffer output */
         ClockP_usleep(1);
      }
 
