@@ -58,11 +58,11 @@
 
 
 ; pins
-CLK        .set     8
-DE         .set     19
-           .asg     Data_Red, b0   ; one to one match on red
-           .asg     Data_Green, w1 ; green data is in b11-18
-shit_green .set     3              ; move lsb from 8 to 11
+CLK         .set     8
+DE          .set     19
+            .asg     Data_Red, b0   ; one to one match on red
+            .asg     Data_Green, w1 ; green data is in b11-18
+shift_green .set     3              ; move lsb from 8 to 11
 
 ; Register Usage
 r1_init_reg        .set   r24
