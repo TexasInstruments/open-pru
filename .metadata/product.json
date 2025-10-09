@@ -5,9 +5,10 @@
     "documentationPath": "../docs",
     "includePaths": [
         "../source",
+        "C:/ti/mcu_plus_sdk/source/sysconfig",
     ],
     "components": [
-
+    "/open_pru",
     ],
     "devices": [
         "AM64x",
