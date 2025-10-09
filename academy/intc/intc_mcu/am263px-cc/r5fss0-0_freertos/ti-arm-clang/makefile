@@ -25,19 +25,19 @@ endif
 PROFILE?=release
 ConfigName:=$(PROFILE)
 
-OUTNAME:=intc_pru_io.$(PROFILE).out
+OUTNAME:=intc.$(PROFILE).out
 
 BOOTIMAGE_PATH=$(abspath .)
-BOOTIMAGE_NAME:=intc_pru_io.$(PROFILE).appimage
-BOOTIMAGE_NAME_XIP:=intc_pru_io.$(PROFILE).appimage_xip
-BOOTIMAGE_NAME_SIGNED:=intc_pru_io.$(PROFILE).appimage.signed
-BOOTIMAGE_NAME_MCELF:=intc_pru_io.$(PROFILE).mcelf
-BOOTIMAGE_NAME_MCELF_HS:=intc_pru_io.$(PROFILE).mcelf.hs
-BOOTIMAGE_RPRC_NAME:=intc_pru_io.$(PROFILE).rprc
-BOOTIMAGE_RPRC_NAME_XIP:=intc_pru_io.$(PROFILE).rprc_xip
-BOOTIMAGE_RPRC_NAME_TMP:=intc_pru_io.$(PROFILE).rprc_tmp
-BOOTIMAGE_NAME_HS:=intc_pru_io.$(PROFILE).appimage.hs
-BOOTIMAGE_NAME_HS_FS:=intc_pru_io.$(PROFILE).appimage.hs_fs
+BOOTIMAGE_NAME:=intc.$(PROFILE).appimage
+BOOTIMAGE_NAME_XIP:=intc.$(PROFILE).appimage_xip
+BOOTIMAGE_NAME_SIGNED:=intc.$(PROFILE).appimage.signed
+BOOTIMAGE_NAME_MCELF:=intc.$(PROFILE).mcelf
+BOOTIMAGE_NAME_MCELF_HS:=intc.$(PROFILE).mcelf.hs
+BOOTIMAGE_RPRC_NAME:=intc.$(PROFILE).rprc
+BOOTIMAGE_RPRC_NAME_XIP:=intc.$(PROFILE).rprc_xip
+BOOTIMAGE_RPRC_NAME_TMP:=intc.$(PROFILE).rprc_tmp
+BOOTIMAGE_NAME_HS:=intc.$(PROFILE).appimage.hs
+BOOTIMAGE_NAME_HS_FS:=intc.$(PROFILE).appimage.hs_fs
 TARGETS := $(BOOTIMAGE_NAME)
 
 ifeq ($(DEVICE_TYPE), HS)
@@ -212,7 +212,7 @@ clean:
 	$(RMDIR) generated/
 
 scrub:
-	@echo  Scrubing: am263px:r5fss0-0:freertos:ti-arm-clang intc_pru_io ...
+	@echo  Scrubing: am263px:r5fss0-0:freertos:ti-arm-clang intc ...
 	$(RMDIR) obj
 ifeq ($(OS),Windows_NT)
 	$(RM) \*.out
@@ -358,12 +358,12 @@ endif
 
 .PHONY: coverage
 coverage:
-	@echo Creating Coverage Report for intc_pru_io.$(PROFILE) ...
+	@echo Creating Coverage Report for intc.$(PROFILE) ...
 	$(MKDIR) coverage
-	$(PROFDATA) merge -sparse -obj-file=$(OUTNAME) $(OUTNAME).cnt -o intc_pru_io.$(PROFILE).profdata
-	$(COV) show --format=html --show-expansions --show-instantiations --show-branches=count --object=$(OUTNAME) -instr-profile=intc_pru_io.$(PROFILE).profdata --output-dir=$(COVERAGE_PATH)/coverage --ignore-filename-regex=build_jenkins
-	$(COV) export --format=text --object=$(OUTNAME) --instr-profile=intc_pru_io.$(PROFILE).profdata > coverage/intc_pru_io.$(PROFILE).profdata.json
-	node $(MCU_PLUS_SDK_PATH)/tools/smart_placement/clang_coverage_analyse.js --input=coverage/intc_pru_io.$(PROFILE).profdata.json --output-json=coverage/intc_pru_io.$(PROFILE).analysis.json --output=../intc_pru_io.annotations.$(PROFILE).S --top-function-count=500
+	$(PROFDATA) merge -sparse -obj-file=$(OUTNAME) $(OUTNAME).cnt -o intc.$(PROFILE).profdata
+	$(COV) show --format=html --show-expansions --show-instantiations --show-branches=count --object=$(OUTNAME) -instr-profile=intc.$(PROFILE).profdata --output-dir=$(COVERAGE_PATH)/coverage --ignore-filename-regex=build_jenkins
+	$(COV) export --format=text --object=$(OUTNAME) --instr-profile=intc.$(PROFILE).profdata > coverage/intc.$(PROFILE).profdata.json
+	node $(MCU_PLUS_SDK_PATH)/tools/smart_placement/clang_coverage_analyse.js --input=coverage/intc.$(PROFILE).profdata.json --output-json=coverage/intc.$(PROFILE).analysis.json --output=../intc.annotations.$(PROFILE).S --top-function-count=500
 	@echo Coverage Report Generated at $(COVERAGE_PATH)/coverage folder !!!
 
 -include $(addprefix $(OBJDIR)/, $(DEPS))
