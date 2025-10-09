@@ -2,6 +2,7 @@ include ../imports.mak
 
 SUBDIRS := \
     crc/crc \
+    getting_started_labs \
     gpio/gpio_toggle \
     intc/intc_mcu \
     mac/mac mac/mac_multiply
