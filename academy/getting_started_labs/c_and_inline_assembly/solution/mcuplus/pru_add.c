@@ -58,7 +58,7 @@
 PRUICSS_Handle gPruIcss0Handle;
 
 
-void pru_io_pru_add_main(void *args)
+void pru_add_main(void *args)
 {
      Drivers_open(); // check return status
 

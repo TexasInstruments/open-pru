@@ -45,11 +45,11 @@ StackType_t gMainTaskStack[MAIN_TASK_SIZE] __attribute__((aligned(32)));
 StaticTask_t gMainTaskObj;
 TaskHandle_t gMainTask;
 
-void pru_io_pru_add_main(void *args);
+void pru_add_main(void *args);
 
 void freertos_main(void *args)
 {
-    pru_io_pru_add_main(NULL);
+    pru_add_main(NULL);
 
     vTaskDelete(NULL);
 }
