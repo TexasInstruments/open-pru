@@ -45,6 +45,12 @@ The OpenPRU project provides:
     - register definitions
     - example drivers
 
+Each project is tested on at least one processor. Many projects can be ported to
+other processors, even if the example does not currently have a build
+configuration for the other processors. For more information, refer to
+[academy/readme.md](./academy/readme.md) and
+[examples/readme.md](./examples/readme.md).
+
 ## Getting started
 
 Please follow the [Getting started steps](./docs/getting_started.md) to install dependencies and properly set up the OpenPRU repository.
