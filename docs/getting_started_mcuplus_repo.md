@@ -17,7 +17,7 @@ Users can either install the prebuilt MCU+ SDK, or clone the MCU+ SDK
 repository. In general, we suggest using the prebuilt MCU+ SDK:
    * The prebuilt SDK is packaged specifically for a single device, so it takes
      up less hard drive space than the MCU+ SDK repo
-   * The CCS files in the OPEN PRU project need modification to work with the
+   * The CCS files in the OpenPRU project need modification to work with the
      MCU+ SDK repository
 
 This file is for users who decide to clone the MCU+ SDK repository. For
@@ -42,7 +42,7 @@ Install the versions of the tools that are listed in these pages:
 
 ## Set up imports.mak
 
-The imports.mak file contains the information that the OPEN PRU makefiles need
+The imports.mak file contains the information that the OpenPRU makefiles need
 in order to build on your computer.
 
 ### Copy the default file
@@ -58,7 +58,7 @@ the `TODO` comments to see which settings need to be modified.
 
 ## Update the CCS files
 
-Projects in the OPEN PRU repo assume that the user is using a processor-specific
+Projects in the OpenPRU repo assume that the user is using a processor-specific
 SDK. Processor-specific SDKs have a specific name in CCS. However, the MCU+
 SDK repo has a different name. Before CCS can open a project and build it with
 the MCU+ SDK repo, the project's example.projectspec files must be updated.
@@ -66,7 +66,7 @@ the MCU+ SDK repo, the project's example.projectspec files must be updated.
 ### Updating the CCS files in an existing project
 
 Update the "products" and "pathVariable" entries to reflect the MCU+ github
-repo. Please note that if you want to push a project to the OPEN PRU repo for
+repo. Please note that if you want to push a project to the OpenPRU repo for
 others to use, you will need to revert the "products" and "pathVariable" entries
 back to the processor-specific SDK settings.
 
@@ -119,10 +119,10 @@ The steps from section
 [Updating the CCS files in an existing project](#updating-the-ccs-files-in-an-existing-project)
 still apply.
 
-For additional steps to create a new OPEN PRU project, refer to page
-[Creating a New Project in the OPEN PRU Repo](./open_pru_create_new_project.md).
+For additional steps to create a new OpenPRU project, refer to page
+[Creating a New Project in the OpenPRU Repo](./open_pru_create_new_project.md).
 
 ## Next steps
 
-After the OPEN PRU repository has been set up, refer back to the
+After the OpenPRU repository has been set up, refer back to the
 [README](./../README.md) for build steps.

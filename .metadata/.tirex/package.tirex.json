@@ -2,17 +2,17 @@
     {
         "metadataVersion": "3.01.00",
         "id": "com.ti.OPEN_PRU",
-        "name": "OPEN PRU",
-        "rootCategory": [ "OPEN PRU"],
+        "name": "OpenPRU",
+        "rootCategory": [ "OpenPRU"],
         "version": "01.00.00.00",
         "type": "software",
-        "license": "../../license.txt",
+        "license": "../../LICENSE",
         "devices": ["AM243x", "AM64x", "AM261x", "AM263px", "AM263x"],
-        "tags": ["SDK", "Baremetal", "FreeRTOS"],
-        "description": "Welcome to OPEN PRU. This SDK contains examples, libraries and tools to develop RTOS and no-RTOS based applications for ARM R5F, ARM M4F CPUs and related peripherals.",
+        "tags": ["Baremetal", "FreeRTOS", "Linux"],
+        "description": "Welcome to OpenPRU. This repository contains examples, training, and tools to develop PRU applications.",
         "dependencies": [
             { "packageId": "sysconfig", "version": "1.21.0", "require": "mandatory" },
-            { "packageId": "ti_cgt_tiarmclang", "version": "4.0.0", "require": "mandatory" }
+            { "packageId": "ti_cgt_tiarmclang", "version": "4.0.0", "require": "mandatory" },
         ]
     }
 ]
