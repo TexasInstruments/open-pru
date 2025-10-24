@@ -110,7 +110,7 @@ int32_t PRUICSS_goToSection(PRUICSS_Handle handle, uint32_t pruCore, uint32_t se
 }
 
 
-void pru_io_intc_mcu_main(void *args)
+void intc_mcu_main(void *args)
 {
    Drivers_open(); // check return status
 

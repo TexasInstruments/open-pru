@@ -11,7 +11,7 @@
 
     <project
         title="Intc Pru Io"
-        name = "intc_pru_io_am263x-lp_r5fss0-0_freertos_ti-arm-clang"
+        name = "intc_am263x-lp_r5fss0-0_freertos_ti-arm-clang"
         products="sysconfig;com.ti.OPEN_PRU;com.ti.MCU_PLUS_SDK_AM263X"
         configurations="
             Release,
@@ -54,7 +54,7 @@
             -i${MCU_PLUS_SDK_PATH}/source/board/lib
             -i${MCU_PLUS_SDK_PATH}/source/pru_io/lib
             -i${CG_TOOL_ROOT}/lib
-            -m=intc_pru_io.${ConfigName}.map
+            -m=intc.${ConfigName}.map
             --diag_suppress=10063
             --ram_model
             --reread_libs
