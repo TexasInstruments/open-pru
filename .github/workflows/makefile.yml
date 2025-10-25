@@ -141,8 +141,7 @@ jobs:
         run: |
           # Fail if any file contains CRLF or tabs or lines > 129 chars
           ! git ls-files -z | xargs -0 -I{} bash -c 'if file "$1" | grep -q CRLF; then echo "CRLF found in $1"; exit 1; fi' -- {}
-          ! git grep -Il 
-\t' | xargs -r -I{} bash -c 'echo "Tab character found in {}"; exit 1'
+          ! git grep -Il \t' | xargs -r -I{} bash -c 'echo "Tab character found in {}"; exit 1'
           ! git grep -InE '.{130,}' -- ':!*.png' ':!*.jpg' ':!*.gif' ':!*.bin' ':!*.out' && true
 
       - name: Verify no stray TODO, prefer FIXME
