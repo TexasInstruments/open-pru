@@ -1,0 +1,154 @@
+name: Makefile CI
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ "**" ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build and Validate
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Show tool versions
+        run: |
+          python3 --version || true
+          make --version
+
+      - name: Install OS dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            libx11-6 libxext6 libxrender1 libxtst6 libxi6 libxt6 libxinerama1 \
+            libgtk2.0-0 libncurses5 libnss3 \
+            unzip xz-utils wget ca-certificates
+
+      - name: Restore toolchain/SDK cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            $HOME/ti
+          key: toolchain-mcu-sdk-${{ runner.os }}-v1-ccs20_3_1-pru2_3_3-am243x_11_01_00_17-am261x_10_02_00_15-am263px_11_00_00_19
+
+      - name: Install MCU+ SDKs, CCS, and PRU CGT if missing
+        run: |
+          set -e
+          mkdir -p "$HOME/ti/downloads"
+          cd "$HOME/ti"
+
+          # Install CCS 20.3.1
+          if [ ! -d "$HOME/ti/ccs_10.3.1" ]; then
+            cd "$HOME/ti/downloads"
+            wget -q --retry-connrefused --waitretry=1 --tries=5 --timeout=30 \
+              https://dr-download.ti.com/software-development/ide-configuration-compiler-or-debugger/MD-J1VdearkvK/20.3.1/CCS_20.3.1.00005_linux.zip
+            cd "$HOME/ti"
+            unzip -q "$HOME/ti/downloads/CCS_20.3.1.00005_linux.zip"
+            mv ccs ccs_10.3.1 || true
+          fi
+
+          # Install PRU CGT 2.3.3
+          if [ ! -d "$HOME/ti/ccs_10.3.1/ccs/tools/compiler/ti-cgt-pru_2.3.3" ] && [ ! -d "$HOME/ti/ti-cgt-pru_2.3.3" ]; then
+            cd "$HOME/ti/downloads"
+            wget -q --retry-connrefused --waitretry=1 --tries=5 --timeout=30 \
+              https://dr-download.ti.com/software-development/ide-configuration-compiler-or-debugger/MD-FaNNGkDH7s/2.3.3/ti_cgt_pru_2.3.3_linux_installer_x86.bin
+            chmod +x ti_cgt_pru_2.3.3_linux_installer_x86.bin
+            ./ti_cgt_pru_2.3.3_linux_installer_x86.bin --mode unattended --prefix "$HOME/ti/ti-cgt-pru_2.3.3"
+          fi
+
+          # Install MCU+ SDK AM243x 11.01.00.17
+          if [ ! -d "$HOME/ti/mcu_plus_sdk_am243x_11_01_00_17" ]; then
+            cd "$HOME/ti/downloads"
+            wget -q --retry-connrefused --waitretry=1 --tries=5 --timeout=30 \
+              https://dr-download.ti.com/software-development/software-development-kit-sdk/MD-ouHbHEm1PK/11.01.00.17/mcu_plus_sdk_am243x_11_01_00_17-linux-x64-installer.run
+            chmod +x mcu_plus_sdk_am243x_11_01_00_17-linux-x64-installer.run
+            ./mcu_plus_sdk_am243x_11_01_00_17-linux-x64-installer.run --mode unattended --prefix "$HOME/ti/mcu_plus_sdk_am243x_11_01_00_17"
+          fi
+
+          # Install MCU+ SDK AM261x 10.02.00.15
+          if [ ! -d "$HOME/ti/mcu_plus_sdk_am261x_10_02_00_15" ]; then
+            cd "$HOME/ti/downloads"
+            wget -q --retry-connrefused --waitretry=1 --tries=5 --timeout=30 \
+              https://dr-download.ti.com/software-development/software-development-kit-sdk/MD-h64OlWnQrg/10.02.00.15/mcu_plus_sdk_am261x_10_02_00_15-linux-x64-installer.run
+            chmod +x mcu_plus_sdk_am261x_10_02_00_15-linux-x64-installer.run
+            ./mcu_plus_sdk_am261x_10_02_00_15-linux-x64-installer.run --mode unattended --prefix "$HOME/ti/mcu_plus_sdk_am261x_10_02_00_15"
+          fi
+
+          # Install MCU+ SDK AM263Px 11.00.00.19
+          if [ ! -d "$HOME/ti/mcu_plus_sdk_am263px_11_00_00_19" ]; then
+            cd "$HOME/ti/downloads"
+            wget -q --retry-connrefused --waitretry=1 --tries=5 --timeout=30 \
+              https://dr-download.ti.com/software-development/software-development-kit-sdk/MD-JVtW1V4WfA/11.00.00.19/mcu_plus_sdk_am263px_11_00_00_19-linux-x64-installer.run
+            chmod +x mcu_plus_sdk_am263px_11_00_00_19-linux-x64-installer.run
+            ./mcu_plus_sdk_am263px_11_00_00_19-linux-x64-installer.run --mode unattended --prefix "$HOME/ti/mcu_plus_sdk_am263px_11_00_00_19"
+          fi
+
+      - name: Export toolchain environment
+        run: |
+          {
+            echo "CCS_PATH=$HOME/ti/ccs_10.3.1"
+            if [ -d "$HOME/ti/ccs_10.3.1/ccs/tools/compiler/ti-cgt-pru_2.3.3" ]; then
+              echo "CGT_PRU_PATH=$HOME/ti/ccs_10.3.1/ccs/tools/compiler/ti-cgt-pru_2.3.3"
+            else
+              echo "CGT_PRU_PATH=$HOME/ti/ti-cgt-pru_2.3.3"
+            fi
+            echo "MCU_PLUS_SDK_PATH_AM243X=$HOME/ti/mcu_plus_sdk_am243x_11_01_00_17"
+            echo "MCU_PLUS_SDK_PATH_AM261X=$HOME/ti/mcu_plus_sdk_am261x_10_02_00_15"
+            echo "MCU_PLUS_SDK_PATH_AM263PX=$HOME/ti/mcu_plus_sdk_am263px_11_00_00_19"
+            echo "PATH=$PATH:$HOME/ti/ccs_10.3.1/ccs/eclipse:$HOME/ti/ccs_10.3.1/ccs/utils/bin:$CGT_PRU_PATH/bin"
+          } >> $GITHUB_ENV
+
+      - name: Build all via top-level makefile
+        run: |
+          make -j$(nproc) CGT_PRU_PATH="$CGT_PRU_PATH" MCU_PLUS_SDK_PATH_AM243X="$MCU_PLUS_SDK_PATH_AM243X" MCU_PLUS_SDK_PATH_AM261X="$MCU_PLUS_SDK_PATH_AM261X" MCU_PLUS_SDK_PATH_AM263PX="$MCU_PLUS_SDK_PATH_AM263PX"
+
+      - name: Build academy (best-effort)
+        run: |
+          make -C academy -j$(nproc) CGT_PRU_PATH="$CGT_PRU_PATH" MCU_PLUS_SDK_PATH_AM243X="$MCU_PLUS_SDK_PATH_AM243X" MCU_PLUS_SDK_PATH_AM261X="$MCU_PLUS_SDK_PATH_AM261X" MCU_PLUS_SDK_PATH_AM263PX="$MCU_PLUS_SDK_PATH_AM263PX" || true
+
+      - name: Build examples folder
+        run: |
+          make -C examples -j$(nproc) CGT_PRU_PATH="$CGT_PRU_PATH" MCU_PLUS_SDK_PATH_AM243X="$MCU_PLUS_SDK_PATH_AM243X" MCU_PLUS_SDK_PATH_AM261X="$MCU_PLUS_SDK_PATH_AM261X" MCU_PLUS_SDK_PATH_AM263PX="$MCU_PLUS_SDK_PATH_AM263PX"
+
+      - name: Upload build artifacts
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-artifacts
+          path: |
+            **/build/**
+            **/out/**
+            **/*.out
+            **/*.bin
+          if-no-files-found: ignore
+
+  formatting:
+    name: Static formatting checks
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Enforce newline and EOL policy
+        run: |
+          # Fail if any file contains CRLF or tabs or lines > 129 chars
+          ! git ls-files -z | xargs -0 -I{} bash -c 'if file "$1" | grep -q CRLF; then echo "CRLF found in $1"; exit 1; fi' -- {}
+          ! git grep -Il 
+\t' | xargs -r -I{} bash -c 'echo "Tab character found in {}"; exit 1'
+          ! git grep -InE '.{130,}' -- ':!*.png' ':!*.jpg' ':!*.gif' ':!*.bin' ':!*.out' && true
+
+      - name: Verify no stray TODO, prefer FIXME
+        run: |
+          if git grep -In "TODO" -- ':!**/third_party/**' ':!**/*.md' ; then
+            echo "Found TODO markers. Use FIXME as per repository rules.";
+            exit 1;
+          fi
+        shell: bash
