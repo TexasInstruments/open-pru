@@ -102,7 +102,7 @@ jobs:
             ./mcu_plus_sdk_am263px_11_00_00_19-linux-x64-installer.run --mode unattended --prefix "$HOME/ti/mcu_plus_sdk_am263px_11_00_00_19"
           fi
           ls -l "$HOME/ti/"
-          ls -l ""$HOME/ti/downloads"
+          ls -l "$HOME/ti/downloads"
           ls -l "$HOME/ti/ccs_10.3.1/ccs/tools/compiler"
           
       - name: Export toolchain environment
@@ -114,7 +114,7 @@ jobs:
             else
               echo "CGT_TI_PRU_PATH=$HOME/ti/ti-cgt-pru_2.3.3"
             fi
-            echo "CGT_TI_ARM_CLANG_PATH=$(TOOLS_PATH)/ti-cgt-armllvm_4.0.3.LTS"
+            echo "CGT_TI_ARM_CLANG_PATH=$TOOLS_PATH/ti-cgt-armllvm_4.0.3.LTS"
             echo "MCU_PLUS_SDK_PATH_AM243X=$HOME/ti/mcu_plus_sdk_am243x_11_01_00_17"
             echo "MCU_PLUS_SDK_PATH_AM261X=$HOME/ti/mcu_plus_sdk_am261x_10_02_00_15"
             echo "MCU_PLUS_SDK_PATH_AM263PX=$HOME/ti/mcu_plus_sdk_am263px_11_00_00_19"
@@ -138,7 +138,7 @@ jobs:
           else
           CGT_TI_PRU_PATH := $(HOME)/ti/ti-cgt-pru_2.3.3
           endif
-          CGT_TI_ARM_CLANG_PATH=$(CCS_PATH)/tools/compiler/ti-cgt-armllvm_4.0.3.LTS
+          CGT_TI_ARM_CLANG_PATH=$(CCS_PATH)/ccs/tools/compiler/ti-cgt-armllvm_4.0.3.LTS
           ifeq ($(wildcard $(CGT_TI_ARM_CLANG_PATH)),)
             CGT_TI_ARM_CLANG_PATH=$(TOOLS_PATH)/ti-cgt-armllvm_4.0.3.LTS
            endif
@@ -178,7 +178,7 @@ jobs:
         run: |
           make -j$(nproc) MCU_PLUS_SDK_PATH=$MCU_PLUS_SDK_PATH_AM243X DEVICE=am243x
           make -j$(nproc) MCU_PLUS_SDK_PATH=$MCU_PLUS_SDK_PATH_AM261X DEVICE=am261x
-          make -j$(nproc) MCU_PLUS_SDK_PATH=$MCU_PLUS_SDK_PATH_AM263PX" DEVICE=am263px          
+          make -j$(nproc) MCU_PLUS_SDK_PATH=$MCU_PLUS_SDK_PATH_AM263PX DEVICE=am263px          
 
       - name: Build academy (best-effort)
         run: |
@@ -212,20 +212,20 @@ jobs:
       - name: Enforce newline and EOL policy
         run: |
           # Fail if any file contains no CRLF or tabs or lines > 129 chars
-       #   ! git ls-files -z | while IFS= read -r -d '' f; do
-       #   if file -b --mime-type "$f" | grep -q '^text/'; then
-       #   if ! grep -q $'\r' -- "$f"; then
-       #     printf '%s\n' "$f"
-       #   fi
-       #   fi
-       #   done
+          #   ! git ls-files -z | while IFS= read -r -d '' f; do
+          #   if file -b --mime-type "$f" | grep -q '^text/'; then
+          #   if ! grep -q $'\r' -- "$f"; then
+          #     printf '%s\n' "$f"
+          #   fi
+          #   fi
+          #   done
           ! git grep -Il \t' | xargs -r -I{} bash -c 'echo "Tab character found in {}"; exit 1'
           ! git grep -InE '.{130,}' -- ':!*.png' ':!*.jpg' ':!*.gif' ':!*.bin' ':!*.out' && true
-                  
+          shell: bash     
       #- name: Verify no stray TODO, prefer FIXME
       #  run: |
       #    if git grep -In "TODO" -- ':!**/third_party/**' ':!**/*.md' ; then
       #      echo "Found TODO markers. Use FIXME as per repository rules.";
       #      exit 1;
       #    fi
-        shell: bash
+      #  shell: bash
