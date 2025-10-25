@@ -42,7 +42,7 @@ jobs:
             $HOME/ti
           key: toolchain-mcu-sdk-${{ runner.os }}-v1-ccs20_3_1-pru2_3_3-am243x_11_01_00_17-am261x_10_02_00_15-am263px_11_00_00_19
 
-      - name: Install MCU+ SDKs, CCS, and PRU CGT if missing
+      - name: Install MCU+ SDKs, CCS, SYSCONFIG, TIARMCLANG and PRU CGT if missing
         run: |
           set -e
           mkdir -p "$HOME/ti/downloads"
@@ -101,20 +101,24 @@ jobs:
             chmod +x mcu_plus_sdk_am263px_11_00_00_19-linux-x64-installer.run
             ./mcu_plus_sdk_am263px_11_00_00_19-linux-x64-installer.run --mode unattended --prefix "$HOME/ti/mcu_plus_sdk_am263px_11_00_00_19"
           fi
-
+          ls -l "$HOME/ti/"
+          ls -l ""$HOME/ti/downloads"
+          ls -l "$HOME/ti/ccs_10.3.1/ccs/tools/compiler"
+          
       - name: Export toolchain environment
         run: |
           {
             echo "CCS_PATH=$HOME/ti/ccs_10.3.1"
             if [ -d "$HOME/ti/ccs_10.3.1/ccs/tools/compiler/ti-cgt-pru_2.3.3" ]; then
-              echo "CGT_PRU_PATH=$HOME/ti/ccs_10.3.1/ccs/tools/compiler/ti-cgt-pru_2.3.3"
+              echo "CGT_TI_PRU_PATH=$HOME/ti/ccs_10.3.1/ccs/tools/compiler/ti-cgt-pru_2.3.3"
             else
-              echo "CGT_PRU_PATH=$HOME/ti/ti-cgt-pru_2.3.3"
+              echo "CGT_TI_PRU_PATH=$HOME/ti/ti-cgt-pru_2.3.3"
             fi
+            echo "CGT_TI_ARM_CLANG_PATH=$(TOOLS_PATH)/ti-cgt-armllvm_4.0.3.LTS"
             echo "MCU_PLUS_SDK_PATH_AM243X=$HOME/ti/mcu_plus_sdk_am243x_11_01_00_17"
             echo "MCU_PLUS_SDK_PATH_AM261X=$HOME/ti/mcu_plus_sdk_am261x_10_02_00_15"
             echo "MCU_PLUS_SDK_PATH_AM263PX=$HOME/ti/mcu_plus_sdk_am263px_11_00_00_19"
-            echo "PATH=$PATH:$HOME/ti/ccs_10.3.1/ccs/eclipse:$HOME/ti/ccs_10.3.1/ccs/utils/bin:$CGT_PRU_PATH/bin"
+            echo "PATH=$PATH:$HOME/ti/ccs_10.3.1/ccs/eclipse:$HOME/ti/ccs_10.3.1/ccs/utils/bin:$CGT_TI_PRU_PATH/bin"
           } >> $GITHUB_ENV
           
       - name: Generate imports.mak for CI
@@ -148,6 +152,7 @@ jobs:
           export MCU_PLUS_SDK_PATH_AM263PX
           export CCS_PATH
           export CGT_TI_PRU_PATH
+          export CGT_TI_ARM_CLANG_PATH
           export CCS_ECLIPSE=$(CCS_PATH)/eclipse/eclipse
           export MKDIR=mkdir -p
           export RMDIR=rm -rf
@@ -167,23 +172,24 @@ jobs:
           SYSCFG_MCU_PLUS_SDK_PRODUCT=$(OPEN_PRU_PATH)/.metadata/product.json
           EOF
           echo "Generated imports.mak:" && sed -n '1,120p' imports.mak
-
+          ls -l
+          
       - name: Build all via top-level makefile
         run: |
-          make -j$(nproc) MCU_PLUS_SDK_PATH="MCU_PLUS_SDK_PATH_AM243X" DEVICE=am243x
-          make -j$(nproc) MCU_PLUS_SDK_PATH="MCU_PLUS_SDK_PATH_AM261X" DEVICE=am261x
-          make -j$(nproc) MCU_PLUS_SDK_PATH="MCU_PLUS_SDK_PATH_AM263PX" DEVICE=am263px          
+          make -j$(nproc) MCU_PLUS_SDK_PATH=$MCU_PLUS_SDK_PATH_AM243X DEVICE=am243x
+          make -j$(nproc) MCU_PLUS_SDK_PATH=$MCU_PLUS_SDK_PATH_AM261X DEVICE=am261x
+          make -j$(nproc) MCU_PLUS_SDK_PATH=$MCU_PLUS_SDK_PATH_AM263PX" DEVICE=am263px          
 
       - name: Build academy (best-effort)
         run: |
-          make -C academy -j$(nproc) MCU_PLUS_SDK_PATH="MCU_PLUS_SDK_PATH_AM243X" DEVICE=am243x
-          make -C academy -j$(nproc) MCU_PLUS_SDK_PATH="MCU_PLUS_SDK_PATH_AM261X" DEVICE=am261x
-          make -C academy -j$(nproc) MCU_PLUS_SDK_PATH="MCU_PLUS_SDK_PATH_AM263PX" DEVICE=am263px
+          make -C academy -j$(nproc) MCU_PLUS_SDK_PATH=$MCU_PLUS_SDK_PATH_AM243X DEVICE=am243x
+          make -C academy -j$(nproc) MCU_PLUS_SDK_PATH=$MCU_PLUS_SDK_PATH_AM261X DEVICE=am261x
+          make -C academy -j$(nproc) MCU_PLUS_SDK_PATH=$MCU_PLUS_SDK_PATH_AM263PX DEVICE=am263px
       - name: Build examples folder
         run: |
-          make -C examples -j$(nproc) MCU_PLUS_SDK_PATH="MCU_PLUS_SDK_PATH_AM243X" DEVICE=am243x
-          make -C examples -j$(nproc) MCU_PLUS_SDK_PATH="MCU_PLUS_SDK_PATH_AM261X" DEVICE=am261x
-          make -C examples -j$(nproc) MCU_PLUS_SDK_PATH="MCU_PLUS_SDK_PATH_AM263PX" DEVICE=am263px
+          make -C examples -j$(nproc) MCU_PLUS_SDK_PATH=$MCU_PLUS_SDK_PATH_AM243X DEVICE=am243x
+          make -C examples -j$(nproc) MCU_PLUS_SDK_PATH=$MCU_PLUS_SDK_PATH_AM261X DEVICE=am261x
+          make -C examples -j$(nproc) MCU_PLUS_SDK_PATH=$MCU_PLUS_SDK_PATH_AM263PX DEVICE=am263px
       - name: Upload build artifacts
         if: ${{ always() }}
         uses: actions/upload-artifact@v4
