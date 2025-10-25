@@ -55,7 +55,7 @@ jobs:
               https://dr-download.ti.com/software-development/ide-configuration-compiler-or-debugger/MD-J1VdearkvK/20.3.1/CCS_20.3.1.00005_linux.zip
             cd "$HOME/ti"
             unzip -q "$HOME/ti/downloads/CCS_20.3.1.00005_linux.zip"
-            mv ccs ccs_10.3.1 || true
+            mv CCS_20.3.1.00005_linux ccs_10.3.1 || true
           fi
           #install  SYSCONFIG 1.23
           if [ ! -d "$HOME/ti/ccs_10.3.1/ccs/utils/sysconfig_1.23.1" ] && [ ! -d "$HOME/ti/sysconfig_1.23.1" ]; then
@@ -101,9 +101,9 @@ jobs:
             chmod +x mcu_plus_sdk_am263px_11_00_00_19-linux-x64-installer.run
             ./mcu_plus_sdk_am263px_11_00_00_19-linux-x64-installer.run --mode unattended --prefix "$HOME/ti/mcu_plus_sdk_am263px_11_00_00_19"
           fi
-          ls -l "$HOME/ti/"
-          ls -l "$HOME/ti/downloads"
-          ls -l "$HOME/ti/ccs_10.3.1/ccs/tools/compiler"
+          #ls -l "$HOME/ti/"
+          #ls -l "$HOME/ti/downloads"
+          #ls -l "$HOME/ti/ccs_10.3.1/ccs/tools/compiler"
           
       - name: Export toolchain environment
         run: |
@@ -221,7 +221,7 @@ jobs:
           #   done
           ! git grep -Il \t' | xargs -r -I{} bash -c 'echo "Tab character found in {}"; exit 1'
           ! git grep -InE '.{130,}' -- ':!*.png' ':!*.jpg' ':!*.gif' ':!*.bin' ':!*.out' && true
-          shell: bash     
+    
       #- name: Verify no stray TODO, prefer FIXME
       #  run: |
       #    if git grep -In "TODO" -- ':!**/third_party/**' ':!**/*.md' ; then
