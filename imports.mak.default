@@ -1,28 +1,28 @@
-# TODO: set the device you are using.
+# UPDATE: set the device you are using.
 # valid devices include:
 # am243x, am261x, am263px, am263x, am64x
 DEVICE ?= am64x
 
-# TODO: what kind of project are you building?
+# UPDATE: what kind of project are you building?
 # debug, release
 PROFILE?=release
 
-# TODO: What kind of silicon are you using?
+# UPDATE: What kind of silicon are you using?
 # If you don't know, leave this as GP
 # GP (general purpose, applies to GP and HS-FS), HS (high security, includes HS-SE)
 DEVICE_TYPE?=GP
 
-# TODO: Build MCU+ SDK projects?
+# UPDATE: Build MCU+ SDK projects?
 # for example, MCU+ SDK running on R5F core
 # y, n
 BUILD_MCUPLUS?=y
 
-# TODO: Build Linux projects?
+# UPDATE: Build Linux projects?
 # for example, Linux running on A53 cores
 # y, n
 BUILD_LINUX?=n
 
-# TODO: set these variables to match your system
+# UPDATE: set these variables to match your system
 # Windows users
 ifeq ($(OS),Windows_NT)
     TOOLS_PATH?=C:/ti
@@ -31,7 +31,7 @@ ifeq ($(OS),Windows_NT)
     CGT_GCC_ARM_PATH=$(TOOLS_PATH)/gcc-arm-none-eabi-9-2019-q4-major-win32
     CGT_GCC_ARMV7_PATH=$(CGT_GCC_ARM_PATH)
 
-# TODO: set these variables to match your system
+# UPDATE: set these variables to match your system
 # Linux PC users
 else
     UNAME_S := $(shell uname -s)
@@ -44,7 +44,7 @@ else
     endif
 endif
 
-# TODO: set these variables to match your system
+# UPDATE: set these variables to match your system
 # all users
 CGT_TI_PRU_PATH=$(TOOLS_PATH)/ti-cgt-pru_2.3.3
 MCU_PLUS_SDK_PATH?=$(TOOLS_PATH)/mcu_plus_sdk
