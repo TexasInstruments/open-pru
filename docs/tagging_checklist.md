@@ -70,7 +70,7 @@ imports.mak will be modified before each test.
 Test all of DEVICE ?=
 am62x, am64x
 
-TODO: Fill in the rest of this section after adding Linux support.
+FIXME: Fill in the rest of this section after adding Linux support.
 
 ## Update the year
 

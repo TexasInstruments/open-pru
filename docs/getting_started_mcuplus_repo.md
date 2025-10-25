@@ -54,7 +54,7 @@ For ease of use, the new imports.mak file is already excluded from git tracking.
 ### Customize imports.mak for your computer
 
 Open imports.mak and update the settings based on your specific computer. Follow
-the `TODO` comments to see which settings need to be modified.
+the `UPDATE` comments to see which settings need to be modified.
 
 ## Update the CCS files
 

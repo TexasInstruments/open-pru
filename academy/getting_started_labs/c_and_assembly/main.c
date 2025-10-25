@@ -5,7 +5,7 @@
 
 #include <stdint.h>
 
-/* TODO: define c */
+/* INSERT CODE: define c */
 /* a, b, and c are stored in a defined location in PRU memory */
 #define a  (*((volatile unsigned int *)0x110))
 #define b  (*((volatile unsigned int *)0x114))
@@ -18,7 +18,7 @@ uint32_t assm_add(uint32_t arg1, uint32_t arg2);
  */
 void main(void)
 {
-	/* TODO: define y & z */
+	/* INSERT CODE: define y & z */
 	/* The compiler decides where to store x, y, and z */
 	uint32_t x = 1;
 
@@ -27,12 +27,12 @@ void main(void)
 
 	while(1) {
 		/*
-		 * TODO: use the assembly function to add x and y, then
+		 * INSERT CODE: use the assembly function to add x and y, then
 		 * store the sum in z
 		 */
 
 		/*
-		 * TODO: use the assembly function to add a and b, then
+		 * INSERT CODE: use the assembly function to add a and b, then
 		 * store the sum in memory location c
 		 */
 	}

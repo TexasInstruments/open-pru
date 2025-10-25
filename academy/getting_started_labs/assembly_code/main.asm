@@ -20,10 +20,10 @@
 ; Brief: Define x & y values. Define storage registers
 ;*****************************************************************************
 
-; TODO: define y
+; INSERT CODE: define y
 x	        .set	1
 
-; TODO: define y_register and z_register
+; INSERT CODE: define y_register and z_register
 x_register	.set	r20
 
 ; .sect ".text:main" places all code below the .sect directive into the .text
@@ -48,15 +48,15 @@ init:
 ;   Before begining with the application, make sure registers R0 - R29 are set
 ;   to 0. R30 & R31 are special, dedicated for output & input respectively
 ;----------------------------------------------------------------------------
-    ; TODO: use zero to clear 30 four-byte registers, starting with R0
+    ; INSERT CODE: use zero to clear 30 four-byte registers, starting with R0
     ; Give the starting address and number of bytes to clear.
 
 while_true:
 
-    ; TODO: load y value into y_register
+    ; INSERT CODE: load y value into y_register
     ldi		x_register, x	; load x value into register r20
 
-    ; TODO: add x_register and y_register. Store the result in z_register
+    ; INSERT CODE: add x_register and y_register. Store the result in z_register
 
     ; jump to continue refreshing z_register value
     jmp		while_true

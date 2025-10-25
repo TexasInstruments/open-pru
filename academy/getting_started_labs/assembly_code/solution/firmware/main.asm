@@ -20,11 +20,11 @@
 ; Brief: Define x & y values. Define storage registers
 ;*****************************************************************************
 
-; TODO: define y
+; INSERT CODE: define y
 x	        .set	1
 y	        .set	2
 
-; TODO: define y_register and z_register
+; INSERT CODE: define y_register and z_register
 x_register	.set	r20
 y_register	.set	r21
 z_register	.set	r22
@@ -51,17 +51,17 @@ init:
 ;   Before begining with the application, make sure registers R0 - R29 are set
 ;   to 0. R30 & R31 are special, dedicated for output & input respectively
 ;----------------------------------------------------------------------------
-    ; TODO: use zero to clear 30 four-byte registers, starting with R0
+    ; INSERT CODE: use zero to clear 30 four-byte registers, starting with R0
     ; Give the starting address and number of bytes to clear.
     zero    &R0, 120
 
 while_true:
 
-    ; TODO: load y value into y_register
+    ; INSERT CODE: load y value into y_register
     ldi		x_register, x	; load x value into register r20
     ldi		y_register, y	; load y value into register r21
 
-    ; TODO: add x_register and y_register. Store the result in z_register
+    ; INSERT CODE: add x_register and y_register. Store the result in z_register
     add		z_register, x_register, y_register
 
     ; jump to continue refreshing z_register value
