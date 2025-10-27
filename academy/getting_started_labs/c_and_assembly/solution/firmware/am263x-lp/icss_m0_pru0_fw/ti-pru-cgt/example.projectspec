@@ -67,7 +67,9 @@
         ></configuration>
         <pathVariable name="MCU_PLUS_SDK_PATH" path="${COM_TI_MCU_PLUS_SDK_AM263X_INSTALL_DIR}" scope="project" />
         <pathVariable name="OPEN_PRU_PATH" path="${COM_TI_OPEN_PRU_INSTALL_DIR}" scope="project" />
-        <file path="../../../main.asm" openOnCreation="false" excludeFromBuild="false" action="copy">
+        <file path="../../../main.c" openOnCreation="false" excludeFromBuild="false" action="copy">
+        </file>
+        <file path="../../../assm_add.asm" openOnCreation="false" excludeFromBuild="false" action="copy">
         </file>
         <file path="./linker.cmd" openOnCreation="false" excludeFromBuild="false" action="copy">
         </file>

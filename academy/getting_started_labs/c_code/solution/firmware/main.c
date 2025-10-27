@@ -5,7 +5,7 @@
 
 #include <stdint.h>
 
-/* TODO: define c */
+/* INSERT CODE: define c */
 /* a, b, and c are stored in a defined location in PRU memory */
 #define a  (*((volatile unsigned int *)0x110))
 #define b  (*((volatile unsigned int *)0x114))
@@ -16,7 +16,7 @@
  */
 void main(void)
 {
-	/* TODO: define y & z */
+	/* INSERT CODE: define y & z */
 	/* The compiler decides where to store x, y, and z */
 	uint32_t x = 1;
 	uint32_t y = 2;
@@ -27,12 +27,12 @@ void main(void)
 
 	while(1) {
 		/*
-		 * TODO: store the sum of x and y in z
+		 * INSERT CODE: store the sum of x and y in z
 		 */
 		z = x + y;
 
 		/*
-		 * TODO: store the sum of the numbers at memory locations a and
+		 * INSERT CODE: store the sum of the numbers at memory locations a and
 		 * b in memory location c
 		 */
 		c = a + b;

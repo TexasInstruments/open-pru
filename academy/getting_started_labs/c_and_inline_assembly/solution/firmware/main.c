@@ -5,7 +5,7 @@
 
 #include <stdint.h>
 
-/* TODO: define c */
+/* INSERT CODE: define c */
 /* a, b, and c are stored in a defined location in PRU memory */
 #define a  (*((volatile unsigned int *)0x110))
 #define b  (*((volatile unsigned int *)0x114))
@@ -19,7 +19,7 @@ uint32_t inline_assm_add(uint32_t arg1, uint32_t arg2);
  */
 void main(void)
 {
-	/* TODO: define y & z */
+	/* INSERT CODE: define y & z */
 	/* The compiler decides where to store x, y, and z */
 	uint32_t x = 1;
 	uint32_t y = 2;
@@ -30,13 +30,13 @@ void main(void)
 
 	while(1) {
 		/*
-		 * TODO: use the inline assembly function to add x and y, then
+		 * INSERT CODE: use the inline assembly function to add x and y, then
 		 * store the sum in z
 		 */
 		z = inline_assm_add(x, y);
 
 		/*
-		 * TODO: use the inline assembly function to add a and b, then
+		 * INSERT CODE: use the inline assembly function to add a and b, then
 		 * store the sum in memory location c
 		 */
 		c = inline_assm_add(a, b);
@@ -74,12 +74,12 @@ uint32_t inline_assm_add(uint32_t arg1, uint32_t arg2)
 	 */
 
 	/*
-	 * TODO: add arg1 and arg2
+	 * INSERT CODE: add arg1 and arg2
 	 */
 	__asm("   ADD r14, r14, r15");
 
 	/*
-	 * TODO: return the sum. The return value should be in R14.
+	 * INSERT CODE: return the sum. The return value should be in R14.
 	 */
 	return arg1;
 }

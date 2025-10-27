@@ -30,7 +30,7 @@ assm_add:
 ;   section "Function Structure and Calling Conventions"
 ;-----------------------------------------------------------------------------
 
-    ; TODO: add arg1 and arg2. Store the sum in the return register
+    ; INSERT CODE: add arg1 and arg2. Store the sum in the return register
     ADD		R14, R14, R15
 
     ; return from function assm_add
