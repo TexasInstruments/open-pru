@@ -92,7 +92,7 @@ static void i2c_io_expander(void *args)
 #endif
 
 
-void pru_io_gpio_toggle_main(void *args)
+void gpio_toggle_main(void *args)
 {
      Drivers_open(); // check return status
 

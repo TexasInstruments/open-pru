@@ -25,19 +25,19 @@ endif
 PROFILE?=release
 ConfigName:=$(PROFILE)
 
-OUTNAME:=gpio_pru_io.$(PROFILE).out
+OUTNAME:=gpio.$(PROFILE).out
 
 BOOTIMAGE_PATH=$(abspath .)
-BOOTIMAGE_NAME:=gpio_pru_io.$(PROFILE).appimage
-BOOTIMAGE_NAME_XIP:=gpio_pru_io.$(PROFILE).appimage_xip
-BOOTIMAGE_NAME_SIGNED:=gpio_pru_io.$(PROFILE).appimage.signed
-BOOTIMAGE_NAME_MCELF:=gpio_pru_io.$(PROFILE).mcelf
-BOOTIMAGE_NAME_MCELF_HS:=gpio_pru_io.$(PROFILE).mcelf.hs
-BOOTIMAGE_RPRC_NAME:=gpio_pru_io.$(PROFILE).rprc
-BOOTIMAGE_RPRC_NAME_XIP:=gpio_pru_io.$(PROFILE).rprc_xip
-BOOTIMAGE_RPRC_NAME_TMP:=gpio_pru_io.$(PROFILE).rprc_tmp
-BOOTIMAGE_NAME_HS:=gpio_pru_io.$(PROFILE).appimage.hs
-BOOTIMAGE_NAME_HS_FS:=gpio_pru_io.$(PROFILE).appimage.hs_fs
+BOOTIMAGE_NAME:=gpio.$(PROFILE).appimage
+BOOTIMAGE_NAME_XIP:=gpio.$(PROFILE).appimage_xip
+BOOTIMAGE_NAME_SIGNED:=gpio.$(PROFILE).appimage.signed
+BOOTIMAGE_NAME_MCELF:=gpio.$(PROFILE).mcelf
+BOOTIMAGE_NAME_MCELF_HS:=gpio.$(PROFILE).mcelf.hs
+BOOTIMAGE_RPRC_NAME:=gpio.$(PROFILE).rprc
+BOOTIMAGE_RPRC_NAME_XIP:=gpio.$(PROFILE).rprc_xip
+BOOTIMAGE_RPRC_NAME_TMP:=gpio.$(PROFILE).rprc_tmp
+BOOTIMAGE_NAME_HS:=gpio.$(PROFILE).appimage.hs
+BOOTIMAGE_NAME_HS_FS:=gpio.$(PROFILE).appimage.hs_fs
 TARGETS := $(BOOTIMAGE_NAME)
 
 ifeq ($(DEVICE_TYPE), HS)
@@ -212,7 +212,7 @@ clean:
 	$(RMDIR) generated/
 
 scrub:
-	@echo  Scrubing: am263x:r5fss0-0:freertos:ti-arm-clang gpio_pru_io ...
+	@echo  Scrubing: am263x:r5fss0-0:freertos:ti-arm-clang gpio ...
 	$(RMDIR) obj
 ifeq ($(OS),Windows_NT)
 	$(RM) \*.out
@@ -358,12 +358,12 @@ endif
 
 .PHONY: coverage
 coverage:
-	@echo Creating Coverage Report for gpio_pru_io.$(PROFILE) ...
+	@echo Creating Coverage Report for gpio.$(PROFILE) ...
 	$(MKDIR) coverage
-	$(PROFDATA) merge -sparse -obj-file=$(OUTNAME) $(OUTNAME).cnt -o gpio_pru_io.$(PROFILE).profdata
-	$(COV) show --format=html --show-expansions --show-instantiations --show-branches=count --object=$(OUTNAME) -instr-profile=gpio_pru_io.$(PROFILE).profdata --output-dir=$(COVERAGE_PATH)/coverage --ignore-filename-regex=build_jenkins
-	$(COV) export --format=text --object=$(OUTNAME) --instr-profile=gpio_pru_io.$(PROFILE).profdata > coverage/gpio_pru_io.$(PROFILE).profdata.json
-	node $(MCU_PLUS_SDK_PATH)/tools/smart_placement/clang_coverage_analyse.js --input=coverage/gpio_pru_io.$(PROFILE).profdata.json --output-json=coverage/gpio_pru_io.$(PROFILE).analysis.json --output=../gpio_pru_io.annotations.$(PROFILE).S --top-function-count=500
+	$(PROFDATA) merge -sparse -obj-file=$(OUTNAME) $(OUTNAME).cnt -o gpio.$(PROFILE).profdata
+	$(COV) show --format=html --show-expansions --show-instantiations --show-branches=count --object=$(OUTNAME) -instr-profile=gpio.$(PROFILE).profdata --output-dir=$(COVERAGE_PATH)/coverage --ignore-filename-regex=build_jenkins
+	$(COV) export --format=text --object=$(OUTNAME) --instr-profile=gpio.$(PROFILE).profdata > coverage/gpio.$(PROFILE).profdata.json
+	node $(MCU_PLUS_SDK_PATH)/tools/smart_placement/clang_coverage_analyse.js --input=coverage/gpio.$(PROFILE).profdata.json --output-json=coverage/gpio.$(PROFILE).analysis.json --output=../gpio.annotations.$(PROFILE).S --top-function-count=500
 	@echo Coverage Report Generated at $(COVERAGE_PATH)/coverage folder !!!
 
 -include $(addprefix $(OBJDIR)/, $(DEPS))
