@@ -72,7 +72,7 @@ jobs:
             wget -q --retry-connrefused --waitretry=1 --tries=5 --timeout=30 \
               https://dr-download.ti.com/software-development/ide-configuration-compiler-or-debugger/MD-FaNNGkDH7s/2.3.3/ti_cgt_pru_2.3.3_linux_installer_x86.bin
             chmod +x ti_cgt_pru_2.3.3_linux_installer_x86.bin
-            ./ti_cgt_pru_2.3.3_linux_installer_x86.bin --mode unattended --prefix "$HOME/ti/ti-cgt-pru_2.3.3"
+            ./ti_cgt_pru_2.3.3_linux_installer_x86.bin --mode unattended --prefix "$HOME/ti"
           fi
 
           # Install MCU+ SDK AM243x 11.01.00.17
@@ -81,7 +81,7 @@ jobs:
             wget -q --retry-connrefused --waitretry=1 --tries=5 --timeout=30 \
               https://dr-download.ti.com/software-development/software-development-kit-sdk/MD-ouHbHEm1PK/11.01.00.17/mcu_plus_sdk_am243x_11_01_00_17-linux-x64-installer.run
             chmod +x mcu_plus_sdk_am243x_11_01_00_17-linux-x64-installer.run
-            ./mcu_plus_sdk_am243x_11_01_00_17-linux-x64-installer.run --mode unattended --prefix "$HOME/ti/mcu_plus_sdk_am243x_11_01_00_17"
+            ./mcu_plus_sdk_am243x_11_01_00_17-linux-x64-installer.run --mode unattended --prefix "$HOME/ti/"
           fi
 
           # Install MCU+ SDK AM261x 10.02.00.15
@@ -90,7 +90,7 @@ jobs:
             wget -q --retry-connrefused --waitretry=1 --tries=5 --timeout=30 \
               https://dr-download.ti.com/software-development/software-development-kit-sdk/MD-h64OlWnQrg/10.02.00.15/mcu_plus_sdk_am261x_10_02_00_15-linux-x64-installer.run
             chmod +x mcu_plus_sdk_am261x_10_02_00_15-linux-x64-installer.run
-            ./mcu_plus_sdk_am261x_10_02_00_15-linux-x64-installer.run --mode unattended --prefix "$HOME/ti/mcu_plus_sdk_am261x_10_02_00_15"
+            ./mcu_plus_sdk_am261x_10_02_00_15-linux-x64-installer.run --mode unattended --prefix "$HOME/ti/"
           fi
 
           # Install MCU+ SDK AM263Px 11.00.00.19
@@ -99,7 +99,7 @@ jobs:
             wget -q --retry-connrefused --waitretry=1 --tries=5 --timeout=30 \
               https://dr-download.ti.com/software-development/software-development-kit-sdk/MD-JVtW1V4WfA/11.00.00.19/mcu_plus_sdk_am263px_11_00_00_19-linux-x64-installer.run
             chmod +x mcu_plus_sdk_am263px_11_00_00_19-linux-x64-installer.run
-            ./mcu_plus_sdk_am263px_11_00_00_19-linux-x64-installer.run --mode unattended --prefix "$HOME/ti/mcu_plus_sdk_am263px_11_00_00_19"
+            ./mcu_plus_sdk_am263px_11_00_00_19-linux-x64-installer.run --mode unattended --prefix "$HOME/ti/"
           fi
           #ls -l "$HOME/ti/"
           #ls -l "$HOME/ti/downloads"
