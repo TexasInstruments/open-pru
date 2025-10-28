@@ -71,7 +71,7 @@ jobs:
             wget -q --retry-connrefused --waitretry=1 --tries=5 --timeout=30 \
               https://dr-download.ti.com/software-development/ide-configuration-compiler-or-debugger/MD-ayxs93eZNN/4.0.3.LTS/ti_cgt_armllvm_4.0.3.LTS_linux-x64_installer.bin
             chmod +x ti_cgt_armllvm_4.0.3.LTS_linux-x64_installer.bin
-           ./ti_cgt_armllvm_4.0.3.LTS_linux-x64_installer.bin -mode unattended --prefix "$HOME/ti"
+           ./ti_cgt_armllvm_4.0.3.LTS_linux-x64_installer.bin --mode unattended --prefix "$HOME/ti/ti-cgt-armllvm_4.0.3.LTS"
           fi
           # Install PRU CGT 2.3.3
           if [ ! -d "$HOME/ti/ccs_10.3.1/ccs/tools/compiler/ti-cgt-pru_2.3.3" ] && [ ! -d "$HOME/ti/ti-cgt-pru_2.3.3" ]; then
