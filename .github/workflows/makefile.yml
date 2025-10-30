@@ -65,6 +65,7 @@ jobs:
               https://dr-download.ti.com/software-development/ide-configuration-compiler-or-debugger/MD-nsUM6f7Vvb/1.23.1.4034/sysconfig-1.23.1_4034-setup.run
             chmod +x sysconfig-1.23.1_4034-setup.run
             ./sysconfig-1.23.1_4034-setup.run --mode unattended --prefix "$HOME/ti/sysconfig_1.23.1"
+            chmod -R +x $HOME/ti/sysconfig_1.23.1
           fi
           #Install ARM CLANG CGT 4.0.3
            if [ ! -d "$HOME/ti/ccs_10.3.1/ccs/tools/compiler/ti-cgt-armllvm_4.0.3.LTS" ] && [ ! -d "$HOME/ti/ti-cgt-armllvm_4.0.3.LTS" ]; then
@@ -109,9 +110,10 @@ jobs:
             chmod +x mcu_plus_sdk_am263px_11_00_00_19-linux-x64-installer.run
             ./mcu_plus_sdk_am263px_11_00_00_19-linux-x64-installer.run --mode unattended --prefix "$HOME/ti/"
           fi
-          #ls -l "$HOME/ti/"
+          ls -l "$HOME/ti/"
           #ls -l "$HOME/ti/downloads"
-          #ls -l "$HOME/ti/ccs_10.3.1/ccs/tools/compiler"
+          ls -l "$HOME/ti/ccs_10.3.1/ccs/tools/compiler"
+          ls -l "$HOME/ti/sysconfig_1.23.1"
           
       - name: Export toolchain environment
         run: |
@@ -186,7 +188,6 @@ jobs:
           SYSCFG_MCU_PLUS_SDK_PRODUCT=$(OPEN_PRU_PATH)/.metadata/product.json
           EOF
           echo "Generated imports.mak:" && sed -n '1,120p' imports.mak
-          ls -l
           
       - name: Build all via top-level makefile
         run: |
