@@ -110,11 +110,11 @@ jobs:
             chmod +x mcu_plus_sdk_am263px_11_00_00_19-linux-x64-installer.run
             ./mcu_plus_sdk_am263px_11_00_00_19-linux-x64-installer.run --mode unattended --prefix "$HOME/ti/"
           fi
-          ls -l "$HOME/ti/"
+          #ls -l "$HOME/ti/"
           #ls -l "$HOME/ti/downloads"
-          ls -l "$HOME/ti/ccs_10.3.1/ccs/tools/compiler"
-          ls -l "$HOME/ti/sysconfig_1.23.1"
-          
+          #ls -l "$HOME/ti/ccs_10.3.1/ccs/tools/compiler"
+          #ls -l "$HOME/ti/sysconfig_1.23.1"
+          ls -lR "$HOME/ti/ti-cgt-armllvm_4.0.3.LTS"
       - name: Export toolchain environment
         run: |
           {
@@ -191,6 +191,7 @@ jobs:
           
       - name: Build all via top-level makefile
         run: |
+          make -C examples/LCD_interface MCU_PLUS_SDK_PATH=$MCU_PLUS_SDK_PATH_AM243X DEVICE=am243x
           make -j$(nproc) MCU_PLUS_SDK_PATH=$MCU_PLUS_SDK_PATH_AM243X DEVICE=am243x
           make -j$(nproc) MCU_PLUS_SDK_PATH=$MCU_PLUS_SDK_PATH_AM261X DEVICE=am261x
           make -j$(nproc) MCU_PLUS_SDK_PATH=$MCU_PLUS_SDK_PATH_AM263PX DEVICE=am263px          
