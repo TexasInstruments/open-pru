@@ -73,7 +73,7 @@ jobs:
             wget -q --retry-connrefused --waitretry=1 --tries=5 --timeout=30 \
               https://dr-download.ti.com/software-development/ide-configuration-compiler-or-debugger/MD-ayxs93eZNN/4.0.3.LTS/ti_cgt_armllvm_4.0.3.LTS_linux-x64_installer.bin
             chmod +x ti_cgt_armllvm_4.0.3.LTS_linux-x64_installer.bin
-           ./ti_cgt_armllvm_4.0.3.LTS_linux-x64_installer.bin --mode unattended --prefix "$HOME/ti/ti-cgt-armllvm_4.0.3.LTS"
+           ./ti_cgt_armllvm_4.0.3.LTS_linux-x64_installer.bin --mode unattended --prefix "$HOME/ti/"
           fi
           # Install PRU CGT 2.3.3
           if [ ! -d "$HOME/ti/ccs_10.3.1/ccs/tools/compiler/ti-cgt-pru_2.3.3" ] && [ ! -d "$HOME/ti/ti-cgt-pru_2.3.3" ]; then
@@ -114,7 +114,9 @@ jobs:
           #ls -l "$HOME/ti/downloads"
           #ls -l "$HOME/ti/ccs_10.3.1/ccs/tools/compiler"
           #ls -l "$HOME/ti/sysconfig_1.23.1"
-          ls -lR "$HOME/ti/ti-cgt-armllvm_4.0.3.LTS"
+          #ls -lR "$HOME/ti/ti-cgt-armllvm_4.0.3.LTS"
+          test -x "$HOME/ti/ti-cgt-armllvm_4.0.3.LTS/bin/tiarmclang" && "$HOME/ti/ti-cgt-armllvm_4.0.3.LTS/bin/tiarmclang" --version || ls -l "$HOME/ti/ti-cgt-armllvm_4.0.3.LTS"
+          
       - name: Export toolchain environment
         run: |
           {
@@ -191,7 +193,6 @@ jobs:
           
       - name: Build all via top-level makefile
         run: |
-          make -C examples/LCD_interface MCU_PLUS_SDK_PATH=$MCU_PLUS_SDK_PATH_AM243X DEVICE=am243x
           make -j$(nproc) MCU_PLUS_SDK_PATH=$MCU_PLUS_SDK_PATH_AM243X DEVICE=am243x
           make -j$(nproc) MCU_PLUS_SDK_PATH=$MCU_PLUS_SDK_PATH_AM261X DEVICE=am261x
           make -j$(nproc) MCU_PLUS_SDK_PATH=$MCU_PLUS_SDK_PATH_AM263PX DEVICE=am263px          
@@ -201,11 +202,13 @@ jobs:
           make -C academy -j$(nproc) MCU_PLUS_SDK_PATH=$MCU_PLUS_SDK_PATH_AM243X DEVICE=am243x
           make -C academy -j$(nproc) MCU_PLUS_SDK_PATH=$MCU_PLUS_SDK_PATH_AM261X DEVICE=am261x
           make -C academy -j$(nproc) MCU_PLUS_SDK_PATH=$MCU_PLUS_SDK_PATH_AM263PX DEVICE=am263px
+          
       - name: Build examples folder
         run: |
           make -C examples -j$(nproc) MCU_PLUS_SDK_PATH=$MCU_PLUS_SDK_PATH_AM243X DEVICE=am243x
           make -C examples -j$(nproc) MCU_PLUS_SDK_PATH=$MCU_PLUS_SDK_PATH_AM261X DEVICE=am261x
           make -C examples -j$(nproc) MCU_PLUS_SDK_PATH=$MCU_PLUS_SDK_PATH_AM263PX DEVICE=am263px
+          
       - name: Upload build artifacts
         if: ${{ always() }}
         uses: actions/upload-artifact@v4
