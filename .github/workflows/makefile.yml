@@ -32,8 +32,9 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
             libx11-6 libxext6 libxrender1 libxtst6 libxi6 libxt6 libxinerama1 \
-            libgtk2.0-0 libncurses5 libnss3 \
+            libgtk2.0-0 libncurses5 libnss3 python3-pip \
             unzip xz-utils wget ca-certificates
+          pip3 install pyserial xmodem tqdm pyelftools construct
 
       - name: Restore toolchain/SDK cache
         uses: actions/cache@v4
