@@ -1,8 +1,12 @@
 # PRU Assembly Instruction Cheat Sheet
 OP(255) is either 8 bit immideate value or register
+
 Load/store and xfr instructions can use bn as length operand. bn is any of R0 bytes - b0, b1, b2, b3.
+
 Move indirect instructions use any of R1 bytes as pointer. 
+
 Certain IO modes and broadside accelerators use fixed registers. For example hardware mulitplier uses R25-R29 and BS-RAM uses R1-R9.
+
 
 ## Arithmetic Operations
 
@@ -327,3 +331,4 @@ done:
 **Reference:** TI PRU Assembly Instruction User Guide (SPRUIJ2) [2]
 
 **Note:** V4 core features (TSEN) are specific to devices with ICSS_G subsystem. Consult your device-specific documentation for availability and usage details.
+
