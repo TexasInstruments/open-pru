@@ -1,4 +1,8 @@
 # PRU Assembly Instruction Cheat Sheet
+OP(255) is either 8 bit immideate value or register
+Load/store and xfr instructions can use bn as length operand. bn is any of R0 bytes - b0, b1, b2, b3.
+Move indirect instructions use any of R1 bytes as pointer. 
+Certain IO modes and broadside accelerators use fixed registers. For example hardware mulitplier uses R25-R29 and BS-RAM uses R1-R9.
 
 ## Arithmetic Operations
 
@@ -43,6 +47,7 @@
 |-------------|--------|-------------|
 | **MOV** | `MOV Reg1, Reg2` | Copy value: Reg1 = Reg2 (zero extends) |
 | **LDI** | `LDI Reg1, IM(65535)` | Load immediate value into Reg1 |
+| **LDI32** | `LDI32 Reg1, IM(2^32-1)` | Pseudo code for 32 bit load |
 
 ## Move Register File Indirect (V2+ cores only)
 
@@ -64,11 +69,11 @@ The MVIx instruction family moves 8-bit (MVIB), 16-bit (MVIW), or 32-bit (MVID) 
 
 **Examples:**
 ```assembly
-MVIW r2.w0, *r1.b3          // Load word from register file offset in r1.b3
-MVID *r1.b0++, r14          // Store r14 to offset, then r1.b0 += 4
-MVID *--r1.b0, r14          // Decrement r1.b0 by 4, then store r14
-MVIB r2, *r1.b0++           // Load byte, then r1.b0 += 1
-MVIW *r1.b1, r2.w0          // Store word to offset in r1.b1
+MVIW r2.w0, *r1.b3          ; Load word from register file offset in r1.b3
+MVID *r1.b0++, r14          ; Store r14 to offset, then r1.b0 += 4
+MVID *--r1.b0, r14          ; Decrement r1.b0 by 4, then store r14
+MVIB r2, *r1.b0++           ; Load byte, then r1.b0 += 1
+MVIW *r1.b1, r2.w0          ; Store word to offset in r1.b1
 ```
 
 **Important Notes:**
@@ -94,9 +99,9 @@ MVIW *r1.b1, r2.w0          // Store word to offset in r1.b1
 
 **Examples:**
 ```assembly
-lbbo &r2, r1, 5, 8          // Copy 8 bytes into r2/r3 from memory at r1+5
-sbbo &r2, r1, 256, 129      // ERROR: Offset must be <256, Length must be <129
-lbco &r2, c1, 5, 8          // Copy 8 bytes from constant table address c1+5
+lbbo &r2, r1, 5, 8          ; Copy 8 bytes into r2/r3 from memory at r1+5
+sbbo &r2, r1, 256, 129      ; ERROR: Offset must be <256, Length must be <129
+lbco &r2, c1, 5, 8          ; Copy 8 bytes from constant table address c1+5
 ```
 
 ## Transfer Bus Operations (XFR)
@@ -109,9 +114,9 @@ lbco &r2, c1, 5, 8          // Copy 8 bytes from constant table address c1+5
 
 **Examples:**
 ```assembly
-XIN  XID_SCRATCH, r2, 8     // Read 8 bytes from scratch pad to r2:r3
-XOUT XID_SCRATCH, r2, b2    // Write 'b2' bytes to scratch starting at r2
-XCHG XID_SCRATCH, r2, 8     // Exchange r2:r3 with 8 bytes from scratch
+XIN  XID_SCRATCH, r2, 8     ; Read 8 bytes from scratch pad to r2:r3
+XOUT XID_SCRATCH, r2, b2    ; Write 'b2' bytes to scratch starting at r2
+XCHG XID_SCRATCH, r2, 8     ; Exchange r2:r3 with 8 bytes from scratch
 ```
 
 ## Task Manager Operations (V4+ cores with ICSS_G only)
@@ -129,8 +134,8 @@ XCHG XID_SCRATCH, r2, 8     // Exchange r2:r3 with 8 bytes from scratch
 
 **Example:**
 ```assembly
-tsen 0                      // Disable task manager mode 0
-tsen 1                      // Enable task manager mode 1
+tsen 0                      ; Disable task manager mode 0
+tsen 1                      ; Enable task manager mode 1
 ```
 
 ## Branch/Jump Operations
@@ -160,7 +165,7 @@ tsen 1                      // Enable task manager mode 1
 | **QBBS** | `QBBS Label, Reg1, OP(31)` | Bit set | Bit OP(31) is set in Reg1 |
 | **QBBC** | `QBBC Label, Reg1, OP(31)` | Bit clear | Bit OP(31) is clear in Reg1 |
 
-### Branch Quick Reference: "To check if r1 is..."
+### Branch Quick Reference: "To check if operand is ... than r1"
 
 | To Check If... | Use This Instruction | Why |
 |----------------|---------------------|-----|
@@ -173,12 +178,12 @@ tsen 1                      // Enable task manager mode 1
 
 **Examples:**
 ```assembly
-qbgt myLabel, r2.w0, 5      // Branch if 5 > r2.w0
-qbge myLabel, r3, r4        // Branch if r4 >= r3
-qblt myLabel, r2.w0, 5      // Branch if 5 < r2.w0
-qbeq myLabel, r3, r4        // Branch if r4 == r3
-qbbs myLabel, r31, 5        // Branch if bit 5 set in r31
-qbbc myLabel, r31.b1, 5     // Branch if bit 5 clear in r31.b1
+qbgt myLabel, r2.w0, 5      ; Branch if 5 > r2.w0
+qbge myLabel, r3, r4        ; Branch if r4 >= r3
+qblt myLabel, r2.w0, 5      ; Branch if 5 < r2.w0
+qbeq myLabel, r3, r4        ; Branch if r4 == r3
+qbbs myLabel, r31, 5        ; Branch if bit 5 set in r31
+qbbc myLabel, r31.b1, 5     ; Branch if bit 5 clear in r31.b1
 ```
 
 ## Control Operations
@@ -193,16 +198,16 @@ qbbc myLabel, r31.b1, 5     // Branch if bit 5 clear in r31.b1
 
 **Examples:**
 ```assembly
-halt                        // Stop PRU for debugging
-slp 0                       // Sleep permanently
-slp 1                       // Sleep until wake event
-wbs r31, 30                 // Spin until bit 30 set in r31
-wbc r31, 5                  // Spin until bit 5 clear in r31
+halt                        ; Stop PRU for debugging
+slp 0                       ; Sleep permanently
+slp 1                       ; Sleep until wake event
+wbs r31, 30                 ; Spin until bit 30 set in r31
+wbc r31, 5                  ; Spin until bit 5 clear in r31
 
-// Hardware loop example
+; Hardware loop example. Loop setup takes one cycle
 ldi r0.b0, 10
-loop end_loop, r0.b0        // Loop 10 times
-    // loop body here
+loop end_loop, r0.b0        ; Loop 10 times
+    ; loop body here
 end_loop:
 ```
 
@@ -276,44 +281,44 @@ BIT:
 ## Common Code Patterns
 
 ```assembly
-// Set bit 5 in r1
+; Set bit 5 in r1
 set r1, r1, 5
 
-// Clear bit 3 in r2.b0
+; Clear bit 3 in r2.b0
 clr r2.b0, r2.b0, 3
 
-// Toggle bit 7 in r3
+; Toggle bit 7 in r3
 xor r3, r3, (1<<7)
 
-// Wait for event flag bit 30
+; Wait for event flag bit 30
 wbs r31, 30
 
-// Copy 8 bytes from memory to registers
-lbbo &r2, r1, 5, 8          // mem[r1+5] → r2:r3
+; Copy 8 bytes from memory to registers
+lbbo &r2, r1, 5, 8          ; mem[r1+5] → r2:r3
 
-// Store 12 bytes from registers to memory
-sbbo &r5, r10, 0, 12        // r5:r6:r7 → mem[r10]
+; Store 12 bytes from registers to memory
+sbbo &r5, r10, 0, 12        ; r5:r6:r7 → mem[r10]
 
-// Indirect register file access
-ldi r1.b0, &r5              // r1.b0 = offset of r5 (20)
-mvid r2, *r1.b0++           // r2 = r5, r1.b0 = 24
+; Indirect register file access
+ldi r1.b0, &r5              ; r1.b0 = offset of r5 (20)
+mvid r2, *r1.b0++           ; r2 = r5, r1.b0 = 24
 
-// Hardware loop (V3+)
+; Hardware loop (V3+)
 ldi r0.b0, 10
 loop end_loop, r0.b0
-    // loop body - executes 10 times
+    ; loop body - executes 10 times
 end_loop:
 
-// Enable task manager (V4+ ICSS_G only)
-tsen 0                      // Enable task manager
+; Enable task manager (V4+ ICSS_G only)
+tsen 0                      ; Enable task manager
 
-// Compare and branch
+; Compare and branch
 ldi r1, 100
-qblt continue, r1, 50       // if 50 < 100, branch to continue
-    // r1 <= 50
+qblt continue, r1, 50       ; if 50 < 100, branch to continue
+    ; r1 <= 50
     jmp done
 continue:
-    // r1 > 50
+    ; r1 > 50
 done:
 ```
 
