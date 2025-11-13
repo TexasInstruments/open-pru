@@ -6,18 +6,12 @@
 
 @REM Set version numbers for TI tools
 set HOME=C:\ti
-set CCS_VERSION=12.8.1
-set CCS_PATH_VERSION=%CCS_VERSION:.=%
-set SYSCONFIG_WEB=1.21.2.3837
-for /f "tokens=1-3 delims=." %%a in ("%SYSCONFIG_WEB%") do set SYSCONFIG_VERSION=%%a.%%b.%%c
-set TI_ARM_VERSION=4.0.1.LTS
 set DOXY_VERSION=1.8.20
 set GCC_AARCH64_VERSION=9.2-2019.12
 set GCC_ARM_VERSION=7-2017-q4-major-win32
 set GCC_ARM_VERSION_FOLDER=7-2017q4
 set PRU_VERSION=2.3.3
 set GMAKE_PATH=%HOME%\ccs%CCS_PATH_VERSION%\ccs\utils\bin\
-set MCU_SDK_VERSION=11_00_00_15
 
 @REM Check if the script is running from the home directory
 echo Checking if running from %HOME%...
@@ -135,6 +129,9 @@ set "OPENSSL=0"
 set "MCU_SDK=0"
 set "PRU_CGT=0"
 set "AM243x_SDK=0"
+set "AM261x_SDK=0"
+set "AM263x_SDK=0"
+set "AM263Px_SDK=0"
 set "AM64xx_SDK=0"
 
 @REM Parse command line arguments
@@ -146,6 +143,9 @@ if "%1" == "--node" set "NODEJS=1"
 if "%1" == "--openssl" set "OPENSSL=1"
 if "%1" == "--clone_sdk" set "MCU_SDK=1"
 if "%1" == "--am243x_sdk" set "AM243x_SDK=1"
+if "%1" == "--am261x_sdk" set "AM261x_SDK=1"
+if "%1" == "--am263x_sdk" set "AM263x_SDK=1"
+if "%1" == "--am263Px_sdk" set "AM263Px_SDK=1"
 if "%1" == "--am64xx_sdk" set "AM64xx_SDK=1"
 if "%1" == "--pru" set "PRU_CGT=1"
 if "%1" == "--all" (
