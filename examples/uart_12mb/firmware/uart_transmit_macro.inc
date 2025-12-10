@@ -1,33 +1,5 @@
+; SPDX-License-Identifier: BSD-3-Clause
 ; Copyright (C) 2025 Texas Instruments Incorporated - http://www.ti.com/
-;
-; Redistribution and use in source and binary forms, with or without
-; modification, are permitted provided that the following conditions
-; are met:
-;
-;        * Redistributions of source code must retain the above copyright
-;          notice, this list of conditions and the following disclaimer.
-;
-;        * Redistributions in binary form must reproduce the above copyright
-;          notice, this list of conditions and the following disclaimer in the
-;          documentation and/or other materials provided with the
-;          distribution.
-;
-;        * Neither the name of Texas Instruments Incorporated nor the names of
-;          its contributors may be used to endorse or promote products derived
-;          from this software without specific prior written permission.
-;
-; THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-; "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-; LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-; A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-; OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-; SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-; LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-; DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-; THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-; (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-; OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
 
 ;   filename:     uart_transmit_macro.inc
 ;   description:  repeating macros for transmit
@@ -37,24 +9,34 @@
 ; ***********************************************************************
 
 
-; CH0_SOF state comes first as it takes most cycle
-; *************************** State CH0_SOF ********************************************
-; budget is ~ 50 cycles per substate - cycle counter cc is documented on each instruction
+; SOF state comes first as it takes the most cycles
+; *************************** State SOF ********************************************
+; budget is ~ 50 cycles per sub-state. Cycle counter cc is documented on each instruction
 ; context was initialized on EOF
 
 ; convert 8 bit data to 10 bit UART symbol with 1 start bit '0' and one stop bit '1'
-; UART is LSB first which means the first bit on wire is start bit follwed by bit 0 of data bits.
+; UART is LSB first which means the first bit on wire is start bit followed by bit 0 of data bits.
 ; Data pattern is: Sa D0 D1 D2 D3 D4 D5 D6 D7 So Sa D0 D1 D2 D3 D4 (16 bit)
 ; bit count        1  2  3  4  5  6  7  8  9  10 11 12 13 14 15 16
 ;
 ; make space for start bit - bit 0 already 0 after shift operand
 
-m_tx_sof    .macro
+m_tx_sof    .macro SCRATCH_PAD STATE
+
+; load first 44 bytes from input buffer into R2-R12
+; BUF_PTR_REG was assigned in IDLE when transition to SOF
+    lbco    &r2, c24, BUF_PTR_REG.w0, 44          ; cc 13
+; TODO: Remove commented code later
+; save data to scratch pad bank 0 for next iteration of 16 bit transfer into FIFO
+    xout    SCRATCH_PAD, &r2, 44
+;                   ; cc 14
+
+; original macro START
     lsl     r0.b2, r2.b0, 1
-; convert 2nd data byte to UART sysmbol
+; convert 2nd data byte to UART symbol
 ; d7 shift down by 7
     lsr     r1.b2, r2.b0, 7
-; d0-d4 sift uo by 3
+; d0-d4 shift up by 3
     lsl     r1.b3, r2.b1, 3
 ; combine both into single byte
     or      r0.b3, r1.b2, r1.b3
@@ -63,15 +45,41 @@ m_tx_sof    .macro
 ; send to tx fifo
     mov     r30.b0, r0.b2
     mov     r30.b0, r0.b3
+; original macro end
+
+; increment buffer pointer
+    add     BUF_PTR_REG.w0, BUF_PTR_REG.w0, 44
+; change state
+    ldi     STATE, NEXT1_STATE               ; cc 23
+; TODO: Remove commented code later
+; save context for R0-R26
+    xout     SCRATCH_PAD, &r0, 120-12               ; cc 24
+
     .endm
 
-; *************************** State CHn_NEXT1 ******************************************
+; *************************** State NEXT1 ******************************************
 ; now get back to 2nd 16 bit data which is spread into r2.b1-b3
 ; Data pattern is: D5 D6 D7 So Sa D0 D1 D2 D3 D4 D5 D6 D7 So Sa D0  (16 bit)
 ; bit count        1  2  3  4  5  6  7  8  9  10 11 12 13 14 15 16
 ;
-m_tx_next1    .macro
+m_tx_next1    .macro SCRATCH_PAD STATE
 
+; load 2nd half, 44 bytes from input buffer
+; BUF_PTR_REG was assigned in IDLE when transition to SOF
+    lbco    &r2, c24, BUF_PTR_REG.w0, 44          ; cc 13
+; set XOUT to shift data by 11 registers, into scratchpad locations for R13-R23
+    ldi     r0.b0, 11
+;    xout    SCRATCH_PAD, &r0.b0, 1
+; save data to scratch pad bank 0 for next iteration of 16 bit transfer into FIFO
+    xout    SCRATCH_PAD, &r2, 44                  ; cc 14
+; set XOUT to shift data by 0 registers. Could also be moved to EOF e.g.
+    ldi      r0.b0, 0
+;   xout     SCRATCH_PAD, &r0.b0, 1
+; get r2 data and use r2 to
+; read full data set as we store full context at end of state!
+    xin     SCRATCH_PAD, &r2, FRAME_LENGTH
+
+; original macro START
 ; d5-d7 in b0, shift does 0 padding on higher bits!
     lsr     r2.b0, r2.b1, 5
 ; d0-d2 in b1, shift does 0 padding on lower bits!
@@ -92,10 +100,23 @@ m_tx_next1    .macro
 ; send to tx fifo
     mov     r30.b0, r2.b0                      ; cc
     mov     r30.b0, r2.b1                      ; cc
+; original macro end
+
+; increment buffer pointer
+    add     BUF_PTR_REG.w0, BUF_PTR_REG.w0, 44
+; change state
+    ldi     STATE, NEXTF_STATE               ; cc 23
+; set CNT16 REG values to 2
+    ldi     CNT16_ABSOLUTE_REG, 0x02
+    ldi     CNT16_RELATIVE_REG, 0x02
+; ptr at R2
+    ldi     r1.b0, 8
+; save context for R0-R26
+    xout     SCRATCH_PAD, &r0, 120-12              ; cc 24
     .endm
 
 
-; *************************** State CHn_NEXTF ******************************************
+; *************************** State NEXTF ******************************************
 
 ; in this state there are 5 different patterns depending on the 16 bit data count cnt16d
 ; cnt16d: 0 (first or every 5th)
@@ -118,22 +139,23 @@ m_tx_next1    .macro
 ; Data pattern is: D3 D4 D5 D6 D7 So Sa D0 D1 D2 D3 D4 D5 D6 D7 So (16 bit)
 ; bit count        1  2  3  4  5  6  7  8  9  10 11 12 13 14 15 16;
 
-; need a absolute count and relative count as mod 5 is not easly done
+; need a absolute count and relative count as mod 5 is not easily done
 
 ; Data pattern is: Sa D0 D1 D2 D3 D4 D5 D6 D7 So Sa D0 D1 D2 D3 D4 (16 bit)
 ; bit count        1  2  3  4  5  6  7  8  9  10 11 12 13 14 15 16
 
 ; ***********************************************************************
-m_tx_nextf1   .macro
+m_tx_nextf1   .macro SCRATCH_PAD
 
+; original macro START
 ; get data shifted down to r2
     mvid     r2, *r1.b0
 ; make space for start bit - bit 0 already 0 after shift operand
     lsl     r0.b2, r2.b0, 1
-; convert 2nd data byte to UART sysmbol
+; convert 2nd data byte to UART symbol
 ; d7 shift down by 7
     lsr     r1.b2, r2.b0, 7
-; d0-d4 sift uo by 3
+; d0-d4 shift up by 3
     lsl     r1.b3, r2.b1, 3
 ; combine both into single byte
     or      r0.b3, r1.b2, r1.b3
@@ -142,6 +164,14 @@ m_tx_nextf1   .macro
 ; send to tx fifo
     mov     r30.b0, r0.b2
     mov     r30.b0, r0.b3
+; original macro END
+
+; update counter
+    add     CNT16_ABSOLUTE_REG, CNT16_ABSOLUTE_REG, 1
+    add     CNT16_RELATIVE_REG, CNT16_RELATIVE_REG, 1
+; save context for R0-R26
+    xout     SCRATCH_PAD, &r0, 120-12
+
     .endm
 
 ; ***********************************************************************
@@ -149,7 +179,9 @@ m_tx_nextf1   .macro
 ; Data pattern is: D5 D6 D7 So Sa D0 D1 D2 D3 D4 D5 D6 D7 So Sa D0  (16 bit)
 ; bit count        1  2  3  4  5  6  7  8  9  10 11 12 13 14 15 16
 ;
-m_tx_nextf2      .macro
+m_tx_nextf2      .macro SCRATCH_PAD
+
+; original macro START
 ; get data shifted down to r2
     mvid     r2, *r1.b0
 ; d5-d7 in b1, shift does 0 padding on higher bits!
@@ -172,6 +204,14 @@ m_tx_nextf2      .macro
 ; send to tx fifo
     mov     r30.b0, r2.b0
     mov     r30.b0, r2.b1
+; original macro END
+
+; update counter
+    add     CNT16_ABSOLUTE_REG, CNT16_ABSOLUTE_REG, 1
+    add     CNT16_RELATIVE_REG, CNT16_RELATIVE_REG, 1
+; save context for R0-R26
+    xout     SCRATCH_PAD, &r0, 120-12
+
     .endm
 
 ; ***********************************************************************
@@ -179,8 +219,9 @@ m_tx_nextf2      .macro
 ; Data pattern is: D1 D2 D3 D4 D5 D6 D7 So Sa D0 D1 D2 D3 D4 D5 D6  (16 bit)
 ; bit count        1  2  3  4  5  6  7  8  9  10 11 12 13 14 15 16
 
-m_tx_nextf3   .macro
+m_tx_nextf3   .macro SCRATCH_PAD
 
+; original macro START
 ; index spans over r2 and r3
 ; shift index by 16 bit
     add      r1.b0, r1.b0, 2
@@ -199,6 +240,14 @@ m_tx_nextf3   .macro
 ; send to tx fifo
     mov     r30.b0, r2.b0
     mov     r30.b0, r2.b1
+; original macro END
+
+; update counter
+    add     CNT16_ABSOLUTE_REG, CNT16_ABSOLUTE_REG, 1
+    add     CNT16_RELATIVE_REG, CNT16_RELATIVE_REG, 1
+; save context for R0-R26
+    xout     SCRATCH_PAD, &r0, 120-12
+
     .endm
 
 ; ***********************************************************************
@@ -206,7 +255,9 @@ m_tx_nextf3   .macro
 ; Data pattern is: D7 So Sa D0 D1 D2 D3 D4 D5 D6 D7 So Sa D0 D1 D2  (16 bit)
 ; bit count        1  2  3  4  5  6  7  8  9  10 11 12 13 14 15 16;
 
-m_tx_nextf4   .macro
+m_tx_nextf4   .macro SCRATCH_PAD
+
+; original macro START
 ; shift index by 16 bit
     add      r1.b0, r1.b0, 2
 ; get data shifted down to r2
@@ -232,6 +283,14 @@ m_tx_nextf4   .macro
 ; send to tx fifo
     mov     r30.b0, r2.b0
     mov     r30.b0, r2.b1
+; original macro END
+
+ ; update counter
+    add     CNT16_ABSOLUTE_REG, CNT16_ABSOLUTE_REG, 1
+    add     CNT16_RELATIVE_REG, CNT16_RELATIVE_REG, 1
+; save context for R0-R26
+    xout    SCRATCH_PAD, &r0, 120-12
+
     .endm
 
 ; ***********************************************************************
@@ -239,8 +298,11 @@ m_tx_nextf4   .macro
 ; Data pattern is: D3 D4 D5 D6 D7 So Sa D0 D1 D2 D3 D4 D5 D6 D7 So (16 bit)
 ; bit count        1  2  3  4  5  6  7  8  9  10 11 12 13 14 15 16;
 
-m_tx_nextf5    .macro
-; get data shifted down to r2, auto increment for next block of 5
+m_tx_nextf5    .macro SCRATCH_PAD
+
+; original macro START
+; shift data into r2
+; auto increment after the register offset is used. This sets us up for the next block of 5
     mvid     r2, *r1.b0++
 ; d3-d7 in b2, shift does 0 padding on higher bits!
     lsr     r2.b0, r2.b2, 3
@@ -257,6 +319,14 @@ m_tx_nextf5    .macro
 ; send to tx fifo
     mov     r30.b0, r2.b0
     mov     r30.b0, r2.b1
+; original macro END
+
+; update counter
+    add     CNT16_ABSOLUTE_REG, CNT16_ABSOLUTE_REG, 1
+    ldi     CNT16_RELATIVE_REG, 0
+; save context for R0-R26
+    xout    SCRATCH_PAD, &r0, 120-12
+
     .endm
 
 ; ***********************************************************************
@@ -264,8 +334,11 @@ m_tx_nextf5    .macro
 ; Data pattern is: D3 D4 D5 D6 D7 So Sa D0 D1 D2 D3 D4 D5 D6 D7 So (16 bit)
 ; bit count        1  2  3  4  5  6  7  8  9  10 11 12 13 14 15 16;
 
-m_tx_eof    .macro
-; get data shifted down to r2, auto increment for next block of 5
+m_tx_eof    .macro SCRATCH_PAD STATE
+
+; original macro START
+; shift data into r2
+; auto increment after the register offset is used for next block of 5
     mvid     r2, *r1.b0++
 ; d3-d7 in b2, shift does 0 padding on higher bits!
     lsr     r2.b0, r2.b2, 3
@@ -282,4 +355,17 @@ m_tx_eof    .macro
 ; send to tx fifo
     mov     r30.b0, r2.b0
     mov     r30.b0, r2.b1
+; original macro END
+
+; end of frame resets counter and states
+; set CNT16 REG values to 2
+    ldi     CNT16_ABSOLUTE_REG, 0x02
+    ldi     CNT16_RELATIVE_REG, 0x02
+; set state to idle
+    ldi     STATE, IDLE_STATE
+; set ptr
+    ldi     r1.b0, 8
+; save context for R0-R26
+    xout    SCRATCH_PAD, &r0, 120-12
+
     .endm

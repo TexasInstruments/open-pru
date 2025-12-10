@@ -1,36 +1,11 @@
+; SPDX-License-Identifier: BSD-3-Clause
 ; Copyright (C) 2025 Texas Instruments Incorporated - http://www.ti.com/
-;
-; Redistribution and use in source and binary forms, with or without
-; modification, are permitted provided that the following conditions
-; are met:
-;
-;        * Redistributions of source code must retain the above copyright
-;          notice, this list of conditions and the following disclaimer.
-;
-;        * Redistributions in binary form must reproduce the above copyright
-;          notice, this list of conditions and the following disclaimer in the
-;          documentation and/or other materials provided with the
-;          distribution.
-;
-;        * Neither the name of Texas Instruments Incorporated nor the names of
-;          its contributors may be used to endorse or promote products derived
-;          from this software without specific prior written permission.
-;
-; THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-; "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-; LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-; A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-; OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-; SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-; LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-; DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-; THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-; (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-; OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
 
 ;   filename:     main_PRU0.h
-;   description:  PRU0 for 3 channel 12 Mbaud UART
+;   description:  PRU0 implements 4 half-duplex TX UART instances, which can run
+;                 at up to 12Mbaud. 3 UART instances implemented with the PRU
+;                 peripheral interface, 1 UART instance through the PRU
+;                 subsystem's hardware UART instance.
 ;
 ;   name:         Thomas Leyrer       date: 14.10.2025
 
@@ -48,7 +23,8 @@ SP_BANK0                        .set   10
 SP_BANK1                        .set   11
 SP_BANK2                        .set   12
 
-; frame lenght
+; max frame length is 88 Bytes
+; actual frame length is passed through the TXm_CHn_CMD register
 FRAME_LENGTH                    .set   88
 
 ; buffer pointer offset in ICSS DATA RAM 0 (c24 base address)
@@ -86,13 +62,12 @@ TXA_CH3_STATUS                  .set   1536 + 256 + 8
 TXB_CH3_STATUS                  .set   1536 + 256 + 12
 
 CMD_EMPTY                       .set   0   ; no data in this buffer
-CMD_FULL                        .set   1   ; 88 bytes are filled into buffer
 STATUS_NOT_ACTIVE               .set   0
 STATUS_ACTIVE                   .set   1   ; frame is in transmit
 STATUS_DONE                     .set   2   ; frame transmit complete
 
 PRU_FW_REV_REG                  .set   0x2000-4
-PRU_FW_REV                      .set   0x00010001  ; major (msw = 1, lsw = 1)
+PRU_FW_REV                      .set   0x00010001  ; major.minor (msw = 1, lsw = 1)
 
 ; kick values to lock and unlock registers
 KICK0_UNLOCK_VAL                .set   0x68EF3490
@@ -113,6 +88,9 @@ PAD_GPO_MODE4                   .set   0x08054004   ; receiver is active and ref
 PAD_GPO_MODE3                   .set   0x08054003   ; receiver is active and reflected on R31
 PAD_GPO_MODE1                   .set   0x08054001   ; receiver is active and reflected on R31
 
+; MODIFIED: There was a bug in the code, where PAD_GPI_PU was used as the
+; pinmux address, instead of being used as the pinmux bit values
+; suspected buggy code is commented out under the MODIFIED label
 PAD_GPI_PU                      .set   0x08224007   ; set input with pull-up to start with!
 
 ; 3 channel RX: PRU header J10
@@ -146,31 +124,20 @@ PAD_EDIO_31                     .set   0x000F41E4
 PAD_EDIO_30                     .set   0x000F41E0
 
 ; channel states
-CH0_IDLE                        .set   1
-CH0_SOF                         .set   2
-CH0_NEXT1                       .set   3
-CH0_NEXTF                       .set   4
-CH0_EOF                         .set   8
+IDLE_STATE                        .set   1
+SOF_STATE                         .set   2
+NEXT1_STATE                       .set   3
+NEXTF_STATE                       .set   4
+EOF_STATE                         .set   8
 
-CH1_IDLE                        .set   1
-CH1_SOF                         .set   2
-CH1_NEXT1                       .set   3
-CH1_NEXTF                       .set   4
-CH1_EOF                         .set   8
-
-CH2_IDLE                        .set   1
-CH2_SOF                         .set   2
-CH2_NEXT1                       .set   3
-CH2_NEXTF                       .set   4
-CH2_EOF                         .set   8
-
-CH3_IDLE                        .set   1
-CH3_SOF                         .set   2
-CH3_NEXT1                       .set   3
-CH3_NEXTF                       .set   4
-CH3_EOF                         .set   8
-
+; QUESTION: What do we mean by "permanent assignment"?
+; That this register value is NOT saved and loaded to SPAD?
 STATE_REG                       .set  r29     ; permanent assignment
+; usage:
+; STATE_REG.b0 = channel 0 state
+; STATE_REG.b1 = channel 1 state
+; STATE_REG.b2 = channel 2 state
+; STATE_REG.b3 = channel 3 state
 
 	.asg  r28.w2 ,   CH3_BUF_PTR
 	.asg  r28.w0 ,   CH3_CNT8_REG
@@ -178,8 +145,25 @@ STATE_REG                       .set  r29     ; permanent assignment
 	.asg  r27.b1 ,   CH3_PREV_BUF
 
 BUF_PTR_REG                     .set  r26     ; part of context in SP
-CNT16_REG                       .set  r25     ; part of context in SP
+
 CMD_BUFF_REG                    .set  r24     ; part of context in SP
+; r24.b0 holds TXn_CHm_CMD (value must be >=8 bits)
+; r24.b1 has previous buffer. 0 = previous buffer was A, 1 = previous buffer was B
+; r24.w2 holds address offsets of registers to read
+
+; TODO: Finish adding register assignments
+    .asg r25.b0 ,   CNT16_ABSOLUTE_REG
+    .asg r25.b1 ,   CNT16_RELATIVE_REG
+
+; TODO: since we only have 8 bits for the length of bytes coming from Linux,
+; this limits us to sending length >=255 bytes if we use TX_CMD to pass
+; the length of the buffer. When we add larger buffers, look into changing this
+;
+; Additional notes:
+; it looks like we can only divide registers into 4 bytes, 2 bytes, 1 byte, or
+; 1 bit (i,e, NOT 12 bits & 4 bits). So we could not pass lengths up to 2kB by
+; doing r24[11:0] = length, r24[15:12] = previous buffer
+
 
 ; ICSS HW UART Register
 ; UART I/O offsets , base 0x28000 is in C7
@@ -216,7 +200,7 @@ NOHOST         .set     1
 
 main:
 
-    zero        &r2, 120                     ; clear all registers
+    zero        &r0, 128                     ; clear 128 bytes (R0-R31)
 
 ; configure C28 to point to ICSS shared RAM
     ldi         r2, 0x0100
@@ -229,10 +213,16 @@ main:
 
 ; *************************** configure ICSS HW UART  *********************
 
+; TODO: Modify this code so that the HW UART frequency can be independently
+; set from the 3 channel peripheral interface frequency from the top of the
+; file (assuming that is how we want to configure? Or do we want to pass those
+; values in from the initializing core at runtime?)
+
 ; reset UART
     ldi32       r2, 0
     lbco        &r2, c7, UART_PWREMU_MGMT, 4
 
+; TODO: Does the loop command unroll? It seems like not 
 ; wait for some time
     loop        L_INIT_UART_WAIT, 100
                 nop
@@ -288,7 +278,11 @@ L_INIT_UART_WAIT:
     ldi32    r3, PADMMR_LOCK0_KICK1_REG  ; LOCK0 KICK1 register
     ldi32    r4, KICK0_UNLOCK_VAL  ; Kick 0
     ldi32    r5, KICK1_UNLOCK_VAL  ; kick 1
-    ldi      r6, KICK_LOCK_VAL     ; LOCK value
+; TODO: Is this register locked or unlocked by default in MCU+ SDK?
+; TODO: Linux should have already unlocked the PADMMR config register during Uboot
+; So for Linux, do we want to remove lock/unlock code?
+; or better to leave it in so that this code is more portable between processors & SDKs?
+;    ldi      r6, KICK_LOCK_VAL     ; LOCK value
 
     sbbo     &r4, r2, 0, 4
     sbbo     &r5, r3, 0, 4
@@ -321,18 +315,18 @@ L_INIT_UART_WAIT:
     sbbo     &r3,r2, 0, 4
 
 ; pin-mux configuration - PRU0_GP1 - output r376 mode 3
-    ldi32    r2, PAD_GPI_PU
-    ldi32    r3, PAD_GPO_MODE3
+    ldi32    r2, PAD_PRU0_GPO1
+    ldi32    r3, PAD_GPI_PU
     sbbo     &r3,r2, 0, 4
 
 ; pin-mux configuration - PRU0_GP4 - output J10.17
-    ldi32    r2, PAD_GPI_PU
-    ldi32    r3, PAD_GPO_MODE4
+    ldi32    r2, PAD_PRU0_GPO4
+    ldi32    r3, PAD_GPI_PU
     sbbo     &r3,r2, 0, 4
 
 ; pin-mux configuration - PRU0_GP7 - output J10.20
-    ldi32    r2, PAD_GPI_PU
-    ldi32    r3, PAD_GPO_MODE4
+    ldi32    r2, PAD_PRU0_GPO7
+    ldi32    r3, PAD_GPI_PU
     sbbo     &r3,r2, 0, 4
 
 ; pin-mux configuration - PRU_UART_RXD - output J2.36
@@ -361,29 +355,31 @@ L_INIT_UART_WAIT:
 
 ;******************************** start with one symbol high 8 bits *************************************
 
+    ldi32     r2, 0x00026000   ; PRU Subsystem CFG registers base address
+
 ; set shift mode for SP
-    ldi32     r2, 0x00026000   ; CFG base address SPP regsiter is offset 0x34
-    ldi32     r3, 0x00000002   ; [1] enable shit mode on PRU scratch pad
-    sbbo      &r3,r2,0x34,4
+    ldi32     r3, 0x00000002   ; [1] enable shift mode on PRU scratch pad
+    sbbo      &r3,r2,0x34,4    ; CFG base address SPP register is offset 0x34
 
 ; set mode to 3 peripheral mode on both PRUs
-    ldi32     r2, 0x00026000   ; GPCFG0 regsiter
     ldi32     r3, 0x04000001   ; mux mode to 3 peripheral mode
-    sbbo      &r3,r2,8,4
-    sbbo      &r3,r2,0x0c,4    ; GPCFG1 for PRU 1
+    sbbo      &r3,r2,8,4       ; GPCFG0_REG for PRU 0
+    sbbo      &r3,r2,0x0c,4    ; GPCFG1_REG for PRU 1
 
-; set ED0/1/2 TX fifo bit swap - UART is LSB fisrt
+; set ED0/1/2 TX fifo bit swap - UART is LSB first
     ldi32     r3, 0x80000000
     sbbo      &r3, r2, 0xe8, 4
     sbbo      &r3, r2, 0xf0, 4
     sbbo      &r3, r2, 0xf8, 4
 
 ; set TX clock source
+; TODO: in generalized code, set TX clock divider at the top of the code
 ; PRU_ICSS_PRU0_ED_TX_CFG_REG[4] PRU0_ED_TX_CLK_SEL for the TX clock source
     ldi32     r3, 0x000f0000       ; TX divider - 16 assumes 1920 MHz UART PLL
                                    ; [4] = 0 -> UART CLOCK 192 MHz
     sbbo      &r3, r2, 0xe4, 4     ;
 
+; QUESTION: was this section supposed to be commented out?
 ; re-init all tx channels
 ;    set       r31, r31, 19
 ; bit 5 indicates last bit on wire
@@ -435,13 +431,17 @@ L_INIT_UART_WAIT:
     ldi32    r3, PAD_GPO_MODE4
     sbbo     &r3,r2, 0, 4
 
+; QUESTION: should these commented lines about MASK be removed?
 ;    ldi      MASK_REG1, 0x01fe                   ; 0b0000 0001 1111 1110
 ;    ldi      MASK_REG2, 0xf800                   ; 0b1111 1000 0000 0000
     ldi      BUF_PTR_REG, 0
-    ldi      r24.b1, 1                           ; side B last start with side A
+    ldi      r24.b1, 1                           ; set "previous buffer" = B, so code starts by checking buffer A
+
+; init CH0, CH1, CH2 context
     xout     SP_BANK0, &r24, 12                  ; R24-R26
     xout     SP_BANK1, &r24, 12                  ; R24-R26
     xout     SP_BANK2, &r24, 12                  ; R24-R26
+
 ; init CH3 context
     ldi      CH3_PREV_BUF, 1
     ldi      CH3_CNT8_REG,  0
@@ -452,166 +452,160 @@ L_INIT_UART_WAIT:
 L_CH0_IDLE:
 ; select channel 0
     ldi      r30.b2, 0             ; select channel 0
-; get context channel 0
+; TODO: R0-R26 is pulled from SP_BANKx
+; for all channels, the XOUT commands that store registers to SP_BANKx use
+; R2-R28 instead. Is that a bug?
+; How to store length of bytes left to send across cycles?
+; get context for channel 0
     xin      SP_BANK0, &r0, 120-12   ; get R0-R26 context
 ; check on fifo tx level
     and      r2.b0, r31.b0, 0x1c    ; bit 2-4 has fifo level. 2 word = 8
     qblt     L_CH1_IDLE, r2.b0, 8   ; if fifo level > 2 word than go to next channel - nothing to do
 
+; TODO:
+; set channel-specific variables here?
+
 ; check on channel 0 state using permanent state register - r29
-    qbeq     L_CH0_SOF,   STATE_REG.b0, CH0_SOF
-    qbeq     L_CH0_NEXT1, STATE_REG.b0, CH0_NEXT1
-    qbeq     L_CH0_NEXTF, STATE_REG.b0, CH0_NEXTF
-    qbeq     L_CH0_EOF,   STATE_REG.b0, CH0_EOF
+    qbeq     L_CH0_SOF,   STATE_REG.b0, SOF_STATE
+    qbeq     L_CH0_NEXT1, STATE_REG.b0, NEXT1_STATE
+    qbeq     L_CH0_NEXTF, STATE_REG.b0, NEXTF_STATE
+    qbeq     L_CH0_EOF,   STATE_REG.b0, EOF_STATE
 
 ; no active frame state, add 8 bit of idle at the end of UART frame handler
     ldi      r30.b0, 0xff
 
+; TODO: make this comment more useful (looks like it is describing the section)
+; or are they serving some purpose?
+;-------------
 ; check cmd on active frame data. This should operate in ping pong mode
 ; xor of buffer_id will alternate the buffers in case both are active.
 
 ; r24.b1 has previous buffer, if 0 it was A if 1 it was B
     qbbc     L_CHECK_CH0_B_FIRST,r24.b1,0
 
-; check A buffer first as pervious buffer was B
+; check A buffer first as previous buffer was B
     ldi      r24.w2, TXA_CH0_CMD
     lbco     &r24.b0,c24, r24.w2, 1
-    qbbc     L_NO_CH0_ACTIVE_A, r24.b0 , 0
+; if TX_CMD == 0, buffer is not active. Jump to L_NO_CH0_ACTIVE_A
+    qbeq     L_NO_CH0_ACTIVE_A, r24.b0 , CMD_EMPTY
 ; found A active, set buffer ptr
     ldi      BUF_PTR_REG.w0, TX_CH0_A
-; set STATE to CH0_SOF
-    ldi      STATE_REG.b0,CH0_SOF
+; set STATE to SOF_STATE
+    ldi      STATE_REG.b0, SOF_STATE
 ; set previous channel to A
     ldi      r24.b1, 0
-; clear CMD of channel A
-    sbco     &r24.b1, c24, r24.w2, 1
+
 ; claim buffer A in STATUS
     ldi      r2, STATUS_ACTIVE
     ldi      r3.w0, TXA_CH0_STATUS
     sbco     &r2, c24, r3.w0, 1
+; clear CMD of channel A
+    ldi      r2.b0, CMD_EMPTY
+    sbco     &r2.b0, c24, r24.w2, 1
 ; goto next channel
     qba      L_EXIT_CH0_IDLE
+
 L_NO_CH0_ACTIVE_A:
     ldi      r24.w2, TXB_CH0_CMD
     lbco     &r24.b0,c24, r24.w2, 1
-    qbbc     L_EXIT_CH0_IDLE, r24.b0, 0
+; if TX_CMD == 0, buffer is not active. Jump to L_EXIT_CH0_IDLE
+    qbeq     L_EXIT_CH0_IDLE, r24.b0, CMD_EMPTY
 ; found B active, set buffer ptr
     ldi      BUF_PTR_REG.w0, TX_CH0_B
 ; set STATE to CH0
-    ldi      STATE_REG.b0,CH0_SOF
-; set previous channel to B, use r24.b0 as clear value for CMD
-    ldi      r24.w0, 0x0100
-; clear CMD of channel B
-    sbco     &r24.b0, c24, r24.w2, 1
+    ldi      STATE_REG.b0, SOF_STATE
+; set previous channel to B
+    ldi      r24.b1, 0x01
 ; claim buffer B in STATUS
     ldi      r2, STATUS_ACTIVE
     ldi      r3.w0, TXB_CH0_STATUS
     sbco     &r2, c24, r3.w0, 1
+; clear CMD of channel B
+    ldi      r2.b0, CMD_EMPTY
+    sbco     &r2.b0, c24, r24.w2, 1
+
 ; goto next channel
     qba      L_EXIT_CH0_IDLE
 
 L_CHECK_CH0_B_FIRST:
     ldi      r24.w2, TXB_CH0_CMD
     lbco     &r24.b0,c24, r24.w2, 1
-    qbbc     L_NO_CH0_ACTIVE_B, r24.b0 , 0
+; if TX_CMD == 0, buffer is not active. Jump to L_NO_CH0_ACTIVE_B
+    qbeq     L_NO_CH0_ACTIVE_B, r24.b0, CMD_EMPTY
 ; found B active, set buffer ptr
     ldi      BUF_PTR_REG.w0, TX_CH0_B
-; set STATE to CH0_SOF
-    ldi      STATE_REG.b0,CH0_SOF
+; set STATE to SOF_STATE
+    ldi      STATE_REG.b0, SOF_STATE
 ; set previous channel to B
-    ldi      r24.w0, 0x0100
-; clear CMD of channel B
-    sbco     &r24.b0, c24, r24.w2, 1
+    ldi      r24.b1, 0x01
 ; claim buffer B in STATUS
     ldi      r2, STATUS_ACTIVE
     ldi      r3.w0, TXB_CH0_STATUS
     sbco     &r2, c24, r3.w0, 1
+; clear CMD of channel B
+    ldi      r2.b0, CMD_EMPTY
+    sbco     &r2.b0, c24, r24.w2, 1
 ; goto next channel
     qba      L_EXIT_CH0_IDLE
 L_NO_CH0_ACTIVE_B:
     ldi      r24.w2, TXA_CH0_CMD
     lbco     &r24.b0,c24, r24.w2, 1
-    qbbc     L_EXIT_CH0_IDLE, r24.b0, 0
+; if TX_CMD == 0, buffer is not active. Jump to L_EXIT_CH0_IDLE
+    qbeq     L_EXIT_CH0_IDLE, r24.b0, CMD_EMPTY
 ; found A active, set buffer ptr
     ldi      BUF_PTR_REG.w0, TX_CH0_A
 ; set STATE to CH0
-    ldi      STATE_REG.b0,CH0_SOF
+    ldi      STATE_REG.b0, SOF_STATE
 ; set previous channel to A
     ldi      r24.b1, 0
-; clear CMD of channel A
-    sbco     &r24.b1, c24, r24.w2, 1
 ; claim buffer A in STATUS
     ldi      r2, STATUS_ACTIVE
     ldi      r3.w0, TXA_CH0_STATUS
     sbco     &r2, c24, r3.w0, 1
+; clear CMD of channel A
+    ldi      r2.b0, CMD_EMPTY
+    sbco     &r2.b0, c24, r24.w2, 1
 ; goto next channel
 L_EXIT_CH0_IDLE:
+; QUESTION
+; This command copies 120-12 = 108 bytes = 27 registers, starting with R2
+; So we copy R2 - R28 into the SPBANK for ALL channels (not just channel 0)
+; but at the beginning of each channel section, we copy R0-R26 back from the SPBANK
+; So which set of registers do we actually want to copy and replace?
     xout     SP_BANK0, &r2, 120-12
     qba      L_CH1_IDLE
 
 ; CH0_SOF state comes first as it takes most cycle
 ; *************************** State CH0_SOF ********************************************
 L_CH0_SOF:
-; budget is ~ 50 cycles per substate - cycle counter cc is documented on each instruction
+
+; budget is ~ 50 cycles per sub-state. Cycle counter cc is documented on each instruction
 ; context was initialized on EOF
 
-; load first 44 bytes from input buffer
-; BUF_PTR_REG was assinged in IDLE when transition to SOF
-    lbco    &r2, c24, BUF_PTR_REG.w0, 44          ; cc 13
-; save data to scratch pad bank 0 for next iteration of 16 bit transfer into FIFO
-    xout    SP_BANK0, &r2, 44
-                   ; cc 14
+; TODO: the cc comments are inconsistent. Calculate new cycle counts for all sections
+; are these comments from Thomas running this on silicon and checking the cc
+; from CCS?
 ; convert 8 bit data to 10 bit UART symbol with 1 start bit '0' and one stop bit '1'
-; UART is LSB first which means the first bit on wire is start bit follwed by bit 0 of data bits.
+; UART is LSB first which means the first bit on wire is start bit followed by bit 0 of data bits.
 ; Data pattern is: Sa D0 D1 D2 D3 D4 D5 D6 D7 So Sa D0 D1 D2 D3 D4 (16 bit)
 ; bit count        1  2  3  4  5  6  7  8  9  10 11 12 13 14 15 16
-;
-; use macro for send
-   m_tx_sof
 
-; increment buffer pointer
-    add     BUF_PTR_REG.w0, BUF_PTR_REG.w0, 44
-; change state
-    ldi     STATE_REG.b0, CH0_NEXT1
-; save context ; verify
-    xout     SP_BANK0, &r0, 120-12
+; use macro for send
+    m_tx_sof SP_BANK0 STATE_REG.b0
+
 ; go to next channel
-    qba     L_CH1_IDLE
+    qba      L_CH1_IDLE
 
 ; *************************** State CH0_NEXT1 ******************************************
 L_CH0_NEXT1:
-; load 2nd half, 44 bytes from input buffer
-; BUF_PTR_REG was assinged in IDLE when transition to SOF
-    lbco    &r2, c24, BUF_PTR_REG.w0, 44          ; cc 13
-; data is now shifted up by 11 register in SP_BANK0
-    ldi     r0.b0, 11
-;    xout    SP_BANK0, &r0.b0, 1
-; save data to scratch pad bank 0 for next iteration of 16 bit transfer into FIFO
-    xout    SP_BANK0, &r2, 44                  ; cc 14
-; move back shift into SP_BANK0 - could also be moved to EOF e.g.
-    ldi      r0.b0, 0
-;   xout     SP_BANK0, &r0.b0, 1
 
 ; now get back to 2nd 16 bit data which is spread into r2.b1-b3
 ; Data pattern is: D5 D6 D7 So Sa D0 D1 D2 D3 D4 D5 D6 D7 So Sa D0  (16 bit)
 ; bit count        1  2  3  4  5  6  7  8  9  10 11 12 13 14 15 16
-;
-; get r2 data and use r2 to
-; read full data set as we store full context at end of state!
-    xin     SP_BANK0, &r2, FRAME_LENGTH
-;   tranmit macro
-    m_tx_next1
 
-; increment buffer pointer
-    add     BUF_PTR_REG.w0, BUF_PTR_REG.w0, 44
-; change state
-    ldi     STATE_REG.b0, CH0_NEXTF               ; cc 23
-; set CNT16_REG to 2 higher higher byte is relative count
-    ldi     CNT16_REG.w0, 0x0202
-; ptr at R2
-    ldi     r1.b0, 8
-; save context ; verify
-    xout     SP_BANK0, &r0, 120-12              ; cc 24
+;   transmit macro
+    m_tx_next1 SP_BANK0 STATE_REG.b0
+
 ; go to next channel
     qba     L_CH1_IDLE                         ; cc 25
 
@@ -639,29 +633,25 @@ L_CH0_NEXTF:
 ; Data pattern is: D3 D4 D5 D6 D7 So Sa D0 D1 D2 D3 D4 D5 D6 D7 So (16 bit)
 ; bit count        1  2  3  4  5  6  7  8  9  10 11 12 13 14 15 16;
 
-; need a absolute count and relative count as mod 5 is not easly done
+; need a absolute count and relative count as mod 5 is not easily done
 
-    qbeq     L_CH0_NEXTF1, CNT16_REG.b1, 0
-    qbeq     L_CH0_NEXTF2, CNT16_REG.b1, 1
-    qbeq     L_CH0_NEXTF3, CNT16_REG.b1, 2
-    qbeq     L_CH0_NEXTF4, CNT16_REG.b1, 3
-    qbeq     L_CH0_NEXTF5, CNT16_REG.b1, 4
+    qbeq     L_CH0_NEXTF1, CNT16_RELATIVE_REG, 0
+    qbeq     L_CH0_NEXTF2, CNT16_RELATIVE_REG, 1
+    qbeq     L_CH0_NEXTF3, CNT16_RELATIVE_REG, 2
+    qbeq     L_CH0_NEXTF4, CNT16_RELATIVE_REG, 3
+    qbeq     L_CH0_NEXTF5, CNT16_RELATIVE_REG, 4
 
+; TODO: Add error handling?
+; should never reach this point
     halt
-
 
 L_CH0_NEXTF1:
 ; Data pattern is: Sa D0 D1 D2 D3 D4 D5 D6 D7 So Sa D0 D1 D2 D3 D4 (16 bit)
 ; bit count        1  2  3  4  5  6  7  8  9  10 11 12 13 14 15 16
 
 ; transmit macro
-    m_tx_nextf1
+    m_tx_nextf1 SP_BANK0
 
-; update counter
-    add     CNT16_REG.b0, CNT16_REG.b0, 1
-    add     CNT16_REG.b1, CNT16_REG.b1, 1
-; save context
-    xout     SP_BANK0, &r0, 120-12
 ; go to next channel
     qba     L_CH1_IDLE
 
@@ -669,16 +659,10 @@ L_CH0_NEXTF2:
 ; 2nd 16 bit data which is spread into r2.b1-b3
 ; Data pattern is: D5 D6 D7 So Sa D0 D1 D2 D3 D4 D5 D6 D7 So Sa D0  (16 bit)
 ; bit count        1  2  3  4  5  6  7  8  9  10 11 12 13 14 15 16
-;
 
 ; transmit macro
-    m_tx_nextf2
+    m_tx_nextf2 SP_BANK0
 
-; update counter
-    add     CNT16_REG.b0, CNT16_REG.b0, 1
-    add     CNT16_REG.b1, CNT16_REG.b1, 1
-; save context ; verify
-    xout     SP_BANK0, &r0, 120-12
 ; go to next channel
     qba     L_CH1_IDLE
 
@@ -688,16 +672,10 @@ L_CH0_NEXTF3:
 ; bit count        1  2  3  4  5  6  7  8  9  10 11 12 13 14 15 16
 
 ; transmit macro
-    m_tx_nextf3
+    m_tx_nextf3 SP_BANK0
 
-; update counter
-    add     CNT16_REG.b0, CNT16_REG.b0, 1
-    add     CNT16_REG.b1, CNT16_REG.b1, 1
-; save context ; verify
-    xout     SP_BANK0, &r0, 120-12
 ; go to next channel
     qba     L_CH1_IDLE
-
 
 L_CH0_NEXTF4:
 ; cnt16d: 3 (fourth or every 5th + 3)
@@ -705,16 +683,11 @@ L_CH0_NEXTF4:
 ; bit count        1  2  3  4  5  6  7  8  9  10 11 12 13 14 15 16;
 
 ; transmit macro
-    m_tx_nextf4
+    m_tx_nextf4 SP_BANK0
 
- ; update counter
-    add     CNT16_REG.b0, CNT16_REG.b0, 1
-    add     CNT16_REG.b1, CNT16_REG.b1, 1
-; save context ; verify
-    xout    SP_BANK0, &r0, 120-12
 ; go to next channel
-    qbne    L_SKIP_EOF_CHECK, CNT16_REG.b0, 54
-    ldi     STATE_REG.b0, CH0_EOF
+    qbne    L_SKIP_EOF_CHECK, CNT16_ABSOLUTE_REG, 54
+    ldi     STATE_REG.b0, EOF_STATE
 L_SKIP_EOF_CHECK:
     qba     L_CH1_IDLE
 
@@ -723,33 +696,21 @@ L_CH0_NEXTF5:
 ; Data pattern is: D3 D4 D5 D6 D7 So Sa D0 D1 D2 D3 D4 D5 D6 D7 So (16 bit)
 ; bit count        1  2  3  4  5  6  7  8  9  10 11 12 13 14 15 16;
 
-    m_tx_nextf5
+; transmit macro
+    m_tx_nextf5 SP_BANK0
 
- ; update counter
-    add     CNT16_REG.b0, CNT16_REG.b0, 1
-    ldi     CNT16_REG.b1, 0
-; save context ; verify
-    xout    SP_BANK0, &r0, 120-12
 ; go to next channel
     qba     L_CH1_IDLE
 
+; *************************** State CH0_EOF ******************************************
 L_CH0_EOF:
 ; cnt16d: 4 (fifth or every 5th + 2)
 ; Data pattern is: D3 D4 D5 D6 D7 So Sa D0 D1 D2 D3 D4 D5 D6 D7 So (16 bit)
 ; bit count        1  2  3  4  5  6  7  8  9  10 11 12 13 14 15 16;
 
 ; transmit macro
-    m_tx_eof
+    m_tx_eof SP_BANK0 STATE_REG.b0
 
- ; end of frame resets counter and states
- ; set CNT16_REG to 2 higher higher byte is relative count
-    ldi     CNT16_REG.w0, 0x0202
- ; set state to idel
-    ldi     STATE_REG.b0, CH0_IDLE
-; set ptr
-    ldi     r1.b0, 8
-; save context
-    xout    SP_BANK0, &r0, 120-12
 ; go to next channel
 ; set channel status transfer complete
     qbbs     L_CH0_TXB_STATUS_UPDATE, r24.b1, 0
@@ -772,17 +733,17 @@ L_CH1_IDLE:
 ; select channel 1
     ldi       r30.b2, 1         ; select channel 1
 
-; get context channel 0
+; get context channel 1
     xin      SP_BANK1, &r0, 120-12   ; get R0-R26 context
 ; check on fifo tx level
     and      r2.b0, r31.b1, 0x1c    ; bit 2-4 has fifo level. 2 word = 8
     qblt     L_CH2_IDLE, r2.b0, 8   ; if fifo level > 2 word than go to next channel - nothing to do
 
-; check on channel 0 state using permanent state register - r29
-    qbeq     L_CH1_SOF,   STATE_REG.b1, CH1_SOF
-    qbeq     L_CH1_NEXT1, STATE_REG.b1, CH1_NEXT1
-    qbeq     L_CH1_NEXTF, STATE_REG.b1, CH1_NEXTF
-    qbeq     L_CH1_EOF,   STATE_REG.b1, CH1_EOF
+; check on channel 1 state using permanent state register - r29
+    qbeq     L_CH1_SOF,   STATE_REG.b1, SOF_STATE
+    qbeq     L_CH1_NEXT1, STATE_REG.b1, NEXT1_STATE
+    qbeq     L_CH1_NEXTF, STATE_REG.b1, NEXTF_STATE
+    qbeq     L_CH1_EOF,   STATE_REG.b1, EOF_STATE
 
 ; no active frame state, add 8 bit of idle at the end of UART frame handler
     ldi      r30.b0, 0xff
@@ -793,283 +754,176 @@ L_CH1_IDLE:
 ; r24.b1 has previous buffer, if 0 it was A if 1 it was B
     qbbc     L_CHECK_CH1_B_FIRST,r24.b1,0
 
-; check A buffer first as pervious buffer was B
+; check A buffer first as previous buffer was B
     ldi      r24.w2, TXA_CH1_CMD
     lbco     &r24.b0,c24, r24.w2, 1
-    qbbc     L_NO_CH1_ACTIVE_A, r24.b0 , 0
+; if TX_CMD == 0, buffer is not active. Jump to L_NO_CH1_ACTIVE_A
+    qbeq     L_NO_CH1_ACTIVE_A, r24.b0 , CMD_EMPTY
 ; found A active, set buffer ptr
     ldi      BUF_PTR_REG.w0, TX_CH1_A
-; set STATE to CH1_SOF
-    ldi      STATE_REG.b1,CH1_SOF
+; set STATE to SOF_STATE
+    ldi      STATE_REG.b1, SOF_STATE
 ; set previous channel to A
     ldi      r24.b1, 0
-; clear CMD of channel A
-    sbco     &r24.b1, c24, r24.w2, 1
 ; claim buffer A in STATUS
     ldi      r2, STATUS_ACTIVE
     ldi      r3.w0, TXA_CH1_STATUS
     sbco     &r2, c24, r3.w0, 1
+; clear CMD of channel A
+    ldi      r2, CMD_EMPTY
+    sbco     &r2.b0, c24, r24.w2, 1
 ; goto next channel
     qba      L_EXIT_CH1_IDLE
 L_NO_CH1_ACTIVE_A:
     ldi      r24.w2, TXB_CH1_CMD
     lbco     &r24.b0,c24, r24.w2, 1
-    qbbc     L_EXIT_CH1_IDLE, r24.b0, 0
+; if TX_CMD == 0, buffer is not active. Jump to L_EXIT_CH1_IDLE
+    qbeq     L_EXIT_CH1_IDLE, r24.b0, CMD_EMPTY
 ; found B active, set buffer ptr
     ldi      BUF_PTR_REG.w0, TX_CH1_B
 ; set STATE to CH0
-    ldi      STATE_REG.b1,CH1_SOF
+    ldi      STATE_REG.b1, SOF_STATE
 ; set previous channel to B
-    ldi      r24.w0, 0x0100
-; clear CMD of channel B
-    sbco     &r24.b0, c24, r24.w2, 1
+    ldi      r24.b1, 0x01
 ; claim buffer B in STATUS
     ldi      r2, STATUS_ACTIVE
     ldi      r3.w0, TXB_CH1_STATUS
     sbco     &r2, c24, r3.w0, 1
+; clear CMD of channel B
+    ldi      r2, CMD_EMPTY
+    sbco     &r2.b0, c24, r24.w2, 1
 ; goto next channel
     qba      L_EXIT_CH1_IDLE
 
 L_CHECK_CH1_B_FIRST:
     ldi      r24.w2, TXB_CH1_CMD
     lbco     &r24.b0,c24, r24.w2, 1
-    qbbc     L_NO_CH1_ACTIVE_B, r24.b0 , 0
+; if TX_CMD == 0, buffer is not active. Jump to L_NO_CH1_ACTIVE_B
+    qbeq     L_NO_CH1_ACTIVE_B, r24.b0, CMD_EMPTY
 ; found B active, set buffer ptr
     ldi      BUF_PTR_REG.w0, TX_CH1_B
-; set STATE to CH1_SOF
-    ldi      STATE_REG.b1,CH1_SOF
+; set STATE to SOF_STATE
+    ldi      STATE_REG.b1, SOF_STATE
 ; set previous channel to B
-    ldi      r24.w0, 0x0100
-; clear CMD of channel B
-    sbco     &r24.b0, c24, r24.w2, 1
+    ldi      r24.b1, 0x01
 ; claim buffer B in STATUS
     ldi      r2, STATUS_ACTIVE
     ldi      r3.w0, TXB_CH1_STATUS
     sbco     &r2, c24, r3.w0, 1
+; clear CMD of channel B
+    ldi      r2, CMD_EMPTY
+    sbco     &r2.b0, c24, r24.w2, 1
 ; goto next channel
     qba      L_EXIT_CH1_IDLE
 L_NO_CH1_ACTIVE_B:
     ldi      r24.w2, TXA_CH1_CMD
     lbco     &r24.b0,c24, r24.w2, 1
-    qbbc     L_EXIT_CH1_IDLE, r24.b0, 0
+; if TX_CMD == 0, buffer is not active. Jump to L_EXIT_CH1_IDLE
+    qbeq     L_EXIT_CH1_IDLE, r24.b0 , CMD_EMPTY
 ; found A active, set buffer ptr
     ldi      BUF_PTR_REG.w0, TX_CH1_A
 ; set STATE to CH1
-    ldi      STATE_REG.b1,CH1_SOF
+    ldi      STATE_REG.b1, SOF_STATE
 ; set previous channel to A
     ldi      r24.b1, 0
-; clear CMD of channel A
-    sbco     &r24.b1, c24, r24.w2, 1
 ; claim buffer B in STATUS
     ldi      r2, STATUS_ACTIVE
     ldi      r3.w0, TXA_CH1_STATUS
     sbco     &r2, c24, r3.w0, 1
+; clear CMD of channel A
+    ldi      r2, CMD_EMPTY
+    sbco     &r2.b0, c24, r24.w2, 1
 ; goto next channel
 L_EXIT_CH1_IDLE:
     xout     SP_BANK1, &r2, 120-12
     qba      L_CH2_IDLE
 
-; CH0_SOF state comes first as it takes most cycle
-; *************************** State CH0_SOF ********************************************
+; CH1_SOF state comes first as it takes most cycle
+; *************************** State CH1_SOF ********************************************
 L_CH1_SOF:
-; budget is ~ 50 cycles per substate - cycle counter cc is documented on each instruction
-; context was initialized on EOF
 
-; load first 44 bytes from input buffer
-; BUF_PTR_REG was assinged in IDLE when transition to SOF
-    lbco    &r2, c24, BUF_PTR_REG.w0, 44          ; cc 13
-; save data to scratch pad bank 0 for next iteration of 16 bit transfer into FIFO
-    xout    SP_BANK1, &r2, 44
-                   ; cc 14
-; convert 8 bit data to 10 bit UART symbol with 1 start bit '0' and one stop bit '1'
-; UART is LSB first which means the first bit on wire is start bit follwed by bit 0 of data bits.
-; Data pattern is: Sa D0 D1 D2 D3 D4 D5 D6 D7 So Sa D0 D1 D2 D3 D4 (16 bit)
-; bit count        1  2  3  4  5  6  7  8  9  10 11 12 13 14 15 16
-;
+; See data pattern / bit count in CH0 version of state, or in the macro
+
 ; use macro for send
-   m_tx_sof
+   m_tx_sof SP_BANK1 STATE_REG.b1
 
-; increment buffer pointer
-    add     BUF_PTR_REG.w0, BUF_PTR_REG.w0, 44
-; change state
-    ldi     STATE_REG.b1, CH1_NEXT1               ; cc 23
-; save context ; verify
-    xout     SP_BANK1, &r0, 120-12               ; cc 24
 ; go to next channel
     qba     L_CH2_IDLE                         ; cc 25
 
-; *************************** State CH0_NEXT1 ******************************************
+; *************************** State CH1_NEXT ******************************************
 L_CH1_NEXT1:
-; load 2nd half, 44 bytes from input buffer
-; BUF_PTR_REG was assinged in IDLE when transition to SOF
-    lbco    &r2, c24, BUF_PTR_REG.w0, 44          ; cc 13
-; data is now shifted up by 11 register in SP_BANK0
-    ldi     r0.b0, 11
-;    xout    SP_BANK1, &r0.b0, 1
-; save data to scratch pad bank 0 for next iteration of 16 bit transfer into FIFO
-    xout    SP_BANK1, &r2, 44                  ; cc 14
-; move back shift into SP_BANK1 - could also be moved to EOF e.g.
-    ldi      r0.b0, 0
-;   xout     SP_BANK1, &r0.b0, 1
 
-; now get back to 2nd 16 bit data which is spread into r2.b1-b3
-; Data pattern is: D5 D6 D7 So Sa D0 D1 D2 D3 D4 D5 D6 D7 So Sa D0  (16 bit)
-; bit count        1  2  3  4  5  6  7  8  9  10 11 12 13 14 15 16
-;
-; get r2 data and use r2 to
-; read full data set as we store full context at end of state!
-    xin     SP_BANK1, &r2, FRAME_LENGTH
-;   tranmit macro
-    m_tx_next1
+; See data pattern / bit count in CH0 version of state, or in the macro
 
-; increment buffer pointer
-    add     BUF_PTR_REG.w0, BUF_PTR_REG.w0, 44
-; change state
-    ldi     STATE_REG.b1, CH1_NEXTF               ; cc 23
-; set CNT16_REG to 2 higher higher byte is relative count
-    ldi     CNT16_REG.w0, 0x0202
-; ptr at R2
-    ldi     r1.b0, 8
-; save context ; verify
-    xout     SP_BANK1, &r0, 120-12              ; cc 24
+;   transmit macro
+    m_tx_next1 SP_BANK1 STATE_REG.b1
+
 ; go to next channel
     qba     L_CH2_IDLE                         ; cc 25
 
-; *************************** State CH0_NEXTF ******************************************
+; *************************** State CH1_NEXTF ******************************************
 L_CH1_NEXTF:
 
-; in this state there are 5 different patterns depending on the 16 bit data count cnt16d
-; cnt16d: 0 (first or every 5th)
-; Data pattern is: Sa D0 D1 D2 D3 D4 D5 D6 D7 So Sa D0 D1 D2 D3 D4 (16 bit)
-; bit count        1  2  3  4  5  6  7  8  9  10 11 12 13 14 15 16
-;
-; cnt16d: 1 (second or every 5th +1)
-; Data pattern is: D5 D6 D7 So Sa D0 D1 D2 D3 D4 D5 D6 D7 So Sa D0  (16 bit)
-; bit count        1  2  3  4  5  6  7  8  9  10 11 12 13 14 15 16
-
-; cnt16d: 2 (third or every 5th + 2)
-; Data pattern is: D1 D2 D3 D4 D5 D6 D7 So Sa D0 D1 D2 D3 D4 D5 D6  (16 bit)
-; bit count        1  2  3  4  5  6  7  8  9  10 11 12 13 14 15 16
-
-; cnt16d: 3 (fourth or every 5th + 3)
-; Data pattern is: D7 So Sa D0 D1 D2 D3 D4 D5 D6 D7 So Sa D0 D1 D2  (16 bit)
-; bit count        1  2  3  4  5  6  7  8  9  10 11 12 13 14 15 16;
-
-; cnt16d: 4 (fifth or every 5th + 2)
-; Data pattern is: D3 D4 D5 D6 D7 So Sa D0 D1 D2 D3 D4 D5 D6 D7 So (16 bit)
-; bit count        1  2  3  4  5  6  7  8  9  10 11 12 13 14 15 16;
+; See data pattern / bit count in CH0 version of state, or in the macro
 
 ; need a absolute count and relative count as mod 5 is not easly done
 
-    qbeq     L_CH1_NEXTF1, CNT16_REG.b1, 0
-    qbeq     L_CH1_NEXTF2, CNT16_REG.b1, 1
-    qbeq     L_CH1_NEXTF3, CNT16_REG.b1, 2
-    qbeq     L_CH1_NEXTF4, CNT16_REG.b1, 3
-    qbeq     L_CH1_NEXTF5, CNT16_REG.b1, 4
+    qbeq     L_CH1_NEXTF1, CNT16_RELATIVE_REG, 0
+    qbeq     L_CH1_NEXTF2, CNT16_RELATIVE_REG, 1
+    qbeq     L_CH1_NEXTF3, CNT16_RELATIVE_REG, 2
+    qbeq     L_CH1_NEXTF4, CNT16_RELATIVE_REG, 3
+    qbeq     L_CH1_NEXTF5, CNT16_RELATIVE_REG, 4
 
+; TODO: Add error handling?
+; should never reach this point
     halt
 
-
 L_CH1_NEXTF1:
-; Data pattern is: Sa D0 D1 D2 D3 D4 D5 D6 D7 So Sa D0 D1 D2 D3 D4 (16 bit)
-; bit count        1  2  3  4  5  6  7  8  9  10 11 12 13 14 15 16
-
 ; transmit macro
-    m_tx_nextf1
+    m_tx_nextf1 SP_BANK1
 
-; update counter
-    add     CNT16_REG.b0, CNT16_REG.b0, 1
-    add     CNT16_REG.b1, CNT16_REG.b1, 1
-; save context
-    xout     SP_BANK1, &r0, 120-12
 ; go to next channel
     qba     L_CH2_IDLE
 
 L_CH1_NEXTF2:
-; 2nd 16 bit data which is spread into r2.b1-b3
-; Data pattern is: D5 D6 D7 So Sa D0 D1 D2 D3 D4 D5 D6 D7 So Sa D0  (16 bit)
-; bit count        1  2  3  4  5  6  7  8  9  10 11 12 13 14 15 16
-;
-
 ; transmit macro
-    m_tx_nextf2
+    m_tx_nextf2 SP_BANK1
 
-; update counter
-    add     CNT16_REG.b0, CNT16_REG.b0, 1
-    add     CNT16_REG.b1, CNT16_REG.b1, 1
-; save context ; verify
-    xout     SP_BANK1, &r0, 120-12
 ; go to next channel
     qba     L_CH2_IDLE
 
 L_CH1_NEXTF3:
-; cnt16d: 2 (third or every 5th + 2)
-; Data pattern is: D1 D2 D3 D4 D5 D6 D7 So Sa D0 D1 D2 D3 D4 D5 D6  (16 bit)
-; bit count        1  2  3  4  5  6  7  8  9  10 11 12 13 14 15 16
-
 ; transmit macro
-    m_tx_nextf3
+    m_tx_nextf3 SP_BANK1
 
-; update counter
-    add     CNT16_REG.b0, CNT16_REG.b0, 1
-    add     CNT16_REG.b1, CNT16_REG.b1, 1
-; save context ; verify
-    xout     SP_BANK1, &r0, 120-12
 ; go to next channel
     qba     L_CH2_IDLE
 
-
 L_CH1_NEXTF4:
-; cnt16d: 3 (fourth or every 5th + 3)
-; Data pattern is: D7 So Sa D0 D1 D2 D3 D4 D5 D6 D7 So Sa D0 D1 D2  (16 bit)
-; bit count        1  2  3  4  5  6  7  8  9  10 11 12 13 14 15 16;
-
 ; transmit macro
-    m_tx_nextf4
+    m_tx_nextf4 SP_BANK1
 
- ; update counter
-    add     CNT16_REG.b0, CNT16_REG.b0, 1
-    add     CNT16_REG.b1, CNT16_REG.b1, 1
-; save context ; verify
-    xout    SP_BANK1, &r0, 120-12
 ; go to next channel
-    qbne    L_SKIP_CH1_EOF_CHECK, CNT16_REG.b0, 54
-    ldi     STATE_REG.b1, CH1_EOF
+    qbne    L_SKIP_CH1_EOF_CHECK, CNT16_ABSOLUTE_REG, 54
+    ldi     STATE_REG.b1, EOF_STATE
 L_SKIP_CH1_EOF_CHECK:
     qba     L_CH2_IDLE
 
 L_CH1_NEXTF5:
-; cnt16d: 4 (fifth or every 5th + 2)
-; Data pattern is: D3 D4 D5 D6 D7 So Sa D0 D1 D2 D3 D4 D5 D6 D7 So (16 bit)
-; bit count        1  2  3  4  5  6  7  8  9  10 11 12 13 14 15 16;
+; transmit macro
+    m_tx_nextf5 SP_BANK1
 
-    m_tx_nextf5
-
- ; update counter
-    add     CNT16_REG.b0, CNT16_REG.b0, 1
-    ldi     CNT16_REG.b1, 0
-; save context ; verify
-    xout    SP_BANK1, &r0, 120-12
 ; go to next channel
     qba     L_CH2_IDLE
 
+; *************************** State CH1_EOF ******************************************
 L_CH1_EOF:
-; cnt16d: 4 (fifth or every 5th + 2)
-; Data pattern is: D3 D4 D5 D6 D7 So Sa D0 D1 D2 D3 D4 D5 D6 D7 So (16 bit)
-; bit count        1  2  3  4  5  6  7  8  9  10 11 12 13 14 15 16;
+
+; See data pattern / bit count in CH0 version of state, or in the macro
 
 ; transmit macro
-    m_tx_eof
+    m_tx_eof SP_BANK1 STATE_REG.b1
 
- ; end of frame resets counter and states
- ; set CNT16_REG to 2 higher higher byte is relative count
-    ldi     CNT16_REG.w0, 0x0202
- ; set state to idle
-    ldi     STATE_REG.b1, CH1_IDLE
-; set ptr
-    ldi     r1.b0, 8
-; save context
-    xout    SP_BANK1, &r0, 120-12
 ; go to next channel
 ; set channel status transfer complete
     qbbs     L_CH1_TXB_STATUS_UPDATE, r24.b1, 0
@@ -1092,17 +946,17 @@ L_CH2_IDLE:
 ; select channel 2
     ldi       r30.b2, 2         ; select channel 1
 
-; get context channel 0
+; get context channel 2
     xin      SP_BANK2, &r0, 120-12   ; get R0-R26 context
 ; check on fifo tx level
     and      r2.b0, r31.b2, 0x1c    ; bit 2-4 has fifo level. 2 word = 8
     qblt     L_CH3_IDLE, r2.b0, 8   ; if fifo level > 2 word than go to next channel - nothing to do
 
-; check on channel 0 state using permanent state register - r29
-    qbeq     L_CH2_SOF,   STATE_REG.b2, CH2_SOF
-    qbeq     L_CH2_NEXT1, STATE_REG.b2, CH2_NEXT1
-    qbeq     L_CH2_NEXTF, STATE_REG.b2, CH2_NEXTF
-    qbeq     L_CH2_EOF,   STATE_REG.b2, CH2_EOF
+; check on channel 2 state using permanent state register - r29
+    qbeq     L_CH2_SOF,   STATE_REG.b2, SOF_STATE
+    qbeq     L_CH2_NEXT1, STATE_REG.b2, NEXT1_STATE
+    qbeq     L_CH2_NEXTF, STATE_REG.b2, NEXTF_STATE
+    qbeq     L_CH2_EOF,   STATE_REG.b2, EOF_STATE
 
 ; no active frame state, add 8 bit of idle at the end of UART frame handler
     ldi      r30.b0, 0xff
@@ -1113,283 +967,176 @@ L_CH2_IDLE:
 ; r24.b1 has previous buffer, if 0 it was A if 1 it was B
     qbbc     L_CHECK_CH2_B_FIRST,r24.b1,0
 
-; check A buffer first as pervious buffer was B
+; check A buffer first as previous buffer was B
     ldi      r24.w2, TXA_CH2_CMD
     lbco     &r24.b0,c24, r24.w2, 1
-    qbbc     L_NO_CH2_ACTIVE_A, r24.b0 , 0
+; if TX_CMD == 0, buffer is not active. Jump to L_NO_CH2_ACTIVE_A
+    qbeq     L_NO_CH2_ACTIVE_A, r24.b0 , CMD_EMPTY
 ; found A active, set buffer ptr
     ldi      BUF_PTR_REG.w0, TX_CH2_A
-; set STATE to CH2_SOF
-    ldi      STATE_REG.b2,CH2_SOF
+; set STATE to SOF_STATE
+    ldi      STATE_REG.b2, SOF_STATE
 ; set previous channel to A
     ldi      r24.b1, 0
-; clear CMD of channel A
-    sbco     &r24.b1, c24, r24.w2, 1
 ; claim buffer A in STATUS
     ldi      r2, STATUS_ACTIVE
     ldi      r3.w0, TXA_CH2_STATUS
     sbco     &r2, c24, r3.w0, 1
+; clear CMD of channel A
+    ldi      r2.b0, CMD_EMPTY
+    sbco     &r2.b0, c24, r24.w2, 1
 ; goto next channel
     qba      L_EXIT_CH2_IDLE
 L_NO_CH2_ACTIVE_A:
     ldi      r24.w2, TXB_CH2_CMD
     lbco     &r24.b0,c24, r24.w2, 1
-    qbbc     L_EXIT_CH2_IDLE, r24.b0, 0
+; if TX_CMD == 0, buffer is not active. Jump to L_EXIT_CH2_IDLE
+    qbeq     L_EXIT_CH2_IDLE, r24.b0, CMD_EMPTY
 ; found B active, set buffer ptr
     ldi      BUF_PTR_REG.w0, TX_CH2_B
 ; set STATE to CH2
-    ldi      STATE_REG.b2,CH2_SOF
+    ldi      STATE_REG.b2, SOF_STATE
 ; set previous channel to B
-    ldi      r24.w0, 0x0100
-; clear CMD of channel B
-    sbco     &r24.b0, c24, r24.w2, 1
+    ldi      r24.b1, 0x01
 ; claim buffer B in STATUS
     ldi      r2, STATUS_ACTIVE
     ldi      r3.w0, TXB_CH2_STATUS
     sbco     &r2, c24, r3.w0, 1
+; clear CMD of channel B
+    ldi      r2.b0, CMD_EMPTY
+    sbco     &r2.b0, c24, r24.w2, 1
 ; goto next channel
     qba      L_EXIT_CH2_IDLE
 
 L_CHECK_CH2_B_FIRST:
     ldi      r24.w2, TXB_CH2_CMD
     lbco     &r24.b0,c24, r24.w2, 1
-    qbbc     L_NO_CH2_ACTIVE_B, r24.b0 , 0
+; if TX_CMD == 0, buffer is not active. Jump to L_NO_CH2_ACTIVE_B
+    qbeq     L_NO_CH2_ACTIVE_B, r24.b0, CMD_EMPTY
 ; found B active, set buffer ptr
     ldi      BUF_PTR_REG.w0, TX_CH2_B
-; set STATE to CH2_SOF
-    ldi      STATE_REG.b2,CH2_SOF
+; set STATE to SOF_STATE
+    ldi      STATE_REG.b2, SOF_STATE
 ; set previous channel to B
-    ldi      r24.w0, 0x0100
-; clear CMD of channel B
-    sbco     &r24.b0, c24, r24.w2, 1
+    ldi      r24.b1, 0x01
 ; claim buffer B in STATUS
     ldi      r2, STATUS_ACTIVE
     ldi      r3.w0, TXB_CH2_STATUS
     sbco     &r2, c24, r3.w0, 1
+; clear CMD of channel B
+    ldi      r2.b0, CMD_EMPTY
+    sbco     &r2.b0, c24, r24.w2, 1
 ; goto next channel
     qba      L_EXIT_CH2_IDLE
 L_NO_CH2_ACTIVE_B:
     ldi      r24.w2, TXA_CH2_CMD
     lbco     &r24.b0,c24, r24.w2, 1
-    qbbc     L_EXIT_CH2_IDLE, r24.b0, 0
+; if TX_CMD == 0, buffer is not active. Jump to L_EXIT_CH2_IDLE
+    qbeq     L_EXIT_CH2_IDLE, r24.b0, CMD_EMPTY
 ; found A active, set buffer ptr
     ldi      BUF_PTR_REG.w0, TX_CH2_A
 ; set STATE to CH2
-    ldi      STATE_REG.b2,CH2_SOF
+    ldi      STATE_REG.b2, SOF_STATE
 ; set previous channel to A
     ldi      r24.b1, 0
-; clear CMD of channel A
-    sbco     &r24.b1, c24, r24.w2, 1
 ; claim buffer A in STATUS
     ldi      r2, STATUS_ACTIVE
     ldi      r3.w0, TXA_CH2_STATUS
     sbco     &r2, c24, r3.w0, 1
+; clear CMD of channel A
+    ldi      r2.b0, CMD_EMPTY
+    sbco     &r2.b0, c24, r24.w2, 1
 ; goto next channel
 L_EXIT_CH2_IDLE:
     xout     SP_BANK2, &r2, 120-12
     qba      L_CH3_IDLE
 
-; CH0_SOF state comes first as it takes most cycle
-; *************************** State CH0_SOF ********************************************
+; CH2_SOF state comes first as it takes most cycle
+; *************************** State CH2_SOF ********************************************
 L_CH2_SOF:
-; budget is ~ 50 cycles per substate - cycle counter cc is documented on each instruction
-; context was initialized on EOF
 
-; load first 44 bytes from input buffer
-; BUF_PTR_REG was assinged in IDLE when transition to SOF
-    lbco    &r2, c24, BUF_PTR_REG.w0, 44          ; cc 13
-; save data to scratch pad bank 0 for next iteration of 16 bit transfer into FIFO
-    xout    SP_BANK2, &r2, 44
-                   ; cc 14
-; convert 8 bit data to 10 bit UART symbol with 1 start bit '0' and one stop bit '1'
-; UART is LSB first which means the first bit on wire is start bit follwed by bit 0 of data bits.
-; Data pattern is: Sa D0 D1 D2 D3 D4 D5 D6 D7 So Sa D0 D1 D2 D3 D4 (16 bit)
-; bit count        1  2  3  4  5  6  7  8  9  10 11 12 13 14 15 16
-;
+; See data pattern / bit count in CH0 version of state, or in the macro
+
 ; use macro for send
-   m_tx_sof
+   m_tx_sof SP_BANK2 STATE_REG.b2
 
-; increment buffer pointer
-    add     BUF_PTR_REG.w0, BUF_PTR_REG.w0, 44
-; change state
-    ldi     STATE_REG.b2, CH2_NEXT1               ; cc 23
-; save context ; verify
-    xout     SP_BANK2, &r0, 120-12               ; cc 24
 ; go to next channel
     qba     L_CH3_IDLE                         ; cc 25
 
-; *************************** State CH0_NEXT1 ******************************************
+; *************************** State CH2_NEXT1 ******************************************
 L_CH2_NEXT1:
-; load 2nd half, 44 bytes from input buffer
-; BUF_PTR_REG was assinged in IDLE when transition to SOF
-    lbco    &r2, c24, BUF_PTR_REG.w0, 44          ; cc 13
-; data is now shifted up by 11 register in SP_BANK0
-    ldi     r0.b0, 11
-;    xout    SP_BANK1, &r0.b0, 1
-; save data to scratch pad bank 0 for next iteration of 16 bit transfer into FIFO
-    xout    SP_BANK2, &r2, 44                  ; cc 14
-; move back shift into SP_BANK1 - could also be moved to EOF e.g.
-    ldi      r0.b0, 0
-;   xout     SP_BANK1, &r0.b0, 1
 
-; now get back to 2nd 16 bit data which is spread into r2.b1-b3
-; Data pattern is: D5 D6 D7 So Sa D0 D1 D2 D3 D4 D5 D6 D7 So Sa D0  (16 bit)
-; bit count        1  2  3  4  5  6  7  8  9  10 11 12 13 14 15 16
-;
-; get r2 data and use r2 to
-; read full data set as we store full context at end of state!
-    xin     SP_BANK2, &r2, FRAME_LENGTH
-;   tranmit macro
-    m_tx_next1
+; See data pattern / bit count in CH0 version of state, or in the macro
 
-; increment buffer pointer
-    add     BUF_PTR_REG.w0, BUF_PTR_REG.w0, 44
-; change state
-    ldi     STATE_REG.b2, CH2_NEXTF               ; cc 23
-; set CNT16_REG to 2 higher higher byte is relative count
-    ldi     CNT16_REG.w0, 0x0202
-; ptr at R2
-    ldi     r1.b0, 8
-; save context ; verify
-    xout     SP_BANK2, &r0, 120-12              ; cc 24
+;   transmit macro
+    m_tx_next1 SP_BANK2 STATE_REG.b2
+
 ; go to next channel
     qba     L_CH3_IDLE                         ; cc 25
 
-; *************************** State CH0_NEXTF ******************************************
+; *************************** State CH2_NEXTF ******************************************
 L_CH2_NEXTF:
 
-; in this state there are 5 different patterns depending on the 16 bit data count cnt16d
-; cnt16d: 0 (first or every 5th)
-; Data pattern is: Sa D0 D1 D2 D3 D4 D5 D6 D7 So Sa D0 D1 D2 D3 D4 (16 bit)
-; bit count        1  2  3  4  5  6  7  8  9  10 11 12 13 14 15 16
-;
-; cnt16d: 1 (second or every 5th +1)
-; Data pattern is: D5 D6 D7 So Sa D0 D1 D2 D3 D4 D5 D6 D7 So Sa D0  (16 bit)
-; bit count        1  2  3  4  5  6  7  8  9  10 11 12 13 14 15 16
-
-; cnt16d: 2 (third or every 5th + 2)
-; Data pattern is: D1 D2 D3 D4 D5 D6 D7 So Sa D0 D1 D2 D3 D4 D5 D6  (16 bit)
-; bit count        1  2  3  4  5  6  7  8  9  10 11 12 13 14 15 16
-
-; cnt16d: 3 (fourth or every 5th + 3)
-; Data pattern is: D7 So Sa D0 D1 D2 D3 D4 D5 D6 D7 So Sa D0 D1 D2  (16 bit)
-; bit count        1  2  3  4  5  6  7  8  9  10 11 12 13 14 15 16;
-
-; cnt16d: 4 (fifth or every 5th + 2)
-; Data pattern is: D3 D4 D5 D6 D7 So Sa D0 D1 D2 D3 D4 D5 D6 D7 So (16 bit)
-; bit count        1  2  3  4  5  6  7  8  9  10 11 12 13 14 15 16;
+; See data pattern / bit count in CH0 version of state, or in the macro
 
 ; need a absolute count and relative count as mod 5 is not easly done
 
-    qbeq     L_CH2_NEXTF1, CNT16_REG.b1, 0
-    qbeq     L_CH2_NEXTF2, CNT16_REG.b1, 1
-    qbeq     L_CH2_NEXTF3, CNT16_REG.b1, 2
-    qbeq     L_CH2_NEXTF4, CNT16_REG.b1, 3
-    qbeq     L_CH2_NEXTF5, CNT16_REG.b1, 4
+    qbeq     L_CH2_NEXTF1, CNT16_RELATIVE_REG, 0
+    qbeq     L_CH2_NEXTF2, CNT16_RELATIVE_REG, 1
+    qbeq     L_CH2_NEXTF3, CNT16_RELATIVE_REG, 2
+    qbeq     L_CH2_NEXTF4, CNT16_RELATIVE_REG, 3
+    qbeq     L_CH2_NEXTF5, CNT16_RELATIVE_REG, 4
 
+; TODO: Add error handling?
+; should never reach this point
     halt
 
-
 L_CH2_NEXTF1:
-; Data pattern is: Sa D0 D1 D2 D3 D4 D5 D6 D7 So Sa D0 D1 D2 D3 D4 (16 bit)
-; bit count        1  2  3  4  5  6  7  8  9  10 11 12 13 14 15 16
-
 ; transmit macro
-    m_tx_nextf1
+    m_tx_nextf1 SP_BANK2
 
-; update counter
-    add     CNT16_REG.b0, CNT16_REG.b0, 1
-    add     CNT16_REG.b1, CNT16_REG.b1, 1
-; save context
-    xout     SP_BANK2, &r0, 120-12
 ; go to next channel
     qba     L_CH3_IDLE
 
 L_CH2_NEXTF2:
-; 2nd 16 bit data which is spread into r2.b1-b3
-; Data pattern is: D5 D6 D7 So Sa D0 D1 D2 D3 D4 D5 D6 D7 So Sa D0  (16 bit)
-; bit count        1  2  3  4  5  6  7  8  9  10 11 12 13 14 15 16
-;
-
 ; transmit macro
-    m_tx_nextf2
+    m_tx_nextf2 SP_BANK2
 
-; update counter
-    add     CNT16_REG.b0, CNT16_REG.b0, 1
-    add     CNT16_REG.b1, CNT16_REG.b1, 1
-; save context ; verify
-    xout     SP_BANK2, &r0, 120-12
 ; go to next channel
     qba     L_CH3_IDLE
 
 L_CH2_NEXTF3:
-; cnt16d: 2 (third or every 5th + 2)
-; Data pattern is: D1 D2 D3 D4 D5 D6 D7 So Sa D0 D1 D2 D3 D4 D5 D6  (16 bit)
-; bit count        1  2  3  4  5  6  7  8  9  10 11 12 13 14 15 16
-
 ; transmit macro
-    m_tx_nextf3
+    m_tx_nextf3 SP_BANK2
 
-; update counter
-    add     CNT16_REG.b0, CNT16_REG.b0, 1
-    add     CNT16_REG.b1, CNT16_REG.b1, 1
-; save context ; verify
-    xout     SP_BANK2, &r0, 120-12
 ; go to next channel
     qba     L_CH3_IDLE
 
-
 L_CH2_NEXTF4:
-; cnt16d: 3 (fourth or every 5th + 3)
-; Data pattern is: D7 So Sa D0 D1 D2 D3 D4 D5 D6 D7 So Sa D0 D1 D2  (16 bit)
-; bit count        1  2  3  4  5  6  7  8  9  10 11 12 13 14 15 16;
-
 ; transmit macro
-    m_tx_nextf4
+    m_tx_nextf4 SP_BANK2
 
- ; update counter
-    add     CNT16_REG.b0, CNT16_REG.b0, 1
-    add     CNT16_REG.b1, CNT16_REG.b1, 1
-; save context ; verify
-    xout    SP_BANK2, &r0, 120-12
 ; go to next channel
-    qbne    L_SKIP_CH2_EOF_CHECK, CNT16_REG.b0, 54
-    ldi     STATE_REG.b2, CH2_EOF
+    qbne    L_SKIP_CH2_EOF_CHECK, CNT16_ABSOLUTE_REG, 54
+    ldi     STATE_REG.b2, EOF_STATE
 L_SKIP_CH2_EOF_CHECK:
     qba     L_CH3_IDLE
 
 L_CH2_NEXTF5:
-; cnt16d: 4 (fifth or every 5th + 2)
-; Data pattern is: D3 D4 D5 D6 D7 So Sa D0 D1 D2 D3 D4 D5 D6 D7 So (16 bit)
-; bit count        1  2  3  4  5  6  7  8  9  10 11 12 13 14 15 16;
+; transmit macro
+    m_tx_nextf5 SP_BANK2
 
-    m_tx_nextf5
-
- ; update counter
-    add     CNT16_REG.b0, CNT16_REG.b0, 1
-    ldi     CNT16_REG.b1, 0
-; save context ; verify
-    xout    SP_BANK2, &r0, 120-12
 ; go to next channel
     qba     L_CH3_IDLE
 
+; *************************** State CH2_EOF ******************************************
 L_CH2_EOF:
-; cnt16d: 4 (fifth or every 5th + 2)
-; Data pattern is: D3 D4 D5 D6 D7 So Sa D0 D1 D2 D3 D4 D5 D6 D7 So (16 bit)
-; bit count        1  2  3  4  5  6  7  8  9  10 11 12 13 14 15 16;
+
+; See data pattern / bit count in CH0 version of state, or in the macro
 
 ; transmit macro
-    m_tx_eof
+    m_tx_eof SP_BANK2 STATE_REG.b2
 
- ; end of frame resets counter and states
- ; set CNT16_REG to 2 higher higher byte is relative count
-    ldi     CNT16_REG.w0, 0x0202
- ; set state to idle
-    ldi     STATE_REG.b2, CH2_IDLE
-; set ptr
-    ldi     r1.b0, 8
-; save context
-    xout    SP_BANK2, &r0, 120-12
 ; go to next channel
 ; set channel status transfer complete
     qbbs     L_CH2_TXB_STATUS_UPDATE, r24.b1, 0
@@ -1404,6 +1151,7 @@ L_CH2_TXB_STATUS_UPDATE:
     sbco     &r2, c24, r3.w0, 1
     qba      L_CH3_IDLE
 
+
 ; **************************** CH3_IDLE ****************************************
 
 L_CH3_IDLE:
@@ -1414,7 +1162,7 @@ L_CH3_IDLE:
     qbbc     L_EXIT_CH3, r2.b0,   5
 
 ; check on channel 3 state using permanent state register - r29
-    qbeq     L_CH3_SOF,   STATE_REG.b3, CH3_SOF
+    qbeq     L_CH3_SOF, STATE_REG.b3, SOF_STATE
 
 ; in IDLE we wait for TX done on wire
 
@@ -1428,79 +1176,85 @@ L_CH3_IDLE:
 ; r24.b1 has previous buffer, if 0 it was A if 1 it was B
     qbbc     L_CHECK_CH3_B_FIRST,CH3_PREV_BUF, 0
 
-; check A buffer first as pervious buffer was B
+; check A buffer first as previous buffer was B
     ldi      r24.w2, TXA_CH3_CMD
     lbco     &r24.b0,c24, r24.w2, 1
-    qbbc     L_NO_CH3_ACTIVE_A, r24.b0 , 0
+; if TX_CMD == 0, buffer is not active. Jump to L_NO_CH3_ACTIVE_A
+    qbeq     L_NO_CH3_ACTIVE_A, r24.b0 , CMD_EMPTY
 ; found A active, set buffer ptr
     ldi      CH3_BUF_PTR, TX_CH3_A
 ; claim buffer A in STATUS
     ldi      r2, STATUS_ACTIVE
     ldi      r3.w0, TXA_CH3_STATUS
     sbco     &r2, c24, r3.w0, 1
-; set STATE to CH3_SOF
-    ldi      STATE_REG.b3,CH3_SOF
+; set STATE to SOF_STATE
+    ldi      STATE_REG.b3, SOF_STATE
 ; set previous channel to A
     ldi      CH3_PREV_BUF, 0
 ; clear CMD of channel A
-    sbco     &CH3_PREV_BUF, c24, r24.w2, 1
+    ldi      r2.b0, CMD_EMPTY
+    sbco     &r2.b0, c24, r24.w2, 1
 ; goto next channel
     qba      L_EXIT_CH3_IDLE
 L_NO_CH3_ACTIVE_A:
     ldi      r24.w2, TXB_CH3_CMD
     lbco     &r24.b0,c24, r24.w2, 1
-    qbbc     L_EXIT_CH3_IDLE, r24.b0, 0
+; if TX_CMD == 0, buffer is not active. Jump to L_EXIT_CH3_IDLE
+    qbeq     L_EXIT_CH3_IDLE, r24.b0, CMD_EMPTY
 ; found B active, set buffer ptr
     ldi      CH3_BUF_PTR, TX_CH3_B
 ; set STATE to CH3
-    ldi      STATE_REG.b3,CH3_SOF
+    ldi      STATE_REG.b3, SOF_STATE
 ; set previous channel to B
-    ldi      CH3_BUF_PTR, 1
-    ldi      r27.b0, 0
-; clear CMD of channel B
-    sbco     &r27.b0, c24, r24.w2, 1
-; set status
+    ldi      CH3_PREV_BUF, 1
+; claim buffer B in STATUS
     ldi      r2, STATUS_ACTIVE
     ldi      r3.w0, TXB_CH3_STATUS
     sbco     &r2, c24, r3.w0, 1
+; clear CMD of channel B
+    ldi      r2.b0, CMD_EMPTY
+    sbco     &r2.b0, c24, r24.w2, 1
 ; goto next channel
     qba      L_EXIT_CH3_IDLE
 
 L_CHECK_CH3_B_FIRST:
     ldi      r24.w2, TXB_CH3_CMD
     lbco     &r24.b0,c24, r24.w2, 1
-    qbbc     L_NO_CH3_ACTIVE_B, r24.b0 , 0
+; if TX_CMD == 0, buffer is not active. Jump to L_NO_CH3_ACTIVE_B
+    qbeq     L_NO_CH3_ACTIVE_B, r24.b0, CMD_EMPTY
 ; found B active, set buffer ptr
     ldi      CH3_BUF_PTR, TX_CH3_B
-; set STATE to CH3_SOF
-    ldi      STATE_REG.b3,CH3_SOF
+; set STATE to SOF_STATE
+    ldi      STATE_REG.b3, SOF_STATE
 ; set previous channel to B
     ldi      CH3_PREV_BUF, 1
-    ldi      r27.b0, 0
-; clear CMD of channel B
-    sbco     &r27.b0, c24, r24.w2, 1
-; set status
+; claim buffer B in STATUS
     ldi      r2, STATUS_ACTIVE
     ldi      r3.w0, TXB_CH3_STATUS
     sbco     &r2, c24, r3.w0, 1
+; clear CMD of channel B
+    ldi      r2, CMD_EMPTY
+    sbco     &r2.b0, c24, r24.w2, 1
 ; goto next channel
     qba      L_EXIT_CH3_IDLE
 L_NO_CH3_ACTIVE_B:
     ldi      r24.w2, TXA_CH3_CMD
     lbco     &r24.b0,c24, r24.w2, 1
-    qbbc     L_EXIT_CH3_IDLE, r24.b0, 0
+; if TX_CMD == 0, buffer is not active. Jump to L_EXIT_CH3_IDLE
+    qbeq     L_EXIT_CH3_IDLE, r24.b0, CMD_EMPTY
 ; found A active, set buffer ptr
     ldi      CH3_BUF_PTR, TX_CH3_A
-; set STATE to CH3
-    ldi      STATE_REG.b3,CH3_SOF
+; set STATE to SOF
+    ldi      STATE_REG.b3, SOF_STATE
 ; set previous channel to A
     ldi      CH3_PREV_BUF, 0
-; clear CMD of channel A
-    sbco     &CH3_PREV_BUF, c24, r24.w2, 1
 ; set status
     ldi      r2, STATUS_ACTIVE
     ldi      r3.w0, TXA_CH3_STATUS
     sbco     &r2, c24, r3.w0, 1
+; clear CMD of channel A
+    ldi      r2.b0, CMD_EMPTY
+    sbco     &r2.b0, c24, r24.w2, 1
 ; goto next channel
 L_EXIT_CH3_IDLE:
     JMP      L_CH0_IDLE
@@ -1523,8 +1277,8 @@ L_CH3_SOF:
 L_CH3_EOF:
 ; reset length counter
     ldi      CH3_CNT8_REG, 0
-; set stet to CH3_IDLE
-    ldi      STATE_REG.b3,CH3_IDLE
+; set state to IDLE
+    ldi      STATE_REG.b3, IDLE_STATE
 ; set channel status transfer complete
     qbbs     L_CH3_TXB_STATUS_UPDATE, CH3_PREV_BUF, 0
     ldi      r2, STATUS_DONE
@@ -1539,6 +1293,5 @@ L_CH3_TXB_STATUS_UPDATE:
 ; done with ch3, goto ch0
 L_EXIT_CH3:
     JMP      L_CH0_IDLE
-
 
 ; **********************  end of channel processing  *******************
