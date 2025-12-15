@@ -4,34 +4,36 @@
 ;   filename:     uart_transmit_macro.inc
 ;   description:  repeating macros for transmit
 ;
-;   name:         Thomas Leyrer       date: 14.10.2025
+;   authors:         Thomas Leyrer       date: 14.10.2025
+;                    Nick Saulnier       date: 15.12.2025
 
 ; ***********************************************************************
 
 
-; SOF state comes first as it takes the most cycles
-; *************************** State SOF ********************************************
-; budget is ~ 50 cycles per sub-state. Cycle counter cc is documented on each instruction
-; context was initialized on EOF
-
+;*******************************************************************************
+; Macro: m_tx_sof
+;
 ; convert 8 bit data to 10 bit UART symbol with 1 start bit '0' and one stop bit '1'
 ; UART is LSB first which means the first bit on wire is start bit followed by bit 0 of data bits.
 ; Data pattern is: Sa D0 D1 D2 D3 D4 D5 D6 D7 So Sa D0 D1 D2 D3 D4 (16 bit)
 ; bit count        1  2  3  4  5  6  7  8  9  10 11 12 13 14 15 16
 ;
-; make space for start bit - bit 0 already 0 after shift operand
+; PEAK cycles:
+;     24 cycles
+;*******************************************************************************
 
-m_tx_sof    .macro SCRATCH_PAD STATE
+m_tx_sof    .macro    SCRATCH_PAD, STATE
 
 ; load first 44 bytes from input buffer into R2-R12
 ; BUF_PTR_REG was assigned in IDLE when transition to SOF
-    lbco    &r2, c24, BUF_PTR_REG.w0, 44          ; cc 13
+    lbco    &r2, c24, BUF_PTR_REG, 44          ; 11 32-bit words --> cc 13
 ; TODO: Remove commented code later
 ; save data to scratch pad bank 0 for next iteration of 16 bit transfer into FIFO
     xout    SCRATCH_PAD, &r2, 44
 ;                   ; cc 14
 
 ; original macro START
+; make space for start bit - bit 0 already 0 after shift operand
     lsl     r0.b2, r2.b0, 1
 ; convert 2nd data byte to UART symbol
 ; d7 shift down by 7
@@ -48,7 +50,7 @@ m_tx_sof    .macro SCRATCH_PAD STATE
 ; original macro end
 
 ; increment buffer pointer
-    add     BUF_PTR_REG.w0, BUF_PTR_REG.w0, 44
+    add     BUF_PTR_REG, BUF_PTR_REG, 44
 ; change state
     ldi     STATE, NEXT1_STATE               ; cc 23
 ; TODO: Remove commented code later
@@ -57,16 +59,23 @@ m_tx_sof    .macro SCRATCH_PAD STATE
 
     .endm
 
-; *************************** State NEXT1 ******************************************
+
+;*******************************************************************************
+; Macro: m_tx_next1
+;
 ; now get back to 2nd 16 bit data which is spread into r2.b1-b3
 ; Data pattern is: D5 D6 D7 So Sa D0 D1 D2 D3 D4 D5 D6 D7 So Sa D0  (16 bit)
 ; bit count        1  2  3  4  5  6  7  8  9  10 11 12 13 14 15 16
 ;
-m_tx_next1    .macro SCRATCH_PAD STATE
+; PEAK cycles:
+;     33 cycles
+;*******************************************************************************
+
+m_tx_next1    .macro    SCRATCH_PAD, STATE
 
 ; load 2nd half, 44 bytes from input buffer
 ; BUF_PTR_REG was assigned in IDLE when transition to SOF
-    lbco    &r2, c24, BUF_PTR_REG.w0, 44          ; cc 13
+    lbco    &r2, c24, BUF_PTR_REG, 44          ; 11 32-bit words --> cc 13
 ; set XOUT to shift data by 11 registers, into scratchpad locations for R13-R23
     ldi     r0.b0, 11
 ;    xout    SCRATCH_PAD, &r0.b0, 1
@@ -103,7 +112,7 @@ m_tx_next1    .macro SCRATCH_PAD STATE
 ; original macro end
 
 ; increment buffer pointer
-    add     BUF_PTR_REG.w0, BUF_PTR_REG.w0, 44
+    add     BUF_PTR_REG, BUF_PTR_REG, 44
 ; change state
     ldi     STATE, NEXTF_STATE               ; cc 23
 ; set CNT16 REG values to 2
@@ -116,36 +125,24 @@ m_tx_next1    .macro SCRATCH_PAD STATE
     .endm
 
 
-; *************************** State NEXTF ******************************************
+;*******************************************************************************
+; State NEXTF
+;
+; See main.asm > State CH0_NEXTF for detailed comments
+;*******************************************************************************
 
-; in this state there are 5 different patterns depending on the 16 bit data count cnt16d
-; cnt16d: 0 (first or every 5th)
+
+;*******************************************************************************
+; Macro: m_tx_nextf1
+;
 ; Data pattern is: Sa D0 D1 D2 D3 D4 D5 D6 D7 So Sa D0 D1 D2 D3 D4 (16 bit)
 ; bit count        1  2  3  4  5  6  7  8  9  10 11 12 13 14 15 16
 ;
-; cnt16d: 1 (second or every 5th +1)
-; Data pattern is: D5 D6 D7 So Sa D0 D1 D2 D3 D4 D5 D6 D7 So Sa D0  (16 bit)
-; bit count        1  2  3  4  5  6  7  8  9  10 11 12 13 14 15 16
+; PEAK cycles:
+;     11 cycles
+;*******************************************************************************
 
-; cnt16d: 2 (third or every 5th + 2)
-; Data pattern is: D1 D2 D3 D4 D5 D6 D7 So Sa D0 D1 D2 D3 D4 D5 D6  (16 bit)
-; bit count        1  2  3  4  5  6  7  8  9  10 11 12 13 14 15 16
-
-; cnt16d: 3 (fourth or every 5th + 3)
-; Data pattern is: D7 So Sa D0 D1 D2 D3 D4 D5 D6 D7 So Sa D0 D1 D2  (16 bit)
-; bit count        1  2  3  4  5  6  7  8  9  10 11 12 13 14 15 16;
-
-; cnt16d: 4 (fifth or every 5th + 2)
-; Data pattern is: D3 D4 D5 D6 D7 So Sa D0 D1 D2 D3 D4 D5 D6 D7 So (16 bit)
-; bit count        1  2  3  4  5  6  7  8  9  10 11 12 13 14 15 16;
-
-; need a absolute count and relative count as mod 5 is not easily done
-
-; Data pattern is: Sa D0 D1 D2 D3 D4 D5 D6 D7 So Sa D0 D1 D2 D3 D4 (16 bit)
-; bit count        1  2  3  4  5  6  7  8  9  10 11 12 13 14 15 16
-
-; ***********************************************************************
-m_tx_nextf1   .macro SCRATCH_PAD
+m_tx_nextf1   .macro    SCRATCH_PAD
 
 ; original macro START
 ; get data shifted down to r2
@@ -174,12 +171,19 @@ m_tx_nextf1   .macro SCRATCH_PAD
 
     .endm
 
-; ***********************************************************************
+
+;*******************************************************************************
+; Macro: m_tx_nextf2
+;
 ; 2nd 16 bit data which is spread into r2.b1-b3
 ; Data pattern is: D5 D6 D7 So Sa D0 D1 D2 D3 D4 D5 D6 D7 So Sa D0  (16 bit)
 ; bit count        1  2  3  4  5  6  7  8  9  10 11 12 13 14 15 16
 ;
-m_tx_nextf2      .macro SCRATCH_PAD
+; PEAK cycles:
+;     14 cycles
+;*******************************************************************************
+
+m_tx_nextf2      .macro    SCRATCH_PAD
 
 ; original macro START
 ; get data shifted down to r2
@@ -214,12 +218,19 @@ m_tx_nextf2      .macro SCRATCH_PAD
 
     .endm
 
-; ***********************************************************************
+
+;*******************************************************************************
+; Macro: m_tx_nextf3
+;
 ; cnt16d: 2 (third or every 5th + 2)
 ; Data pattern is: D1 D2 D3 D4 D5 D6 D7 So Sa D0 D1 D2 D3 D4 D5 D6  (16 bit)
 ; bit count        1  2  3  4  5  6  7  8  9  10 11 12 13 14 15 16
+;
+; PEAK cycles:
+;     10 cycles
+;*******************************************************************************
 
-m_tx_nextf3   .macro SCRATCH_PAD
+m_tx_nextf3   .macro    SCRATCH_PAD
 
 ; original macro START
 ; index spans over r2 and r3
@@ -250,12 +261,19 @@ m_tx_nextf3   .macro SCRATCH_PAD
 
     .endm
 
-; ***********************************************************************
+
+;*******************************************************************************
+; Macro: m_tx_nextf4
+;
 ; cnt16d: 3 (fourth or every 5th + 3)
 ; Data pattern is: D7 So Sa D0 D1 D2 D3 D4 D5 D6 D7 So Sa D0 D1 D2  (16 bit)
 ; bit count        1  2  3  4  5  6  7  8  9  10 11 12 13 14 15 16;
+;
+; PEAK cycles:
+;     15 cycles
+;*******************************************************************************
 
-m_tx_nextf4   .macro SCRATCH_PAD
+m_tx_nextf4   .macro    SCRATCH_PAD
 
 ; original macro START
 ; shift index by 16 bit
@@ -293,12 +311,19 @@ m_tx_nextf4   .macro SCRATCH_PAD
 
     .endm
 
-; ***********************************************************************
+
+;*******************************************************************************
+; Macro: m_tx_nextf5
+;
 ; cnt16d: 4 (fifth or every 5th + 2)
 ; Data pattern is: D3 D4 D5 D6 D7 So Sa D0 D1 D2 D3 D4 D5 D6 D7 So (16 bit)
 ; bit count        1  2  3  4  5  6  7  8  9  10 11 12 13 14 15 16;
+;
+; PEAK cycles:
+;     12 cycles
+;*******************************************************************************
 
-m_tx_nextf5    .macro SCRATCH_PAD
+m_tx_nextf5    .macro    SCRATCH_PAD
 
 ; original macro START
 ; shift data into r2
@@ -329,12 +354,19 @@ m_tx_nextf5    .macro SCRATCH_PAD
 
     .endm
 
-; ***********************************************************************
+
+;*******************************************************************************
+; Macro: m_tx_eof
+;
 ; cnt16d: 4 (fifth or every 5th + 2)
 ; Data pattern is: D3 D4 D5 D6 D7 So Sa D0 D1 D2 D3 D4 D5 D6 D7 So (16 bit)
 ; bit count        1  2  3  4  5  6  7  8  9  10 11 12 13 14 15 16;
+;
+; PEAK cycles:
+;     14 cycles
+;*******************************************************************************
 
-m_tx_eof    .macro SCRATCH_PAD STATE
+m_tx_eof    .macro    SCRATCH_PAD, STATE
 
 ; original macro START
 ; shift data into r2
