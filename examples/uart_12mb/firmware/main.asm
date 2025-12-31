@@ -82,7 +82,6 @@ TX2_STATE                       .set   3
 TX3_STATE                       .set   4
 TX4_STATE                       .set   5
 TX5_STATE                       .set   6
-EOF_STATE                       .set   8
 
 ;*******************************************************************************
 ; Register definitions
@@ -417,7 +416,7 @@ L_CH0_IDLE:
 
 ; Check to see if the buffer has active data
 ; r26 has both READ_PTR (w0) & WRITE_PTR (w2)
-    lbco    &r26, c24, TX_CH0_READ_PTR, 4
+    lbco    &r26, c24, READ_PTR_ADDRESS, 4
 
 ; if READ_PTR == WRITE_PTR, buffer is empty
     qbeq    L_EXIT_CH0_IDLE, READ_PTR, WRITE_PTR
@@ -579,8 +578,6 @@ L_CH0_TX5:
     qba     L_CH1_IDLE
 
 
-; TODO: Did not write the code for Channel 1 - 3
-
 ;*******************************************************************************
 ; CH1_IDLE
 ;
@@ -591,162 +588,116 @@ L_CH1_IDLE:
 ;------------------- check channel state & fifo level --------------------------
 
 ; select channel 1
-    ldi       r30.b2, 1         ; select channel 1
+    ldi      r30.b2, 1             ; select channel 1
 
-; get context channel 1
+; get context for channel 1
     xin      SP_BANK1, &r0, 108   ; get R0-R26 context
+
 ; check on fifo tx level
     and      r2.b0, r31.b1, 0x1c    ; bit 2-4 has fifo level. 2 word = 8
     qblt     L_CH2_IDLE, r2.b0, 8   ; if fifo level > 2 word than go to next channel - nothing to do
 
 ; check on channel 1 state using permanent state register - r29
-    qbeq     L_CH1_SOF,   CH1_STATE_REG, SOF_STATE
-    qbeq     L_CH1_NEXT1, CH1_STATE_REG, NEXT1_STATE
-    qbeq     L_CH1_NEXTF, CH1_STATE_REG, NEXTF_STATE
-    qbeq     L_CH1_EOF,   CH1_STATE_REG, EOF_STATE
+    qbeq     L_CH1_TX1,   CH1_STATE_REG, TX1_STATE
+    qbeq     L_CH1_TX2,   CH1_STATE_REG, TX2_STATE
+    qbeq     L_CH1_TX3,   CH1_STATE_REG, TX3_STATE
+    qbeq     L_CH1_TX4,   CH1_STATE_REG, TX4_STATE
+    qbeq     L_CH1_TX5,   CH1_STATE_REG, TX5_STATE
 
 ;----------------------- check if next buffer has data -------------------------
+;
+; state is IDLE
+;    - add 8 bit of idle at the end of UART frame handler
+;    - check if there is more data to transmit
+;    - if there is data to transmit, set STATE to TX1_STATE
+;
+;-------------------------------------------------------------------------------
 
 ; no active frame state, add 8 bit of idle at the end of UART frame handler
     ldi      r30.b0, 0xff
 
-; Check the CMD register to see if the next buffer has active frame data
-; r2.b0 holds the next buffer that will be filled
-; r2.b1 holds the register address offset = r2.b0 x 4
+; Check to see if the buffer has active data
+; r26 has both READ_PTR (w0) & WRITE_PTR (w2)
+    lbco    &r26, c24, READ_PTR_ADDRESS, 4
 
-; if PREV_BUF was 7, NEXT_BUF is buffer 0
-    qbne     L_CH1_SET_NEXT_BUF, PREV_BUF, 7
-    ldi      r2, 0           ; r2.b0 = 0
-    qba      L_CH1_CHECK_BUF
+; if READ_PTR == WRITE_PTR, buffer is empty
+    qbeq    L_EXIT_CH1_IDLE, READ_PTR, WRITE_PTR
 
-; else, NEXT_BUF is PREV_BUF + 1
-L_CH1_SET_NEXT_BUF:
-    add      r2, PREV_BUF, 1 ; r2.b0 = PREV_BUF + 1
+; else, the buffer has active data
 
-L_CH1_CHECK_BUF:
-
-; load the CMD register for NEXT_BUF
-    lsl     r2.b1, r2.b0, 2         ; 4x buffer number = register address offset
-    add     CMD_PTR_REG, r2.b1, TX_CH1_CMD0  ; CMD_PTR = base address + offset
-    lbco    &r3.b0, c24, CMD_PTR_REG, 1
-
-; jump to L_EXIT_CH1_IDLE if buffer is empty
-    qbeq     L_EXIT_CH1_IDLE, r3.b0, CMD_EMPTY
-
-; next buffer is active
-
-; set STATE to SOF_STATE
-    ldi      CH1_STATE_REG, SOF_STATE
-    mov      PREV_BUF, r2.b0 ; set previous channel to current active channel 
-
-; set register pointers
-    lsl      r2.w2, r2.b0, 7         ; 128x buffer number = buffer address offset
-    ldi      READ_PTR, TX_CH1_BUF0 ; TX_CH1_BUF0 is too large to pass in OP(255), so store in register
-    add      READ_PTR, r2.w2, READ_PTR  ; BUF_PTR = base address + offset
-    add      STATUS_PTR_REG, r2.b1, TX_CH1_STATUS0 ; STATUS_PTR = base address + offset
-
-; claim buffer in STATUS register, clear CMD register
-; ldi sets r2.b0 & r2.b1 simultaneously:
-; r2.b0 = STATUS
-; r2.b1 = 0 = CMD_EMPTY
-    ldi      r2.w0, STATUS_ACTIVE
-    sbco     &r2.b0, c24, STATUS_PTR_REG, 1 ; set channel's STATUS register
-    sbco     &r2.b1, c24, CMD_PTR_REG, 1    ; clear channel's CMD register
+; set STATE to TX1_STATE
+    ldi      CH1_STATE_REG, TX1_STATE
 
 ; go to next channel
 L_EXIT_CH1_IDLE:
     xout     SP_BANK1, &r2, 100   ; save R2-R26 context
     qba      L_CH2_IDLE
 
-; CH1_SOF state comes first as it takes most cycle
-; *************************** State CH1_SOF ********************************************
-L_CH1_SOF:
 
-; See data pattern / bit count in CH0 version of state, or in the macro
+;*******************************************************************************
+; State CH1_TX1
+;
+; For detailed comments, see CH0_TX1
+;*******************************************************************************
+L_CH1_TX1:
 
 ; use macro for send
-   m_tx_sof SP_BANK1, CH1_STATE_REG
+    m_tx1 SP_BANK1, CH1_STATE_REG
 
 ; go to next channel
-    qba     L_CH2_IDLE                         ; cc 25
+    qba      L_CH2_IDLE
 
-; *************************** State CH1_NEXT ******************************************
-L_CH1_NEXT1:
+;*******************************************************************************
+; State CH1_TX2
+;
+; For detailed comments, see CH0_TX2
+;*******************************************************************************
+L_CH1_TX2:
 
-; See data pattern / bit count in CH0 version of state, or in the macro
-
-;   transmit macro
-    m_tx_next1 SP_BANK1, CH1_STATE_REG
-
-; go to next channel
-    qba     L_CH2_IDLE                         ; cc 25
-
-; *************************** State CH1_NEXTF ******************************************
-L_CH1_NEXTF:
-
-; See data pattern / bit count in CH0 version of state, or in the macro
-
-; need a absolute count and relative count as mod 5 is not easly done
-
-    qbeq     L_CH1_NEXTF1, CNT16_RELATIVE_REG, 0
-    qbeq     L_CH1_NEXTF2, CNT16_RELATIVE_REG, 1
-    qbeq     L_CH1_NEXTF3, CNT16_RELATIVE_REG, 2
-    qbeq     L_CH1_NEXTF4, CNT16_RELATIVE_REG, 3
-    qbeq     L_CH1_NEXTF5, CNT16_RELATIVE_REG, 4
-
-; TODO: Add error handling?
-; should never reach this point
-    halt
-
-L_CH1_NEXTF1:
 ; transmit macro
-    m_tx_nextf1 SP_BANK1
+    m_tx2 SP_BANK1, CH1_STATE_REG
 
 ; go to next channel
     qba     L_CH2_IDLE
 
-L_CH1_NEXTF2:
+
+;*******************************************************************************
+; State CH1_TX3
+;
+; For detailed comments, see CH0_TX3
+;*******************************************************************************
+L_CH1_TX3:
+
 ; transmit macro
-    m_tx_nextf2 SP_BANK1
+    m_tx3 SP_BANK1, CH1_STATE_REG
 
 ; go to next channel
     qba     L_CH2_IDLE
 
-L_CH1_NEXTF3:
+
+;*******************************************************************************
+; State CH1_TX4
+;
+; For detailed comments, see CH0_TX4
+;*******************************************************************************
+L_CH1_TX4:
+
 ; transmit macro
-    m_tx_nextf3 SP_BANK1
+    m_tx4 SP_BANK1, CH1_STATE_REG
 
 ; go to next channel
     qba     L_CH2_IDLE
 
-L_CH1_NEXTF4:
-; transmit macro
-    m_tx_nextf4 SP_BANK1
 
-; go to next channel
-    qbne    L_SKIP_CH1_EOF_CHECK, CNT16_ABSOLUTE_REG, 54
-    ldi     CH1_STATE_REG, EOF_STATE
-L_SKIP_CH1_EOF_CHECK:
-    qba     L_CH2_IDLE
-
-L_CH1_NEXTF5:
-; transmit macro
-    m_tx_nextf5 SP_BANK1
-
-; go to next channel
-    qba     L_CH2_IDLE
-
-; *************************** State CH1_EOF ******************************************
-L_CH1_EOF:
-
-; See data pattern / bit count in CH0 version of state, or in the macro
+;*******************************************************************************
+; State CH1_TX5
+;
+; For detailed comments, see CH0_TX5
+;*******************************************************************************
+L_CH1_TX5:
 
 ; transmit macro
-    m_tx_eof SP_BANK1, CH1_STATE_REG
-
-; set channel status transfer complete
-    ldi      r2, STATUS_DONE
-    sbco     &r2, c24, STATUS_PTR_REG, 1
+    m_tx5 SP_BANK1, CH1_STATE_REG
 
 ; go to next channel
     qba     L_CH2_IDLE
@@ -762,165 +713,119 @@ L_CH2_IDLE:
 ;------------------- check channel state & fifo level --------------------------
 
 ; select channel 2
-    ldi       r30.b2, 2         ; select channel 2
+    ldi      r30.b2, 2             ; select channel 2
 
-; get context channel 2
+; get context for channel 2
     xin      SP_BANK2, &r0, 108   ; get R0-R26 context
+
 ; check on fifo tx level
     and      r2.b0, r31.b2, 0x1c    ; bit 2-4 has fifo level. 2 word = 8
     qblt     L_CH3_IDLE, r2.b0, 8   ; if fifo level > 2 word than go to next channel - nothing to do
 
 ; check on channel 2 state using permanent state register - r29
-    qbeq     L_CH2_SOF,   CH2_STATE_REG, SOF_STATE
-    qbeq     L_CH2_NEXT1, CH2_STATE_REG, NEXT1_STATE
-    qbeq     L_CH2_NEXTF, CH2_STATE_REG, NEXTF_STATE
-    qbeq     L_CH2_EOF,   CH2_STATE_REG, EOF_STATE
+    qbeq     L_CH2_TX1,   CH2_STATE_REG, TX1_STATE
+    qbeq     L_CH2_TX2,   CH2_STATE_REG, TX2_STATE
+    qbeq     L_CH2_TX3,   CH2_STATE_REG, TX3_STATE
+    qbeq     L_CH2_TX4,   CH2_STATE_REG, TX4_STATE
+    qbeq     L_CH2_TX5,   CH2_STATE_REG, TX5_STATE
 
 ;----------------------- check if next buffer has data -------------------------
+;
+; state is IDLE
+;    - add 8 bit of idle at the end of UART frame handler
+;    - check if there is more data to transmit
+;    - if there is data to transmit, set STATE to TX1_STATE
+;
+;-------------------------------------------------------------------------------
 
 ; no active frame state, add 8 bit of idle at the end of UART frame handler
     ldi      r30.b0, 0xff
 
-; Check the CMD register to see if the next buffer has active frame data
-; r2.b0 holds the next buffer that will be filled
-; r2.b1 holds the register address offset = r2.b0 x 4
+; Check to see if the buffer has active data
+; r26 has both READ_PTR (w0) & WRITE_PTR (w2)
+    lbco    &r26, c24, READ_PTR_ADDRESS, 4
 
-; if PREV_BUF was 7, NEXT_BUF is buffer 0
-    qbne     L_CH2_SET_NEXT_BUF, PREV_BUF, 7
-    ldi      r2, 0           ; r2.b0 = 0
-    qba      L_CH2_CHECK_BUF
+; if READ_PTR == WRITE_PTR, buffer is empty
+    qbeq    L_EXIT_CH2_IDLE, READ_PTR, WRITE_PTR
 
-; else, NEXT_BUF is PREV_BUF + 1
-L_CH2_SET_NEXT_BUF:
-    add      r2, PREV_BUF, 1 ; r2.b0 = PREV_BUF + 1
+; else, the buffer has active data
 
-L_CH2_CHECK_BUF:
-
-; load the CMD register for NEXT_BUF
-    lsl     r2.b1, r2.b0, 2         ; 4x buffer number = register address offset
-    add     CMD_PTR_REG, r2.b1, TX_CH2_CMD0  ; CMD_PTR = base address + offset
-    lbco    &r3.b0, c24, CMD_PTR_REG, 1
-
-; jump to L_EXIT_CH2_IDLE if buffer is empty
-    qbeq     L_EXIT_CH2_IDLE, r3.b0, CMD_EMPTY
-
-; next buffer is active
-
-; set STATE to SOF_STATE
-    ldi      CH2_STATE_REG, SOF_STATE
-    mov      PREV_BUF, r2.b0 ; set previous channel to current active channel 
-
-; set register pointers
-    lsl      r2.w2, r2.b0, 7         ; 128x buffer number = buffer address offset
-    ldi      READ_PTR, TX_CH2_BUF0 ; TX_CH2_BUF0 is too large to pass in OP(255), so store in register
-    add      READ_PTR, r2.w2, READ_PTR  ; BUF_PTR = base address + offset
-    add      STATUS_PTR_REG, r2.b1, TX_CH2_STATUS0 ; STATUS_PTR = base address + offset
-
-; claim buffer in STATUS register, clear CMD register
-; ldi sets r2.b0 & r2.b1 simultaneously:
-; r2.b0 = STATUS
-; r2.b1 = 0 = CMD_EMPTY
-    ldi      r2.w0, STATUS_ACTIVE
-    sbco     &r2.b0, c24, STATUS_PTR_REG, 1 ; set channel's STATUS register
-    sbco     &r2.b1, c24, CMD_PTR_REG, 1    ; clear channel's CMD register
+; set STATE to TX1_STATE
+    ldi      CH2_STATE_REG, TX1_STATE
 
 ; go to next channel
 L_EXIT_CH2_IDLE:
     xout     SP_BANK2, &r2, 100   ; save R2-R26 context
     qba      L_CH3_IDLE
 
-; CH2_SOF state comes first as it takes most cycle
-; *************************** State CH2_SOF ********************************************
-L_CH2_SOF:
 
-; See data pattern / bit count in CH0 version of state, or in the macro
+;*******************************************************************************
+; State CH2_TX1
+;
+; For detailed comments, see CH0_TX1
+;*******************************************************************************
+L_CH2_TX1:
 
 ; use macro for send
-   m_tx_sof SP_BANK2, CH2_STATE_REG
-
-; go to next channel
-    qba     L_CH3_IDLE                         ; cc 25
-
-; *************************** State CH2_NEXT1 ******************************************
-L_CH2_NEXT1:
-
-; See data pattern / bit count in CH0 version of state, or in the macro
-
-;   transmit macro
-    m_tx_next1 SP_BANK2, CH2_STATE_REG
-
-; go to next channel
-    qba     L_CH3_IDLE                         ; cc 25
-
-; *************************** State CH2_NEXTF ******************************************
-L_CH2_NEXTF:
-
-; See data pattern / bit count in CH0 version of state, or in the macro
-
-; need a absolute count and relative count as mod 5 is not easly done
-
-    qbeq     L_CH2_NEXTF1, CNT16_RELATIVE_REG, 0
-    qbeq     L_CH2_NEXTF2, CNT16_RELATIVE_REG, 1
-    qbeq     L_CH2_NEXTF3, CNT16_RELATIVE_REG, 2
-    qbeq     L_CH2_NEXTF4, CNT16_RELATIVE_REG, 3
-    qbeq     L_CH2_NEXTF5, CNT16_RELATIVE_REG, 4
-
-; TODO: Add error handling?
-; should never reach this point
-    halt
-
-L_CH2_NEXTF1:
-; transmit macro
-    m_tx_nextf1 SP_BANK2
-
-; go to next channel
-    qba     L_CH3_IDLE
-
-L_CH2_NEXTF2:
-; transmit macro
-    m_tx_nextf2 SP_BANK2
-
-; go to next channel
-    qba     L_CH3_IDLE
-
-L_CH2_NEXTF3:
-; transmit macro
-    m_tx_nextf3 SP_BANK2
-
-; go to next channel
-    qba     L_CH3_IDLE
-
-L_CH2_NEXTF4:
-; transmit macro
-    m_tx_nextf4 SP_BANK2
-
-; go to next channel
-    qbne    L_SKIP_CH2_EOF_CHECK, CNT16_ABSOLUTE_REG, 54
-    ldi     CH2_STATE_REG, EOF_STATE
-L_SKIP_CH2_EOF_CHECK:
-    qba     L_CH3_IDLE
-
-L_CH2_NEXTF5:
-; transmit macro
-    m_tx_nextf5 SP_BANK2
-
-; go to next channel
-    qba     L_CH3_IDLE
-
-; *************************** State CH2_EOF ******************************************
-L_CH2_EOF:
-
-; See data pattern / bit count in CH0 version of state, or in the macro
-
-; transmit macro
-    m_tx_eof SP_BANK2, CH2_STATE_REG
-
-; set channel status transfer complete
-    ldi      r2, STATUS_DONE
-    sbco     &r2, c24, STATUS_PTR_REG, 1
+    m_tx1 SP_BANK2, CH2_STATE_REG
 
 ; go to next channel
     qba      L_CH3_IDLE
+
+;*******************************************************************************
+; State CH2_TX2
+;
+; For detailed comments, see CH0_TX2
+;*******************************************************************************
+L_CH2_TX2:
+
+; transmit macro
+    m_tx2 SP_BANK2, CH2_STATE_REG
+
+; go to next channel
+    qba     L_CH3_IDLE
+
+
+;*******************************************************************************
+; State CH2_TX3
+;
+; For detailed comments, see CH0_TX3
+;*******************************************************************************
+L_CH2_TX3:
+
+; transmit macro
+    m_tx3 SP_BANK2, CH2_STATE_REG
+
+; go to next channel
+    qba     L_CH3_IDLE
+
+
+;*******************************************************************************
+; State CH2_TX4
+;
+; For detailed comments, see CH0_TX4
+;*******************************************************************************
+L_CH2_TX4:
+
+; transmit macro
+    m_tx4 SP_BANK2, CH2_STATE_REG
+
+; go to next channel
+    qba     L_CH3_IDLE
+
+
+;*******************************************************************************
+; State CH2_TX5
+;
+; For detailed comments, see CH0_TX5
+;*******************************************************************************
+L_CH2_TX5:
+
+; transmit macro
+    m_tx5 SP_BANK2, CH2_STATE_REG
+
+; go to next channel
+    qba     L_CH3_IDLE
 
 
 ; **************************** CH3_IDLE ****************************************
