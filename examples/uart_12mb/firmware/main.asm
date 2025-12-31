@@ -60,7 +60,7 @@ TX_CH1_WRITE_PTR            .set   6
 TX_CH2_READ_PTR             .set   8
 TX_CH2_WRITE_PTR            .set   10
 TX_CH3_READ_PTR             .set   12
-TX_CH4_WRITE_PTR            .set   14
+TX_CH3_WRITE_PTR            .set   14
 
 ; buffer addresses
 TX_CH0_BUFFER_START             .set   0x10000
@@ -86,6 +86,79 @@ TX5_STATE                       .set   6
 ;*******************************************************************************
 ; Register definitions
 ;*******************************************************************************
+
+; Register Usage Summary (R0-R29)
+;
+;  Based on the current modified code:
+;
+;  ---
+;  Permanent Registers (Never Context-Switched)
+;
+;  R29 - Channel State Register (permanent across all channels)
+;  - r29.b0 = CH0_STATE_REG
+;  - r29.b1 = CH1_STATE_REG
+;  - r29.b2 = CH2_STATE_REG
+;  - r29.b3 = CH3_STATE_REG
+;
+;  R27-R28 - Channel 3 (HW UART) Context (permanent)
+;  - r27.b1 = CH3_PREV_BUF (previous buffer index)
+;  - r27.w2 = CH3_CMD_PTR_REG (command pointer)
+;  - r28.w0 = CH3_CNT8_REG (byte counter)
+;  - r28.w2 = CH3_READ_PTR (read pointer)
+;
+;  R30 - PRU GPIO/Peripheral Output (hardware register)
+;  - r30.b0 = TX FIFO data output
+;  - r30.b2 = Channel select
+;
+;  R31 - PRU GPIO/Peripheral Input (hardware register)
+;  - r31.b0-b2 = FIFO status for channels 0-2
+;  - r31[18] = tx_channel_go bit
+;
+;  ---
+;
+;  Context-Switched Registers (R0-R26 for Channels 0-2)
+;
+;  Saved/restored via xin/xout (108 bytes = R0-R26):
+;
+;  R24 - Buffer Configuration
+;  - r24.w0 = BUFFER_START
+;  - r24.w2 = BUFFER_END
+;
+;  R25 - Counters and Pointers
+;  - r25.b0 = CNT_BYTES_SENT (UNUSED - candidate for removal)
+;  - r25.b1 = CNT_BYTES_LOADED (1-8 bytes loaded from buffer)
+;  - r25.w2 = READ_PTR_ADDRESS
+;
+;  R26 - Buffer Pointers
+;  - r26.w0 = READ_PTR
+;  - r26.w2 = WRITE_PTR
+;
+;  R0-R1 - Temporary/Working Registers
+;  - r0.b0-b3 = Temporary bit manipulation, UART symbol formation
+;  - r1.b0 = Register pointer for mvid instruction
+;    - m_tx3 initializes to 10 (line 384)
+;    - m_tx4 increments by 2 to 12 (line 490)
+;    - m_tx2, m_tx5 don't use r1.b0 (data already in r2 from previous state)
+;  - r1.b2, r1.b3 = Temporary bit manipulation
+;  - r1.w2 = Temporary address calculations (wraparound checks)
+;
+;  R2-R3 - Primary Data Storage
+;  - Loaded in m_tx1: up to 8 bytes (r2.b0-r3.b3)
+;    - m_tx1: transmits bytes 0-1
+;    - m_tx2: uses r2.b1-r2.b3 (bytes 1-3) from m_tx1
+;    - m_tx3: reloads r2 from offset 10 (bytes 2-5)
+;    - m_tx4: reloads r2 from offset 12 (bytes 4-7)
+;    - m_tx5: uses r2.b2-r2.b3 (bytes 6-7) from m_tx4
+;
+;  R4-R5 - Wrapped Buffer Data Storage (m_tx1 only)
+;  - Used to hold data from second chunk when buffer wraps
+;
+;  R6 - Buffer Wrap Calculations (m_tx1 only)
+;  - r6.w0 = Bytes to copy through BUFFER_END
+;  - r6.w2 = Remaining bytes to copy from BUFFER_START
+;
+;  R7-R23 - Available/Unused
+
 
 ; R29 register holds channel states
     .asg  r29.b0 ,   CH0_STATE_REG
@@ -115,27 +188,6 @@ TX5_STATE                       .set   6
 
     .asg r24.w0 ,   BUFFER_START          ; start address of the buffer
     .asg r24.w2 ,   BUFFER_END            ; end address of the buffer
-
-;CMD_BUFF_REG                    .set  r24     ; part of context in SP
-; OLD ASSOCIATIONS
-; r24.b0 holds TXn_CHm_CMD (value must be >=8 bits)
-; r24.b1 has previous buffer. 0 = previous buffer was A, 1 = previous buffer was B
-; r24.w2 holds address offsets of registers to read
-
-; TODO: Finish discussing register usage
-; R2-R12 - 44 bytes of data to send (grabbed in state SOF)
-; R13-R23: 44 bytes of data to send (grabbed in state NEXT1)
-; r0.b0 is saved in the SPAD bank for keeping track of how much scratchpad shift to apply 
-; r1.b0 holds the register pointer for mvid shifting
-
-; TODO: since we only have 8 bits for the length of bytes coming from Linux,
-; this limits us to sending length >=255 bytes if we use TX_CMD to pass
-; the length of the buffer. When we add larger buffers, look into changing this
-;
-; Additional notes:
-; it looks like we can only divide registers into 4 bytes, 2 bytes, 1 byte, or
-; 1 bit (i,e, NOT 12 bits & 4 bits). So we could not pass lengths up to 2kB by
-; doing r24[11:0] = length, r24[15:12] = previous buffer
 
 
 ; ICSS HW UART Register
@@ -260,11 +312,6 @@ L_INIT_UART_WAIT:
 ;************************** start with one symbol high 8 bits *************************************
 
     ldi32     r2, 0x00026000   ; PRU Subsystem CFG registers base address
-
-; TODO: Remove shift mode
-; set shift mode for SP
-    ldi32     r3, 0x00000002   ; [1] enable shift mode on PRU scratch pad
-    sbbo      &r3,r2,0x34,4    ; CFG base address SPP register is offset 0x34
 
 ; set mode to 3 peripheral mode on both PRUs
     ldi32     r3, 0x04000001   ; mux mode to 3 peripheral mode
