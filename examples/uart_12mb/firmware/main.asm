@@ -180,6 +180,10 @@ main:
 
     zero        &r0, 128                     ; clear 128 bytes (R0-R31)
 
+; TODO: check all usages of c24 (DMEM0 for PRU0, DMEM1 for PRU1). Should I
+; update the SMEM buffer addresses to use c28 instead? If so, do I need to
+; change the  buffer addresses to account for the offset of 0x10000?
+
 ; configure C28 to point to ICSS shared RAM
     ldi         r2, 0x0100
     sbco        &r2, c11, 0x28, 2
