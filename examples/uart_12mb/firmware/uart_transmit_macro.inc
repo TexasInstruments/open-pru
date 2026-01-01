@@ -149,8 +149,8 @@ L_CALL_EOF_BYTE1:
     m_eof_byte1 SCRATCH_PAD, STATE
 
 L_END_M_TX1:
-; save context for R0-R26
-    xout    SCRATCH_PAD, &r0, 108
+; save context for R0-R24
+    xout    SCRATCH_PAD, &r0, 100
     .endm
 
 
@@ -256,8 +256,8 @@ L_CALL_EOF_BYTE3:
     m_eof_byte3 SCRATCH_PAD, STATE
 
 L_END_M_TX2:
-; save context for R0-R26
-    xout     SCRATCH_PAD, &r0, 108
+; save context for R0-R24
+    xout     SCRATCH_PAD, &r0, 100
     .endm
 
 
@@ -414,8 +414,8 @@ L_CALL_EOF_BYTE4:
     m_eof_byte4 SCRATCH_PAD, STATE
 
 L_END_M_TX3:
-; save context for R0-R26
-    xout     SCRATCH_PAD, &r0, 108
+; save context for R0-R24
+    xout     SCRATCH_PAD, &r0, 100
     .endm
 
 
@@ -532,8 +532,8 @@ L_CALL_EOF_BYTE6:
     m_eof_byte6 SCRATCH_PAD, STATE
 
 L_END_M_TX4:
-; save context for R0-R26
-    xout    SCRATCH_PAD, &r0, 108
+; save context for R0-R24
+    xout    SCRATCH_PAD, &r0, 100
     .endm
 
 
@@ -687,8 +687,8 @@ L_CALL_EOF_BYTE8:
     m_eof_byte8 SCRATCH_PAD, STATE
 
 L_END_M_TX5:
-; save context for R0-R26
-    xout    SCRATCH_PAD, &r0, 108
+; save context for R0-R24
+    xout    SCRATCH_PAD, &r0, 100
     .endm
 
 

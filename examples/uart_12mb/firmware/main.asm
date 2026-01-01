@@ -12,19 +12,8 @@
 ;
 ; ***********************************************************************
 
-; TODOs
-;
-; 1) Add support for variable length buffers
-;
-;    a) remove SPAD shift setting and directly load data into R13-23
-;
-;    b) test for length, and call special function if length = 1 (how many bytes
-;       to have a special function to get through it?)
-; in 5 states we send 8 bytes (2 words), so let's hardcode the logic
-; 
-
 ; ******************* includes ******************************************
-; macro to convert data to UART to 16 bit TX FIFO data
+; macros to convert data to UART to 16 bit TX FIFO data
     .include       "uart_transmit_macro.inc"
 
 ; code to do pad configuration
@@ -36,19 +25,6 @@
 SP_BANK0                        .set   10
 SP_BANK1                        .set   11
 SP_BANK2                        .set   12
-
-; TODO: remove FRAME_LENGTH after adding support for variable length messages
-; max frame length is 88 Bytes
-; actual frame length is passed through the TXm_CHn_CMD register
-FRAME_LENGTH                    .set   88
-
-; buffer pointer offset in ICSS DATA RAM 0 (c24 base address)
-; 8 * 128 bytes = 1 KB
-; group channel 0 data and control into one memory block for linux driver simplification
-; command register in ICSS DATA RAM 0
-; use different 32 bit values as host may do only 32 bit access 
-
-; leave space for up to 8 buffers per channel
 
 ; TODO: Need to configure the constant table register for SMEM
 
@@ -87,6 +63,7 @@ TX5_STATE                       .set   6
 ; Register definitions
 ;*******************************************************************************
 
+; TODO: Update register usage summary (channels 0-2 only use r0-r24, channel 3 now uses r25-r28)
 ; Register Usage Summary (R0-R29)
 ;
 ;  Based on the current modified code:
@@ -101,10 +78,8 @@ TX5_STATE                       .set   6
 ;  - r29.b3 = CH3_STATE_REG
 ;
 ;  R27-R28 - Channel 3 (HW UART) Context (permanent)
-;  - r27.b1 = CH3_PREV_BUF (previous buffer index)
-;  - r27.w2 = CH3_CMD_PTR_REG (command pointer)
-;  - r28.w0 = CH3_CNT8_REG (byte counter)
-;  - r28.w2 = CH3_READ_PTR (read pointer)
+;  - r28.w0 = CH3_WRITE_PTR (write pointer, loaded from memory each cycle)
+;  - r28.w2 = CH3_READ_PTR (read pointer in circular buffer)
 ;
 ;  R30 - PRU GPIO/Peripheral Output (hardware register)
 ;  - r30.b0 = TX FIFO data output
@@ -116,16 +91,16 @@ TX5_STATE                       .set   6
 ;
 ;  ---
 ;
-;  Context-Switched Registers (R0-R26 for Channels 0-2)
+;  Context-Switched Registers (R0-R24 for Channels 0-2)
 ;
-;  Saved/restored via xin/xout (108 bytes = R0-R26):
+;  Saved/restored via xin/xout (100 bytes = R0-R24):
 ;
 ;  R24 - Buffer Configuration
 ;  - r24.w0 = BUFFER_START
 ;  - r24.w2 = BUFFER_END
 ;
 ;  R25 - Counters and Pointers
-;  - r25.b0 = CNT_BYTES_SENT (UNUSED - candidate for removal)
+;  - r25.b0  (UNUSED)
 ;  - r25.b1 = CNT_BYTES_LOADED (1-8 bytes loaded from buffer)
 ;  - r25.w2 = READ_PTR_ADDRESS
 ;
@@ -166,28 +141,26 @@ TX5_STATE                       .set   6
     .asg  r29.b2 ,   CH2_STATE_REG
     .asg  r29.b3 ,   CH3_STATE_REG
 
-; TODO: Is it sufficient to replace CH3_CMD_PTR & CH3_PREV_BUF
-; with CH3_READ_PTR & CH3_READ_PTR, or need more variables?
-; R27 & R28 registers are for channel 3 (HW UART)
-	.asg  r28.w2 ,   CH3_READ_PTR
-	.asg  r28.w0 ,   CH3_CNT8_REG
-	.asg  r27.w2 ,   CH3_CMD_PTR_REG
-	.asg  r27.b1 ,   CH3_PREV_BUF
+; R25 - R28 registers are for channel 3 (HW UART)
+; R25 & R26.w0 currently unused
+    .asg  r28.w0 ,   CH3_READ_PTR
+    .asg  r28.w2 ,   CH3_WRITE_PTR
 
-; TODO: should I 
-; change channels 0-2 to use registers 0 - 24 to give
-; HW UART more registers to play with
+    .asg  r27.w0 ,   CH3_BUFFER_START
+    .asg  r27.w2 ,   CH3_BUFFER_END
+
+    .asg  r26.w2 ,   CH3_READ_PTR_ADDRESS
+
 ; channels 0, 1, 2 store their context for R0 - R24 in a scratchpad bank
 
-    .asg  r26.w0 ,   READ_PTR             ; buffer's read pointer
-    .asg  r26.w2 ,   WRITE_PTR            ; buffer's write pointer
+    .asg  r24.w0 ,   READ_PTR             ; buffer's read pointer
+    .asg  r24.w2 ,   WRITE_PTR            ; buffer's write pointer
 
-    .asg r25.b0 ,   CNT_BYTES_SENT        ; count of whole bytes sent
-    .asg r25.b1 ,   CNT_BYTES_LOADED      ; count of bytes loaded into registers
-    .asg r25.w2 ,   READ_PTR_ADDRESS      ; address of the READ_PTR
+    .asg r23.b1 ,   CNT_BYTES_LOADED      ; count of bytes loaded into registers
+    .asg r23.w2 ,   READ_PTR_ADDRESS      ; address of the READ_PTR
 
-    .asg r24.w0 ,   BUFFER_START          ; start address of the buffer
-    .asg r24.w2 ,   BUFFER_END            ; end address of the buffer
+    .asg r22.w0 ,   BUFFER_START          ; start address of the buffer
+    .asg r22.w2 ,   BUFFER_END            ; end address of the buffer
 
 
 ; ICSS HW UART Register
@@ -270,6 +243,18 @@ L_INIT_UART_WAIT:
     sbco        &r2, c7, UART_DLL, 4
     ldi32        r2, 0
     sbco        &r2, c7, UART_DLH, 4
+
+; QUESTION: Why set to non-FIFO mode? Wouldn't it be better to set to FIFO mode
+; in order to allow us to use
+; the 16 byte version of THR to give ourselves some wiggle room on both
+; transmit and receive?
+
+; Design idea for v1.4: main domain UART0, UART1, UART2 have direct interrupt
+; connectivity to PRU subsystem. Could we use interrupts so that PRU doesn't have
+; to execute a read in order to see if a UART is ready to send more data?
+; How would that work with the other PRU core using an interrupt to see if the
+; UART has data to receive? Need to get around the blocking read issue,
+; unless there is some way to use DMA or XFR2VBUS to pull in data when triggered?
 
 ;  non-FIFO mode
     sbco        &r2, c7, UART_FCR, 4
@@ -375,7 +360,8 @@ L_INIT_UART_WAIT:
     ldi     BUFFER_START, TX_CH0_BUFFER_START
     ldi     BUFFER_END, TX_CH0_BUFFER_END
     ldi     READ_PTR_ADDRESS, TX_CH0_READ_PTR
-    xout     SP_BANK0, &r24, 12                  ; R24-R26
+    sbco    &READ_PTR, c24, TX_CH0_READ_PTR, 4      ; store READ_PTR and WRITE_PTR to memory (4 bytes)
+    xout     SP_BANK0, &r22, 12                     ; R22-R24
 
 ; init CH1 context
     ldi     READ_PTR, TX_CH1_BUFFER_START
@@ -383,7 +369,8 @@ L_INIT_UART_WAIT:
     ldi     BUFFER_START, TX_CH1_BUFFER_START
     ldi     BUFFER_END, TX_CH1_BUFFER_END
     ldi     READ_PTR_ADDRESS, TX_CH1_READ_PTR
-    xout     SP_BANK1, &r24, 12                  ; R24-R26
+    sbco    &READ_PTR, c24, TX_CH1_READ_PTR, 4      ; store READ_PTR and WRITE_PTR to memory (4 bytes)
+    xout     SP_BANK1, &r22, 12                     ; R22-R24
 
 ; init CH2 context
     ldi     READ_PTR, TX_CH2_BUFFER_START
@@ -391,15 +378,17 @@ L_INIT_UART_WAIT:
     ldi     BUFFER_START, TX_CH2_BUFFER_START
     ldi     BUFFER_END, TX_CH2_BUFFER_END
     ldi     READ_PTR_ADDRESS, TX_CH2_READ_PTR
-    xout     SP_BANK2, &r24, 12                  ; R24-R26
+    sbco    &READ_PTR, c24, TX_CH2_READ_PTR, 4      ; store READ_PTR and WRITE_PTR to memory (4 bytes)
+    xout     SP_BANK2, &r22, 12                     ; R22-R24
 
 ; init CH3 context
-; TODO: Figure out what to do for HW UART
-;    ldi     READ_PTR, 
-;    ldi     WRITE_PTR, 
-;    ldi     BUFFER_START, 
-;    ldi     BUFFER_END, 
-;    ldi     READ_PTR_ADDRESS, 
+; Initialize Channel 3 permanent registers and write pointers to memory for host communication
+    ldi     CH3_BUFFER_START, TX_CH3_BUFFER_START
+    ldi     CH3_BUFFER_END, TX_CH3_BUFFER_END
+    ldi     CH3_READ_PTR_ADDRESS, TX_CH3_READ_PTR
+    ldi     CH3_READ_PTR, TX_CH3_BUFFER_START
+    ldi     CH3_WRITE_PTR, TX_CH3_BUFFER_START
+    sbco    &CH3_READ_PTR, c24, TX_CH3_READ_PTR, 4  ; store READ_PTR and WRITE_PTR to memory (4 bytes)
 
 ;*******************************************************************************
 ; Main loop - check all channels in round robin
@@ -414,6 +403,11 @@ L_INIT_UART_WAIT:
 ; If each UART channel gets equal time, the PRU clocks from L_CHn_IDLE to the
 ; next L_CHn_IDLE must be < 50 clocks. "cc" comments refer to cycle counts
 ;*******************************************************************************
+
+; TODO: If using a 200MHz clock, 640ns / 5ns/clk = 128 clocks
+;    ==> 32 PRU clocks per channel
+; Is there a way for us to get every channel at 30 clocks or less? This would
+; allow us to do 12.5Mbps with the PRU core clock instead of modifying PLLs
 
 ;*******************************************************************************
 ; CH0_IDLE
@@ -432,7 +426,7 @@ L_CH0_IDLE:
     ldi      r30.b2, 0             ; select channel 0
 
 ; get context for channel 0
-    xin      SP_BANK0, &r0, 108   ; get R0-R26 context
+    xin      SP_BANK0, &r0, 100   ; get R0-R24 context
 
 ; check on fifo tx level
     and      r2.b0, r31.b0, 0x1c    ; bit 2-4 has fifo level. 2 word = 8
@@ -505,6 +499,10 @@ L_EXIT_CH0_IDLE:
 ;         1 cycle to qba to next channel
 ;*******************************************************************************
 L_CH0_TX1:
+
+; TODO: How many cycles does it take to get through TX1 now?
+; is there any way to reduce the number of cycles?
+
 
 ; use macro for send
     m_tx1 SP_BANK0, CH0_STATE_REG
@@ -638,7 +636,7 @@ L_CH1_IDLE:
     ldi      r30.b2, 1             ; select channel 1
 
 ; get context for channel 1
-    xin      SP_BANK1, &r0, 108   ; get R0-R26 context
+    xin      SP_BANK1, &r0, 100   ; get R0-R24 context
 
 ; check on fifo tx level
     and      r2.b0, r31.b1, 0x1c    ; bit 2-4 has fifo level. 2 word = 8
@@ -763,7 +761,7 @@ L_CH2_IDLE:
     ldi      r30.b2, 2             ; select channel 2
 
 ; get context for channel 2
-    xin      SP_BANK2, &r0, 108   ; get R0-R26 context
+    xin      SP_BANK2, &r0, 100   ; get R0-R24 context
 
 ; check on fifo tx level
     and      r2.b0, r31.b2, 0x1c    ; bit 2-4 has fifo level. 2 word = 8
@@ -879,97 +877,36 @@ L_CH2_TX5:
 
 L_CH3_IDLE:
 
-; check on THR holding register empty. If not empty go to next channel.
+; Check if THR (Transmit Holding Register) is empty
+; Read UART Line Status Register (LSR)
     lbco     &r2.b0, c7, UART_LSR, 1
-; holding register is empty if bit is set
-    qbbc     L_EXIT_CH3, r2.b0,   5
+; THR is empty if bit 5 is set
+    qbbc     L_EXIT_CH3, r2.b0, 5
 
-; check on channel 3 state using permanent state register - r29
-    qbeq     L_CH3_SOF, CH3_STATE_REG, SOF_STATE
+; TODO: Check if UART_LSR[6] TEMT (Transmitter Empty) needs to be set before
+; writing additional data to the THR register. This may not be needed.
 
-; in IDLE we wait for TX done on wire
+; Load WRITE_PTR from memory to check if buffer has data
+    lbco     &CH3_WRITE_PTR, c24, TX_CH3_WRITE_PTR, 2
 
-; check if transmit shift register is empty if bit is set
-; wait if it is not empty
-    qbbc     L_EXIT_CH3, r2.b0,   6
+; Check if buffer is empty (READ_PTR == WRITE_PTR)
+    qbeq     L_EXIT_CH3, CH3_READ_PTR, CH3_WRITE_PTR
 
-; Check the CMD register to see if the next buffer has active frame data
-;------------------------------------------------------------------------
-; r2.b0 holds the next buffer that will be filled
-; r2.b1 holds the register address offset = r2.b0 x 4
+; Buffer has data - load 1 byte from circular buffer at CH3_READ_PTR
+    lbco     &r2.b0, c24, CH3_READ_PTR, 1
+; Send byte to THR register
+    sbco     &r2.b0, c7, 0, 1
 
-; if CH3_PREV_BUF was 7, NEXT_BUF is buffer 0
-    qbne     L_CH3_SET_NEXT_BUF, CH3_PREV_BUF, 7
-    ldi      r2, 0           ; r2.b0 = 0
-    qba      L_CH3_CHECK_BUF
-
-; else, NEXT_BUF is CH3_PREV_BUF + 1
-L_CH3_SET_NEXT_BUF:
-    add      r2, CH3_PREV_BUF, 1 ; r2.b0 = CH3_PREV_BUF + 1
-
-L_CH3_CHECK_BUF:
-
-; load the CMD register for NEXT_BUF
-    lsl     r2.b1, r2.b0, 2         ; 4x buffer number = register address offset
-    add     CH3_CMD_PTR_REG, r2.b1, TX_CH3_CMD0  ; CMD_PTR = base address + offset
-    lbco    &r3.b0, c24, CH3_CMD_PTR_REG, 1
-
-; jump to L_EXIT_CH3_IDLE if buffer is empty
-    qbeq     L_EXIT_CH3_IDLE, r3.b0, CMD_EMPTY
-
-; next buffer is active
-
-; set STATE to SOF_STATE
-    ldi      CH3_STATE_REG, SOF_STATE
-    mov      CH3_PREV_BUF, r2.b0 ; set previous channel to current active channel 
-
-; set register pointers
-; STATUS_PTR_REG name is reused, but CH3 does not have a permanent STATUS_PTR_REG
-    lsl      r2.w2, r2.b0, 7         ; 128x buffer number = buffer address offset
-    ldi      CH3_READ_PTR, TX_CH3_BUF0 ; TX_CH3_BUF0 is too large to pass in OP(255), so store in register
-    add      CH3_READ_PTR, r2.w2, CH3_READ_PTR  ; BUF_PTR = base address + offset
-    add      STATUS_PTR_REG, r2.b1, TX_CH3_STATUS0 ; STATUS_PTR = base address + offset
-
-; claim buffer in STATUS register, clear CMD register
-; ldi sets r2.b0 & r2.b1 simultaneously:
-; r2.b0 = STATUS
-; r2.b1 = 0 = CMD_EMPTY
-    ldi      r2.w0, STATUS_ACTIVE
-    sbco     &r2.b0, c24, STATUS_PTR_REG, 1 ; set channel's STATUS register
-    sbco     &r2.b1, c24, CH3_CMD_PTR_REG, 1    ; clear channel's CMD register
-
-; go to next channel
-L_EXIT_CH3_IDLE:
-    JMP      L_CH0_IDLE
-
-; with hardware UART we read and write every cycle if THR is empty
-; until we reach the end of frame. At end of frame we need to clear context.
-;
-L_CH3_SOF:
-; data can be taken from CH3_READ_PTR and length is in CH3_CNT8_REG
-    lbco     &r2, c24, CH3_READ_PTR, 1
-; send to THR register
-    sbco     &r2, c7, 0 , 1
-; update CH3_READ_PTR which increments by one
+; Increment CH3_READ_PTR with wraparound check
     add      CH3_READ_PTR, CH3_READ_PTR, 1
-    add      CH3_CNT8_REG, CH3_CNT8_REG, 1
-; check end_of frame condition = 88 bytes sent
-    qbeq     L_CH3_EOF, CH3_CNT8_REG, FRAME_LENGTH
-; go to next channel
-    jmp      L_CH0_IDLE
-L_CH3_EOF:
-; reset length counter
-    ldi      CH3_CNT8_REG, 0
-; set state to IDLE
-    ldi      CH3_STATE_REG, IDLE_STATE
+; Check if we've reached BUFFER_END
+    qbne     L_CH3_SAVE_PTR, CH3_READ_PTR, CH3_BUFFER_END
+; Wraparound: reset to BUFFER_START
+    mov      CH3_READ_PTR, CH3_BUFFER_START
 
-; set channel status transfer complete
-; HW UART does not have a permanent STATUS_PTR_REG, so recalculate register offset
-; CH3_PREV_BUF holds the currently active buffer
-    lsl      r2.b1, CH3_PREV_BUF, 2         ; 4x buffer number = register address offset
-    add      STATUS_PTR_REG, r2.b1, TX_CH3_STATUS0 ; STATUS_PTR = base address + offset
-    ldi      r2, STATUS_DONE
-    sbco     &r2, c24, STATUS_PTR_REG, 1
+L_CH3_SAVE_PTR:
+; Save updated READ_PTR back to memory
+    sbco     &CH3_READ_PTR, c24, CH3_READ_PTR_ADDRESS, 2
 
 ; go to next channel
 L_EXIT_CH3:
