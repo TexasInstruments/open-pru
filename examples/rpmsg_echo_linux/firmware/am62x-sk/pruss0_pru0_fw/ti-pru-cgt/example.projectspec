@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<projectSpec>
+    <applicability>
+        <when>
+            <context
+                deviceFamily="PRU"
+                deviceId="AM62x_SK_EVM"
+            />
+        </when>
+    </applicability>
+
+    <project
+        title="rpmsg_echo_linux"
+        name = "rpmsg_echo_linux_am62x-sk_pruss0_pru0_fw_ti-pru-cgt"
+        products="com.ti.OPEN_PRU"
+        configurations="
+            Release,
+            Debug,
+        "
+        connection="TIXDS110_Connection.xml"
+        toolChain="TI"
+        cgtVersion="2.3.3"
+        device="AM62x_SK_EVM"
+        deviceCore="PRU_ICSS_PRU_0"
+        ignoreDefaultDeviceSettings="true"
+        ignoreDefaultCCSSettings="true"
+        endianness="little"
+        outputFormat="ELF"
+        outputType="executable"
+
+        compilerBuildOptions="
+            -I${CG_TOOL_ROOT}/include
+            -I${OPEN_PRU_PATH}/source
+            -O2
+        "
+        linkerBuildOptions="
+            -m=rpmsg_echo_linux.${ConfigName}.map
+            --disable_auto_rts
+            --entry_point=main
+            --diag_suppress=10063-D
+        "
+
+        description="RPMsg Echo example with Linux">
+
+        <configuration name="Debug"
+            compilerBuildOptions="
+                -D_DEBUG_=1
+            "
+            linkerBuildOptions="
+            "
+        ></configuration>
+        <configuration name="Release"
+            compilerBuildOptions="
+            "
+            linkerBuildOptions="
+            "
+        ></configuration>
+        <pathVariable name="OPEN_PRU_PATH" path="${COM_TI_OPEN_PRU_INSTALL_DIR}" scope="project" />
+        <file path="../../../main.c" openOnCreation="false" excludeFromBuild="false" action="copy">
+        </file>
+        <file path="./linker.cmd" openOnCreation="false" excludeFromBuild="false" action="copy">
+        </file>
+        <file path="./intc_map.h" openOnCreation="false" excludeFromBuild="false" action="copy">
+        </file>
+        <file path="../../../../../../source/include/c_code/linux/resource_table.h" openOnCreation="false" excludeFromBuild="false" action="copy">
+        </file>
+    </project>
+</projectSpec>

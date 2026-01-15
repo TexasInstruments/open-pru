@@ -1,13 +1,15 @@
 include imports.mak
 
-SUBDIRS := examples academy
+SUBDIRS := source academy examples
 
 # "make" or "make all" builds projects that match $(DEVICE) set in imports.mak
-all: ARGUMENTS = all
+# this also builds all libraries in the source directory
+all: ARGUMENTS := all
 all: $(SUBDIRS)
 
 # "make clean" cleans projects that match $(DEVICE) set in imports.mak
-clean: ARGUMENTS = clean
+# this also cleans all libraries in the source directory
+clean: ARGUMENTS := clean
 clean: $(SUBDIRS)
 
 $(SUBDIRS):
@@ -17,20 +19,27 @@ help:
 	@echo  ****************
 	@echo  How to use make:
 	@echo  ****************
-	@echo  
-	@echo  These entries in imports.mak determine which projects get built:
+	@echo
+	@echo  Linux:   $(MAKE) = make
+	@echo  Windows: $(MAKE) = gmake
+	@echo      gmake is present in CCS. Add the path to the CCS gmake at
+	@echo      C:\ti\ccsxxxx\ccs\utils\bin to your Windows PATH
+	@echo
+	@echo  imports.mak
+	@echo  These entries determine which projects get built:
 	@echo  - DEVICE: select which processor to build for
 	@echo  - BUILD_MCUPLUS: build MCU+ projects? y/n
 	@echo  - BUILD_LINUX: build Linux projects? y/n
-	@echo  
+	@echo
 	@echo  "-s" is used to suppress output. Remove to see all make prints
-	@echo  
+	@echo
 	@echo  Set PROFILE=debug or PROFILE=release in imports.mak to build with
 	@echo  the debug or release profile
-	@echo  
+	@echo
 	@echo  "-j<thread_number>" can reduce build time with parallel builds.
-	@echo  The -j option will scramble the print order. Do not use for debug
-	@echo  The -j option may not work with the windows command prompt
+	@echo  - The -j option will scramble the print order. Do not use for debug
+	@echo  - Windows command prompt may not work or require a different
+	@echo    format, like "-j" without a thread number
 	@echo  
 	@echo  Overall build targets:
 	@echo  ======================
@@ -38,10 +47,13 @@ help:
 	@echo  
 	@echo  $(MAKE) -s            // build all projects that match DEVICE
 	@echo  $(MAKE) -s clean      // clean all projects that match DEVICE
+	@echo
+	@echo  The overall build targets also build & clean all libraries in the
+	@echo  source/ directory
 	@echo  
 	@echo  Build a single project:
 	@echo  =======================
-	@echo  You can build the code for a single project like this:
+	@echo  You can build the code for a single project or library like this:
 	@echo  cd examples/empty  // go to the project directory
 	@echo  $(MAKE) -s         // build code for cores that match DEVICE
 	@echo  $(MAKE) -s clean   // clean code for cores that match DEVICE

@@ -59,12 +59,24 @@ number to represent each kind of modification.
 </details>
 
 <details>
+  <summary>AM62x</summary>
+
+  | SDK             | Mandatory modifications | Optional modifications |
+  | --------------- | ----------------------- | ---------------------- |
+  | Linux 9.0-10.1  |                         | [5]                    |
+  | Linux 11.0      |                         | [6]                    |
+
+</details>
+
+<details>
   <summary>AM64x</summary>
 
   | SDK             | Mandatory modifications | Optional modifications |
   | --------------- | ----------------------- | ---------------------- |
   | MCU+ 8.6 - 9.2  | [1] [2]                 | [4]                    |
   | MCU+ 10.0       | [1]                     | [4]                    |
+  | Linux 9.0-10.1  |                         | [5]                    |
+  | Linux 11.0      |                         | [6]                    |
 
 </details>
 
@@ -75,6 +87,10 @@ number to represent each kind of modification.
 [3. Modify max-segment-size](#3-modify-max-segment-size). Affects: AM26x MCU+ cores
 
 [4. Update MCU+ source/pru_io/firmware/common code](#4-update-mcu-sourcepru_iofirmwarecommon-code). Affects: PRU code
+
+[5. Revert RPMsg channel name from rpmsg-raw to rpmsg-pru](#5-revert-rpmsg-channel-name-from-rpmsg-raw-to-rpmsg-pru). Affects: PRU firmware w/ RPMsg code
+
+[6. Apply patch to enable PRU RPMsg](#6-apply-patch-to-enable-pru-rpmsg). Affects: Linux RPMsg kernel driver
 
 ## 1. Update SysConfig version
 
@@ -139,3 +155,29 @@ There have been bugfixes to the macros in MCU+ sdk source/pru_io/firmware/common
 over the last few years. If your project has a dependency on any macros in this
 directory, you may want to use the latest version of those files:  
 https://github.com/TexasInstruments/mcupsdk-core/commits/next/source/pru_io/firmware/common
+
+## 5. Revert RPMsg channel name from rpmsg-raw to rpmsg-pru
+
+Starting in Linux kernel 6.12, we removed the separate PRU RPMsg (RPMessage)
+driver[1], and use the generic RPMsg character driver for communication with PRU
+instead [2].
+
+[1] linux-x.y.z/drivers/rpmsg/rpmsg_pru.c
+[2] linux-x.y.z/drivers/rpmsg/rpmsg_char.c
+
+The generic Linux RPMsg character driver uses a different channel name
+(rpmsg-raw) than the previous PRU RPMsg driver (rpmsg-pru). In order to get
+PRU RPMsg firmware to work with Linux kernel 6.1 or 6.6, revert the PRU RPMsg
+firmware from using rpmsg-raw to use rpmsg-pru instead.
+
+In other words, revert this patch from the earlier PRU Software Support Package:
+[Linux kernel 6.12: update rpmsg-pru to rpmsg-raw](https://git.ti.com/cgit/pru-software-support-package/pru-software-support-package/commit/?id=e4127728b027f42deb0b88dfdf8b3483cba45e85)
+
+## 6. Apply patch to enable PRU RPMsg
+
+Linux SDK 11.0 (Linux kernel 6.12) requires a Linux kernel patch in order to
+enable PRU RPMsg. The patch is not required if using SDK 10.1 or earlier, or
+SDK 11.1 or later.
+
+For more details, refer to
+[[FAQ] AM62x & AM64x: How to enable PRU RPMsg on Processor SDK Linux 11.0](https://e2e.ti.com/support/processors-group/processors/f/processors-forum/1494495/faq-am62x-am64x-how-to-enable-pru-rpmsg-on-processor-sdk-linux-11-0).
