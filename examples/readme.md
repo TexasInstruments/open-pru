@@ -78,8 +78,8 @@ For more information about the PRU features on each processor, refer to app note
 | Project                         | am243x | am261x | am263px | am263x | am62x | am64x |
 | ------------------------------- | ------ | ------ | ------- | ------ | ----- | ----- |
 | custom_frequency_generator      | Y      | Yport  | Yport   | Yport  | Yport | Yport |
-| empty                           | Y      | Y      | Y       | Y      | Yport | Y     |
-| empty_c                         | Y      | Y      | Y       | Y      | Yport | Y     |
+| empty                           | Y      | Y      | Y       | Y      | Y     | Y     |
+| empty_c                         | Y      | Y      | Y       | Y      | Y     | Y     |
 | fft/                                                                                 |
 | split_radix_fft_4k_single_core  | Y      | Y      | Yport   | Yport  | Yport | Yport |
 | split_radix_fft_post_processing | Y      | Yport  | Yport   | Yport  | Yport | Yport |

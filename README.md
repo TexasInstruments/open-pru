@@ -25,9 +25,10 @@ The OpenPRU project currently supports these processors:
 - AM261x: [AM2612](https://www.ti.com/product/AM2612)
 - AM263x: [AM2631](https://www.ti.com/product/AM2631), [AM2631-Q1](https://www.ti.com/product/AM2631-Q1), [AM2632](https://www.ti.com/product/AM2632), [AM2632-Q1](https://www.ti.com/product/AM2632-Q1), [AM2634](https://www.ti.com/product/AM2634), [AM2634-Q1](https://www.ti.com/product/AM2634-Q1)
 - AM263px: [AM263P2-Q1](https://www.ti.com/product/AM263P2-Q1), [AM263P2](https://www.ti.com/product/AM263P2), [AM263P4-Q1](https://www.ti.com/product/AM263P4-Q1), [AM263P4](https://www.ti.com/product/AM263P4)
+- AM62x: [AM623](https://www.ti.com/product/AM623), [AM625](https://www.ti.com/product/AM625)
 - AM64x: [AM6411](https://www.ti.com/product/AM6411), [AM6412](https://www.ti.com/product/AM6412), [AM6421](https://www.ti.com/product/AM6421), [AM6422](https://www.ti.com/product/AM6422), [AM6441](https://www.ti.com/product/AM6441), [AM6442](https://www.ti.com/product/AM6442).
 
-For basic PRU development support on AM335x, AM437x, AM57x, and AM62x, refer to the [PRU Software Support Package (PSSP)](https://git.ti.com/cgit/pru-software-support-package/pru-software-support-package).
+For basic PRU development support on AM335x, AM437x, and AM57x, refer to the [PRU Software Support Package (PSSP)](https://git.ti.com/cgit/pru-software-support-package/pru-software-support-package).
 
 [Release notes are here](./docs/release_notes.md). Please refer to the release
 notes for information like compatible SDK versions on each release.
