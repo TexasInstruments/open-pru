@@ -78,7 +78,7 @@ For more information about the PRU features on each processor, refer to app note
 | Project              | am243x | am261x | am263px | am263x | am62x | am64x |
 | -------------------- | ------ | ------ | ------- | ------ | ----- | ----- |
 | crc/crc              | Yport  | Y      | Y       | Y      | Yport | Yport |
-| getting_started_labs | Y      | Y      | Y       | Y      | Yport | Y     |
+| getting_started_labs | Y      | Y      | Y       | Y      | Y     | Y     |
 | gpio/gpio_toggle     | Yport  | Y      | Y       | Y      | N-sw  | Yport |
 | intc/intc_mcu        | Yport  | Y      | Y       | Y      | N-sw  | Yport |
 | mac/mac              | Yport  | Y      | Y       | Y      | Yport | Yport |
