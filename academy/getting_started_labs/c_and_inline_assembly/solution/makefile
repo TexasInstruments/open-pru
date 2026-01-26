@@ -5,7 +5,7 @@ include ../../../../imports.mak
 #######################
 
 PROJECT_NAME := pru_add
-SUPPORTED_PROCESSORS := am243x am261x am263px am263x am64x
+SUPPORTED_PROCESSORS := am243x am261x am263px am263x am62x am64x
 # Does the PRU code have dependencies outside of the open-pru repo?
 PRU_DEPENDENCIES :=
 # Use NON_PRU_DEPENDENCIES to select which makefiles to call for non-PRU cores
@@ -160,6 +160,11 @@ am64x:
 am64x_mcuplus:
 # am64x-evm
 	$(MAKE) -C mcuplus/am64x-evm/r5fss0-0_freertos/ti-arm-clang $(ARGUMENTS_MCUPLUS)
+
+am62x:
+# am62x-sk
+	$(MAKE) -C firmware/am62x-sk/pruss0_pru0_fw/ti-pru-cgt $(ARGUMENTS_PRU)
+	$(MAKE) -C firmware/am62x-sk/pruss0_pru1_fw/ti-pru-cgt $(ARGUMENTS_PRU)
 
 .PHONY: all clean pre_build_message $(DEVICE) $(DEVICE_NON_PRU) $(SUPPORTED_PROCESSORS)
 
