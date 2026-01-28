@@ -46,7 +46,6 @@ endif
 #     C code optimization: -O (off, 0, 1, 2, 3, 4)
 CFLAGS := \
 	-v3 -Ooff \
-	--include_path=$(CGT_TI_PRU_PATH)/include \
 	--display_error_number --diag_wrap=off --diag_warning=225 \
 	--asm_directory=$(GEN_DIR) --obj_directory=$(GEN_DIR) --pp_directory=$(GEN_DIR) \
 	-ppd -ppa -g --endian=little
