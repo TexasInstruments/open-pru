@@ -42,9 +42,9 @@ with older SDK versions. For more information, refer to
 <details>
   <summary>v2025.00.00</summary>
 
-  | SDK      | am243x      | am261x  | am263px | am263x  | am62x | am64x       |
-  | -------- | ----------- | ------- | ------- | ------- | ----- | ----------- |
-  | MCU+ SDK | 10.1 - 11.0 | 10.2 on | 10.2 on | 10.2 on | N/A   | 10.1 - 11.0 |
+  | SDK      | am243x      | am261x    | am263px   | am263x    | am62x | am64x       |
+  | -------- | ----------- | --------- | --------- | --------- | ----- | ----------- |
+  | MCU+ SDK | 10.1 - 11.0 | 10.2 only | 10.2 only | 10.2 only | N/A   | 10.1 - 11.0 |
 
 </details>
 
