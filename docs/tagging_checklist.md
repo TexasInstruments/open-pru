@@ -33,7 +33,7 @@ In imports.mak:
 imports.mak will be modified before each test.
 
 Test all of DEVICE ?=
-am243x, am261x, am263px, am263x, am64x
+am243x, am261x, am263px, am263x, am62x, am64x
 
 For each SDK release, update these imports.mak entries:
 * MCU_PLUS_SDK_PATH?=
