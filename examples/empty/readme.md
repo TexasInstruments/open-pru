@@ -12,7 +12,7 @@ This example acts as a getting started point for PRU firmware development in ass
  ICSSM          | ICSSM0 - PRU0, PRU1
                 | ICSSM1 - PRU0, PRU1 (am261x only)
  Toolchain      | pru-cgt
- Board          | am64x-evm, am243x-evm, am243x-lp, am261x-lp, am261x-som, am263px-cc, am263px-lp, am263x-cc, am263x-lp
+ Board          | am64x-evm, am243x-evm, am243x-lp, am261x-lp, am261x-som, am263px-cc, am263px-lp, am263x-cc, am263x-lp, am62x-sk
  Example folder | examples/empty/
 
 # Steps to Run the Example

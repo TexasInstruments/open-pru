@@ -1,6 +1,6 @@
 # UPDATE: set the device you are using.
 # valid devices include:
-# am243x, am261x, am263px, am263x, am64x
+# am243x, am261x, am263px, am263x, am62x, am64x
 DEVICE ?= am64x
 
 # UPDATE: what kind of project are you building?
