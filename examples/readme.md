@@ -25,6 +25,9 @@ fft/split_radix_fft_post_processing
 * Extract FFT magnitude information from the output of
   split_radix_fft_4k_single_core
 
+gcc_rpmsg_echo_linux
+* Show how to compile RPMSG firmware using the GNU toolchain for PRU.
+
 LCD_interface
 * Use PRU direct GPOs to output data from frame buffer memory to a parallel
   RGB24 interface. The LCD display is 800x480 pixel with 24 bit color and 60 Hz
