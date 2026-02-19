@@ -1,0 +1,66 @@
+name: GNU Toolchain CI
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ "**" ]
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build and Validate
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Show tool versions
+        run: |
+          make --version
+
+      - name: Restore toolchain cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            $HOME/gnupru
+          key: toolchain-gnupru-2025.05.sha
+
+      - name: Install GNU toolchain if missing
+        run: |
+          set -e
+          mkdir -p "$HOME/gnupru/downloads"
+          cd "$HOME/gnupru"
+
+          # Install gnupru-2025.05
+          if [ ! -d "$HOME/gnupru/pru-elf-2025.05" ]; then
+            cd "$HOME/gnupru/downloads"
+            wget -q --retry-connrefused --waitretry=1 --tries=5 --timeout=30 \
+              https://github.com/dinuxbg/gnupru/releases/download/2025.05/pru-elf-2025.05.amd64.tar.xz
+            echo "23d4a8e8a64400ab73565be5575bc6ea5a3c1f5c06858a03b441e1549427380256ce7b22c3131f7b09d45e941ef133c5d51da38331cfaa338f6b601f21065a3e pru-elf-2025.05.amd64.tar.xz" > pru-elf-2025.05.amd64.sum
+            sha512sum -c pru-elf-2025.05.amd64.sum
+            cd "$HOME/gnupru"
+            tar xaf "$HOME/gnupru/downloads/pru-elf-2025.05.amd64.tar.xz"
+            mv pru-elf pru-elf-2025.05
+          fi
+
+          test -x "$HOME/gnupru/pru-elf-2025.05/bin/pru-gcc"
+          
+      - name: Export toolchain environment
+        run: |
+          {
+            echo "PATH=$PATH:$HOME/gnupru/pru-elf-2025.05/bin"
+          } >> $GITHUB_ENV
+          
+      - name: Build examples folder
+        run: |
+          make -C examples/gcc_rpmsg_echo_linux -j$(nproc) 
+          make -C examples/gcc_rpmsg_echo_linux -j$(nproc) MCU_DEVICE=am62x.pru1
