@@ -41,6 +41,7 @@
  *  - Implementaion of the interface described in "pru_rpmsg.h"
  */
 
+#include <string.h>
 #include <pru_rpmsg.h>
 
 struct pru_rpmsg_hdr {
