@@ -135,7 +135,7 @@ static inline void vring_init(struct vring *vr, uint32_t num, void *p,
 	vr->num = num;
 	vr->desc = p;
 	vr->avail = (void *)((char *)p + num*sizeof(struct vring_desc));
-	vr->used = (void *)(uintptr_t)(((uint64_t)&vr->avail->ring[num]
+	vr->used = (void *)(uintptr_t)(((uintptr_t)&vr->avail->ring[num]
 	                                + sizeof(uint16_t) + align-1) & ~(align - 1));
 }
 
