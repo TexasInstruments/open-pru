@@ -113,7 +113,7 @@ int16_t pru_virtqueue_add_used_buf(
 	num = vq->vring.num;
 	used = vq->vring.used;
 
-	if (head > num)
+	if ((uint32_t)head > num)
 		return PRU_VIRTQUEUE_INVALID_HEAD;
 
 	/*
