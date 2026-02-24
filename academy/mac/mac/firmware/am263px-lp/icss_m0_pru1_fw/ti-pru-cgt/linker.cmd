@@ -1,8 +1,8 @@
 /*
- * AM263px_PRU1.cmd
+ * AM263Px_PRU1.cmd
  *
  * Example Linker command file for linking assembly programs built with the TI-PRU-CGT
- * on AM263px PRU1 cores
+ * on AM263Px PRU1 cores
  */
 
 /* Specify the System Memory Map */

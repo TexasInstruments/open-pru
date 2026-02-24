@@ -1,8 +1,8 @@
 /*
- * AM263px_PRU1.cmd
+ * AM263Px_PRU1.cmd
  *
  * Example Linker command file for linking programs built with the C compiler
- * on AM263px PRU1 cores
+ * on AM263Px PRU1 cores
  */
 
 -cr		/* Link using C conventions */
