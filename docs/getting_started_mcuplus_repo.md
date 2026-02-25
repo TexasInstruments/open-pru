@@ -37,8 +37,15 @@ mcupsdk-core README.md file for additional steps to set up the repository.
 
 Install the versions of the tools that are listed in these pages:
    - MCU+ SDK docs > Getting Started > Download, Install, and Setup SDK and Tools
+
    - MCU+ SDK docs > Getting Started > Download, Install, and Setup CCS
-     - Developers using a Linux computer, make sure to follow the additional steps at "CCS Linux Host Support"
+
+     - Developers using a Linux computer, make sure to follow the additional
+       steps at "CCS Linux Host Support"
+
+     - If section **Create Target Configuration** says to “Bypass not used CPUs”,
+       **do NOT bypass the ICSS / ICSS_G cores**. The CCS debugger cannot connect
+       to a PRU core if the PRU core has been bypassed
 
 ## Set up imports.mak
 
