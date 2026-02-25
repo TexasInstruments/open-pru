@@ -17,7 +17,7 @@ MEMORY
 	/* 8 KB PRU Data RAM 0 */
 	PRU0_DMEM_0	: org = 0x00000000 len = 0x00002000
 	/* 8 KB PRU Data RAM 1 */
-	PRU0_DMEM_1	: org = 0x00002000 len = 0x00002000
+	PRU1_DMEM_1	: org = 0x00002000 len = 0x00002000
 
       PAGE 2:
 	/* C28 needs to be programmed to point to SHAREDMEM, default is 0 */

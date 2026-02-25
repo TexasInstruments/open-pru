@@ -10,8 +10,8 @@
 MEMORY
 {
       PAGE 0:
-	/* 12 KB PRU Instruction RAM */
-	PRU_IMEM	: org = 0x00000000 len = 0x00003000
+	/* 6 KB TX_PRU Instruction RAM */
+	TX_PRU_IMEM	: org = 0x00000000 len = 0x00001800
 
       PAGE 1:
 	/* Data RAMs */
@@ -20,14 +20,14 @@ MEMORY
 	PRU0_DMEM_0	: org = 0x00000000 len = 0x00001000	CREGISTER=24
 	/* 8 KB PRU Data RAM 1; reserved completely for Slice1 cores - PRU1,
 	 * RTU1 and Tx_PRU1; do not use for any Slice0 cores */
-	PRU0_DMEM_1	: org = 0x00002000 len = 0x00001000	CREGISTER=25
+	PRU1_DMEM_1	: org = 0x00002000 len = 0x00001000	CREGISTER=25
 	/* NOTE: Custom split of the second 4 KB of ICSS Data RAMs 0 and 1
 	 * split equally between the corresponding RTU and Tx_PRU cores in
 	 * each slice */
 	RTU0_DMEM_0	: org = 0x00001000 len = 0x00000800
 	TX_PRU0_DMEM_0	: org = 0x00001800 len = 0x00000800
-	RTU0_DMEM_1	: org = 0x00003000 len = 0x00000800
-	TX_PRU0_DMEM_1	: org = 0x00003800 len = 0x00000800
+	RTU1_DMEM_1	: org = 0x00003000 len = 0x00000800
+	TX_PRU1_DMEM_1	: org = 0x00003800 len = 0x00000800
 
       PAGE 2:
 	/* C28 needs to be programmed to point to SHAREDMEM, default is 0 */
@@ -47,13 +47,13 @@ MEMORY
 	/* XXX: PRU_INTC_0x200 is part of INTC space, and is therefore commented
 	 * out as it conflicts with PRU_INTC size above. To use PRU_INTC_0x200,
 	 * split up the pruIntc structure and CT_INTC variable in
-	 * include/PROCESSOR/pru_intc.h */
+	 * source/include/c_code/PROCESSOR/pru_intc.h */
 	/*PRU_INTC_0x200: org = 0x00020200 len = 0x00001304	CREGISTER=6*/
 	PRU_UART	: org = 0x00028000 len = 0x00000038	CREGISTER=7
 	PRU_IEP0_0x100	: org = 0x0002E100 len = 0x0000021C	CREGISTER=8
 	MII_G_RT	: org = 0x00033000 len = 0x00000F44	CREGISTER=9
-	TM_CFG_PRU0	: org = 0x0002A000 len = 0x0000004C	CREGISTER=10
-	PRU0_CTRL	: org = 0x00022000 len = 0x00000030	CREGISTER=11
+	TM_CFG_TX_PRU0	: org = 0x0002A400 len = 0x0000004C	CREGISTER=10
+	TX_PRU0_CTRL	: org = 0x00025000 len = 0x00000030	CREGISTER=11
 	PA_STATS_QRAM	: org = 0x00027000 len = 0x00001000	CREGISTER=12
 	PA_STATS_CRAM	: org = 0x0002C000 len = 0x00001000	CREGISTER=13
 	MII_MDIO	: org = 0x00032400 len = 0x00000088	CREGISTER=21
@@ -79,11 +79,11 @@ MEMORY
 
 /* Specify the sections allocation into memory */
 SECTIONS {
-	/* Forces _c_int00 to the start of PRU IRAM. Not necessary when loading
+	/* Forces _c_int00 to the start of Tx_PRU IRAM. Not necessary when loading
 	   an ELF file, but useful when loading a binary */
 	.text:_c_int00*	>  0x0, PAGE 0
 
-	.text		>  PRU_IMEM, PAGE 0
+	.text		>  TX_PRU_IMEM, PAGE 0
 	.stack		>  TX_PRU0_DMEM_0, PAGE 1
 	.bss		>  TX_PRU0_DMEM_0, PAGE 1
 	.cio		>  TX_PRU0_DMEM_0, PAGE 1
