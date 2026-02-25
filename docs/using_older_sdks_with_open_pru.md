@@ -25,7 +25,8 @@ number to represent each kind of modification.
   | AM243X SDK      | Mandatory modifications | Optional modifications |
   | --------------- | ----------------------- | ---------------------- |
   | MCU+ 8.6 - 9.2  | [1] [2]                 | [4]                    |
-  | MCU+ 10.0       | [1]                     | [4]                    |
+  | MCU+ 10.0       | [1], either [2] or [7]  | [4]                    |
+  | MCU+ 10.1-11.0  | Either [2] or [7]       |                        |
 
 </details>
 
@@ -74,7 +75,8 @@ number to represent each kind of modification.
   | SDK             | Mandatory modifications | Optional modifications |
   | --------------- | ----------------------- | ---------------------- |
   | MCU+ 8.6 - 9.2  | [1] [2]                 | [4]                    |
-  | MCU+ 10.0       | [1]                     | [4]                    |
+  | MCU+ 10.0       | [1], either [2] or [7]  | [4]                    |
+  | MCU+ 10.1-11.0  | Either [2] or [7]       |                        |
   | Linux 9.0-10.1  |                         | [5]                    |
   | Linux 11.0      |                         | [6]                    |
 
@@ -91,6 +93,8 @@ number to represent each kind of modification.
 [5. Revert RPMsg channel name from rpmsg-raw to rpmsg-pru](#5-revert-rpmsg-channel-name-from-rpmsg-raw-to-rpmsg-pru). Affects: PRU firmware w/ RPMsg code
 
 [6. Apply patch to enable PRU RPMsg](#6-apply-patch-to-enable-pru-rpmsg). Affects: Linux RPMsg kernel driver
+
+[7. Revert MCU+ SDK 11.1 makefile updates](#7-revert-mcu-sdk-11-1-makefile-updates). Affects: AM243x & AM64x MCU+ cores
 
 ## 1. Update SysConfig version
 
@@ -181,3 +185,15 @@ SDK 11.1 or later.
 
 For more details, refer to
 [[FAQ] AM62x & AM64x: How to enable PRU RPMsg on Processor SDK Linux 11.0](https://e2e.ti.com/support/processors-group/processors/f/processors-forum/1494495/faq-am62x-am64x-how-to-enable-pru-rpmsg-on-processor-sdk-linux-11-0).
+
+## 7. Revert MCU+ SDK 11.1 makefile updates
+
+Affects: AM243x & AM64x MCU+ cores
+
+Starting in AM243x & AM64x MCU+ SDK 11.1, the makefile infrastructure for MCU+
+cores is updated. Changes include updating the OS value, renaming libraries,
+adding XML build infrastructure, and several other miscellaneous changes.
+
+In order to undo these changes, revert the file changes that were done in
+OpenPRU commit
+[AM243x & AM64x: Add support for MCU+ SDK 11.1&11.2](https://github.com/TexasInstruments/open-pru/pull/110)
