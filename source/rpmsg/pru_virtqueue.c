@@ -41,7 +41,11 @@
  */
 #include <pru_virtqueue.h>
 
+#ifdef __GNUC__
+#include <pru/io.h>
+#else
 volatile register uint32_t __R31;
+#endif
 
 /* bit 5 is the valid strobe to generate system events with __R31 */
 #define INT_ENABLE	(1 << 5)
@@ -109,7 +113,7 @@ int16_t pru_virtqueue_add_used_buf(
 	num = vq->vring.num;
 	used = vq->vring.used;
 
-	if (head > num)
+	if ((uint32_t)head > num)
 		return PRU_VIRTQUEUE_INVALID_HEAD;
 
 	/*

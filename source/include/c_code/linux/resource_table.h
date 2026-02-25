@@ -34,12 +34,20 @@ struct my_resource_table {
 	struct fw_rsc_vdev_vring rpmsg_vring1;
 };
 
-#pragma DATA_SECTION(resourceTable, ".resource_table")
-#pragma RETAIN(resourceTable)
-struct my_resource_table resourceTable = {
-	1,	/* Resource table version: only version 1 is supported by the current driver */
-	1,	/* number of entries in the table */
-	0, 0,	/* reserved, must be zero */
+#if !defined(__GNUC__)
+  #pragma DATA_SECTION(resourceTable, ".resource_table")
+  #pragma RETAIN(resourceTable)
+  #define __resource_table      /* */
+#else
+  #define __resource_table __attribute__((section(".resource_table")))
+#endif
+
+struct my_resource_table resourceTable __resource_table = {
+	{
+		1,		/* Resource table version: only version 1 is supported by the current driver */
+		1,		/* number of entries in the table */
+		{ 0, 0 },	/* reserved, must be zero */
+	},
 	/* offsets to entries */
 	{
 		offsetof(struct my_resource_table, rpmsg_vdev),
