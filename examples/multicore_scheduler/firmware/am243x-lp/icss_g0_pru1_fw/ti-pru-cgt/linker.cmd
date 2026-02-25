@@ -14,19 +14,19 @@ MEMORY
 
       PAGE 1:
 	/* Data RAMs */
-	/* 8 KB PRU Data RAM 0; use only the first 4 KB for PRU0 and reserve
-	 * the second 4 KB for RTU0 and Tx_PRU0 */
-	PRU0_DMEM_0	: org = 0x00000000 len = 0x00001000	CREGISTER=24
-	/* 8 KB PRU Data RAM 1; reserved completely for Slice1 cores - PRU1,
-	 * RTU1 and Tx_PRU1; do not use for any Slice0 cores */
-	PRU0_DMEM_1	: org = 0x00002000 len = 0x00001000	CREGISTER=25
+	/* 8 KB PRU Data RAM 1; use only the first 4 KB for PRU1 and reserve
+	 * the second 4 KB for RTU1 and Tx_PRU1 */
+	PRU1_DMEM_1	: org = 0x00000000 len = 0x00001000	CREGISTER=24
+	/* 8 KB PRU Data RAM 0; reserved completely for Slice0 cores - PRU0,
+	 * RTU0 and Tx_PRU0; do not use for any Slice1 cores */
+	PRU0_DMEM_0	: org = 0x00002000 len = 0x00001000	CREGISTER=25
 	/* NOTE: Custom split of the second 4 KB of ICSS Data RAMs 0 and 1
 	 * split equally between the corresponding RTU and Tx_PRU cores in
 	 * each slice */
-	RTU0_DMEM_0	: org = 0x00001000 len = 0x00000800
-	TX_PRU0_DMEM_0	: org = 0x00001800 len = 0x00000800
-	RTU0_DMEM_1	: org = 0x00003000 len = 0x00000800
-	TX_PRU0_DMEM_1	: org = 0x00003800 len = 0x00000800
+	RTU1_DMEM_1	: org = 0x00001000 len = 0x00000800
+	TX_PRU1_DMEM_1	: org = 0x00001800 len = 0x00000800
+	RTU0_DMEM_0	: org = 0x00003000 len = 0x00000800
+	TX_PRU0_DMEM_0	: org = 0x00003800 len = 0x00000800
 
       PAGE 2:
 	/* C28 needs to be programmed to point to SHAREDMEM, default is 0 */
@@ -46,17 +46,18 @@ MEMORY
 	/* XXX: PRU_INTC_0x200 is part of INTC space, and is therefore commented
 	 * out as it conflicts with PRU_INTC size above. To use PRU_INTC_0x200,
 	 * split up the pruIntc structure and CT_INTC variable in
-	 * include/PROCESSOR/pru_intc.h */
+	 * source/include/c_code/PROCESSOR/pru_intc.h */
 	/*PRU_INTC_0x200: org = 0x00020200 len = 0x00001304	CREGISTER=6*/
 	PRU_UART	: org = 0x00028000 len = 0x00000038	CREGISTER=7
 	PRU_IEP0_0x100	: org = 0x0002E100 len = 0x0000021C	CREGISTER=8
 	MII_G_RT	: org = 0x00033000 len = 0x00000F44	CREGISTER=9
-	TM_CFG_PRU0	: org = 0x0002A000 len = 0x0000004C	CREGISTER=10
-	PRU0_CTRL	: org = 0x00022000 len = 0x00000030	CREGISTER=11
+	TM_CFG_PRU1	: org = 0x0002A200 len = 0x0000004C	CREGISTER=10
+	PRU1_CTRL	: org = 0x00024000 len = 0x00000030	CREGISTER=11
+
 	PA_STATS_QRAM	: org = 0x00027000 len = 0x00001000	CREGISTER=12
 	PA_STATS_CRAM	: org = 0x0002C000 len = 0x00001000	CREGISTER=13
 	MII_MDIO	: org = 0x00032400 len = 0x00000088	CREGISTER=21
-	PRU_RTU_RAT0	: org = 0x00008000 len = 0x00000854	CREGISTER=22
+	PRU_RTU_RAT1	: org = 0x00009000 len = 0x00000854	CREGISTER=22
 	PRU_IEP0	: org = 0x0002E000 len = 0x00000100	CREGISTER=26
 	MII_RT		: org = 0x00032000 len = 0x00000070	CREGISTER=27
 
@@ -83,15 +84,15 @@ SECTIONS {
 	.text:_c_int00*	>  0x0, PAGE 0
 
 	.text		>  PRU_IMEM, PAGE 0
-	.stack		>  PRU0_DMEM_1, PAGE 1
-	.bss		>  PRU0_DMEM_1, PAGE 1
-	.cio		>  PRU0_DMEM_1, PAGE 1
-	.data		>  PRU0_DMEM_1, PAGE 1
-	.switch		>  PRU0_DMEM_1, PAGE 1
-	.sysmem		>  PRU0_DMEM_1, PAGE 1
-	.cinit		>  PRU0_DMEM_1, PAGE 1
-	.rodata		>  PRU0_DMEM_1, PAGE 1
-	.rofardata	>  PRU0_DMEM_1, PAGE 1
-	.farbss		>  PRU0_DMEM_1, PAGE 1
-	.fardata	>  PRU0_DMEM_1, PAGE 1
+	.stack		>  PRU1_DMEM_1, PAGE 1
+	.bss		>  PRU1_DMEM_1, PAGE 1
+	.cio		>  PRU1_DMEM_1, PAGE 1
+	.data		>  PRU1_DMEM_1, PAGE 1
+	.switch		>  PRU1_DMEM_1, PAGE 1
+	.sysmem		>  PRU1_DMEM_1, PAGE 1
+	.cinit		>  PRU1_DMEM_1, PAGE 1
+	.rodata		>  PRU1_DMEM_1, PAGE 1
+	.rofardata	>  PRU1_DMEM_1, PAGE 1
+	.farbss		>  PRU1_DMEM_1, PAGE 1
+	.fardata	>  PRU1_DMEM_1, PAGE 1
 }
