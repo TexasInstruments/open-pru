@@ -26,6 +26,7 @@ PROFILE?=release
 ConfigName:=$(PROFILE)
 
 OUTNAME:=spi_loopback.$(PROFILE).out
+COREOUTNAME:=spi_loopback.$(PROFILE).optishare.out
 
 BOOTIMAGE_PATH=$(abspath .)
 BOOTIMAGE_NAME:=spi_loopback.$(PROFILE).appimage
@@ -71,6 +72,7 @@ INCLUDES_common := \
 
 DEFINES_common := \
 	-DSOC_AM243X \
+	-DOS_NORTOS \
 
 CFLAGS_common := \
 	-mcpu=cortex-r5 \
@@ -115,8 +117,8 @@ LIBS_PATH_common = \
 
 LIBS_common = \
 	-lnortos.am243x.r5f.ti-arm-clang.${ConfigName}.lib \
-	-ldrivers.am243x.r5f.ti-arm-clang.${ConfigName}.lib \
-	-lboard.am243x.r5f.ti-arm-clang.${ConfigName}.lib \
+	-ldrivers.am243x.r5f.ti-arm-clang.nortos.${ConfigName}.lib \
+	-lboard.am243x.r5f.ti-arm-clang.nortos.${ConfigName}.lib \
 	-llibc.a \
 	-llibsysbm.a \
 	-llibc.a \
@@ -126,12 +128,13 @@ LFLAGS_common = \
 	-Wl,--diag_suppress=10063 \
 	-Wl,--ram_model \
 	-Wl,--reread_libs \
+	-Wl,--gen_xml_func_hash \
 
 
 LIBS_NAME = \
 	nortos.am243x.r5f.ti-arm-clang.${ConfigName}.lib \
-	drivers.am243x.r5f.ti-arm-clang.${ConfigName}.lib \
-	board.am243x.r5f.ti-arm-clang.${ConfigName}.lib \
+	drivers.am243x.r5f.ti-arm-clang.nortos.${ConfigName}.lib \
+	board.am243x.r5f.ti-arm-clang.nortos.${ConfigName}.lib \
 	libc.a \
 	libsysbm.a \
 	libc.a \
@@ -177,7 +180,7 @@ $(OBJDIR)/%.obj %.obj: %.c
 
 $(OBJDIR)/%.obj %.obj: %.S
 	@echo  Compiling: am243x:r5fss0-0:nortos:ti-arm-clang $(LIBNAME): $<
-	$(CC) -c $(CFLAGS) -o $(OBJDIR)/$@ $<
+	$(CC) -c $(CFLAGS) $(INCLUDES) $(DEFINES) -o $(OBJDIR)/$@ $<
 
 all: $(TARGETS)
 
@@ -199,8 +202,16 @@ endif
 $(OUTNAME):  $(SYSTEM_COMMAND)
 	@echo  .
 	@echo  Linking: am243x:r5fss0-0:nortos:ti-arm-clang $@ ...
-	$(LNK) $(LNKOPTFLAGS) $(LFLAGS) $(LIBS_PATH) -Wl,-m=$(basename $@).map -o $@ $(addprefix $(OBJDIR), $(OBJS)) $(LIBS) $(LNK_FILES)
+	$(LNK) $(LNKOPTFLAGS) $(LFLAGS) $(LIBS_PATH) -Wl,-m=$(basename $@).map -o $@ $(addprefix $(OBJDIR), $(OBJS)) $(LIBS) $(LNK_FILES) -Wl,--xml_link_info=$(basename $@).lnkxml
 	@echo  Linking: am243x:r5fss0-0:nortos:ti-arm-clang $@ Done !!!
+	@echo  .
+
+coreout: $(COREOUTNAME)
+$(COREOUTNAME):  $(SYSTEM_COMMAND)
+	@echo  .
+	@echo  Relinking Linking: am243x:r5fss0-0:nortos:ti-arm-clang $@ with OptiShare SSO..
+	$(LNK) $(LNKOPTFLAGS) $(LFLAGS) $(LIBS_PATH) -Wl,-m=$(basename $@).map -o $@ $(addprefix $(OBJDIR), $(OBJS)) $(LIBS) $(LNK_FILES) -Wl,--xml_link_info=$(basename $@).lnkxml -Wl,--import_sso=$(SSO_PATH)
+	@echo  Relinking with optishare: am243x:r5fss0-0:nortos:ti-arm-clang $@ Done !!!
 	@echo  .
 
 clean:
@@ -233,6 +244,8 @@ else
 	$(RM) *.rprc*
 	$(RM) *.tiimage*
 	$(RM) *.bin
+	$(RM) *.lnkxml
+	$(RM) *.ossr
 endif
 	$(RMDIR) generated
 

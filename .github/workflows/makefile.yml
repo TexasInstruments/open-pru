@@ -41,7 +41,7 @@ jobs:
         with:
           path: |
             $HOME/ti
-          key: toolchain-mcu-sdk-${{ runner.os }}-v1-ccs20_3_1-pru2_3_3-am243x_11_01_00_17-am261x_10_02_00_15-am263px_11_00_00_19
+          key: toolchain-mcu-sdk-${{ runner.os }}-v1-ccs20_3_1-pru2_3_3-am243x_11_02_00_24-am261x_10_02_00_15-am263px_10_02_00_15
 
       - name: Install MCU+ SDKs, CCS, SYSCONFIG, TIARMCLANG and PRU CGT if missing
         run: |
@@ -50,26 +50,26 @@ jobs:
           cd "$HOME/ti"
 
           # Install CCS 20.3.1
-          if [ ! -d "$HOME/ti/ccs_10.3.1" ]; then
+          if [ ! -d "$HOME/ti/ccs_20.3.1" ]; then
             cd "$HOME/ti/downloads"
             wget -q --retry-connrefused --waitretry=1 --tries=5 --timeout=30 \
               https://dr-download.ti.com/software-development/ide-configuration-compiler-or-debugger/MD-J1VdearkvK/20.3.1/CCS_20.3.1.00005_linux.zip
             cd "$HOME/ti"
             unzip -q "$HOME/ti/downloads/CCS_20.3.1.00005_linux.zip"
             cd CCS_20.3.1.00005_linux
-            ./ccs_setup_20.3.1.00005.run  --mode unattended --prefix "$HOME/ti/ccs_10.3.1"
+            ./ccs_setup_20.3.1.00005.run  --mode unattended --prefix "$HOME/ti/ccs_20.3.1"
           fi
-          #install  SYSCONFIG 1.23
-          if [ ! -d "$HOME/ti/ccs_10.3.1/ccs/utils/sysconfig_1.23.1" ] && [ ! -d "$HOME/ti/sysconfig_1.23.1" ]; then
+          #install  SYSCONFIG 1.26.2
+          if [ ! -d "$HOME/ti/ccs_20.3.1/ccs/utils/sysconfig_1.26.2" ] && [ ! -d "$HOME/ti/sysconfig_1.26.2" ]; then
             cd "$HOME/ti/downloads"
             wget -q --retry-connrefused --waitretry=1 --tries=5 --timeout=30 \
-              https://dr-download.ti.com/software-development/ide-configuration-compiler-or-debugger/MD-nsUM6f7Vvb/1.23.1.4034/sysconfig-1.23.1_4034-setup.run
-            chmod +x sysconfig-1.23.1_4034-setup.run
-            ./sysconfig-1.23.1_4034-setup.run --mode unattended --prefix "$HOME/ti/sysconfig_1.23.1"
-            chmod -R +x $HOME/ti/sysconfig_1.23.1
+              https://dr-download.ti.com/software-development/ide-configuration-compiler-or-debugger/MD-nsUM6f7Vvb/1.26.2.4477/sysconfig-1.26.2_4477-setup.run
+            chmod +x sysconfig-1.26.2_4477-setup.run
+            ./sysconfig-1.26.2_4477-setup.run --mode unattended --prefix "$HOME/ti/sysconfig_1.26.2"
+            chmod -R +x $HOME/ti/sysconfig_1.26.2
           fi
           #Install ARM CLANG CGT 4.0.3
-           if [ ! -d "$HOME/ti/ccs_10.3.1/ccs/tools/compiler/ti-cgt-armllvm_4.0.3.LTS" ] && [ ! -d "$HOME/ti/ti-cgt-armllvm_4.0.3.LTS" ]; then
+           if [ ! -d "$HOME/ti/ccs_20.3.1/ccs/tools/compiler/ti-cgt-armllvm_4.0.3.LTS" ] && [ ! -d "$HOME/ti/ti-cgt-armllvm_4.0.3.LTS" ]; then
             cd "$HOME/ti/downloads"
             wget -q --retry-connrefused --waitretry=1 --tries=5 --timeout=30 \
               https://dr-download.ti.com/software-development/ide-configuration-compiler-or-debugger/MD-ayxs93eZNN/4.0.3.LTS/ti_cgt_armllvm_4.0.3.LTS_linux-x64_installer.bin
@@ -77,7 +77,7 @@ jobs:
            ./ti_cgt_armllvm_4.0.3.LTS_linux-x64_installer.bin --mode unattended --prefix "$HOME/ti/"
           fi
           # Install PRU CGT 2.3.3
-          if [ ! -d "$HOME/ti/ccs_10.3.1/ccs/tools/compiler/ti-cgt-pru_2.3.3" ] && [ ! -d "$HOME/ti/ti-cgt-pru_2.3.3" ]; then
+          if [ ! -d "$HOME/ti/ccs_20.3.1/ccs/tools/compiler/ti-cgt-pru_2.3.3" ] && [ ! -d "$HOME/ti/ti-cgt-pru_2.3.3" ]; then
             cd "$HOME/ti/downloads"
             wget -q --retry-connrefused --waitretry=1 --tries=5 --timeout=30 \
               https://dr-download.ti.com/software-development/ide-configuration-compiler-or-debugger/MD-FaNNGkDH7s/2.3.3/ti_cgt_pru_2.3.3_linux_installer_x86.bin
@@ -85,13 +85,13 @@ jobs:
             ./ti_cgt_pru_2.3.3_linux_installer_x86.bin --mode unattended --prefix "$HOME/ti"
           fi
 
-          # Install MCU+ SDK AM243x 11.00.00.15
-          if [ ! -d "$HOME/ti/mcu_plus_sdk_am243x_11_00_00_15" ]; then
+          # Install MCU+ SDK AM243x 11.02.00.24
+          if [ ! -d "$HOME/ti/mcu_plus_sdk_am243x_11_02_00_24" ]; then
             cd "$HOME/ti/downloads"
             wget -q --retry-connrefused --waitretry=1 --tries=5 --timeout=30 \
-              https://dr-download.ti.com/software-development/software-development-kit-sdk/MD-ouHbHEm1PK/11.00.00.15/mcu_plus_sdk_am243x_11_00_00_15-linux-x64-installer.run
-            chmod +x mcu_plus_sdk_am243x_11_00_00_15-linux-x64-installer.run
-            ./mcu_plus_sdk_am243x_11_00_00_15-linux-x64-installer.run --mode unattended --prefix "$HOME/ti/"
+              https://dr-download.ti.com/software-development/software-development-kit-sdk/MD-ouHbHEm1PK/11.02.00.24/mcu_plus_sdk_am243x_11_02_00_24-linux-x64-installer.run
+            chmod +x mcu_plus_sdk_am243x_11_02_00_24-linux-x64-installer.run
+            ./mcu_plus_sdk_am243x_11_02_00_24-linux-x64-installer.run --mode unattended --prefix "$HOME/ti/"
           fi
 
           # Install MCU+ SDK AM261x 10.02.00.15
@@ -113,25 +113,25 @@ jobs:
           fi
           #ls -l "$HOME/ti/"
           #ls -l "$HOME/ti/downloads"
-          #ls -l "$HOME/ti/ccs_10.3.1/ccs/tools/compiler"
-          #ls -l "$HOME/ti/sysconfig_1.23.1"
+          #ls -l "$HOME/ti/ccs_20.3.1/ccs/tools/compiler"
+          #ls -l "$HOME/ti/sysconfig_1.26.2"
           #ls -lR "$HOME/ti/ti-cgt-armllvm_4.0.3.LTS"
           test -x "$HOME/ti/ti-cgt-armllvm_4.0.3.LTS/bin/tiarmclang" && "$HOME/ti/ti-cgt-armllvm_4.0.3.LTS/bin/tiarmclang" --version || ls -l "$HOME/ti/ti-cgt-armllvm_4.0.3.LTS"
           
       - name: Export toolchain environment
         run: |
           {
-            echo "CCS_PATH=$HOME/ti/ccs_10.3.1"
-            if [ -d "$HOME/ti/ccs_10.3.1/ccs/tools/compiler/ti-cgt-pru_2.3.3" ]; then
-              echo "CGT_TI_PRU_PATH=$HOME/ti/ccs_10.3.1/ccs/tools/compiler/ti-cgt-pru_2.3.3"
+            echo "CCS_PATH=$HOME/ti/ccs_20.3.1"
+            if [ -d "$HOME/ti/ccs_20.3.1/ccs/tools/compiler/ti-cgt-pru_2.3.3" ]; then
+              echo "CGT_TI_PRU_PATH=$HOME/ti/ccs_20.3.1/ccs/tools/compiler/ti-cgt-pru_2.3.3"
             else
               echo "CGT_TI_PRU_PATH=$HOME/ti/ti-cgt-pru_2.3.3"
             fi
             echo "CGT_TI_ARM_CLANG_PATH=$HOME/ti/ti-cgt-armllvm_4.0.3.LTS"
-            echo "MCU_PLUS_SDK_PATH_AM243X=$HOME/ti/mcu_plus_sdk_am243x_11_00_00_15"
+            echo "MCU_PLUS_SDK_PATH_AM243X=$HOME/ti/mcu_plus_sdk_am243x_11_02_00_24"
             echo "MCU_PLUS_SDK_PATH_AM261X=$HOME/ti/mcu_plus_sdk_am261x_10_02_00_15"
             echo "MCU_PLUS_SDK_PATH_AM263PX=$HOME/ti/mcu_plus_sdk_am263px_10_02_00_15"
-            echo "PATH=$PATH:$HOME/ti/ccs_10.3.1/ccs/eclipse:$HOME/ti/ccs_10.3.1/ccs/utils/bin:$CGT_TI_PRU_PATH/bin"
+            echo "PATH=$PATH:$HOME/ti/ccs_20.3.1/ccs/eclipse:$HOME/ti/ccs_20.3.1/ccs/utils/bin:$CGT_TI_PRU_PATH/bin"
           } >> $GITHUB_ENV
           
       - name: Generate imports.mak for CI
@@ -144,12 +144,12 @@ jobs:
           BUILD_MCUPLUS?=y
           BUILD_LINUX?=n
           # SDK roots
-          MCU_PLUS_SDK_PATH_AM243X := $(HOME)/ti/mcu_plus_sdk_am243x_11_00_00_15
+          MCU_PLUS_SDK_PATH_AM243X := $(HOME)/ti/mcu_plus_sdk_am243x_11_02_00_24
           MCU_PLUS_SDK_PATH_AM261X := $(HOME)/ti/mcu_plus_sdk_am261x_10_02_00_15
           MCU_PLUS_SDK_PATH_AM263PX := $(HOME)/ti/mcu_plus_sdk_am263px_10_02_00_15
 
           # Toolchains
-          CCS_PATH := $(HOME)/ti/ccs_10.3.1
+          CCS_PATH := $(HOME)/ti/ccs_20.3.1
           # Prefer CGT inside CCS if present, otherwise standalone
           ifneq ($(wildcard $(CCS_PATH)/ccs/tools/compiler/ti-cgt-pru_2.3.3),)
           CGT_TI_PRU_PATH := $(CCS_PATH)/ccs/tools/compiler/ti-cgt-pru_2.3.3
@@ -160,7 +160,7 @@ jobs:
           ifeq ($(wildcard $(CGT_TI_ARM_CLANG_PATH)),)
             CGT_TI_ARM_CLANG_PATH= $(HOME)/ti/ti-cgt-armllvm_4.0.3.LTS
            endif
-          SYSCFG_PATH ?= $(HOME)/ti/sysconfig_1.23.1
+          SYSCFG_PATH ?= $(HOME)/ti/sysconfig_1.26.2
           # Other variables
           # you probably will not need to edit these values
           OPEN_PRU_PATH ?= $(abspath .)
