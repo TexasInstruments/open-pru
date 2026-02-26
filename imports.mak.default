@@ -27,7 +27,9 @@ BUILD_LINUX?=n
 ifeq ($(OS),Windows_NT)
     TOOLS_PATH?=C:/ti
     CCS_PATH?=$(TOOLS_PATH)/ccs1280/ccs
+    # CGT_GCC_AARCH64 is for cores like A53
     CGT_GCC_AARCH64_PATH=$(TOOLS_PATH)/gcc-arm-9.2-2019.12-mingw-w64-i686-aarch64-none-elf
+    # CGT_GCC_ARMV7 is for cores like R5F
     CGT_GCC_ARM_PATH=$(TOOLS_PATH)/gcc-arm-none-eabi-9-2019-q4-major-win32
     CGT_GCC_ARMV7_PATH=$(CGT_GCC_ARM_PATH)
 
@@ -38,7 +40,9 @@ else
     ifneq (,$(filter $(UNAME_S),Linux Darwin))
         export TOOLS_PATH?=$(HOME)/ti
         export CCS_PATH?=$(TOOLS_PATH)/ccs1280/ccs
+        # CGT_GCC_AARCH64 is for cores like A53
         CGT_GCC_AARCH64_PATH=$(TOOLS_PATH)/gcc-arm-9.2-2019.12-x86_64-aarch64-none-elf
+        # CGT_GCC_ARMV7 is for cores like R5F
         CGT_GCC_ARM_PATH=$(TOOLS_PATH)/gcc-arm-none-eabi-9-2019-q4-major
         CGT_GCC_ARMV7_PATH=$(CGT_GCC_ARM_PATH)
     endif
