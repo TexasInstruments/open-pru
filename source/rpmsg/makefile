@@ -21,7 +21,7 @@ OBJECTS += $(patsubst %.c, $(GEN_DIR)/%.obj, $(notdir \
 INCLUDE := \
 	--include_path=$(CGT_TI_PRU_PATH)/include \
 	--include_path=$(OPEN_PRU_PATH)/source \
-	--include_path=$(OPEN_PRU_PATH)/source/include/c_code/linux
+	--include_path=$(OPEN_PRU_PATH)/source/include/linux
 
 # Compiler flags (Defined in 'PRU Optimizing C/C++ Compiler User's Guide)
 CFLAGS := \

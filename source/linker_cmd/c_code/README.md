@@ -73,4 +73,4 @@ For example, on AM64x RTU1:
 
 4. The resource table includes rsc_types.h. Add the include path for rsc_types.h
    so that the compiler can find the header file. Path is:
-   open-pru/source/include/c_code/linux/
+   open-pru/source/include/linux/

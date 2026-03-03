@@ -34,8 +34,8 @@ COMMAND_FILES := linker.cmd
 INCLUDE := \
 	--include_path=$(CGT_TI_PRU_PATH)/include \
 	--include_path=$(OPEN_PRU_PATH)/source \
-	--include_path=$(OPEN_PRU_PATH)/source/include/c_code/linux \
-	--include_path=$(OPEN_PRU_PATH)/source/include/c_code/am62x \
+	--include_path=$(OPEN_PRU_PATH)/source/include/linux \
+	--include_path=$(OPEN_PRU_PATH)/source/include/am62x \
 	--include_path=.
 ifeq ($(BUILD_MCUPLUS),y)
 INCLUDE += \

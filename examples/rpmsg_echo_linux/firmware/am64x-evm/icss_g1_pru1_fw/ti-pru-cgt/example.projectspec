@@ -32,6 +32,9 @@
             -I${CG_TOOL_ROOT}/include
             -I${MCU_PLUS_SDK_PATH}/source
             -I${OPEN_PRU_PATH}/source
+            -I${OPEN_PRU_PATH}/source/firmware/common
+            -I${OPEN_PRU_PATH}/source/include/linux
+            -I${OPEN_PRU_PATH}/source/include/am64x
             -I${MCU_PLUS_SDK_PATH}/source/pru_io/firmware/common
             -DPRU1
             -DSLICE1
@@ -46,7 +49,7 @@
         "
 
         postBuildStep="
-            $(CG_TOOL_ROOT)/bin/hexpru --diag_wrap=off --array --array:name_prefix=PRU1Firmware  -o pru1_load_bin.h rpmsg_echo_linux_am64x-evm_icss_g1_pru1_fw_ti-pru-cgt.out;if ${CCS_HOST_OS} == linux cat ${MCU_PLUS_SDK_PATH}/source/pru_io/firmware/pru_load_bin_copyright.h pru1_load_bin.h > ${OPEN_PRU_PATH}/examples/rpmsg_echo_linux/firmware/am64x-evm/pru1_load_bin.h ;if ${CCS_HOST_OS} == linux rm pru1_load_bin.h;if ${CCS_HOST_OS} == win32  $(CCS_INSTALL_DIR)/utils/cygwin/cat ${MCU_PLUS_SDK_PATH}/source/pru_io/firmware/pru_load_bin_copyright.h pru1_load_bin.h > ${OPEN_PRU_PATH}/examples/rpmsg_echo_linux/firmware/am64x-evm/pru1_load_bin.h ;if ${CCS_HOST_OS} == win32  $(CCS_INSTALL_DIR)/utils/cygwin/rm pru1_load_bin.h;
+            $(CG_TOOL_ROOT)/bin/hexpru --diag_wrap=off --array --array:name_prefix=PRU1Firmware  -o pru1_load_bin.h rpmsg_echo_linux_am64x-evm_icss_g1_pru1_fw_ti-pru-cgt.out;if ${CCS_HOST_OS} == linux cat ${OPEN_PRU_PATH}/source/firmware/pru_load_bin_copyright.h pru1_load_bin.h > ${OPEN_PRU_PATH}/examples/rpmsg_echo_linux/firmware/am64x-evm/pru1_load_bin.h ;if ${CCS_HOST_OS} == linux rm pru1_load_bin.h;if ${CCS_HOST_OS} == win32  $(CCS_INSTALL_DIR)/utils/cygwin/cat ${OPEN_PRU_PATH}/source/firmware/pru_load_bin_copyright.h pru1_load_bin.h > ${OPEN_PRU_PATH}/examples/rpmsg_echo_linux/firmware/am64x-evm/pru1_load_bin.h ;if ${CCS_HOST_OS} == win32  $(CCS_INSTALL_DIR)/utils/cygwin/rm pru1_load_bin.h;
         "
 
         description="RPMsg Echo example with Linux">
