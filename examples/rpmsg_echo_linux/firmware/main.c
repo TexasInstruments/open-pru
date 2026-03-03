@@ -20,7 +20,7 @@ volatile register uint32_t __R31;
  * Resource table
  *  - A resource table is required to initialize RPMsg with Linux
  *  - This example uses template resource table with 16 TX & 16 RX RPMsg buffers
- *    at source/include/c_code/linux/resource_table.h
+ *    at source/include/linux/resource_table.h
  *
  * INTC map
  *  - intc_map.h defines INTC mapping for interrupts going to the PRU core
