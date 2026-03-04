@@ -13,14 +13,14 @@
 	.global	||FN_MCS_CFG||
 
 ; File includes
-    .include  "pru_io/firmware/common/icss_regs.inc"
-    .include  "pru_io/firmware/common/icss_cfg_regs.inc"
-    .include  "pru_io/firmware/common/icss_iep_regs.inc"
-    .include  "pru_io/firmware/common/icss_xfer_defines.inc"
+    .include  "icss_regs.inc"
+    .include  "icss_cfg_regs.inc"
+    .include  "icss_iep_regs.inc"
+    .include  "icss_xfer_defines.inc"
 
 	.cdecls C,NOLIST
 %{
-    #include <drivers/pruicss/g_v0/cslr_icss_g.h>
+    #include "cslr_icss_g.h"
 
 %}
 

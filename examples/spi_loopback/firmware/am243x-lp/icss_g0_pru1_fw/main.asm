@@ -79,7 +79,7 @@
 ; Import the Chip Support Library Register Address defines
     .cdecls C,  NOLIST
 %{
-#include "drivers/pruicss/g_v0/cslr_icss_g.h"
+#include "cslr_icss_g.h"
 %}
 
 ; CCS/makefile specific settings

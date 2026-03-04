@@ -35,6 +35,8 @@ INCLUDE := \
 	--include_path=$(CGT_TI_PRU_PATH)/include \
 	--include_path=$(OPEN_PRU_PATH)/source \
 	--include_path=$(OPEN_PRU_PATH)/source/firmware/common \
+	--include_path=$(OPEN_PRU_PATH)/source/include \
+	--include_path=$(OPEN_PRU_PATH)/source/include/am243x \
 	--include_path=../../
 ifeq ($(BUILD_MCUPLUS),y)
 INCLUDE += \

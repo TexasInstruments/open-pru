@@ -11,7 +11,7 @@
 	.clink
 	.global	FN_PWM_INIT_TOGGLE_TXPRU0_TASK
 ; File includes
-    .include  "pru_io/firmware/common/icss_xfer_defines.inc"
+    .include  "icss_xfer_defines.inc"
 ;*************************************************
 ;   Task : FN_PWM_INIT_TOGGLE_PRUTX0_TASK
 ;   Description : Sets PWM init to Logic High for configured PIN
