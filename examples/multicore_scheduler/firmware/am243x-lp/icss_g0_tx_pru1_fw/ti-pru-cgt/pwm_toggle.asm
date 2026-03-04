@@ -12,7 +12,7 @@
 	.global	FN_PWM_INIT_TOGGLE_TXPRU1_TASK
 
 ; File includes
-    .include  "pru_io/firmware/common/icss_xfer_defines.inc"
+    .include  "icss_xfer_defines.inc"
 ;*************************************************
 ;   Task : FN_PWM_INIT_TOGGLE_PRUTX1_TASK
 ;   Description : Sets PWM init to Logic Low for configured PIN
