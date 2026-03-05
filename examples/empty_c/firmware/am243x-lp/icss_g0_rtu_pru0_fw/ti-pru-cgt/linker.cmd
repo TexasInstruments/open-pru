@@ -21,14 +21,14 @@ MEMORY
 	PRU0_DMEM_0	: org = 0x00000000 len = 0x00001000	CREGISTER=24
 	/* 8 KB PRU Data RAM 1; reserved completely for Slice1 cores - PRU1,
 	 * RTU1 and Tx_PRU1; do not use for any Slice0 cores */
-	PRU0_DMEM_1	: org = 0x00002000 len = 0x00001000	CREGISTER=25
+	PRU1_DMEM_1	: org = 0x00002000 len = 0x00001000	CREGISTER=25
 	/* NOTE: Custom split of the second 4 KB of ICSS Data RAMs 0 and 1
 	 * split equally between the corresponding RTU and Tx_PRU cores in
 	 * each slice */
 	RTU0_DMEM_0	: org = 0x00001000 len = 0x00000800
 	TX_PRU0_DMEM_0	: org = 0x00001800 len = 0x00000800
-	RTU0_DMEM_1	: org = 0x00003000 len = 0x00000800
-	TX_PRU0_DMEM_1	: org = 0x00003800 len = 0x00000800
+	RTU1_DMEM_1	: org = 0x00003000 len = 0x00000800
+	TX_PRU1_DMEM_1	: org = 0x00003800 len = 0x00000800
 
       PAGE 2:
 	/* C28 needs to be programmed to point to SHAREDMEM, default is 0 */

@@ -7,7 +7,7 @@
         "version": "01.00.00.00",
         "type": "software",
         "license": "../../LICENSE",
-        "devices": ["AM243x", "AM64x", "AM261x", "AM263px", "AM263x"],
+        "devices": ["AM243x", "AM64x", "AM261x", "AM263Px", "AM263x", "AM62x"],
         "tags": ["Baremetal", "FreeRTOS", "Linux"],
         "description": "Welcome to OpenPRU. This repository contains examples, training, and tools to develop PRU applications.",
         "dependencies": [

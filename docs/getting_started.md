@@ -30,7 +30,7 @@ cores running RTOS, bare metal, or Linux.
 TI supports initializing the PRU from an RTOS or bare metal core on:
 - AM243x (R5F)
 - AM261x (R5F)
-- AM263px (R5F)
+- AM263Px (R5F)
 - AM263x (R5F)
 - AM64x (R5F)
 

@@ -6,7 +6,7 @@
 This document outlines best practices for developing PRU (Programmable Real-time Unit) firmware for Texas Instruments Sitara devices. The PRU is a deterministic, real-time processor subsystem that provides precise timing control and low-latency I/O operations.
 
 **Supported Devices:**
-- AM243x, AM261x, AM263x, AM263px, AM64x series
+- AM243x, AM261x, AM263x, AM263Px, AM62x, AM64x series
 
 ## General Principles
 
