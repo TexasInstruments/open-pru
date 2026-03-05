@@ -1,12 +1,55 @@
 # PRU Assembly Instruction Cheat Sheet
-OP(255) is either 8 bit immideate value or register
 
-Load/store and xfr instructions can use bn as length operand. bn is any of R0 bytes - b0, b1, b2, b3.
+OP(255) is either an 8-bit immediate value or a register.
 
-Move indirect instructions use any of R1 bytes as pointer. 
+Load/store and XFR instructions can use bn as a length operand. bn is any byte field of R0 (b0, b1, b2, or b3).
 
-Certain IO modes and broadside accelerators use fixed registers. For example hardware mulitplier uses R25-R29 and BS-RAM uses R1-R9.
+MVIx (Move indirect) instructions must use one of r1's byte fields (r1.b0, r1.b1, r1.b2, or r1.b3) as the pointer register.
 
+Certain IO modes and broadside accelerators use fixed registers. For example, the hardware multiplier uses R25-R29 and BS-RAM uses R1-R9.
+
+## Register Notation
+
+| Notation | Description | Example |
+|----------|-------------|---------|
+| **Rn** | 32-bit register (r0-r31) | `r5` = all 32 bits of register 5 |
+| **Rn.b0** | Byte 0 (bits 0-7) | `r5.b0` = lowest byte |
+| **Rn.b1** | Byte 1 (bits 8-15) | `r5.b1` = second byte |
+| **Rn.b2** | Byte 2 (bits 16-23) | `r5.b2` = third byte |
+| **Rn.b3** | Byte 3 (bits 24-31) | `r5.b3` = highest byte |
+| **Rn.w0** | Word 0 (bits 0-15) | `r5.w0` = lower 16 bits |
+| **Rn.w1** | Word 1 (bits 8-23) | `r5.w1` = middle 16 bits |
+| **Rn.w2** | Word 2 (bits 16-31) | `r5.w2` = upper 16 bits |
+| **Rn.tx** | Single bit x (t0-t31) | `r5.t7` = bit 7 of r5 |
+| **Cn** | Constant table entry (c0-c31) | `c1` = constant table pointer 1 |
+
+**Register Layout Example (r0):**
+```
+BIT:
+31  30  29  28  27  26  25  24  23  22  21  20  19  18  17  16  15  14  13  12  11  10  9   8   7   6   5   4   3   2   1   0
+|------------ r0.b3 -----------|------------ r0.b2 ------------|------------ r0.b1 -----------|------------ r0.b0 -----------|
+|------------------------------ r0.w2 -------------------------|------------------------------- r0.w0 -----------------------|
+                               |------------------------------ r0.w1 -------------------------|
+|------------------------------------------------------------ r0 ------------------------------------------------------------|
+```
+
+## Special Registers
+
+| Register | Purpose |
+|----------|---------|
+| **R30** | GPIO output / Direct output pins |
+| **R31** | GPIO input / System event flags |
+
+## Operand Limits
+
+| Notation | Range | Used For |
+|----------|-------|----------|
+| **OP(31)** | 0-31 | Shift amounts, bit positions |
+| **OP(255)** | 0-255 | General operands (immediate or register) |
+| **OP(256)** | 0-256 | Loop iteration counts |
+| **IM(124)** | 0-124 | Memory transfer lengths |
+| **IM(253)** | 0-253 | XFR device IDs |
+| **IM(65535)** | 0-65535 | Immediate values, addresses |
 
 ## Arithmetic Operations
 
@@ -36,7 +79,7 @@ Certain IO modes and broadside accelerators use fixed registers. For example har
 |-------------|--------|-------------|
 | **CLR** | `CLR Reg1, Reg2, OP(31)` | Clear bit: Reg1 = Reg2 & ~(1<<OP(31)) |
 | **SET** | `SET Reg1, Reg2, OP(31)` | Set bit: Reg1 = Reg2 \| (1<<OP(31)) |
-| **LMBD** | `LMBD Reg1, Reg2, OP(255)` | Left-most bit detect - scans for bit value |
+| **LMBD** | `LMBD Reg1, Reg2, OP(255)` | Left-most bit detect: scans Reg2 from the left for a bit matching bit 0 of OP(255), writes the bit position to Reg1 (writes 32 if not found) |
 
 ## Comparison Operations
 
@@ -57,7 +100,7 @@ Certain IO modes and broadside accelerators use fixed registers. For example har
 
 The MVIx instruction family moves 8-bit (MVIB), 16-bit (MVIW), or 32-bit (MVID) values using register pointers.
 
-**Pointer Registers:** Must be r1.b0, r1.b1, r1.b2, or r1.b3 (byte offsets into register file, 0-127)
+**Pointer Registers:** Must be a byte field of r1: r1.b0, r1.b1, r1.b2, or r1.b3. Register r1 is specifically required for the pointer; no other register may be used as the indirect pointer in MVIx instructions.
 
 | Instruction | Syntax | Description |
 |-------------|--------|-------------|
@@ -154,7 +197,7 @@ tsen 1                      ; Enable task manager mode 1
 
 ### Conditional Branches
 
-**⚠️ CRITICAL: Operand order is reversed! Third operand is compared to second operand**
+**⚠️ NOTE: Branch comparison** assembly instructions process operands in a reversed order from other assembly instructions (3rd operand before 2nd operand)
 
 **Format:** `QBxx Label, Reg1, OP(255)` means: branch if `OP(255) <comparison> Reg1`
 
@@ -215,60 +258,16 @@ loop end_loop, r0.b0        ; Loop 10 times
 end_loop:
 ```
 
-## Register Notation
-
-| Notation | Description | Example |
-|----------|-------------|---------|
-| **Rn** | 32-bit register (r0-r31) | `r5` = all 32 bits of register 5 |
-| **Rn.b0** | Byte 0 (bits 0-7) | `r5.b0` = lowest byte |
-| **Rn.b1** | Byte 1 (bits 8-15) | `r5.b1` = second byte |
-| **Rn.b2** | Byte 2 (bits 16-23) | `r5.b2` = third byte |
-| **Rn.b3** | Byte 3 (bits 24-31) | `r5.b3` = highest byte |
-| **Rn.w0** | Word 0 (bits 0-15) | `r5.w0` = lower 16 bits |
-| **Rn.w1** | Word 1 (bits 8-23) | `r5.w1` = middle 16 bits |
-| **Rn.w2** | Word 2 (bits 16-31) | `r5.w2` = upper 16 bits |
-| **Rn.tx** | Single bit x (t0-t31) | `r5.t7` = bit 7 of r5 |
-| **Cn** | Constant table entry (c0-c31) | `c1` = constant table pointer 1 |
-
-**Register Layout Example (r0):**
-```
-BIT:
-31  30  29  28  27  26  25  24  23  22  21  20  19  18  17  16  15  14  13  12  11  10  9   8   7   6   5   4   3   2   1   0
-|------------ r0.b3 -----------|------------ r0.b2 ------------|------------ r0.b1 -----------|------------ r0.b0 -----------|
-|------------------------------ r0.w2 -------------------------|------------------------------- r0.w0 -----------------------|
-                               |------------------------------ r0.w1 -------------------------|
-|------------------------------------------------------------ r0 ------------------------------------------------------------|
-```
-
-## Special Registers
-
-| Register | Purpose |
-|----------|---------|
-| **R30** | GPIO output / Direct output pins |
-| **R31** | GPIO input / System event flags |
-
-## Operand Limits
-
-| Notation | Range | Used For |
-|----------|-------|----------|
-| **OP(31)** | 0-31 | Shift amounts, bit positions |
-| **OP(255)** | 0-255 | General operands (immediate or register) |
-| **OP(256)** | 0-256 | Loop iteration counts |
-| **IM(124)** | 0-124 | Memory transfer lengths |
-| **IM(253)** | 0-253 | XFR device IDs |
-| **IM(65535)** | 0-65535 | Immediate values, addresses |
-
 ## Important Notes
 
-- **All operations are 32-bit** with zero extension [2]
-- **Carry bit position** depends on destination register width [2]
-- **One instruction = 4 bytes** [2]
-- **Branch comparisons** use reversed operand order: 3rd compared to 2nd [2]
-- **Memory operations** with register count: do NOT use 0 - will hang PRU [2]
-- **MVI instructions** only available on V2+ cores [2]
-- **LOOP instruction** only available on V3+ cores [2]
+- **All operations are 32-bit** with zero extension
+- **Carry bit position** depends on destination register width
+- **One instruction = 4 bytes**
+- **Branch comparison** assembly instructions process operands in a reversed order from other assembly instructions (3rd operand before 2nd operand)
+- **Memory operations** with register count: do NOT use 0 - will hang PRU
+- **MVI instructions** only available on V2+ cores
+- **LOOP instruction** only available on V3+ cores
 - **TSEN instruction** only available on V4+ cores with ICSS_G
- [2]
 
 ## Core Revision Differences
 
@@ -281,6 +280,10 @@ BIT:
 | Improved SLP | - | - | yes | yes |
 | TSEN (Task Manager) | - | - | - | yes |
 | SCAN (deprecated) | yes | - | - | - |
+
+**Devices by Core Revision:**
+- **V3:** AM261x, AM263x, AM263Px, AM62x
+- **V4 (ICSS_G):** AM243x, AM64x, AM65x
 
 ## Common Code Patterns
 
@@ -328,7 +331,7 @@ done:
 
 ---
 
-**Reference:** TI PRU Assembly Instruction User Guide (SPRUIJ2) [2]
+**Reference:** TI PRU Assembly Instruction User Guide (SPRUIJ2)
 
 **Note:** V4 core features (TSEN) are specific to devices with ICSS_G subsystem. Consult your device-specific documentation for availability and usage details.
 
