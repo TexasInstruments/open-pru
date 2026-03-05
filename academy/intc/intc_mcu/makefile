@@ -7,7 +7,7 @@ include ../../../imports.mak
 PROJECT_NAME := intc_mcu
 SUPPORTED_PROCESSORS := am261x am263px am263x
 # Does the PRU code have dependencies outside of the open-pru repo?
-PRU_DEPENDENCIES := mcuplus
+PRU_DEPENDENCIES :=
 # Use NON_PRU_DEPENDENCIES to select which makefiles to call for non-PRU cores
 NON_PRU_DEPENDENCIES := mcuplus
 

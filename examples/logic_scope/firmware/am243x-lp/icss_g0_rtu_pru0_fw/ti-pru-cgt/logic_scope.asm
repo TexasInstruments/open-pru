@@ -37,7 +37,7 @@
 ;==========================================================================;
 ;                             Include Files                                ;
 ;==========================================================================;
-	.include "pru_io/firmware/common/icss_xfer_defines.inc"
+	.include "icss_xfer_defines.inc"
 	.include "dcls_config_macros.inc"
 ;*******************************************
 ;   Function : FN_LOGIC_SCOPE_DUAL_CORE
