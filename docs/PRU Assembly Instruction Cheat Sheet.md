@@ -94,7 +94,7 @@ BIT:
 |-------------|--------|-------------|
 | **MOV** | `MOV Reg1, Reg2` | Copy value: Reg1 = Reg2 (zero extends) |
 | **LDI** | `LDI Reg1, IM(65535)` | Load immediate value into Reg1 |
-| **LDI32** | `LDI32 Reg1, IM(2^32-1)` | Pseudo code for 32 bit load |
+| **LDI32** | `LDI32 Reg1, IM(2^32-1)` | Pseudo-op for 32-bit load |
 
 ## Move Register File Indirect (V2+ cores only)
 
@@ -242,6 +242,7 @@ qbbc myLabel, r31.b1, 5     ; Branch if bit 5 clear in r31.b1
 | **WBS** | `WBS Reg1, OP(31)` | Wait until bit set (spin loop) |
 | **WBC** | `WBC Reg1, OP(31)` | Wait until bit clear (spin loop) |
 | **LOOP** | `LOOP Label, OP(256)` | Hardware-assisted loop (V3+ cores, non-interruptible) |
+| **FILL** | `FILL &Reg1, IM(124)` | Fill register space with 0xFF (V3+ cores, pseudo-op) |
 
 **Examples:**
 ```assembly
@@ -266,7 +267,7 @@ end_loop:
 - **Branch comparison** assembly instructions process operands in a reversed order from other assembly instructions (3rd operand before 2nd operand)
 - **Memory operations** with register count: do NOT use 0 - will hang PRU
 - **MVI instructions** only available on V2+ cores
-- **LOOP instruction** only available on V3+ cores
+- **LOOP and FILL instructions** only available on V3+ cores
 - **TSEN instruction** only available on V4+ cores with ICSS_G
 
 ## Core Revision Differences
@@ -317,7 +318,7 @@ loop end_loop, r0.b0
 end_loop:
 
 ; Enable task manager (V4+ ICSS_G only)
-tsen 0                      ; Enable task manager
+tsen 1                      ; Enable task manager
 
 ; Compare and branch
 ldi r1, 100
