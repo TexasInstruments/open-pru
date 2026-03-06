@@ -35,6 +35,8 @@ notes for information like compatible SDK versions on each release.
 ## Features
 
 The OpenPRU project provides:
+  - [PRU Assembly Instruction Cheat Sheet](./docs/PRU%20Assembly%20Instruction%20Cheat%20Sheet.md)
+    - Quick reference for PRU assembly instructions, register notation, operand limits, and common code patterns
   - [PRU Academy](./academy)
     - PRU Getting Started Labs (project creation, coding in assembly & C, compiling, loading PRU code, debugging PRU code)
     - Training labs (GPIO, interrupt controller, broadside accelerators, etc.)
