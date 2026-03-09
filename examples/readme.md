@@ -38,10 +38,6 @@ pru_emif
 * Emulate an Extended Memory Interface (EMIF) client 16-bit/32-bit asynchronous
   parallel interface to interface with C2K F28379D
 
-pru_i2s_diagnostic
-* Emulate an I2S/TDM master, allowing for transmission and reception of audio
-  data over the PRU-I2S interface
-
 spi_loopback
 * Implement a loopback SPI connection between 2 PRU cores that act as SPI master
   and SPI slave
@@ -89,7 +85,6 @@ For more information about the PRU features on each processor, refer to app note
 | LCD_interface                   | Y      | Yport  | Yport   | Yport  | N-sw  | Yport |
 | logic_scope                     | Y      | Yport  | Yport   | Yport  | Yport | Yport |
 | pru_emif                        | Y      | Yport  | Yport   | Yport  | N-sw  | Yport |
-| pru_i2s_diagnostic              | Yport  | Y      | Yport   | Y      | N-sw  | Yport |
 | spi_loopback                    | Y      | Yport  | Yport   | Yport  | N-sw  | Yport |
 | fir                             | Y      | Yport  | Yport   | Yport  | Yport | Yport |
 | multicore_sheduler              | Y      | Npru   | Npru    | Npru   | Npru  | Yport |
