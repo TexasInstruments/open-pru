@@ -12,12 +12,11 @@
 /* ========================================================================== */
 /*                             Include Files                                  */
 /* ========================================================================== */
-#include <drivers/pruicss.h>
-#include <drivers/hw_include/hw_types.h>
+#include "hw_types.h"
 #include "am243_am64_pru_pinmux.h"
-#include <drivers/hw_include/am64x_am243x/cslr_soc_baseaddress.h>
-#include <drivers/hw_include/am64x_am243x/cslr_main_ctrl_mmr.h>
-#include <drivers/hw_include/am64x_am243x/cslr_main_pll_mmr.h>
+#include "cslr_soc_baseaddress.h"
+#include "cslr_main_ctrl_mmr.h"
+#include "cslr_main_pll_mmr.h"
 /* ========================================================================== */
 /*                             Constant Macros                                */
 /* ========================================================================== */

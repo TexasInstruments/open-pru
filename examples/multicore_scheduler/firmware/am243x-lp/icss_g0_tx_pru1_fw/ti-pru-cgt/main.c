@@ -11,9 +11,8 @@
 /*                             Include Files                                  */
 /* ========================================================================== */
 #include <stdint.h>
-#include <drivers/pruicss.h>
-#include <drivers/hw_include/hw_types.h>
-#include <drivers/pruicss/g_v0/cslr_icss_g.h>
+#include "hw_types.h"
+#include "cslr_icss_g.h"
 /* ========================================================================== */
 /*                          External Function Declarations                    */
 /* ========================================================================== */

@@ -7,7 +7,7 @@ include ../../imports.mak
 PROJECT_NAME := spi_loopback
 SUPPORTED_PROCESSORS := am243x
 # Does the PRU code have dependencies outside of the open-pru repo?
-PRU_DEPENDENCIES := mcuplus
+PRU_DEPENDENCIES :=
 # Use NON_PRU_DEPENDENCIES to select which makefiles to call for non-PRU cores
 NON_PRU_DEPENDENCIES := mcuplus
 
