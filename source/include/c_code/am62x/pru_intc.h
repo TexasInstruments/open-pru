@@ -1208,6 +1208,10 @@ typedef struct {
 
 } intc;
 
+#if !defined(__GNUC__)
 volatile __far intc CT_INTC __attribute__((cregister("PRU_INTC", far), peripheral));
+#else
+#define CT_INTC (*(intc *)__INTC_BASE)
+#endif
 
 #endif /* _PRU_INTC_H_ */

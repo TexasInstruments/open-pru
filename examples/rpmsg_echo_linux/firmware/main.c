@@ -11,7 +11,11 @@
 #include "resource_table.h"
 #include "intc_map.h"
 
-volatile register uint32_t __R31;
+#if !defined(__GNUC__)
+  volatile register uint32_t __R31;
+#else
+  #include <pru/io.h>
+#endif
 
 /*
  * linker.cmd has been updated to include sections for
