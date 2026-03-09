@@ -161,9 +161,9 @@ lbco &r2, c1, 5, 8          ; Copy 8 bytes from constant table address c1+5
 
 **Examples:**
 ```assembly
-XIN  XID_SCRATCH, r2, 8     ; Read 8 bytes from scratch pad to r2:r3
-XOUT XID_SCRATCH, r2, b2    ; Write 'b2' bytes to scratch starting at r2
-XCHG XID_SCRATCH, r2, 8     ; Exchange r2:r3 with 8 bytes from scratch
+XIN  XID_SCRATCH, &r2, 8     ; Read 8 bytes from scratch pad to r2:r3
+XOUT XID_SCRATCH, &r2, b2    ; Write 'b2' bytes to scratch starting at r2
+XCHG XID_SCRATCH, &r2, 8     ; Exchange r2:r3 with 8 bytes from scratch
 ```
 
 ## Task Manager Operations (V4+ cores with ICSS_G only)
@@ -335,4 +335,5 @@ done:
 **Reference:** TI PRU Assembly Instruction User Guide (SPRUIJ2)
 
 **Note:** V4 core features (TSEN) are specific to devices with ICSS_G subsystem. Consult your device-specific documentation for availability and usage details.
+
 
