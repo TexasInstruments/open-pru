@@ -9,11 +9,17 @@ For more information, refer to
 section "Sharing C/C++ Header Files With Assembly Source".
 
 ## Register definitions
-Register definitions for commonly used peripherals:
+Register definitions for PRU subsystem & commonly used peripherals:
 am243x
+am261x
+am263Px
+am263x
 am62x
 am64x
 
 ## Linux definitions
 Include definitions used for interacting with Linux cores:
 linux
+
+## Other definitions
+hw_types.h - contains general purpose API for HW access
