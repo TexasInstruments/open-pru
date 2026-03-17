@@ -4,21 +4,21 @@
 ;******************************************************************************
 ;   File:     main.asm
 ;
-;   Brief:    PRU1 simple modulator: ~20.83 MHz clock on PRU1_GPO0 and
+;   Brief:    PRU1 simple modulator: ~16.67 MHz clock on PRU1_GPO0 and
 ;             MSB-first 32-bit serial data on PRU1_GPO1.
 ;
 ;   Target:   AM243x ICSS_G0 PRU1
 ;
 ;   Signals:
-;             PRU1_GPO0 (pin 0) - ~20.83 MHz clock, 50% duty cycle
+;             PRU1_GPO0 (pin 0) - ~16.67 MHz clock, 50% duty cycle
 ;             PRU1_GPO1 (pin 1) - Serial data, MSB-first, 32-bit frames
 ;
 ;   Timing:
 ;             PRU clock       - 333 MHz (3 ns per cycle)
-;             Bit period      - 16 cycles (48 ns, ~20.83 MHz)
-;             Clock high time - 8 cycles (24 ns)
-;             Clock low time  - 8 cycles (24 ns)
-;             Frame length    - 32 bits (~1.536 us)
+;             Bit period      - 20 cycles (60 ns, ~16.67 MHz)
+;             Clock high time - 10 cycles (30 ns)
+;             Clock low time  - 10 cycles (30 ns)
+;             Frame length    - 32 bits (~1.92 us)
 ;
 ;   Data Source:
 ;             ICSS DRAM0 offset 0, loaded with: lbco &r2, c24, 0, 4
@@ -26,12 +26,13 @@
 ;             The host (R5F) may update this word between frames.
 ;
 ;   PEAK cycles:
-;             16 cycles per bit (deterministic), 32 bits per frame.
+;             20 cycles per bit (deterministic), 32 bits per frame.
 ;             lbco reload is pipelined into the last bit's LOW phase.
 ;
 ;   Registers modified:
 ;             r0-r29 cleared at init; r30 (GPO output)
-;             r2 (DATA_REG), r3 (BIT_CNT), r4 (shadow R30)
+;             r2 (DATA_REG), r3 (BIT_CNT), r4 (rising shadow),
+;             r5 (falling shadow), r6 (scratch)
 ;
 ;   Build:
 ;   - Using ccs:
@@ -76,65 +77,72 @@ init:
     zero    &r0, 120            ; clear R0-R29 (30 registers x 4 bytes)
 
 ;------------------------------------------------------------------------------
-; Load initial data word and set bit counter before entering the main loop.
+; Load initial data word, set bit counter, and pre-build the first rising-edge
+; shadow register (r4) before entering the main bit loop.
 ;------------------------------------------------------------------------------
 
-    lbco    &DATA_REG, c24, 0, 4    ; load 32-bit word from DRAM0 offset 0
-    ldi     BIT_CNT, NUM_BITS       ; set counter to 32
+    lbco    &DATA_REG, c24, 0, 4        ; load 32-bit word from DRAM0 offset 0
+    ldi     BIT_CNT, NUM_BITS           ; set counter to 32
+    ldi     r4, (1 << CLK_PIN)          ; r4 = CLK=1, DATA=0
+    lsr     r6, DATA_REG, (31 - DATA_PIN) ; bit 31 → DATA_PIN position
+    and     r6, r6, (1 << DATA_PIN)     ; mask to DATA_PIN only
+    or      r4, r4, r6                  ; r4 = CLK=1, DATA=first bit
 
 ;******************************************************************************
-;   BIT_LOOP - exactly 16 PRU cycles per iteration (48 ns per bit)
+;   BIT_LOOP - exactly 20 PRU cycles per iteration (60 ns per bit)
 ;
-;   Clock HIGH phase (cycles 1-8):
-;     Build shadow R30 with CLK=1 and the current MSB, drive R30 (rising
-;     edge).  Then left-shift DATA_REG and extract the next bit into a
-;     second shadow: CLK=0 + bit N+1.
+;   Clock HIGH phase (cycles 1-10):
+;     Drive rising edge immediately from pre-built shadow r4 (CLK=1, DATA=bit
+;     N).  Then compute falling-edge shadow r5 (CLK=0, DATA=bit N+1) using
+;     lsl+lsr+and.  Remaining cycles are NOPs.
 ;
-;     DATA=1 path (qbbc NOT taken):
-;       ldi(1)+qbbc(1)+set(1)+qba(1) = 4 cycles -> DRIVE_CLK_HIGH
-;     DATA=0 path (qbbc TAKEN):
-;       ldi(1)+qbbc(1)+nop(1)+nop(1) = 4 cycles -> DRIVE_CLK_HIGH
+;   Clock LOW phase (cycles 11-20):
+;     Drive falling edge from r5 (CLK=0, DATA=bit N+1).  Decrement counter,
+;     then rebuild the rising-edge shadow r4 (CLK=1, DATA=bit N+1) for the
+;     next iteration using ldi+lsr+and+or.
 ;
-;   Clock LOW phase (cycles 9-16):
-;     Single mov drives CLK=0 and DATA=bit N+1 simultaneously (falling
-;     edge).  Decrement counter, then either pad NOPs and loop (normal
-;     path) or inline lbco+ldi reload (last-bit path).
-;     Both paths are exactly 8 cycles (16 total per bit).
+;     Normal path (BIT_CNT > 0 after decrement) - rebuild r4, pad with NOPs:
+;       mov(11)+sub(12)+qbne_taken(13)
+;       +ldi(14)+lsr(15)+and(16)+or(17)+nop(18)+nop(19)+qba(20)
 ;
-;     Normal path (BIT_CNT>0 after decrement):
-;       mov(9)+sub(10)+qbne_taken(11)+nop*4(12-15)+qba(16) = 8 cycles
-;     Last-bit path (BIT_CNT==0 after decrement):
-;       mov(9)+sub(10)+qbne_ntaken(11)+lbco(12)+ldi(13)+nop*2(14-15)
-;       +qba(16) = 8 cycles
+;     Last-bit path (BIT_CNT = 0 after decrement) - reload data, rebuild r4:
+;       mov(11)+sub(12)+qbne_ntaken(13)
+;       +lbco(14)+ldi(15)+ldi(16)+lsr(17)+and(18)+or(19)+qba(20)
 ;******************************************************************************
 
 BIT_LOOP:
-    ; --- Clock HIGH phase (8 cycles) ---
-    ldi     r4, (1 << CLK_PIN)          ; 1: shadow: CLK=1, DATA=0
-    qbbc    DATA_IS_LOW, DATA_REG, 31   ; 2: branch if current MSB is 0
-    set     r4, r4, DATA_PIN            ; 3: (DATA=1 path) set DATA bit
-    qba     DRIVE_CLK_HIGH              ; 4: skip alignment nops
-DATA_IS_LOW:                            ;    (DATA=0 path: qbbc taken at 2)
-    nop                                 ; 3: align with DATA=1 path
-    nop                                 ; 4: align with DATA=1 path
-DRIVE_CLK_HIGH:
-    mov     r30, r4                     ; 5: rising edge: CLK=1, DATA=bit N
-    lsl     DATA_REG, DATA_REG, 1       ; 6: shift reg, bit N+1 now at bit 31
-    lsr     r4, DATA_REG, (31 - DATA_PIN) ; 7: bit N+1 → DATA_PIN position
-    and     r4, r4, (1 << DATA_PIN)     ; 8: keep DATA_PIN only (CLK=0)
+    ; --- Clock HIGH phase (10 cycles) ---
+    mov     r30, r4                     ; 1: rising edge: CLK=1, DATA=bit N
+    lsl     DATA_REG, DATA_REG, 1       ; 2: shift reg, bit N+1 now at bit 31
+    lsr     r5, DATA_REG, (31 - DATA_PIN) ; 3: bit N+1 → DATA_PIN position
+    and     r5, r5, (1 << DATA_PIN)     ; 4: r5 = CLK=0, DATA=bit N+1
+    nop                                 ; 5:
+    nop                                 ; 6:
+    nop                                 ; 7:
+    nop                                 ; 8:
+    nop                                 ; 9:
+    nop                                 ; 10:
 
-    ; --- Clock LOW phase (8 cycles) ---
-    mov     r30, r4                     ; 9: falling edge: CLK=0, DATA=next
-    sub     BIT_CNT, BIT_CNT, 1         ; 10: decrement bit counter
-    qbne    BIT_LOOP_NORMAL, BIT_CNT, 0 ; 11: branch if bits remain
-    lbco    &DATA_REG, c24, 0, 4        ; 12: last bit: reload from DRAM0
-    ldi     BIT_CNT, NUM_BITS           ; 13: reset counter to 32
-    nop                                 ; 14:
-    nop                                 ; 15:
-    qba     BIT_LOOP                    ; 16: back to start
+    ; --- Clock LOW phase (10 cycles) ---
+    mov     r30, r5                     ; 11: falling edge: CLK=0, DATA=bit N+1
+    sub     BIT_CNT, BIT_CNT, 1         ; 12: decrement bit counter
+    qbne    BIT_LOOP_NORMAL, BIT_CNT, 0 ; 13: branch if bits remain
+
+    ; Last-bit path: reload data word and rebuild rising-edge shadow
+    lbco    &DATA_REG, c24, 0, 4        ; 14: reload data word from DRAM0
+    ldi     BIT_CNT, NUM_BITS           ; 15: reset counter to 32
+    ldi     r4, (1 << CLK_PIN)          ; 16: r4 = CLK=1, DATA=0
+    lsr     r6, DATA_REG, (31 - DATA_PIN) ; 17: bit 31 → DATA_PIN position
+    and     r6, r6, (1 << DATA_PIN)     ; 18: mask to DATA_PIN only
+    or      r4, r4, r6                  ; 19: r4 = CLK=1, DATA=first bit
+    qba     BIT_LOOP                    ; 20: start next bit
+
 BIT_LOOP_NORMAL:
-    nop                                 ; 12:
-    nop                                 ; 13:
-    nop                                 ; 14:
-    nop                                 ; 15:
-    qba     BIT_LOOP                    ; 16: back to start
+    ; Normal path: rebuild rising-edge shadow for next bit
+    ldi     r4, (1 << CLK_PIN)          ; 14: r4 = CLK=1, DATA=0
+    lsr     r6, DATA_REG, (31 - DATA_PIN) ; 15: bit 31 → DATA_PIN position
+    and     r6, r6, (1 << DATA_PIN)     ; 16: mask to DATA_PIN only
+    or      r4, r4, r6                  ; 17: r4 = CLK=1, DATA=next bit
+    nop                                 ; 18:
+    nop                                 ; 19:
+    qba     BIT_LOOP                    ; 20: start next bit
