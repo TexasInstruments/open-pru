@@ -2,6 +2,8 @@
 
 This document defines the **standard Git workflow** for contributors and LLM agents working on this repository.
 
+**Entry points:** This guide is intended to be discovered via the repository’s contributor documentation (for example, `docs/contributing.md` and/or `README.md`). If you are reading this in isolation, start with `docs/contributing.md` for the overall contribution process, then refer back here for the Git workflow details.
+
 It describes:
 
 * branch naming rules
@@ -12,7 +14,6 @@ It describes:
 * advanced Git topics
 
 The goal is to maintain a **clean, traceable, and automation-friendly repository history**.
-
 ---
 
 # 1. Core Principles
