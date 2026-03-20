@@ -17,7 +17,7 @@ The goal is to maintain a **clean, traceable, and automation-friendly repository
 
 # 1. Core Principles
 
-1. **Never commit directly to `main`.** (Enforce via branch protection rules — see Section 14.)
+1. **Never commit directly to `main`.** (Enforce via branch protection rules — see Section 13.)
 2. All development must occur in **dedicated branches**.
 3. Every change must be integrated via a **Pull Request (PR)**.
 4. PRs must include **clear documentation**.
@@ -304,8 +304,8 @@ Benefits:
 * simpler debugging
 
 > **Warning:** After squashing, you must force-push the branch:
-> ```
-git push --force-with-lease origin <branch-name>
+> ```bash
+> git push --force-with-lease origin <branch-name>
 > ```
 > Only do this on **development branches**, never on `main`. Coordinate with collaborators if the branch is shared.
 
@@ -345,16 +345,21 @@ Alternatively, use the **"Update branch"** button on the GitHub PR page.
 1. Git will pause the rebase and indicate conflicting files.
 2. Open each conflicting file and resolve the conflicts manually.
 3. Stage the resolved files:
+
+   ```bash
+   git add <resolved-file>
    ```
-git add <resolved-file>
-   ```
+
 4. Continue the rebase:
+
+   ```bash
+   git rebase --continue
    ```
-git rebase --continue
-   ```
+
 5. Force-push the updated branch:
-   ```
-git push --force-with-lease origin <branch-name>
+
+   ```bash
+   git push --force-with-lease origin <branch-name>
    ```
 
 > **For LLM agents:** If conflicts arise, clearly document which conflicts were resolved and how in the PR description. If unsure, request human review.
@@ -407,7 +412,9 @@ feat: add PRU instruction validation suite
 
 When an **LLM agent contributes**:
 
-1. Use `llm` as the `<author>` field in the branch name (e.g., `dev_llm_feature_...`). If a specific agent identifier is preferred (e.g., `copilot`), it may be used instead, but must be lowercase and consistent.
+1. Use `llm` as the `<author>` field in the branch name (for example, `dev_llm_feature_...`).
+   If a specific agent identifier is preferred (for example, `copilot`), it may be used instead,
+   but must be lowercase and consistent.
 2. Keep commits **small and logical**.
 3. Clearly document reasoning in the **PR description**.
 4. Modify **only relevant files**.
@@ -480,4 +487,4 @@ Key rules:
 * **resolve conflicts** by rebasing onto main
 * document changes properly
 
-This workflow enables **efficient collaboration between human developers and LLM agents while keeping the repository maintainable and traceable.
+This workflow enables **efficient collaboration between human developers and LLM agents** while keeping the repository maintainable and traceable.
