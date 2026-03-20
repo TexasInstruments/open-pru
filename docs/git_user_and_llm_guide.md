@@ -2,7 +2,9 @@
 
 This document defines the **standard Git workflow** for contributors and LLM agents working on this repository.
 
-**Entry points:** This guide is intended to be discovered via the repository’s contributor documentation (for example, `docs/contributing.md` and/or `README.md`). If you are reading this in isolation, start with `docs/contributing.md` for the overall contribution process, then refer back here for the Git workflow details.
+**Entry points:** This guide is intended to be discovered via the repository’s contributor documentation 
+(for example, `docs/contributing.md` and/or `README.md`). If you are reading this in isolation, 
+start with `docs/contributing.md` for the overall contribution process, then refer back here for the Git workflow details.
 
 It describes:
 
@@ -19,9 +21,9 @@ The goal is to maintain a **clean, traceable, and automation-friendly repository
 # 1. Core Principles
 
 1. **Never commit directly to `main`.** (Enforce via branch protection rules — see Section 13.)
-2. All development must occur in **dedicated branches**.
-3. Every change must be integrated via a **Pull Request (PR)**.
-4. PRs must include **clear documentation**.
+2. All development must occur in **dedicated feature branches**.
+3. Every change must be integrated into the main branch via a **Pull Request (PR)**.
+4. PR commits must include **clear documentation** in the commit message.
 5. Commit history must remain **clean and meaningful**.
 6. Branch names must follow the **defined syntax**.
 
@@ -129,6 +131,7 @@ git checkout -b dev_thomas_feature_pru-selftest
 ## Step 3 — Implement Changes
 
 Edit files and develop the feature or fix.
+See https://github.com/TexasInstruments/open-pru/blob/main/docs/open_pru_create_new_project.md 
 
 Commit changes in **logical steps**.
 
@@ -142,7 +145,8 @@ git add <specific files>
 git commit -m "feat: add PRU instruction self-test framework"
 ```
 
-> **Note:** Prefer `git add <specific files>` over `git add .` to avoid accidentally staging untracked or generated files. Use `git status` to review what will be staged.
+> **Note:** Prefer `git add <specific files>` over `git add .` to avoid accidentally staging untracked or generated files.
+>  Use `git status` to review what will be staged.
 
 ## Step 5 — Push Branch
 
@@ -163,7 +167,7 @@ dev_thomas_feature_pru-selftest -> main
 After approval:
 
 * PR is merged
-* branch is deleted
+* feature branch branch should be deleted by contributor
 
 ---
 
@@ -172,9 +176,11 @@ After approval:
 ## Commit Message Format
 
 ```
+Describe what if modified.
+
 <type>: <short description>
 
-(optional longer description)
+more detailed description
 ```
 
 ## Allowed Types
@@ -185,8 +191,7 @@ After approval:
 | fix      | bug fix            |
 | refactor | code restructuring |
 | docs     | documentation      |
-| test     | tests              |
-| chore    | maintenance        |
+
 
 ## Examples
 
@@ -323,7 +328,8 @@ Use for:
 * fixing commit message
 * adding forgotten files
 
-> **Note:** If the commit has already been pushed, you will need to force-push afterwards (`git push --force-with-lease`). Only do this on development branches.
+> **Note:** If the commit has already been pushed, you will need to force-push afterwards (`git push --force-with-lease`).
+>  Only do this on development branches.
 
 ---
 
@@ -363,7 +369,8 @@ Alternatively, use the **"Update branch"** button on the GitHub PR page.
    git push --force-with-lease origin <branch-name>
    ```
 
-> **For LLM agents:** If conflicts arise, clearly document which conflicts were resolved and how in the PR description. If unsure, request human review.
+> **For LLM agents:** If conflicts arise, clearly document which conflicts were resolved and how in the PR description.
+>  If unsure, request human review.
 
 ---
 
@@ -488,4 +495,5 @@ Key rules:
 * **resolve conflicts** by rebasing onto main
 * document changes properly
 
-This workflow enables **efficient collaboration between human developers and LLM agents** while keeping the repository maintainable and traceable.
+This workflow enables **efficient collaboration between human developers and LLM agents** 
+while keeping the repository maintainable and traceable.
