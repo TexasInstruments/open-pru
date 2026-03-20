@@ -31,7 +31,10 @@ The goal is to maintain a **clean, traceable, and automation-friendly repository
 
 # 2. Branch Naming Convention
 
-To ensure consistency and traceability, all development branches must follow a **strict naming syntax**.
+## 2. Branch Naming Convention
+
+To ensure consistency and traceability, all development branches should follow the naming syntax of <author>_<subject>. 
+<author> is however you choose to identify yourself, while <subject> is a short description of the change.
 
 ## Branch Name Format
 
