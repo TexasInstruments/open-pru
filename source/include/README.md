@@ -2,18 +2,24 @@
 
 This directory contains definitions that are used by PRU firmware.
 
-## asm_code
-Definitions used by assembly code
+The header files are written in C. In order to include a C header file in an
+assembly project, the .cdecls directive must be used around the include.
+For more information, refer to
+[PRU Assembly Language Tools v2.3](https://www.ti.com/lit/spruhv6),
+section "Sharing C/C++ Header Files With Assembly Source".
 
-## c_code
-Definitions used by C code
+## Register definitions
+Register definitions for PRU subsystem & commonly used peripherals:
+am243x
+am261x
+am263Px
+am263x
+am62x
+am64x
 
-### Register definitions
-Register definitions for commonly used peripherals:
-c_code/am243x
-c_code/am62x
-c_code/am64x
-
-### Linux definitions
+## Linux definitions
 Include definitions used for interacting with Linux cores:
-c_code/linux
+linux
+
+## Other definitions
+hw_types.h - contains general purpose API for HW access
