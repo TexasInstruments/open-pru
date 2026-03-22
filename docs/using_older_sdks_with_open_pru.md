@@ -160,6 +160,11 @@ over the last few years. If your project has a dependency on any macros in this
 directory, you may want to use the latest version of those files:  
 https://github.com/TexasInstruments/mcupsdk-core/commits/next/source/pru_io/firmware/common
 
+NOTE: Starting with OpenPRU v2026.01.00, PRU projects use the macros and defines
+in the OpenPRU source/ folder & subfolders instead of the MCU+ SDK. If you use
+the OpenPRU version of macros or defines, there is no need to update the MCU+
+SDK's version of this code.
+
 ## 5. Revert RPMsg channel name from rpmsg-raw to rpmsg-pru
 
 Starting in Linux kernel 6.12, we removed the separate PRU RPMsg (RPMessage)
