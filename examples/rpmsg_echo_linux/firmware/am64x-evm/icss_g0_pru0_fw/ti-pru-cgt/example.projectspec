@@ -33,9 +33,9 @@
             -I${MCU_PLUS_SDK_PATH}/source
             -I${OPEN_PRU_PATH}/source
             -I${OPEN_PRU_PATH}/source/firmware/common
+            -I${OPEN_PRU_PATH}/source/include
             -I${OPEN_PRU_PATH}/source/include/linux
             -I${OPEN_PRU_PATH}/source/include/am64x
-            -I${MCU_PLUS_SDK_PATH}/source/pru_io/firmware/common
             -DPRU0
             -DSLICE0
             -v4

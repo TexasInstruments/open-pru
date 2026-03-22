@@ -456,7 +456,7 @@ Setup file from pru_emif project directory.
 You can build the projects after a successfull export. 
 
 Pre-built PRU0 & PRU1 FW(firmware) images are contained in C header files located in:
-${open-pru}examples/pru_io/pru_emif/pru_emif_app/firmware
+${open-pru}/examples/pru_emif/pru_emif_app/firmware
  
 These C header files are compiled into the R5F application, and there is no need to rebuild the PRU
 firmware unless the firmware is modified.

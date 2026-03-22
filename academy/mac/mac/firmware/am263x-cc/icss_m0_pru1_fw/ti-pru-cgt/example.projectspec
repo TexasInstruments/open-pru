@@ -30,12 +30,13 @@
 
         compilerBuildOptions="
             -I${CG_TOOL_ROOT}/include
-            -I${MCU_PLUS_SDK_PATH}/source
             -I${OPEN_PRU_PATH}/source
-            -I${MCU_PLUS_SDK_PATH}/source/pru_io/firmware/common
+            -I${OPEN_PRU_PATH}/source/firmware/common
+            -I${OPEN_PRU_PATH}/source/include
+            -I${OPEN_PRU_PATH}/source/include/am263x
             -DPRU1
             -DSLICE1
-            -v4
+            -v3
             -DSOC_AM263X
         "
         linkerBuildOptions="
