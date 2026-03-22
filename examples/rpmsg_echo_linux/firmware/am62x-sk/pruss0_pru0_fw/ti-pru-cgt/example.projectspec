@@ -31,6 +31,11 @@
         compilerBuildOptions="
             -I${CG_TOOL_ROOT}/include
             -I${OPEN_PRU_PATH}/source
+            -I${OPEN_PRU_PATH}/source/firmware/common
+            -I${OPEN_PRU_PATH}/source/include
+            -I${OPEN_PRU_PATH}/source/include/linux
+            -I${OPEN_PRU_PATH}/source/include/am62x
+            -v3
             -O2
         "
         linkerBuildOptions="
