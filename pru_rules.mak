@@ -118,22 +118,24 @@ else
 all: $(OBJECTS) $(COMMAND_FILES)
 	@$(MAKE) --no-print-directory -Onone "$(TARGET)"
 
-# Invoke the compiler on all assembly files in vpath to create the object files
-$(GEN_DIR)/%.obj: %.asm
+# Create the output directory once; used as an order-only prerequisite below
+$(GEN_DIR):
 	$(MKDIR) $(GEN_DIR)
-	@echo 'Building file: "$^"'
+
+# Invoke the compiler on all assembly files in vpath to create the object files
+$(GEN_DIR)/%.obj: %.asm | $(GEN_DIR)
+	@echo 'Building file: "$<"'
 	@echo 'Invoking: PRU Compiler'
-	"$(CGT_TI_PRU_PATH)/bin/clpru" $(INCLUDE) $(CFLAGS) $(DFLAGS) $^
-	@echo 'Finished building: "$^"'
+	"$(CGT_TI_PRU_PATH)/bin/clpru" $(INCLUDE) $(CFLAGS) $(DFLAGS) --output_file=$@ $<
+	@echo 'Finished building: "$<"'
 	@echo ' '
 
 # Invoke the compiler on all c files in vpath to create the object files
-$(GEN_DIR)/%.obj: %.c
-	$(MKDIR) $(GEN_DIR)
-	@echo 'Building file: $^'
+$(GEN_DIR)/%.obj: %.c | $(GEN_DIR)
+	@echo 'Building file: "$<"'
 	@echo 'Invoking: PRU Compiler'
-	"$(CGT_TI_PRU_PATH)/bin/clpru" $(INCLUDE) $(CFLAGS) $(DFLAGS) $^
-	@echo 'Finished building: "$^"'
+	"$(CGT_TI_PRU_PATH)/bin/clpru" $(INCLUDE) $(CFLAGS) $(DFLAGS) --output_file=$@ $<
+	@echo 'Finished building: "$<"'
 	@echo ' '
 
 # Invoke the linker (-z flag) to make the .out file
