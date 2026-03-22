@@ -84,14 +84,14 @@ CFLAGS := \
 LFLAGS := \
 	-m$(GEN_DIR)/$(OUTPUT_NAME).map --xml_link_info=$(GEN_DIR)/$(OUTPUT_NAME)_linkInfo.xml \
 	--display_error_number --diag_wrap=off --diag_warning=225 --diag_suppress=10063-D \
-	--warn_sections --reread_libs
+	--warn_sections --reread_libs --ram_model
 
 ifeq ($(C_FILES),)
 # PRU firmware is assembly-only
 #   ENTRY_POINT may be overridden in the core's makefile
 ENTRY_POINT ?= main
 LFLAGS += \
-	--entry_point=$(ENTRY_POINT) --disable_auto_rts --ram_model
+	--entry_point=$(ENTRY_POINT) --disable_auto_rts
 
 else
 # PRU firmware has C code
