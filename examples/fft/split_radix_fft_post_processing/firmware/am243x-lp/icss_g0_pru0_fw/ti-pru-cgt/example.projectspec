@@ -34,8 +34,6 @@
             -I${OPEN_PRU_PATH}/source/firmware/common
             -I${OPEN_PRU_PATH}/source/include
             -I${OPEN_PRU_PATH}/source/include/am243x
-            -I${CG_TOOL_ROOT}/include
-            -I${CG_TOOL_ROOT}/lib
             -DPRU0
             -DSLICE0
             -v4
