@@ -71,13 +71,13 @@
         ></configuration>
         <pathVariable name="MCU_PLUS_SDK_PATH" path="${COM_TI_MCU_PLUS_SDK_AM243X_INSTALL_DIR}" scope="project" />
         <pathVariable name="OPEN_PRU_PATH" path="${COM_TI_OPEN_PRU_INSTALL_DIR}" scope="project" />
-        <file path="./linker.cmd" openOnCreation="false" excludeFromBuild="false" action="link">
+        <file path="./linker.cmd" openOnCreation="false" excludeFromBuild="false" action="copy">
         </file>
         <file path="./am243_am64_pru_pinmux.h" openOnCreation="false" excludeFromBuild="false" action="copy">
         </file>
-        <file path="./fir_filter.asm" openOnCreation="false" excludeFromBuild="false" action="link">
+        <file path="./fir_filter.asm" openOnCreation="false" excludeFromBuild="false" action="copy">
         </file>
-        <file path="./main.c" openOnCreation="false" excludeFromBuild="false" action="link">
+        <file path="./main.c" openOnCreation="false" excludeFromBuild="false" action="copy">
         </file>
     </project>
 </projectSpec>
