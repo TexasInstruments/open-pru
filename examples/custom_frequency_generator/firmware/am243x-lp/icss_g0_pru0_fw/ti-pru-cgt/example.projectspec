@@ -70,7 +70,7 @@
         <pathVariable name="OPEN_PRU_PATH" path="${COM_TI_OPEN_PRU_INSTALL_DIR}" scope="project" />
         <file path="./linker.cmd" openOnCreation="false" excludeFromBuild="false" action="copy">
         </file>
-        <file path="./AM243_AM64_PRU_pinmux.h" openOnCreation="false" excludeFromBuild="false" action="copy">
+        <file path="./am243_am64_pru_pinmux.h" openOnCreation="false" excludeFromBuild="false" action="copy">
         </file>
         <file path="./fn_fg_output.asm" openOnCreation="false" excludeFromBuild="false" action="copy">
         </file>
