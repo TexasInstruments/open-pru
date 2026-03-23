@@ -74,5 +74,9 @@
         </file>
         <file path="./linker.cmd" openOnCreation="false" excludeFromBuild="false" action="copy">
         </file>
+        <file path="./intc_map.h" openOnCreation="false" excludeFromBuild="false" action="copy">
+        </file>
+        <file path="../../../../../../source/include/linux/resource_table.h" openOnCreation="false" excludeFromBuild="false" action="copy">
+        </file>
     </project>
 </projectSpec>
