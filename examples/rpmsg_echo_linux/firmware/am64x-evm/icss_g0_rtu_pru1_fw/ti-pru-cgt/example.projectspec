@@ -30,7 +30,6 @@
 
         compilerBuildOptions="
             -I${CG_TOOL_ROOT}/include
-            -I${MCU_PLUS_SDK_PATH}/source
             -I${OPEN_PRU_PATH}/source
             -I${OPEN_PRU_PATH}/source/firmware/common
             -I${OPEN_PRU_PATH}/source/include
