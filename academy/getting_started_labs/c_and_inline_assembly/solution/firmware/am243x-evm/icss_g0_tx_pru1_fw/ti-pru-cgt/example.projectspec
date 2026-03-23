@@ -12,7 +12,7 @@
     <project
         title="Empty"
         name = "pru_add_am243x-evm_icss_g0_tx_pru1_fw_ti-pru-cgt"
-        products="com.ti.OPEN_PRU;com.ti.MCU_PLUS_SDK_AM243X"
+        products="com.ti.OPEN_PRU"
         configurations="
                 Debug,
                 Release,
@@ -30,9 +30,10 @@
 
         compilerBuildOptions="
             -I${CG_TOOL_ROOT}/include
-            -I${MCU_PLUS_SDK_PATH}/source
             -I${OPEN_PRU_PATH}/source
-            -I${MCU_PLUS_SDK_PATH}/source/pru_io/firmware/common
+            -I${OPEN_PRU_PATH}/source/firmware/common
+            -I${OPEN_PRU_PATH}/source/include
+            -I${OPEN_PRU_PATH}/source/include/am243x
             -DTX_PRU1
             -DSLICE1
             -v4
@@ -40,13 +41,16 @@
         "
         linkerBuildOptions="
             -m=pru_add.${ConfigName}.map
-            --disable_auto_rts
-            --entry_point=main
+            --stack_size=0x100
+            --heap_size=0x100
+            -i${CG_TOOL_ROOT}/lib
+            -i${CG_TOOL_ROOT}/include
+            --library=libc.a
             --diag_suppress=10063-D
         "
 
         postBuildStep="
-            $(CG_TOOL_ROOT)/bin/hexpru --diag_wrap=off --array --array:name_prefix=TXPRU1Firmware  -o txpru1_load_bin.h pru_add_am243x-evm_icss_g0_tx_pru1_fw_ti-pru-cgt.out;if ${CCS_HOST_OS} == linux cat ${MCU_PLUS_SDK_PATH}/source/pru_io/firmware/pru_load_bin_copyright.h txpru1_load_bin.h > ${OPEN_PRU_PATH}/academy/getting_started_labs/c_and_inline_assembly/solution/firmware/am243x-evm/txpru1_load_bin.h ;if ${CCS_HOST_OS} == linux rm txpru1_load_bin.h;if ${CCS_HOST_OS} == win32  $(CCS_INSTALL_DIR)/utils/cygwin/cat ${MCU_PLUS_SDK_PATH}/source/pru_io/firmware/pru_load_bin_copyright.h txpru1_load_bin.h > ${OPEN_PRU_PATH}/academy/getting_started_labs/c_and_inline_assembly/solution/firmware/am243x-evm/txpru1_load_bin.h ;if ${CCS_HOST_OS} == win32  $(CCS_INSTALL_DIR)/utils/cygwin/rm txpru1_load_bin.h;
+            $(CG_TOOL_ROOT)/bin/hexpru --diag_wrap=off --array --array:name_prefix=TXPRU1Firmware -o ${OPEN_PRU_PATH}/academy/getting_started_labs/c_and_inline_assembly/solution/firmware/am243x-evm/txpru1_load_bin.h ${BuildArtifactFileBaseName}.out;
         "
 
         description="A Empty FW project">
@@ -54,18 +58,18 @@
         <configuration name="Debug"
             compilerBuildOptions="
                 -D_DEBUG_=1
+                -O2
             "
             linkerBuildOptions="
             "
         ></configuration>
         <configuration name="Release"
             compilerBuildOptions="
-                -O3
+                -O2
             "
             linkerBuildOptions="
             "
         ></configuration>
-        <pathVariable name="MCU_PLUS_SDK_PATH" path="${COM_TI_MCU_PLUS_SDK_AM243X_INSTALL_DIR}" scope="project" />
         <pathVariable name="OPEN_PRU_PATH" path="${COM_TI_OPEN_PRU_INSTALL_DIR}" scope="project" />
         <file path="../../../main.c" openOnCreation="false" excludeFromBuild="false" action="copy">
         </file>

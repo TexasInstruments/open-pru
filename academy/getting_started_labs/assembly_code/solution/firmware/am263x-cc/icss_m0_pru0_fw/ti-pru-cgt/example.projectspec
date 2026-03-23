@@ -12,7 +12,7 @@
     <project
         title="Empty"
         name = "pru_add_am263x-cc_icss_m0_pru0_fw_ti-pru-cgt"
-        products="com.ti.OPEN_PRU;com.ti.MCU_PLUS_SDK_AM263X"
+        products="com.ti.OPEN_PRU"
         configurations="
             Release,
             Debug,
@@ -30,12 +30,13 @@
 
         compilerBuildOptions="
             -I${CG_TOOL_ROOT}/include
-            -I${MCU_PLUS_SDK_PATH}/source
             -I${OPEN_PRU_PATH}/source
-            -I${MCU_PLUS_SDK_PATH}/source/pru_io/firmware/common
+            -I${OPEN_PRU_PATH}/source/firmware/common
+            -I${OPEN_PRU_PATH}/source/include
+            -I${OPEN_PRU_PATH}/source/include/am263x
             -DPRU0
             -DSLICE0
-            -v4
+            -v3
             -DSOC_AM263X
         "
         linkerBuildOptions="
@@ -46,7 +47,7 @@
         "
 
         postBuildStep="
-            $(CG_TOOL_ROOT)/bin/hexpru --diag_wrap=off --array --array:name_prefix=PRU0Firmware  -o pru0_load_bin.h pru_add_am263x-cc_icss_m0_pru0_fw_ti-pru-cgt.out;if ${CCS_HOST_OS} == linux cat ${MCU_PLUS_SDK_PATH}/source/pru_io/firmware/pru_load_bin_copyright.h pru0_load_bin.h > ${OPEN_PRU_PATH}/academy/getting_started_labs/assembly_code/solution/firmware/am263x-cc/pru0_load_bin.h ;if ${CCS_HOST_OS} == linux rm pru0_load_bin.h;if ${CCS_HOST_OS} == win32  $(CCS_INSTALL_DIR)/utils/cygwin/cat ${MCU_PLUS_SDK_PATH}/source/pru_io/firmware/pru_load_bin_copyright.h pru0_load_bin.h > ${OPEN_PRU_PATH}/academy/getting_started_labs/assembly_code/solution/firmware/am263x-cc/pru0_load_bin.h ;if ${CCS_HOST_OS} == win32  $(CCS_INSTALL_DIR)/utils/cygwin/rm pru0_load_bin.h;
+            $(CG_TOOL_ROOT)/bin/hexpru --diag_wrap=off --array --array:name_prefix=PRU0Firmware -o ${OPEN_PRU_PATH}/academy/getting_started_labs/assembly_code/solution/firmware/am263x-cc/pru0_load_bin.h ${BuildArtifactFileBaseName}.out;
         "
 
         description="A Empty FW project">
@@ -54,25 +55,22 @@
         <configuration name="Debug"
             compilerBuildOptions="
                 -D_DEBUG_=1
+                -O2
             "
             linkerBuildOptions="
             "
         ></configuration>
         <configuration name="Release"
             compilerBuildOptions="
-                -O3
+                -O2
             "
             linkerBuildOptions="
             "
         ></configuration>
-        <pathVariable name="MCU_PLUS_SDK_PATH" path="${COM_TI_MCU_PLUS_SDK_AM263X_INSTALL_DIR}" scope="project" />
         <pathVariable name="OPEN_PRU_PATH" path="${COM_TI_OPEN_PRU_INSTALL_DIR}" scope="project" />
         <file path="../../../main.asm" openOnCreation="false" excludeFromBuild="false" action="copy">
         </file>
         <file path="./linker.cmd" openOnCreation="false" excludeFromBuild="false" action="copy">
-        </file>
-        <file path="${OPEN_PRU_PATH}/docs/api_guide_am263x/EXAMPLES_PRU_EMPTY.html"
-                openOnCreation="false" excludeFromBuild="false" targetName="README.html" action="link">
         </file>
     </project>
 </projectSpec>

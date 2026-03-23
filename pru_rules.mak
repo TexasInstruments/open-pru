@@ -84,14 +84,14 @@ CFLAGS := \
 LFLAGS := \
 	-m$(GEN_DIR)/$(OUTPUT_NAME).map --xml_link_info=$(GEN_DIR)/$(OUTPUT_NAME)_linkInfo.xml \
 	--display_error_number --diag_wrap=off --diag_warning=225 --diag_suppress=10063-D \
-	--warn_sections --reread_libs
+	--warn_sections --reread_libs --ram_model
 
 ifeq ($(C_FILES),)
 # PRU firmware is assembly-only
 #   ENTRY_POINT may be overridden in the core's makefile
 ENTRY_POINT ?= main
 LFLAGS += \
-	--entry_point=$(ENTRY_POINT) --disable_auto_rts --ram_model
+	--entry_point=$(ENTRY_POINT) --disable_auto_rts
 
 else
 # PRU firmware has C code
@@ -118,22 +118,24 @@ else
 all: $(OBJECTS) $(COMMAND_FILES)
 	@$(MAKE) --no-print-directory -Onone "$(TARGET)"
 
-# Invoke the compiler on all assembly files in vpath to create the object files
-$(GEN_DIR)/%.obj: %.asm
+# Create the output directory once; used as an order-only prerequisite below
+$(GEN_DIR):
 	$(MKDIR) $(GEN_DIR)
-	@echo 'Building file: "$^"'
+
+# Invoke the compiler on all assembly files in vpath to create the object files
+$(GEN_DIR)/%.obj: %.asm | $(GEN_DIR)
+	@echo 'Building file: "$<"'
 	@echo 'Invoking: PRU Compiler'
-	"$(CGT_TI_PRU_PATH)/bin/clpru" $(INCLUDE) $(CFLAGS) $(DFLAGS) $^
-	@echo 'Finished building: "$^"'
+	"$(CGT_TI_PRU_PATH)/bin/clpru" $(INCLUDE) $(CFLAGS) $(DFLAGS) --output_file=$@ $<
+	@echo 'Finished building: "$<"'
 	@echo ' '
 
 # Invoke the compiler on all c files in vpath to create the object files
-$(GEN_DIR)/%.obj: %.c
-	$(MKDIR) $(GEN_DIR)
-	@echo 'Building file: $^'
+$(GEN_DIR)/%.obj: %.c | $(GEN_DIR)
+	@echo 'Building file: "$<"'
 	@echo 'Invoking: PRU Compiler'
-	"$(CGT_TI_PRU_PATH)/bin/clpru" $(INCLUDE) $(CFLAGS) $(DFLAGS) $^
-	@echo 'Finished building: "$^"'
+	"$(CGT_TI_PRU_PATH)/bin/clpru" $(INCLUDE) $(CFLAGS) $(DFLAGS) --output_file=$@ $<
+	@echo 'Finished building: "$<"'
 	@echo ' '
 
 # Invoke the linker (-z flag) to make the .out file
