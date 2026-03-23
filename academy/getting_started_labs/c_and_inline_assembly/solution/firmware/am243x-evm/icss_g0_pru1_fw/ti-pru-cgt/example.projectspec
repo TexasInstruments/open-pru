@@ -11,7 +11,7 @@
 
     <project
         title="Empty"
-        name = "pru_add_am243x-evm_icss_g0_pru1_fw_ti-pru-cgt"
+        name = "pru_add_c_and_inline_assembly_am243x-evm_icss_g0_pru1_fw_ti-pru-cgt"
         products="com.ti.OPEN_PRU"
         configurations="
                 Debug,

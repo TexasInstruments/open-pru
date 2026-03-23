@@ -11,7 +11,7 @@
 
     <project
         title="Empty Pru Io"
-        name = "pru_add_am263px-lp_r5fss0-0_freertos_ti-arm-clang"
+        name = "pru_add_c_and_inline_assembly_am263px-lp_r5fss0-0_freertos_ti-arm-clang"
         products="sysconfig;com.ti.OPEN_PRU;MCU-PLUS-SDK-AM263PX"
         configurations="
             Release,
