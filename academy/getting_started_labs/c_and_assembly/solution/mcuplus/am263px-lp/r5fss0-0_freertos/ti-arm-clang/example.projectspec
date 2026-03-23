@@ -10,7 +10,7 @@
     </applicability>
 
     <project
-        title="Empty Pru Io"
+        title="Pru Add C And Assembly"
         name = "pru_add_c_and_assembly_am263px-lp_r5fss0-0_freertos_ti-arm-clang"
         products="sysconfig;com.ti.OPEN_PRU;MCU-PLUS-SDK-AM263PX"
         configurations="
@@ -67,7 +67,7 @@
             --context r5fss0-0 --part AM263P4 --package ZCZ_C
         "
 
-        description="A Empty Pru Io FREERTOS project">
+        description="A Pru Add C And Assembly FREERTOS project">
 
         <configuration name="Debug"
             compilerBuildOptions="

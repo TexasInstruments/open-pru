@@ -10,7 +10,7 @@
     </applicability>
 
     <project
-        title="Empty"
+        title="Pru Add C And Assembly"
         name = "pru_add_c_and_assembly_am243x-lp_icss_g0_tx_pru0_fw_ti-pru-cgt"
         products="com.ti.OPEN_PRU"
         configurations="
@@ -53,7 +53,7 @@
             $(CG_TOOL_ROOT)/bin/hexpru --diag_wrap=off --array --array:name_prefix=TXPRU0Firmware -o ${OPEN_PRU_PATH}/academy/getting_started_labs/c_and_assembly/solution/firmware/am243x-lp/txpru0_load_bin.h ${BuildArtifactFileBaseName}.out;
         "
 
-        description="A Empty FW project">
+        description="A Pru Add C And Assembly FW project">
 
         <configuration name="Debug"
             compilerBuildOptions="
