@@ -83,8 +83,5 @@
         </file>
         <file path="./main.asm" openOnCreation="false" excludeFromBuild="false" action="copy">
         </file>
-        <file path="${OPEN_PRU_PATH}/docs/api_guide_am243x/EXAMPLES_FFT_AM243.html"
-                openOnCreation="false" excludeFromBuild="false" targetName="README.html" action="link">
-        </file>
     </project>
 </projectSpec>
