@@ -11,7 +11,7 @@
 
     <project
         title="Empty"
-        name = "pru_add_am263x-cc_icss_m0_pru0_fw_ti-pru-cgt"
+        name = "pru_add_c_am263x-cc_icss_m0_pru0_fw_ti-pru-cgt"
         products="com.ti.OPEN_PRU"
         configurations="
             Release,

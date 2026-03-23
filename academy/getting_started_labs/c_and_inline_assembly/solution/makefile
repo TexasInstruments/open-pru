@@ -4,7 +4,7 @@ include ../../../../imports.mak
 # project information #
 #######################
 
-PROJECT_NAME := pru_add
+PROJECT_NAME := pru_add_c_and_inline_assembly
 SUPPORTED_PROCESSORS := am243x am261x am263px am263x am62x am64x
 # Does the PRU code have dependencies outside of the open-pru repo?
 PRU_DEPENDENCIES :=
