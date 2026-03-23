@@ -66,7 +66,7 @@
         ></configuration>
         <configuration name="Release"
             compilerBuildOptions="
-                -O3
+                -O2
             "
             linkerBuildOptions="
             "
