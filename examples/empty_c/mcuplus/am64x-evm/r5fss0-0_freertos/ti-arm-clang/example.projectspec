@@ -10,7 +10,7 @@
     </applicability>
 
     <project
-        title="Empty Pru Io"
+        title="Empty C Pru"
         name = "empty_c_am64x-evm_r5fss0-0_freertos_ti-arm-clang"
         products="sysconfig;com.ti.OPEN_PRU;com.ti.MCU_PLUS_SDK_AM64X"
         configurations="
@@ -69,7 +69,7 @@
             --context r5fss0-0 --part Default --package ALV
         "
 
-        description="A Empty Pru Io FREERTOS project">
+        description="A Empty C Pru FREERTOS project">
 
         <configuration name="Debug"
             compilerBuildOptions="
