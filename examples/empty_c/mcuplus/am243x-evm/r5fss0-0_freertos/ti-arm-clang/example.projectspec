@@ -11,7 +11,7 @@
 
     <project
         title="Empty Pru Io"
-        name = "empty_am243x-evm_r5fss0-0_freertos_ti-arm-clang"
+        name = "empty_c_am243x-evm_r5fss0-0_freertos_ti-arm-clang"
         products="sysconfig;com.ti.OPEN_PRU;com.ti.MCU_PLUS_SDK_AM243X"
         configurations="
                 Debug,
