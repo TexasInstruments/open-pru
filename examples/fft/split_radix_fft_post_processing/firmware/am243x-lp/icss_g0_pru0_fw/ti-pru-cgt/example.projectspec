@@ -60,6 +60,7 @@
         <configuration name="Debug"
             compilerBuildOptions="
                 -D_DEBUG_=1
+                -O2
             "
             linkerBuildOptions="
             "
