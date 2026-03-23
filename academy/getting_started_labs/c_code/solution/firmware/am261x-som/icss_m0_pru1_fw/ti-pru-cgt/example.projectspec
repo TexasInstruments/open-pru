@@ -47,7 +47,7 @@
         "
 
         postBuildStep="
-            $(CG_TOOL_ROOT)/bin/hexpru --diag_wrap=off --array --array:name_prefix=PRU1Firmware  -o pru1_load_bin.h ${BuildArtifactFileBaseName}.out;if ${CCS_HOST_OS} == linux cat ${OPEN_PRU_PATH}/source/firmware/pru_load_bin_copyright.h pru1_load_bin.h > ${OPEN_PRU_PATH}/academy/getting_started_labs/c_code/solution/firmware/am261x-som/pru1_load_bin.h ;if ${CCS_HOST_OS} == linux rm pru1_load_bin.h;if ${CCS_HOST_OS} == win32  $(CCS_INSTALL_DIR)/utils/cygwin/cat ${OPEN_PRU_PATH}/source/firmware/pru_load_bin_copyright.h pru1_load_bin.h > ${OPEN_PRU_PATH}/academy/getting_started_labs/c_code/solution/firmware/am261x-som/pru1_load_bin.h ;if ${CCS_HOST_OS} == win32  $(CCS_INSTALL_DIR)/utils/cygwin/rm pru1_load_bin.h;
+            $(CG_TOOL_ROOT)/bin/hexpru --diag_wrap=off --array --array:name_prefix=PRU1Firmware -o ${OPEN_PRU_PATH}/academy/getting_started_labs/c_code/solution/firmware/am261x-som/pru1_load_bin.h ${BuildArtifactFileBaseName}.out;
         "
 
         description="A Empty FW project">
