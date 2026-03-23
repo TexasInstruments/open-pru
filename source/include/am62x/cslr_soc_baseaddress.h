@@ -35,8 +35,7 @@
 #ifndef CSLR_SOC_BASEADDRESS_H_
 #define CSLR_SOC_BASEADDRESS_H_
 
-#include <drivers/hw_include/cslr.h>
-#include <drivers/hw_include/tistdtypes.h>
+#include <stdint.h>
 #ifdef __cplusplus
 extern "C"
 {
