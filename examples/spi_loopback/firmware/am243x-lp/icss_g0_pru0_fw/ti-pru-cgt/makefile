@@ -7,7 +7,7 @@ OUTPUT_NAME := spi_loopback_am243x-lp_icss_g0_pru0_fw
 # MCU+ projects: rename & move hex array output
 MCU_HEX_NAME := pru0_load_bin.h
 HEX_ARRAY_PREFIX := PRU0Firmware
-MCU_HEX_PATH := $(OPEN_PRU_PATH)/examples/spi_loopback/firmware/am243x-lp/$(MCU_HEX_NAME)
+MCU_HEX_PATH := $(OPEN_PRU_PATH)/examples/spi_loopback/spi_loopback_app/firmware/$(MCU_HEX_NAME)
 
 # which directories to search for assembly & C source files?
 FILES_PATH := .. ../../.. .
