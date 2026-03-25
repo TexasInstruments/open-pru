@@ -55,7 +55,6 @@ FILES_PATH_common = \
 	.. \
 	../.. \
 	../../.. \
-	../../../firmware \
 	generated \
 
 INCLUDES_common := \
@@ -65,7 +64,7 @@ INCLUDES_common := \
 	-I${MCU_PLUS_SDK_PATH}/source/kernel/nortos/dpl/common \
 	-I${MCU_PLUS_SDK_PATH}/source/kernel/nortos/dpl/r5f \
 	-I${MCU_PLUS_SDK_PATH}/source/pru_io/driver \
-	-I${OPEN_PRU_PATH}/examples/spi_loopback/spi_loopback_app/firmware \
+	-I${OPEN_PRU_PATH}/examples/spi_loopback/firmware/am243x-lp \
 	-I${OPEN_PRU_PATH}/examples/spi_loopback/spi_loopback_app/am243x-lp \
 	-I${CG_TOOL_ROOT}/include/c \
 	-Igenerated \
