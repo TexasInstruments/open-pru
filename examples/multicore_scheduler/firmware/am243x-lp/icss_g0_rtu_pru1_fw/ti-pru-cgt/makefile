@@ -5,8 +5,8 @@ include $(OPEN_PRU_PATH)/imports.mak
 OUTPUT_NAME := multicore_scheduler_am243x-lp_icss_g0_rtu1_fw
 
 # MCU+ projects: rename & move hex array output
-MCU_HEX_NAME := rtu1_load_bin.h
-HEX_ARRAY_PREFIX := RTU1Firmware
+MCU_HEX_NAME := rtupru1_load_bin.h
+HEX_ARRAY_PREFIX := RTUPRU1Firmware
 MCU_HEX_PATH := $(OPEN_PRU_PATH)/examples/multicore_scheduler/firmware/am243x-lp/$(MCU_HEX_NAME)
 
 # which directories to search for assembly & C source files?
