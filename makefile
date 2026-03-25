@@ -4,15 +4,25 @@ SUBDIRS := source academy examples
 
 # "make" or "make all" builds projects that match $(DEVICE) set in imports.mak
 # this also builds all libraries in the source directory
-all: ARGUMENTS := all
-all: $(SUBDIRS)
+all:
+	$(MAKE) -C source
+	$(MAKE) pru
+	$(MAKE) host
+
+# "make pru" builds PRU firmware for all projects matching $(DEVICE)
+pru: ARGUMENTS := pru
+pru: academy examples
+
+# "make host" builds host (non-PRU) code for all projects matching $(DEVICE)
+host: ARGUMENTS := host
+host: academy examples
 
 # "make clean" cleans projects that match $(DEVICE) set in imports.mak
 # this also cleans all libraries in the source directory
 clean: ARGUMENTS := clean
 clean: $(SUBDIRS)
 
-$(SUBDIRS):
+academy examples source:
 	$(MAKE) -C $@ $(ARGUMENTS)
 
 help:
@@ -44,20 +54,27 @@ help:
 	@echo  Overall build targets:
 	@echo  ======================
 	@echo  $(MAKE) help          // show this help menu
-	@echo  
+	@echo
 	@echo  $(MAKE) -s            // build all projects that match DEVICE
+	@echo  $(MAKE) -s pru        // build only PRU firmware for all projects
+	@echo  $(MAKE) -s host       // build only host code for all projects
 	@echo  $(MAKE) -s clean      // clean all projects that match DEVICE
 	@echo
 	@echo  The overall build targets also build & clean all libraries in the
 	@echo  source/ directory
-	@echo  
+	@echo
+	@echo  Note: "make pru" and "make host" assume source/ libraries are already
+	@echo  built. Run "make" first on a fresh clone to build everything in order.
+	@echo
 	@echo  Build a single project:
 	@echo  =======================
 	@echo  You can build the code for a single project or library like this:
 	@echo  cd examples/empty  // go to the project directory
-	@echo  $(MAKE) -s         // build code for cores that match DEVICE
+	@echo  $(MAKE) -s         // build PRU firmware first, then host code
+	@echo  $(MAKE) -s pru     // build only PRU firmware
+	@echo  $(MAKE) -s host    // build only host code
 	@echo  $(MAKE) -s clean   // clean code for cores that match DEVICE
-	@echo  
+	@echo
 	@echo  Build code for a single core:
 	@echo  =============================
 	@echo  Build code for a single core like this:
@@ -68,9 +85,9 @@ help:
 	@echo  $(MAKE) -s -C examples/empty/firmware/am64x-evm/icss_g0_tx_pru0_fw/ti-pru-cgt [clean]
 	@echo  $(MAKE) -s -C examples/empty/firmware/am64x-evm/icss_g0_tx_pru1_fw/ti-pru-cgt [clean]
 	@echo  $(MAKE) -s -C examples/empty/am64x-evm/r5fss0-0_freertos/ti-arm-clang [clean syscfg-gui syscfg]
-	@echo  
+	@echo
 	@echo  Note that PRU firmware should be built before any RTOS code that includes
 	@echo  the PRU firmware.
-	@echo  
+	@echo
 
-.PHONY: all clean help $(SUBDIRS)
+.PHONY: all clean pru host help academy examples source
