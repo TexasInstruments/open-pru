@@ -37,6 +37,10 @@
             -I${OPEN_PRU_PATH}/source/include/am62x
             -v3
             -O2
+            -DHOST_INT_BIT=31
+            -DTO_ARM_HOST=18
+            -DFROM_ARM_HOST=19
+            -DCHAN_PORT=31
         "
         linkerBuildOptions="
             -m=rpmsg_echo_linux.${ConfigName}.map
@@ -47,6 +51,8 @@
             --library=libc.a
             --diag_suppress=10063-D
         "
+
+        postBuildStep=""
 
         description="RPMsg Echo example with Linux">
 
@@ -68,6 +74,10 @@
         <file path="../../../main.c" openOnCreation="false" excludeFromBuild="false" action="copy">
         </file>
         <file path="./linker.cmd" openOnCreation="false" excludeFromBuild="false" action="copy">
+        </file>
+        <file path="../../../../../../source/rpmsg/pru_rpmsg.c" openOnCreation="false" excludeFromBuild="false" action="copy">
+        </file>
+        <file path="../../../../../../source/rpmsg/pru_virtqueue.c" openOnCreation="false" excludeFromBuild="false" action="copy">
         </file>
         <file path="./intc_map.h" openOnCreation="false" excludeFromBuild="false" action="copy">
         </file>
