@@ -4,6 +4,8 @@ include $(OPEN_PRU_PATH)/imports.mak
 # Define build outputs
 OUTPUT_NAME := pru_add_am62x-sk_pruss0_pru0_fw
 
+# NOT SUPPORTED on AM62x
+# AM62x does not support initializing PRU cores from an MCU+ core
 # MCU+ projects: rename & move hex array output
 MCU_HEX_NAME := pru0_load_bin.h
 HEX_ARRAY_PREFIX := PRU0Firmware
