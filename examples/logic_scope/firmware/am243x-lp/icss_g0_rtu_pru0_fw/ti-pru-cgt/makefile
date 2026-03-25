@@ -5,8 +5,8 @@ include $(OPEN_PRU_PATH)/imports.mak
 OUTPUT_NAME := logic_scope_am243x-lp_icss_g0_rtu_pru0_fw
 
 # MCU+ projects: rename & move hex array output
-MCU_HEX_NAME := rtu_pru0_load_bin.h
-HEX_ARRAY_PREFIX := RTU0Firmware
+MCU_HEX_NAME := rtupru0_load_bin.h
+HEX_ARRAY_PREFIX := RTUPRU0Firmware
 MCU_HEX_PATH := $(OPEN_PRU_PATH)/examples/logic_scope/firmware/am243x-lp/$(MCU_HEX_NAME)
 
 # which directories to search for assembly & C source files?

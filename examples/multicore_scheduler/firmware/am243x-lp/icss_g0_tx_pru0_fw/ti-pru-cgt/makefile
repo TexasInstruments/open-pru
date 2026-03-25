@@ -5,7 +5,7 @@ include $(OPEN_PRU_PATH)/imports.mak
 OUTPUT_NAME := multicore_scheduler_am243x-lp_icss_g0_tx_pru0_fw
 
 # MCU+ projects: rename & move hex array output
-MCU_HEX_NAME := tx_pru0_load_bin.h
+MCU_HEX_NAME := txpru0_load_bin.h
 HEX_ARRAY_PREFIX := TXPRU0Firmware
 MCU_HEX_PATH := $(OPEN_PRU_PATH)/examples/multicore_scheduler/firmware/am243x-lp/$(MCU_HEX_NAME)
 
