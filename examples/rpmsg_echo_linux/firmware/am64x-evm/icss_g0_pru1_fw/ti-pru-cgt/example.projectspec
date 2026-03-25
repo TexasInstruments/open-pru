@@ -39,6 +39,10 @@
             -DSLICE1
             -v4
             -DSOC_AM64X
+            -DHOST_INT_BIT=31
+            -DTO_ARM_HOST=18
+            -DFROM_ARM_HOST=19
+            -DCHAN_PORT=31
         "
         linkerBuildOptions="
             -m=rpmsg_echo_linux.${ConfigName}.map
@@ -50,9 +54,7 @@
             --diag_suppress=10063-D
         "
 
-        postBuildStep="
-            $(CG_TOOL_ROOT)/bin/hexpru --diag_wrap=off --array --array:name_prefix=PRU1Firmware -o ${OPEN_PRU_PATH}/examples/rpmsg_echo_linux/firmware/am64x-evm/pru1_load_bin.h ${BuildArtifactFileBaseName}.out;
-        "
+        postBuildStep=""
 
         description="RPMsg Echo example with Linux">
 
@@ -75,6 +77,10 @@
         <file path="../../../main.c" openOnCreation="false" excludeFromBuild="false" action="copy">
         </file>
         <file path="./linker.cmd" openOnCreation="false" excludeFromBuild="false" action="copy">
+        </file>
+        <file path="../../../../../../source/rpmsg/pru_rpmsg.c" openOnCreation="false" excludeFromBuild="false" action="copy">
+        </file>
+        <file path="../../../../../../source/rpmsg/pru_virtqueue.c" openOnCreation="false" excludeFromBuild="false" action="copy">
         </file>
         <file path="./intc_map.h" openOnCreation="false" excludeFromBuild="false" action="copy">
         </file>
