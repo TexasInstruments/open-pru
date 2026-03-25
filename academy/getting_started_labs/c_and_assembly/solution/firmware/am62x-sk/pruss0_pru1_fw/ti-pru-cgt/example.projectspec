@@ -1,0 +1,79 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<projectSpec>
+    <applicability>
+        <when>
+            <context
+                deviceFamily="PRU"
+                deviceId="AM62x_SK_EVM"
+            />
+        </when>
+    </applicability>
+
+    <project
+        title="Pru Add C And Assembly"
+        name = "pru_add_c_and_assembly_am62x-sk_pruss0_pru1_fw_ti-pru-cgt"
+        products="com.ti.OPEN_PRU"
+        configurations="
+            Debug,
+            Release,
+        "
+        connection="TIXDS110_Connection.xml"
+        toolChain="TI"
+        cgtVersion="2.3.3"
+        device="AM62x_SK_EVM"
+        deviceCore="PRU_ICSS_PRU_1"
+        ignoreDefaultDeviceSettings="true"
+        ignoreDefaultCCSSettings="true"
+        endianness="little"
+        outputFormat="ELF"
+        outputType="executable"
+
+        compilerBuildOptions="
+            -I${CG_TOOL_ROOT}/include
+            -I${OPEN_PRU_PATH}/source
+            -I${OPEN_PRU_PATH}/source/firmware/common
+            -I${OPEN_PRU_PATH}/source/include
+            -I${OPEN_PRU_PATH}/source/include/am62x
+            -DPRU1
+            -DSLICE1
+            -v3
+            -DSOC_AM62X
+        "
+        linkerBuildOptions="
+            -m=pru_add.${ConfigName}.map
+            --stack_size=0x100
+            --heap_size=0x100
+            -i${CG_TOOL_ROOT}/lib
+            -i${CG_TOOL_ROOT}/include
+            --library=libc.a
+            --diag_suppress=10063-D
+        "
+
+        postBuildStep=""
+
+        description="A Pru Add C And Assembly FW project">
+
+        <configuration name="Debug"
+            compilerBuildOptions="
+                -D_DEBUG_=1
+                -O2
+            "
+            linkerBuildOptions="
+            "
+        ></configuration>
+        <configuration name="Release"
+            compilerBuildOptions="
+                -O2
+            "
+            linkerBuildOptions="
+            "
+        ></configuration>
+        <pathVariable name="OPEN_PRU_PATH" path="${COM_TI_OPEN_PRU_INSTALL_DIR}" scope="project" />
+        <file path="../../../main.c" openOnCreation="false" excludeFromBuild="false" action="copy">
+        </file>
+        <file path="../../../assm_add.asm" openOnCreation="false" excludeFromBuild="false" action="copy">
+        </file>
+        <file path="./linker.cmd" openOnCreation="false" excludeFromBuild="false" action="copy">
+        </file>
+    </project>
+</projectSpec>
