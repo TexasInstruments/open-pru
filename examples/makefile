@@ -10,6 +10,12 @@ SUBDIRS := \
 all: ARGUMENTS = all
 all: $(SUBDIRS)
 
+pru: ARGUMENTS = pru
+pru: $(SUBDIRS)
+
+host: ARGUMENTS = host
+host: $(SUBDIRS)
+
 # "make clean" cleans projects that match $(DEVICE) set in imports.mak
 clean: ARGUMENTS = clean
 clean: $(SUBDIRS)
@@ -17,4 +23,4 @@ clean: $(SUBDIRS)
 $(SUBDIRS):
 	$(MAKE) -C $@ $(ARGUMENTS)
 
-.PHONY: all clean $(SUBDIRS)
+.PHONY: all clean pru host $(SUBDIRS)

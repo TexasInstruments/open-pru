@@ -59,10 +59,19 @@ endif
 
 ifeq ($(BUILD_PROJECT),y)
 # "make" or "make all" builds projects that match $(DEVICE) set in imports.mak
-all: ARGUMENTS_PRU = all
-all: ARGUMENTS_MCUPLUS = $(ARGUMENTS_PRU)
+# "make" builds PRU firmware first, then host (non-PRU) code
 all: MESSAGE = "Building $(PROJECT_NAME) for $(DEVICE)"
-all: pre_build_message $(DEVICE) $(DEVICE_NON_PRU)
+all: pre_build_message
+	$(MAKE) pru
+	$(MAKE) host
+
+# "make pru" builds only PRU firmware for $(DEVICE)
+pru: ARGUMENTS_PRU = all
+pru: $(DEVICE)
+
+# "make host" builds only host (non-PRU) code for $(DEVICE)
+host: ARGUMENTS_MCUPLUS = all
+host: $(DEVICE_NON_PRU)
 
 # "make clean" cleans projects that match $(DEVICE) set in imports.mak
 clean: ARGUMENTS_PRU = clean
@@ -72,7 +81,7 @@ clean: pre_build_message $(DEVICE) $(DEVICE_NON_PRU)
 
 else
 # if a prebuild check failed, print message and exit
-all clean: pre_build_message
+all clean pru host: pre_build_message
 endif
 
 pre_build_message:
@@ -92,4 +101,4 @@ am261x:
 # am261x-lp
 	$(MAKE) -C firmware/am261x-lp/icss_m0_pru0_fw/ti-pru-cgt $(ARGUMENTS_PRU)
 
-.PHONY: all clean pre_build_message $(DEVICE) $(DEVICE_NON_PRU) $(SUPPORTED_PROCESSORS)
+.PHONY: all clean pru host pre_build_message $(DEVICE) $(DEVICE_NON_PRU) $(SUPPORTED_PROCESSORS)
