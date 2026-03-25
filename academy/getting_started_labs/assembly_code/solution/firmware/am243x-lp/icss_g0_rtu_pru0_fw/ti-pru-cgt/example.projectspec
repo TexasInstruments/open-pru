@@ -1,4 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
+<!-- This example.projectspec file is for PRU projects written in assembly -->
 <projectSpec>
     <applicability>
         <when>
