@@ -51,6 +51,7 @@
             -i${CG_TOOL_ROOT}/include
             --library=libc.a
             --diag_suppress=10063-D
+            --ram_model
         "
 
         postBuildStep=""

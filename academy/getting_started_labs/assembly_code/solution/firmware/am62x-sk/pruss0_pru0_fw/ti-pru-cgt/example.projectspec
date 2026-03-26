@@ -45,6 +45,7 @@
             --disable_auto_rts
             --entry_point=main
             --diag_suppress=10063-D
+            --ram_model
         "
 
         postBuildStep=""
