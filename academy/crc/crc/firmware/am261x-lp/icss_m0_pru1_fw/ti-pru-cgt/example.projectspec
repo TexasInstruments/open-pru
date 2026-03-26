@@ -49,7 +49,7 @@
         "
 
         postBuildStep="
-            $(CG_TOOL_ROOT)/bin/hexpru --diag_wrap=off --array --array:name_prefix=PRU1Firmware -o ${OPEN_PRU_PATH}/academy/crc/crc/firmware/am261x-lp/pru1_load_bin.h ${BuildArtifactFileBaseName}.out;
+            $(CG_TOOL_ROOT)/bin/hexpru --diag_wrap=off --array --array:name_prefix=PRU1Firmware -o ../pru1_load_bin.h ${BuildArtifactFileBaseName}.out;
         "
 
         description="A Crc FW project">
