@@ -49,7 +49,7 @@
         "
 
         postBuildStep="
-            $(CG_TOOL_ROOT)/bin/hexpru --diag_wrap=off --array --array:name_prefix=PRU0Firmware -o ${OPEN_PRU_PATH}/academy/mac/mac_multiply/firmware/am263px-lp/pru0_load_bin.h ${BuildArtifactFileBaseName}.out;
+            $(CG_TOOL_ROOT)/bin/hexpru --diag_wrap=off --array --array:name_prefix=PRU0Firmware -o ../pru0_load_bin.h ${BuildArtifactFileBaseName}.out;
         "
 
         description="A Mac Multiply FW project">

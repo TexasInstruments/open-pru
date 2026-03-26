@@ -51,7 +51,7 @@
         "
 
         postBuildStep="
-            $(CG_TOOL_ROOT)/bin/hexpru --diag_wrap=off --array --array:name_prefix=pru_emif_addr_pru0 -o ${OPEN_PRU_PATH}/examples/pru_emif/pru_emif_app/pru_emif_addr_pru0_bin.h ${BuildArtifactFileBaseName}.out;
+            $(CG_TOOL_ROOT)/bin/hexpru --diag_wrap=off --array --array:name_prefix=pru_emif_addr_pru0 -o ../pru_emif_addr_pru0_bin.h ${BuildArtifactFileBaseName}.out;
         "
 
         description="A Pru Emif Addr Pru0 Fw FW project">

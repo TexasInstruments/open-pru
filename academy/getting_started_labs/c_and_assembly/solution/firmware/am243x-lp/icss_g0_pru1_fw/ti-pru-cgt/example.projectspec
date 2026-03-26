@@ -52,7 +52,7 @@
         "
 
         postBuildStep="
-            $(CG_TOOL_ROOT)/bin/hexpru --diag_wrap=off --array --array:name_prefix=PRU1Firmware -o ${OPEN_PRU_PATH}/academy/getting_started_labs/c_and_assembly/solution/firmware/am243x-lp/pru1_load_bin.h ${BuildArtifactFileBaseName}.out;
+            $(CG_TOOL_ROOT)/bin/hexpru --diag_wrap=off --array --array:name_prefix=PRU1Firmware -o ../pru1_load_bin.h ${BuildArtifactFileBaseName}.out;
         "
 
         description="A Pru Add C And Assembly FW project">
