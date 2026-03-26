@@ -2,7 +2,7 @@ export OPEN_PRU_PATH?=$(abspath ../../../../../../..)
 include $(OPEN_PRU_PATH)/imports.mak
 
 # Define build outputs
-OUTPUT_NAME := split_radix_fft_4k_am261x-lp_icss_m0_pru0_fw
+OUTPUT_NAME := split_radix_fft_4k_single_core_am261x-lp_icss_m0_pru0_fw
 
 # MCU+ projects: rename & move hex array output
 MCU_HEX_NAME := pru0_load_bin.h
