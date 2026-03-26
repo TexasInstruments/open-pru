@@ -15,8 +15,8 @@
         name = "rpmsg_echo_linux_am62x-sk_pruss0_pru1_fw_ti-pru-cgt"
         products="com.ti.OPEN_PRU"
         configurations="
-            Release,
             Debug,
+            Release,
         "
         connection="TIXDS110_Connection.xml"
         toolChain="TI"
@@ -36,12 +36,15 @@
             -I${OPEN_PRU_PATH}/source/include
             -I${OPEN_PRU_PATH}/source/include/linux
             -I${OPEN_PRU_PATH}/source/include/am62x
+            -DPRU1
+            -DSLICE1
             -v3
-            -O2
+            -DSOC_AM62X
             -DHOST_INT_BIT=31
             -DTO_ARM_HOST=18
             -DFROM_ARM_HOST=19
             -DCHAN_PORT=31
+            -O2
         "
         linkerBuildOptions="
             -m=rpmsg_echo_linux.${ConfigName}.map
