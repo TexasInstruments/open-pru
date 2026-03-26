@@ -2,7 +2,7 @@ export OPEN_PRU_PATH?=$(abspath ../../../../../../../..)
 include $(OPEN_PRU_PATH)/imports.mak
 
 # Define build outputs
-OUTPUT_NAME := pru_add_am261x-lp_icss_m0_pru1_fw
+OUTPUT_NAME := pru_add_c_am261x-lp_icss_m0_pru1_fw
 
 # MCU+ projects: rename & move hex array output
 MCU_HEX_NAME := pru1_load_bin.h

@@ -11,7 +11,7 @@
 
     <project
         title="Gpio Pru Io"
-        name = "gpio_am263x-lp_r5fss0-0_freertos_ti-arm-clang"
+        name = "gpio_toggle_am263x-lp_r5fss0-0_freertos_ti-arm-clang"
         products="sysconfig;com.ti.OPEN_PRU;com.ti.MCU_PLUS_SDK_AM263X"
         configurations="
             Release,
@@ -55,7 +55,7 @@
             -i${MCU_PLUS_SDK_PATH}/source/board/lib
             -i${MCU_PLUS_SDK_PATH}/source/pru_io/lib
             -i${CG_TOOL_ROOT}/lib
-            -m=gpio.${ConfigName}.map
+            -m=gpio_toggle.${ConfigName}.map
             --diag_suppress=10063
             --ram_model
             --reread_libs

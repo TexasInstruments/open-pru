@@ -2,7 +2,7 @@ export OPEN_PRU_PATH?=$(abspath ../../../../../../../..)
 include $(OPEN_PRU_PATH)/imports.mak
 
 # Define build outputs
-OUTPUT_NAME := pru_add_am62x-sk_pruss0_pru1_fw
+OUTPUT_NAME := pru_add_c_and_inline_assembly_am62x-sk_pruss0_pru1_fw
 
 # NOT SUPPORTED on AM62x
 # AM62x does not support initializing PRU cores from an MCU+ core

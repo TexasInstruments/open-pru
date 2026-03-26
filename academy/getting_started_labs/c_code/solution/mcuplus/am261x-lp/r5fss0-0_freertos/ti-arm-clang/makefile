@@ -25,19 +25,19 @@ endif
 PROFILE?=release
 ConfigName:=$(PROFILE)
 
-OUTNAME:=pru_add.$(PROFILE).out
+OUTNAME:=pru_add_c.$(PROFILE).out
 
 BOOTIMAGE_PATH=$(abspath .)
-BOOTIMAGE_NAME:=pru_add.$(PROFILE).appimage
-BOOTIMAGE_NAME_XIP:=pru_add.$(PROFILE).appimage_xip
-BOOTIMAGE_NAME_SIGNED:=pru_add.$(PROFILE).appimage.signed
-BOOTIMAGE_NAME_MCELF:=pru_add.$(PROFILE).mcelf
-BOOTIMAGE_NAME_MCELF_HS:=pru_add.$(PROFILE).mcelf.hs
-BOOTIMAGE_RPRC_NAME:=pru_add.$(PROFILE).rprc
-BOOTIMAGE_RPRC_NAME_XIP:=pru_add.$(PROFILE).rprc_xip
-BOOTIMAGE_RPRC_NAME_TMP:=pru_add.$(PROFILE).rprc_tmp
-BOOTIMAGE_NAME_HS:=pru_add.$(PROFILE).appimage.hs
-BOOTIMAGE_NAME_HS_FS:=pru_add.$(PROFILE).appimage.hs_fs
+BOOTIMAGE_NAME:=pru_add_c.$(PROFILE).appimage
+BOOTIMAGE_NAME_XIP:=pru_add_c.$(PROFILE).appimage_xip
+BOOTIMAGE_NAME_SIGNED:=pru_add_c.$(PROFILE).appimage.signed
+BOOTIMAGE_NAME_MCELF:=pru_add_c.$(PROFILE).mcelf
+BOOTIMAGE_NAME_MCELF_HS:=pru_add_c.$(PROFILE).mcelf.hs
+BOOTIMAGE_RPRC_NAME:=pru_add_c.$(PROFILE).rprc
+BOOTIMAGE_RPRC_NAME_XIP:=pru_add_c.$(PROFILE).rprc_xip
+BOOTIMAGE_RPRC_NAME_TMP:=pru_add_c.$(PROFILE).rprc_tmp
+BOOTIMAGE_NAME_HS:=pru_add_c.$(PROFILE).appimage.hs
+BOOTIMAGE_NAME_HS_FS:=pru_add_c.$(PROFILE).appimage.hs_fs
 TARGETS := $(BOOTIMAGE_NAME)
 
 ifeq ($(DEVICE_TYPE), HS)
@@ -358,12 +358,12 @@ endif
 
 .PHONY: coverage
 coverage:
-	@echo Creating Coverage Report for pru_add.$(PROFILE) ...
+	@echo Creating Coverage Report for pru_add_c.$(PROFILE) ...
 	$(MKDIR) coverage
-	$(PROFDATA) merge -sparse -obj-file=$(OUTNAME) $(OUTNAME).cnt -o pru_add.$(PROFILE).profdata
-	$(COV) show --format=html --show-expansions --show-instantiations --show-branches=count --object=$(OUTNAME) -instr-profile=pru_add.$(PROFILE).profdata --output-dir=$(COVERAGE_PATH)/coverage --ignore-filename-regex=build_jenkins
-	$(COV) export --format=text --object=$(OUTNAME) --instr-profile=pru_add.$(PROFILE).profdata > coverage/pru_add.$(PROFILE).profdata.json
-	node $(MCU_PLUS_SDK_PATH)/tools/smart_placement/clang_coverage_analyse.js --input=coverage/pru_add.$(PROFILE).profdata.json --output-json=coverage/pru_add.$(PROFILE).analysis.json --output=../pru_add.annotations.$(PROFILE).S --top-function-count=500
+	$(PROFDATA) merge -sparse -obj-file=$(OUTNAME) $(OUTNAME).cnt -o pru_add_c.$(PROFILE).profdata
+	$(COV) show --format=html --show-expansions --show-instantiations --show-branches=count --object=$(OUTNAME) -instr-profile=pru_add_c.$(PROFILE).profdata --output-dir=$(COVERAGE_PATH)/coverage --ignore-filename-regex=build_jenkins
+	$(COV) export --format=text --object=$(OUTNAME) --instr-profile=pru_add_c.$(PROFILE).profdata > coverage/pru_add_c.$(PROFILE).profdata.json
+	node $(MCU_PLUS_SDK_PATH)/tools/smart_placement/clang_coverage_analyse.js --input=coverage/pru_add_c.$(PROFILE).profdata.json --output-json=coverage/pru_add_c.$(PROFILE).analysis.json --output=../pru_add.annotations.$(PROFILE).S --top-function-count=500
 	@echo Coverage Report Generated at $(COVERAGE_PATH)/coverage folder !!!
 
 -include $(addprefix $(OBJDIR)/, $(DEPS))
