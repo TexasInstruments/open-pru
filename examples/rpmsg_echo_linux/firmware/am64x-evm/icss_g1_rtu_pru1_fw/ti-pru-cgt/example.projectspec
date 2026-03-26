@@ -44,6 +44,7 @@
             -DTO_ARM_HOST=22
             -DFROM_ARM_HOST=23
             -DCHAN_PORT=37
+            -O2
         "
         linkerBuildOptions="
             -m=rpmsg_echo_linux.${ConfigName}.map
@@ -63,14 +64,12 @@
         <configuration name="Debug"
             compilerBuildOptions="
                 -D_DEBUG_=1
-                -O2
             "
             linkerBuildOptions="
             "
         ></configuration>
         <configuration name="Release"
             compilerBuildOptions="
-                -O2
             "
             linkerBuildOptions="
             "

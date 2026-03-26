@@ -39,6 +39,7 @@
             -DSLICE0
             -v3
             -DSOC_AM261X
+            -O2
         "
         linkerBuildOptions="
             -m=mac_multiply.${ConfigName}.map
@@ -57,14 +58,12 @@
         <configuration name="Debug"
             compilerBuildOptions="
                 -D_DEBUG_=1
-                -O2
             "
             linkerBuildOptions="
             "
         ></configuration>
         <configuration name="Release"
             compilerBuildOptions="
-                -O2
             "
             linkerBuildOptions="
             "

@@ -39,6 +39,7 @@
             -DSLICE0
             -v3
             -DSOC_AM62X
+            -O2
         "
         linkerBuildOptions="
             -m=empty.${ConfigName}.map
@@ -55,14 +56,12 @@
         <configuration name="Debug"
             compilerBuildOptions="
                 -D_DEBUG_=1
-                -O2
             "
             linkerBuildOptions="
             "
         ></configuration>
         <configuration name="Release"
             compilerBuildOptions="
-                -O2
             "
             linkerBuildOptions="
             "
