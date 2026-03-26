@@ -1,7 +1,3 @@
-#
-# Auto generated makefile
-#
-
 export OPEN_PRU_PATH?=$(abspath ../../../../..)
 include $(OPEN_PRU_PATH)/imports.mak
 
