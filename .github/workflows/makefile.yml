@@ -229,6 +229,33 @@ jobs:
           fi
           make -j$(nproc) DEVICE=${{ matrix.device }} ${SDK_ARG}
 
+      - name: Verify all makefiles were built
+        run: |
+          DEVICE="${{ matrix.device }}"
+          MISSING=0
+
+          # For each core-level makefile on the filesystem for this device,
+          # check that the build produced a .out file in its release/ directory.
+          # A missing .out means the makefile was never reached from the
+          # top-level make (e.g., not wired into its project makefile).
+          while IFS= read -r mak; do
+              dir="$(dirname "$mak")"
+              if ! find "${dir}" -maxdepth 2 -name "*.out" 2>/dev/null | grep -q .; then
+                  echo "ERROR: makefile never built: ${mak}"
+                  MISSING=$((MISSING + 1))
+              fi
+          done < <(find examples academy -name "makefile" \
+              \( -path "*/ti-pru-cgt/*" -o -path "*/ti-arm-clang/*" \) \
+              | grep "/${DEVICE}-" | sort)
+
+          if [ "${MISSING}" -gt 0 ]; then
+              echo ""
+              echo "${MISSING} makefile(s) for ${DEVICE} were never invoked -- verify"
+              echo "each is reachable from the top-level make."
+              exit 1
+          fi
+          echo "All makefiles built for ${DEVICE}."
+
       - name: Upload build artifacts
         if: ${{ always() }}
         uses: actions/upload-artifact@v4
