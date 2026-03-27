@@ -1,0 +1,357 @@
+# SPDX-License-Identifier: BSD-3-Clause
+# Copyright (C) 2026 Texas Instruments Incorporated - http://www.ti.com/
+#
+# CCS Build CI — imports and builds all CCS projectspecs for each device.
+# Complements the make-based CI (makefile.yml) by verifying that projectspecs
+# can be imported, product path variables resolve correctly, postBuildStep
+# scripts (hexpru header generation) run successfully, and R5F projects can
+# find the generated firmware headers.
+#
+# Triggered only on files that affect CCS import or project build
+# configuration; source-only changes are already covered by makefile.yml.
+
+name: CCS Build
+
+on:
+  pull_request:
+    paths:
+      - '**/example.projectspec'
+      - '.metadata/**'
+      - '**/linker.cmd'
+      - '**/example.syscfg'
+      - '**/makefile_ccs_bootimage_gen'
+  push:
+    branches: [ main, master ]
+    paths:
+      - '**/example.projectspec'
+      - '.metadata/**'
+      - '**/linker.cmd'
+      - '**/example.syscfg'
+      - '**/makefile_ccs_bootimage_gen'
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  ccs-build:
+    name: CCS Build (${{ matrix.device }})
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - device: am243x
+            mcu_plus_sdk: mcu_plus_sdk_am243x_11_02_00_24
+          - device: am261x
+            mcu_plus_sdk: mcu_plus_sdk_am261x_10_02_00_15
+          - device: am263px
+            mcu_plus_sdk: mcu_plus_sdk_am263px_10_02_00_15
+          - device: am263x
+            mcu_plus_sdk: mcu_plus_sdk_am263x_10_02_00_13
+          - device: am64x
+            mcu_plus_sdk: mcu_plus_sdk_am64x_11_02_00_24
+          - device: am62x
+            mcu_plus_sdk: ""
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install OS dependencies
+        run: |
+          sudo tee -a /etc/apt/sources.list >/dev/null <<'EOF'
+          deb http://security.ubuntu.com/ubuntu focal-security main universe
+          EOF
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            libx11-6 libxext6 libxrender1 libxtst6 libxi6 libxt6 libxinerama1 \
+            libgtk2.0-0 libncurses5 libnss3 python3-pip \
+            unzip xz-utils wget ca-certificates xvfb
+          pip3 install pyserial xmodem tqdm pyelftools construct
+
+      - name: Restore toolchain/SDK cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            $HOME/ti
+          key: toolchain-mcu-sdk-${{ runner.os }}-v1-ccs20_3_1-pru2_3_3-am243x_11_02_00_24-am261x_10_02_00_15-am263px_10_02_00_15-am263x_10_02_00_13-am64x_11_02_00_24-am62x
+
+      - name: Install MCU+ SDKs, CCS, SYSCONFIG, TIARMCLANG and PRU CGT if missing
+        run: |
+          set -e
+          mkdir -p "$HOME/ti/downloads"
+          cd "$HOME/ti"
+
+          # Install CCS 20.3.1
+          if [ ! -d "$HOME/ti/ccs_20.3.1" ]; then
+            cd "$HOME/ti/downloads"
+            wget -q --retry-connrefused --waitretry=1 --tries=5 --timeout=30 \
+              https://dr-download.ti.com/software-development/ide-configuration-compiler-or-debugger/MD-J1VdearkvK/20.3.1/CCS_20.3.1.00005_linux.zip
+            cd "$HOME/ti"
+            unzip -q "$HOME/ti/downloads/CCS_20.3.1.00005_linux.zip"
+            cd CCS_20.3.1.00005_linux
+            ./ccs_setup_20.3.1.00005.run  --mode unattended --prefix "$HOME/ti/ccs_20.3.1"
+          fi
+          #install  SYSCONFIG 1.26.2
+          if [ ! -d "$HOME/ti/ccs_20.3.1/ccs/utils/sysconfig_1.26.2" ] && [ ! -d "$HOME/ti/sysconfig_1.26.2" ]; then
+            cd "$HOME/ti/downloads"
+            wget -q --retry-connrefused --waitretry=1 --tries=5 --timeout=30 \
+              https://dr-download.ti.com/software-development/ide-configuration-compiler-or-debugger/MD-nsUM6f7Vvb/1.26.2.4477/sysconfig-1.26.2_4477-setup.run
+            chmod +x sysconfig-1.26.2_4477-setup.run
+            ./sysconfig-1.26.2_4477-setup.run --mode unattended --prefix "$HOME/ti/sysconfig_1.26.2"
+            chmod -R +x $HOME/ti/sysconfig_1.26.2
+          fi
+          #Install ARM CLANG CGT 4.0.3
+           if [ ! -d "$HOME/ti/ccs_20.3.1/ccs/tools/compiler/ti-cgt-armllvm_4.0.3.LTS" ] && [ ! -d "$HOME/ti/ti-cgt-armllvm_4.0.3.LTS" ]; then
+            cd "$HOME/ti/downloads"
+            wget -q --retry-connrefused --waitretry=1 --tries=5 --timeout=30 \
+              https://dr-download.ti.com/software-development/ide-configuration-compiler-or-debugger/MD-ayxs93eZNN/4.0.3.LTS/ti_cgt_armllvm_4.0.3.LTS_linux-x64_installer.bin
+            chmod +x ti_cgt_armllvm_4.0.3.LTS_linux-x64_installer.bin
+           ./ti_cgt_armllvm_4.0.3.LTS_linux-x64_installer.bin --mode unattended --prefix "$HOME/ti/"
+          fi
+          # Install PRU CGT 2.3.3
+          if [ ! -d "$HOME/ti/ccs_20.3.1/ccs/tools/compiler/ti-cgt-pru_2.3.3" ] && [ ! -d "$HOME/ti/ti-cgt-pru_2.3.3" ]; then
+            cd "$HOME/ti/downloads"
+            wget -q --retry-connrefused --waitretry=1 --tries=5 --timeout=30 \
+              https://dr-download.ti.com/software-development/ide-configuration-compiler-or-debugger/MD-FaNNGkDH7s/2.3.3/ti_cgt_pru_2.3.3_linux_installer_x86.bin
+            chmod +x ti_cgt_pru_2.3.3_linux_installer_x86.bin
+            ./ti_cgt_pru_2.3.3_linux_installer_x86.bin --mode unattended --prefix "$HOME/ti"
+          fi
+
+          # Install MCU+ SDK AM243x 11.02.00.24
+          if [ ! -d "$HOME/ti/mcu_plus_sdk_am243x_11_02_00_24" ]; then
+            cd "$HOME/ti/downloads"
+            wget -q --retry-connrefused --waitretry=1 --tries=5 --timeout=30 \
+              https://dr-download.ti.com/software-development/software-development-kit-sdk/MD-ouHbHEm1PK/11.02.00.24/mcu_plus_sdk_am243x_11_02_00_24-linux-x64-installer.run
+            chmod +x mcu_plus_sdk_am243x_11_02_00_24-linux-x64-installer.run
+            ./mcu_plus_sdk_am243x_11_02_00_24-linux-x64-installer.run --mode unattended --prefix "$HOME/ti/"
+          fi
+
+          # Install MCU+ SDK AM64x 11.02.00.24
+          if [ ! -d "$HOME/ti/mcu_plus_sdk_am64x_11_02_00_24" ]; then
+            cd "$HOME/ti/downloads"
+            wget -q --retry-connrefused --waitretry=1 --tries=5 --timeout=30 \
+              https://dr-download.ti.com/software-development/software-development-kit-sdk/MD-SfkcjYAjGS/11.02.00.24/mcu_plus_sdk_am64x_11_02_00_24-linux-x64-installer.run
+            chmod +x mcu_plus_sdk_am64x_11_02_00_24-linux-x64-installer.run
+            ./mcu_plus_sdk_am64x_11_02_00_24-linux-x64-installer.run --mode unattended --prefix "$HOME/ti/"
+          fi
+
+          # Install MCU+ SDK AM261x 10.02.00.15
+          if [ ! -d "$HOME/ti/mcu_plus_sdk_am261x_10_02_00_15" ]; then
+            cd "$HOME/ti/downloads"
+            wget -q --retry-connrefused --waitretry=1 --tries=5 --timeout=30 \
+              https://dr-download.ti.com/software-development/software-development-kit-sdk/MD-h64OlWnQrg/10.02.00.15/mcu_plus_sdk_am261x_10_02_00_15-linux-x64-installer.run
+            chmod +x mcu_plus_sdk_am261x_10_02_00_15-linux-x64-installer.run
+            ./mcu_plus_sdk_am261x_10_02_00_15-linux-x64-installer.run --mode unattended --prefix "$HOME/ti/"
+          fi
+
+          # Install MCU+ SDK AM263Px 10.02.00.15
+          if [ ! -d "$HOME/ti/mcu_plus_sdk_am263px_10_02_00_15" ]; then
+            cd "$HOME/ti/downloads"
+            wget -q --retry-connrefused --waitretry=1 --tries=5 --timeout=30 \
+              https://dr-download.ti.com/software-development/software-development-kit-sdk/MD-JVtW1V4WfA/10.02.00.15/mcu_plus_sdk_am263px_10_02_00_15-linux-x64-installer.run
+            chmod +x mcu_plus_sdk_am263px_10_02_00_15-linux-x64-installer.run
+            ./mcu_plus_sdk_am263px_10_02_00_15-linux-x64-installer.run --mode unattended --prefix "$HOME/ti/"
+          fi
+
+          # Install MCU+ SDK AM263x 10.02.00.13
+          if [ ! -d "$HOME/ti/mcu_plus_sdk_am263x_10_02_00_13" ]; then
+            cd "$HOME/ti/downloads"
+            wget -q --retry-connrefused --waitretry=1 --tries=5 --timeout=30 \
+              https://dr-download.ti.com/software-development/software-development-kit-sdk/MD-r5FY9rRaGv/10.02.00.13/mcu_plus_sdk_am263x_10_02_00_13-linux-x64-installer.run
+            chmod +x mcu_plus_sdk_am263x_10_02_00_13-linux-x64-installer.run
+            ./mcu_plus_sdk_am263x_10_02_00_13-linux-x64-installer.run --mode unattended --prefix "$HOME/ti/"
+          fi
+          test -x "$HOME/ti/ti-cgt-armllvm_4.0.3.LTS/bin/tiarmclang" && "$HOME/ti/ti-cgt-armllvm_4.0.3.LTS/bin/tiarmclang" --version || ls -l "$HOME/ti/ti-cgt-armllvm_4.0.3.LTS"
+
+      - name: Patch metadata for SysConfig version
+        # Temporarily encodes the SysConfig version into OpenPRU's package.tirex.json
+        # and product.json so CCS selects the correct SysConfig version when
+        # initializing the workspace. See test_ccs_import.sh for background.
+        # No backup/restore needed — CI workspace is ephemeral.
+        run: |
+          SYSCFG_VERSION="1.26.2"
+          OPENPRU_VERSION="1.${SYSCFG_VERSION}"
+          sed -i "s/^        \"version\": \"[^\"]*\"/        \"version\": \"${OPENPRU_VERSION}\"/" \
+              .metadata/.tirex/package.tirex.json
+          sed -i "/\"packageId\": \"sysconfig\"/s/\"version\": \"[^\"]*\"/\"version\": \"${SYSCFG_VERSION}\"/" \
+              .metadata/.tirex/package.tirex.json
+          sed -i "s/\"minToolVersion\" : \"[^\"]*\"/\"minToolVersion\" : \"${SYSCFG_VERSION}\"/" \
+              .metadata/product.json
+
+      - name: Start Xvfb
+        run: |
+          Xvfb :99 -screen 0 1024x768x24 &
+          echo "DISPLAY=:99" >> $GITHUB_ENV
+
+      - name: Initialize CCS workspace
+        run: |
+          DEVICE="${{ matrix.device }}"
+          WORKSPACE="${HOME}/workspace_ccs_${DEVICE}"
+          CCS_CLI="$HOME/ti/ccs_20.3.1/ccs/eclipse/ccs-server-cli.sh"
+
+          PRODUCT_PATHS="${GITHUB_WORKSPACE};$HOME/ti/sysconfig_1.26.2"
+          if [ -d "$HOME/ti/ccs_20.3.1/ccs/utils/sysconfig_1.26.2" ]; then
+            PRODUCT_PATHS="${GITHUB_WORKSPACE};$HOME/ti/ccs_20.3.1/ccs/utils/sysconfig_1.26.2"
+          fi
+          if [ -n "${{ matrix.mcu_plus_sdk }}" ]; then
+            PRODUCT_PATHS="${PRODUCT_PATHS};$HOME/ti/${{ matrix.mcu_plus_sdk }}"
+          fi
+
+          # PRU CGT: prefer the copy bundled inside CCS, fall back to standalone
+          PRU_CGT_PATH="$HOME/ti/ccs_20.3.1/ccs/tools/compiler/ti-cgt-pru_2.3.3"
+          [ -d "${PRU_CGT_PATH}" ] || PRU_CGT_PATH="$HOME/ti/ti-cgt-pru_2.3.3"
+
+          mkdir -p "${WORKSPACE}"
+          "${CCS_CLI}" -noSplash \
+              -workspace "${WORKSPACE}" \
+              -application com.ti.ccs.apps.initialize \
+              -ccs.productDiscoveryPath "${PRODUCT_PATHS}" \
+              -ccs.toolDiscoveryPath "${PRU_CGT_PATH}" \
+              2>&1 | tee workspace_init.log
+
+      - name: Import all projectspecs
+        run: |
+          DEVICE="${{ matrix.device }}"
+          WORKSPACE="${HOME}/workspace_ccs_${DEVICE}"
+          CCS_CLI="$HOME/ti/ccs_20.3.1/ccs/eclipse/ccs-server-cli.sh"
+
+          mapfile -t SPECS < <(find . -name "example.projectspec" | grep "/${DEVICE}-" | sort)
+          echo "Found ${#SPECS[@]} projectspecs for ${DEVICE}"
+
+          CMD=("${CCS_CLI}" -noSplash
+               -workspace "${WORKSPACE}"
+               -application com.ti.ccs.apps.importProject)
+          for spec in "${SPECS[@]}"; do CMD+=(-ccs.location "${spec}"); done
+
+          "${CMD[@]}" 2>&1 | tee import.log
+          IMPORT_EXIT="${PIPESTATUS[0]}"
+
+          # CCS may exit 0 even when individual imports fail; check log as well.
+          ERRORS=$(grep -c '!ERROR:' import.log || true)
+          if [ "${IMPORT_EXIT}" -ne 0 ] || [ "${ERRORS}" -gt 0 ]; then
+            echo "ERROR: CCS import failed (exit=${IMPORT_EXIT}, errors=${ERRORS})"
+            exit 1
+          fi
+
+      - name: Build pass 1 — PRU firmware (ti-pru-cgt)
+        # All PRU projects are built first so that hexpru postBuildStep headers
+        # are written to the workspace before any R5F project tries to include them.
+        run: |
+          DEVICE="${{ matrix.device }}"
+          WORKSPACE="${HOME}/workspace_ccs_${DEVICE}"
+          CCS_CLI="$HOME/ti/ccs_20.3.1/ccs/eclipse/ccs-server-cli.sh"
+
+          mapfile -t SPECS < <(find . -name "example.projectspec" | grep "/${DEVICE}-" | sort)
+          mapfile -t PRU_SPECS < <(printf '%s\n' "${SPECS[@]}" | grep '/ti-pru-cgt/')
+
+          if [ "${#PRU_SPECS[@]}" -gt 0 ]; then
+            PRU_CMD=("${CCS_CLI}" -noSplash
+                     -workspace "${WORKSPACE}"
+                     -application com.ti.ccs.apps.buildProject
+                     -ccs.configuration Release
+                     -ccs.projects)
+            for spec in "${PRU_SPECS[@]}"; do
+              PRU_CMD+=("$(grep -oP '(?<=name = ")[^"]+' "${spec}" | head -1)")
+            done
+            "${PRU_CMD[@]}" 2>&1 | tee build_pru.log || true
+          else
+            echo "No ti-pru-cgt projects found for ${DEVICE}, skipping PRU build pass"
+          fi
+
+      - name: Build pass 2 — R5F/ARM (ti-arm-clang)
+        run: |
+          DEVICE="${{ matrix.device }}"
+          WORKSPACE="${HOME}/workspace_ccs_${DEVICE}"
+          CCS_CLI="$HOME/ti/ccs_20.3.1/ccs/eclipse/ccs-server-cli.sh"
+
+          mapfile -t SPECS < <(find . -name "example.projectspec" | grep "/${DEVICE}-" | sort)
+          mapfile -t R5F_SPECS < <(printf '%s\n' "${SPECS[@]}" | grep -v '/ti-pru-cgt/')
+
+          if [ "${#R5F_SPECS[@]}" -gt 0 ]; then
+            R5F_CMD=("${CCS_CLI}" -noSplash
+                     -workspace "${WORKSPACE}"
+                     -application com.ti.ccs.apps.buildProject
+                     -ccs.configuration Release
+                     -ccs.projects)
+            for spec in "${R5F_SPECS[@]}"; do
+              R5F_CMD+=("$(grep -oP '(?<=name = ")[^"]+' "${spec}" | head -1)")
+            done
+            "${R5F_CMD[@]}" 2>&1 | tee build_r5f.log || true
+          else
+            echo "No ti-arm-clang projects found for ${DEVICE}, skipping R5F build pass"
+          fi
+
+      - name: Check build results
+        run: |
+          DEVICE="${{ matrix.device }}"
+
+          # Recompute expected project counts (same find as build steps).
+          mapfile -t SPECS < <(find . -name "example.projectspec" | grep "/${DEVICE}-" | sort)
+          mapfile -t PRU_SPECS < <(printf '%s\n' "${SPECS[@]}" | grep '/ti-pru-cgt/')
+          mapfile -t R5F_SPECS < <(printf '%s\n' "${SPECS[@]}" | grep -v '/ti-pru-cgt/')
+
+          declare -A EXPECTED_COUNT
+          EXPECTED_COUNT[build_pru.log]="${#PRU_SPECS[@]}"
+          EXPECTED_COUNT[build_r5f.log]="${#R5F_SPECS[@]}"
+
+          TOTAL_ERRORS=0
+          BUILD_OK=true
+
+          for logfile in build_pru.log build_r5f.log; do
+            [ -f "${logfile}" ] || continue
+
+            # Primary: parse "N out of M projects have errors" summary lines.
+            E=$(grep -oP '\d+(?= out of \d+ projects have errors)' "${logfile}" | \
+                awk '{s+=$1} END{print s+0}')
+
+            # Secondary: sum per-project error counts from "# Problem summary"
+            # lines. Catches failures if the overall summary line is absent.
+            P=$(grep '# Problem summary' "${logfile}" | \
+                grep -oP '\d+(?= errors)' | awk '{s+=$1} END{print s+0}')
+            [ "${P}" -gt "${E}" ] && E="${P}"
+
+            TOTAL_ERRORS=$((TOTAL_ERRORS + E))
+
+            if ! grep -q 'headless build complete' "${logfile}"; then
+              echo "ERROR: no 'headless build complete' line in ${logfile}"
+              BUILD_OK=false
+            fi
+
+            # Verify CCS built every project that was found on disk.
+            EXPECTED="${EXPECTED_COUNT[${logfile}]}"
+            BUILT=$(grep -oP '(?<=out of )\d+(?= projects have errors)' "${logfile}" | head -1)
+            BUILT="${BUILT:-0}"
+            if [ "${EXPECTED}" -gt 0 ] && [ "${BUILT}" -ne "${EXPECTED}" ]; then
+              echo "ERROR: ${logfile}: expected ${EXPECTED} projects, CCS built ${BUILT}"
+              BUILD_OK=false
+            fi
+          done
+
+          if [ "${TOTAL_ERRORS}" -gt 0 ]; then
+            echo "ERROR: ${TOTAL_ERRORS} build error(s) detected"
+            BUILD_OK=false
+          fi
+
+          if [ "${BUILD_OK}" != "true" ]; then
+            exit 1
+          fi
+          echo "CCS build passed for ${{ matrix.device }}"
+
+      - name: Upload logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ccs-logs-${{ matrix.device }}
+          path: |
+            workspace_init.log
+            import.log
+            build_pru.log
+            build_r5f.log
+          if-no-files-found: ignore
