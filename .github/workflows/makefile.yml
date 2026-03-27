@@ -225,24 +225,6 @@ jobs:
           make -j$(nproc) MCU_PLUS_SDK_PATH=$MCU_PLUS_SDK_PATH_AM64X DEVICE=am64x
           make -j$(nproc) DEVICE=am62x
 
-      - name: Build academy (best-effort)
-        run: |
-          make -C academy -j$(nproc) MCU_PLUS_SDK_PATH=$MCU_PLUS_SDK_PATH_AM243X DEVICE=am243x
-          make -C academy -j$(nproc) MCU_PLUS_SDK_PATH=$MCU_PLUS_SDK_PATH_AM261X DEVICE=am261x
-          make -C academy -j$(nproc) MCU_PLUS_SDK_PATH=$MCU_PLUS_SDK_PATH_AM263PX DEVICE=am263px
-          make -C academy -j$(nproc) MCU_PLUS_SDK_PATH=$MCU_PLUS_SDK_PATH_AM263X DEVICE=am263x
-          make -C academy -j$(nproc) MCU_PLUS_SDK_PATH=$MCU_PLUS_SDK_PATH_AM64X DEVICE=am64x
-          make -C academy -j$(nproc) DEVICE=am62x
-
-      - name: Build examples folder
-        run: |
-          make -C examples -j$(nproc) MCU_PLUS_SDK_PATH=$MCU_PLUS_SDK_PATH_AM243X DEVICE=am243x
-          make -C examples -j$(nproc) MCU_PLUS_SDK_PATH=$MCU_PLUS_SDK_PATH_AM261X DEVICE=am261x
-          make -C examples -j$(nproc) MCU_PLUS_SDK_PATH=$MCU_PLUS_SDK_PATH_AM263PX DEVICE=am263px
-          make -C examples -j$(nproc) MCU_PLUS_SDK_PATH=$MCU_PLUS_SDK_PATH_AM263X DEVICE=am263x
-          make -C examples -j$(nproc) MCU_PLUS_SDK_PATH=$MCU_PLUS_SDK_PATH_AM64X DEVICE=am64x
-          make -C examples -j$(nproc) DEVICE=am62x
-          
       - name: Upload build artifacts
         if: ${{ always() }}
         uses: actions/upload-artifact@v4
