@@ -46,6 +46,9 @@
             --disable_auto_rts
             --entry_point=main
             --diag_suppress=10063-D
+            --warn_sections
+            --reread_libs
+            --diag_warning=225
             --ram_model
         "
 

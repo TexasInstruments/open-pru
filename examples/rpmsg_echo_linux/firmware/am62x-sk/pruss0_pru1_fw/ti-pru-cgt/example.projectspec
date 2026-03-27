@@ -54,6 +54,9 @@
             -i${CG_TOOL_ROOT}/include
             --library=libc.a
             --diag_suppress=10063-D
+            --warn_sections
+            --reread_libs
+            --diag_warning=225
             --ram_model
         "
 
