@@ -575,8 +575,10 @@ m_test_assert .macro condition, error_code
 ## Documentation Standards
 
 ## General Remarks
-1. The basic indentation must be 4 spaces.
+1. The basic indentation for assembly & C code must be 4 spaces.
 2. Single spaces and newlines are the only allowed white space characters.
+   - double spaces may be used in markdown docs to force a carriage return at the
+     end of a line.
 3. Unix end-of-line character ("\n" or ASCII LF (0x0A)) will be used on all files.
 4. All source files must contain a header denoting the file name.
 5. Any reference to a file name shall match the capitalization of the actual file name.
@@ -585,7 +587,7 @@ m_test_assert .macro condition, error_code
 8. Use "for example" instead of "e.g.".
 9. Use "that is" instead of "i.e.".
 10. Use "and so on" instead of "etc,".
-11. No text beyond column 79 in source files.
+11. No text beyond column 79 in source files (does not apply to markdown docs or .txt docs).
     - Column 79 is the "soft" limit.
     - Long lines of code are more difficult to follow and interrupt code flow.
     - There shall be no text beyond column 129.
