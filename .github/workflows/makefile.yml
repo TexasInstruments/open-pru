@@ -41,7 +41,7 @@ jobs:
         with:
           path: |
             $HOME/ti
-          key: toolchain-mcu-sdk-${{ runner.os }}-v1-ccs20_3_1-pru2_3_3-am243x_11_02_00_24-am261x_10_02_00_15-am263px_10_02_00_15-am64x_11_02_00_24-am62x
+          key: toolchain-mcu-sdk-${{ runner.os }}-v1-ccs20_3_1-pru2_3_3-am243x_11_02_00_24-am261x_10_02_00_15-am263px_10_02_00_15-am263x_10_02_00_13-am64x_11_02_00_24-am62x
 
       - name: Install MCU+ SDKs, CCS, SYSCONFIG, TIARMCLANG and PRU CGT if missing
         run: |
@@ -120,6 +120,15 @@ jobs:
             chmod +x mcu_plus_sdk_am263px_10_02_00_15-linux-x64-installer.run
             ./mcu_plus_sdk_am263px_10_02_00_15-linux-x64-installer.run --mode unattended --prefix "$HOME/ti/"
           fi
+
+          # Install MCU+ SDK AM263x 10.02.00.13
+          if [ ! -d "$HOME/ti/mcu_plus_sdk_am263x_10_02_00_13" ]; then
+            cd "$HOME/ti/downloads"
+            wget -q --retry-connrefused --waitretry=1 --tries=5 --timeout=30 \
+              https://dr-download.ti.com/software-development/software-development-kit-sdk/MD-r5FY9rRaGv/10.02.00.13/mcu_plus_sdk_am263x_10_02_00_13-linux-x64-installer.run
+            chmod +x mcu_plus_sdk_am263x_10_02_00_13-linux-x64-installer.run
+            ./mcu_plus_sdk_am263x_10_02_00_13-linux-x64-installer.run --mode unattended --prefix "$HOME/ti/"
+          fi
           #ls -l "$HOME/ti/"
           #ls -l "$HOME/ti/downloads"
           #ls -l "$HOME/ti/ccs_20.3.1/ccs/tools/compiler"
@@ -140,6 +149,7 @@ jobs:
             echo "MCU_PLUS_SDK_PATH_AM243X=$HOME/ti/mcu_plus_sdk_am243x_11_02_00_24"
             echo "MCU_PLUS_SDK_PATH_AM261X=$HOME/ti/mcu_plus_sdk_am261x_10_02_00_15"
             echo "MCU_PLUS_SDK_PATH_AM263PX=$HOME/ti/mcu_plus_sdk_am263px_10_02_00_15"
+            echo "MCU_PLUS_SDK_PATH_AM263X=$HOME/ti/mcu_plus_sdk_am263x_10_02_00_13"
             echo "MCU_PLUS_SDK_PATH_AM64X=$HOME/ti/mcu_plus_sdk_am64x_11_02_00_24"
             echo "PATH=$PATH:$HOME/ti/ccs_20.3.1/ccs/eclipse:$HOME/ti/ccs_20.3.1/ccs/utils/bin:$CGT_TI_PRU_PATH/bin"
           } >> $GITHUB_ENV
@@ -157,6 +167,7 @@ jobs:
           MCU_PLUS_SDK_PATH_AM243X := $(HOME)/ti/mcu_plus_sdk_am243x_11_02_00_24
           MCU_PLUS_SDK_PATH_AM261X := $(HOME)/ti/mcu_plus_sdk_am261x_10_02_00_15
           MCU_PLUS_SDK_PATH_AM263PX := $(HOME)/ti/mcu_plus_sdk_am263px_10_02_00_15
+          MCU_PLUS_SDK_PATH_AM263X := $(HOME)/ti/mcu_plus_sdk_am263x_10_02_00_13
           MCU_PLUS_SDK_PATH_AM64X := $(HOME)/ti/mcu_plus_sdk_am64x_11_02_00_24
 
           # Toolchains
@@ -179,6 +190,7 @@ jobs:
           export MCU_PLUS_SDK_PATH_AM243X
           export MCU_PLUS_SDK_PATH_AM261X
           export MCU_PLUS_SDK_PATH_AM263PX
+          export MCU_PLUS_SDK_PATH_AM263X
           export MCU_PLUS_SDK_PATH_AM64X
           export CCS_PATH
           export CGT_TI_PRU_PATH
@@ -209,6 +221,7 @@ jobs:
           make -j$(nproc) MCU_PLUS_SDK_PATH=$MCU_PLUS_SDK_PATH_AM243X DEVICE=am243x
           make -j$(nproc) MCU_PLUS_SDK_PATH=$MCU_PLUS_SDK_PATH_AM261X DEVICE=am261x
           make -j$(nproc) MCU_PLUS_SDK_PATH=$MCU_PLUS_SDK_PATH_AM263PX DEVICE=am263px
+          make -j$(nproc) MCU_PLUS_SDK_PATH=$MCU_PLUS_SDK_PATH_AM263X DEVICE=am263x
           make -j$(nproc) MCU_PLUS_SDK_PATH=$MCU_PLUS_SDK_PATH_AM64X DEVICE=am64x
           make -j$(nproc) DEVICE=am62x
 
@@ -217,6 +230,7 @@ jobs:
           make -C academy -j$(nproc) MCU_PLUS_SDK_PATH=$MCU_PLUS_SDK_PATH_AM243X DEVICE=am243x
           make -C academy -j$(nproc) MCU_PLUS_SDK_PATH=$MCU_PLUS_SDK_PATH_AM261X DEVICE=am261x
           make -C academy -j$(nproc) MCU_PLUS_SDK_PATH=$MCU_PLUS_SDK_PATH_AM263PX DEVICE=am263px
+          make -C academy -j$(nproc) MCU_PLUS_SDK_PATH=$MCU_PLUS_SDK_PATH_AM263X DEVICE=am263x
           make -C academy -j$(nproc) MCU_PLUS_SDK_PATH=$MCU_PLUS_SDK_PATH_AM64X DEVICE=am64x
           make -C academy -j$(nproc) DEVICE=am62x
 
@@ -225,6 +239,7 @@ jobs:
           make -C examples -j$(nproc) MCU_PLUS_SDK_PATH=$MCU_PLUS_SDK_PATH_AM243X DEVICE=am243x
           make -C examples -j$(nproc) MCU_PLUS_SDK_PATH=$MCU_PLUS_SDK_PATH_AM261X DEVICE=am261x
           make -C examples -j$(nproc) MCU_PLUS_SDK_PATH=$MCU_PLUS_SDK_PATH_AM263PX DEVICE=am263px
+          make -C examples -j$(nproc) MCU_PLUS_SDK_PATH=$MCU_PLUS_SDK_PATH_AM263X DEVICE=am263x
           make -C examples -j$(nproc) MCU_PLUS_SDK_PATH=$MCU_PLUS_SDK_PATH_AM64X DEVICE=am64x
           make -C examples -j$(nproc) DEVICE=am62x
           
