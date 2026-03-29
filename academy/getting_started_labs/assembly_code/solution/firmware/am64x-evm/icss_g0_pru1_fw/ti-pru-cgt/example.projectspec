@@ -39,7 +39,7 @@
             -DSLICE1
             -v4
             -DSOC_AM64X
-            -O2
+            -Ooff
         "
         linkerBuildOptions="
             -m=pru_add.${ConfigName}.map

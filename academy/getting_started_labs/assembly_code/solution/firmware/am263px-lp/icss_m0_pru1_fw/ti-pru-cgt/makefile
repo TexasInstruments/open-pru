@@ -27,6 +27,7 @@ EXPECTED_DEVICE := am263px
 # Optional:
 # Pre-define here to override default value
 #   OPT_LEVEL, STACK_SIZE, HEAP_SIZE, or ENTRY_POINT
+OPT_LEVEL := off
 
 # pru_rules.mak has shared settings for all PRU/RTU/TX_PRU core makefiles
 include $(OPEN_PRU_PATH)/pru_rules.mak
