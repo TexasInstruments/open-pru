@@ -58,8 +58,12 @@ pru_spi
 ```
 
 > [!NOTE]
-> If the PRU code must be modified in order to interact with different cores or
-> operating systems, it is suggested to create a separate project for each
+> If only small code changes are required to enable PRU code to interact with
+> different cores or operating systems, Instance-specific defines may be added
+> to the PRU core's makefile to make the code compile differently. See `DFLAGS`
+> in the PRU core's makefile. However, if significant PRU code changes are
+> required in order to interact with different cores or operating systems, it is
+> suggested to create a separate project for each
 > version of the PRU firmware.
 
 #### MCU+ source code
