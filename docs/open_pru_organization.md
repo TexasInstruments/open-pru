@@ -15,6 +15,12 @@ The repo is organized like this:
 ```
 academy/
 	getting started & training labs
+	Projects sit either directly under academy/ or under a topic subdirectory:
+	  academy/<project>              (e.g., getting_started_labs)
+	  academy/<topic>/<project>      (e.g., mac/mac_multiply, uart/uart_echo)
+	academy/makefile lists entries as <topic>/<project> for topic projects
+	and as <project> for top-level projects. There is no intermediate
+	per-topic makefile.
 examples/
 	example PRU projects
 source/
@@ -28,6 +34,16 @@ source/
 
 Projects are typically organized like this:
 
+```
+project_name/
+    makefile    project-level build orchestration (sets PROJECT_NAME,
+                SUPPORTED_PROCESSORS, PRU_DEPENDENCIES, NON_PRU_DEPENDENCIES)
+    readme.md
+    firmware/   PRU firmware (see PRU CODE below)
+    mcuplus/    R5F application (optional; not present on AM62x)
+    linux/      Linux A53 application (optional)
+```
+
 ### PRU CODE
 
 ```
@@ -39,6 +55,7 @@ firmware/
 			linker.cmd
 			makefile (can pass variables to customize the source
 				code per core, device, or board)
+			CCS files: example.projectspec, makefile_projectspec
 ```
 
 ### NON-PRU CODE
@@ -75,8 +92,12 @@ mcuplus
         source code that is shared across multiple cores, devices, or boards
         board/core/
 		source code that is specific to core
+		example.syscfg (MCU+ SysConfig settings)
 		build-tool/
-			linker.cmd
 			makefile (can pass variables to customize the source
 				code per core, device, or board)
+			generated/linker.cmd (generated from example.syscfg)
+			CCS files: example.projectspec, makefile_projectspec,
+				makefile_ccs_bootimage_gen, syscfg_c.rov.xs
+			
 ```
