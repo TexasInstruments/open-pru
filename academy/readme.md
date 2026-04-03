@@ -44,10 +44,16 @@ intc/intc_mcu
   between the PRU core and an MCU+ core
 
 mac/mac
-* How to use the MAC module in Multiply and Accumulate mode
+* How to use the MAC module in Multiply and Accumulate mode (assembly)
+
+mac/mac_c
+* How to use the MAC module in Multiply and Accumulate mode (C)
 
 mac/mac_multiply
-* How to use the MAC module in Multiply-Only mode
+* How to use the MAC module in Multiply-Only mode (assembly)
+
+uart/uart_loopback
+* Loopback example with the PRU hardware UART peripheral
 
 ## Supported processors per-project
 
@@ -82,4 +88,6 @@ For more information about the PRU features on each processor, refer to app note
 | gpio/gpio_toggle     | Yport  | Y      | Y       | Y      | N-sw  | Yport |
 | intc/intc_mcu        | Yport  | Y      | Y       | Y      | N-sw  | Yport |
 | mac/mac              | Yport  | Y      | Y       | Y      | Yport | Yport |
+| mac/mac_c            | Yport  | Yport  | Yport   | Yport  | Y     | Y     |
 | mac/mac_multiply     | Yport  | Y      | Y       | Y      | Yport | Yport |
+| uart/uart_loopback   | Yport  | Yport  | Yport   | Yport  | Y     | Yport |
