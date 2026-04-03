@@ -351,7 +351,6 @@ L_INIT_UART_WAIT:
     m_enable_output_pins
 
 ; init shared values
-    ldi     CNT_BYTES_SENT, 0
     ldi     CNT_BYTES_LOADED, 0
 
 ; init CH0 context

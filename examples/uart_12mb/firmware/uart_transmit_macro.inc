@@ -18,7 +18,7 @@
 ; PEAK cycles:
 ;     39 cycles
 ;        5 cycles to get here
-;        32 cycles for a wrapped buffer copy
+;        33 cycles for a wrapped buffer copy
 ;        25 cycles for a non-wrapped buffer copy
 ;        25 for EOF_BYTE1
 ;            12 to m_eof_byte1
@@ -35,12 +35,12 @@ m_tx1   .macro        SCRATCH_PAD, STATE
 
 ; TODO: Add logic to jump to a special function if CNT_BYTES_LOADED = 1 byte
 ; should this be a jump to EOF_BYTE1?
-    qbeq    L_SEND_1_BYTE, CNT_BYTES_LOADED, 1
+    qbeq    L_SEND_1_BYTE?, CNT_BYTES_LOADED, 1
 
 ; is the data wrapping around?
     add     r1.w2, READ_PTR, CNT_BYTES_LOADED ; READ_PTR + read bytes
 ; TODO: is this logic correct? What if READ_PTR starts at BUFFER_END?
-    qbgt    L_DATA_WRAP, BUFFER_END, r1.w2; branch if r1.w2 > BUFFER_END
+    qbgt    L_DATA_WRAP?, BUFFER_END, r1.w2; branch if r1.w2 > BUFFER_END
 
 ;------------------ buffer copy does not wrap -----------------------
 ; if not, load data in a single command
@@ -50,10 +50,10 @@ m_tx1   .macro        SCRATCH_PAD, STATE
 ; READ_PTR increments to keep track of where to grab data from next
     add     READ_PTR, READ_PTR, CNT_BYTES_LOADED
     sbco    READ_PTR, c24, READ_PTR_ADDRESS, 2
-    qba     L_TX1_TRANSMIT_BITS
+    qba     L_TX1_TRANSMIT_BITS?
 
 ;---------------------- buffer copy wraps ------------------------------
-L_DATA_WRAP:
+L_DATA_WRAP?:
 
 ; copy happens in 2 chunks
 ; up to 8 bytes of data is stored in r2 & r3
@@ -62,12 +62,12 @@ L_DATA_WRAP:
 ; If r6.w0 == zero, it would hang the lbco command for "copy until BUFFER END"
 ; If r1.w2 == BUFFER END, jump to "copy from BUFFER_START"
     sub     r6.w0, r1.w2, BUFFER_END ; r6.w0 holds bytes to copy through BUFFER_END
-    qbeq    L_COPY_BUFFER_START, r1.w2, BUFFER_END
+    qbeq    L_COPY_BUFFER_START?, r1.w2, BUFFER_END
 
 ; copy until BUFFER_END
     lbco    &r2, c24, READ_PTR, r6.w0  ; copy r6.w0 bytes; cc 3-4
 
-L_COPY_BUFFER_START:
+L_COPY_BUFFER_START?:
 ; copy from BUFFER_START
     sub     r6.w2, CNT_BYTES_LOADED, r6.w0 ; r6.w2 = total bytes (CNT_BYTES_LOADED - r6.w0)
     lbco    &r4, c24, BUFFER_START, r6.w2 ; cc 3-4
@@ -94,14 +94,14 @@ L_COPY_BUFFER_START:
     mvid    *r1.b0, r4
 ; shift data in r5 to 4 bytes above where the data in r4 was placed
 ;    example: r6.w0 = 3
-;    shift the data in r5.b0-r5.b2 to a byte offset of 11+4=15 -> r3.b3-r4.b2
+;    shift the data in r5.b0-r5.b3 to a byte offset of 11+4=15 -> r3.b3-r4.b2
 ;    But we copy 8 bytes max. Thus r5 has at most 1 byte of data in this example
 ;    that possible 1 byte of data would go into r3.b3
     add     r1.b0, r1.b0, 4
     mvid    *r1.b0, r5
 
 ;--------------------- transmit bits ----------------------------
-L_TX1_TRANSMIT_BITS:
+L_TX1_TRANSMIT_BITS?:
 ; make space for start bit - bit 0 already 0 after shift operand
     lsl     r0.b2, r2.b0, 1
 ; convert 2nd data byte to UART symbol
@@ -121,14 +121,14 @@ L_TX1_TRANSMIT_BITS:
 ; change state
     ldi     STATE, TX2_STATE
 
-    qba     L_END_M_TX1
+    qba     L_END_M_TX1?
 
-L_SEND_1_BYTE:
+L_SEND_1_BYTE?:
 
 ; is the data wrapping around?
     add     r1.w2, READ_PTR, CNT_BYTES_LOADED ; READ_PTR + read bytes
 ; TODO: is this logic correct? What if READ_PTR starts at BUFFER_END?
-    qbgt    L_1_BYTE_DATA_WRAP, BUFFER_END, r1.w2; branch if r1.w2 > BUFFER_END
+    qbgt    L_1_BYTE_DATA_WRAP?, BUFFER_END, r1.w2; branch if r1.w2 > BUFFER_END
 
 ; load the 1 byte of data
     lbco    &r2, c24, READ_PTR, CNT_BYTES_LOADED     ; cc 3
@@ -136,19 +136,19 @@ L_SEND_1_BYTE:
 ; READ_PTR increments to keep track of where to grab data from next
     add     READ_PTR, READ_PTR, CNT_BYTES_LOADED
     sbco    READ_PTR, c24, READ_PTR_ADDRESS, 2 ; update the variable for Linux
-    qba     L_CALL_EOF_BYTE1
+    qba     L_CALL_EOF_BYTE1?
 
-L_1_BYTE_DATA_WRAP:
+L_1_BYTE_DATA_WRAP?:
     lbco    &r2, c24, BUFFER_START, CNT_BYTES_LOADED     ; cc 3
 ; READ_PTR increments to keep track of where to grab data from next
     add     READ_PTR, BUFFER_START, CNT_BYTES_LOADED
     sbco    READ_PTR, c24, READ_PTR_ADDRESS, 2 ; update the variable for Linux
 
-L_CALL_EOF_BYTE1:
+L_CALL_EOF_BYTE1?:
 ; call EOF_BYTE1
     m_eof_byte1 SCRATCH_PAD, STATE
 
-L_END_M_TX1:
+L_END_M_TX1?:
 ; save context for R0-R24
     xout    SCRATCH_PAD, &r0, 100
     .endm
@@ -196,13 +196,13 @@ m_eof_byte1   .macro        SCRATCH_PAD, STATE
     lbco    &r26, c24, READ_PTR_ADDRESS, 4  ; cc 3
 
 ; if READ_PTR == WRITE_PTR, buffer is empty
-    qbeq    L_END_M_EOF_BYTE1, READ_PTR, WRITE_PTR
+    qbeq    L_END_M_EOF_BYTE1?, READ_PTR, WRITE_PTR
 
 ; else, the buffer has active data
 ; set STATE to TX1_STATE
     ldi     STATE, TX1_STATE
 
-L_END_M_EOF_BYTE1:
+L_END_M_EOF_BYTE1?:
 ; return to m_tx1
     .endm
 
@@ -221,8 +221,8 @@ L_END_M_EOF_BYTE1:
 m_tx2      .macro    SCRATCH_PAD, STATE
 
 ; check for EOF conditions
-    qbeq     L_CALL_EOF_BYTE2, CNT_BYTES_LOADED, 2
-    qbeq     L_CALL_EOF_BYTE3, CNT_BYTES_LOADED, 3
+    qbeq     L_CALL_EOF_BYTE2?, CNT_BYTES_LOADED, 2
+    qbeq     L_CALL_EOF_BYTE3?, CNT_BYTES_LOADED, 3
 
 ; original macro START
 ; d5-d7 in b1, shift does 0 padding on higher bits!
@@ -246,16 +246,16 @@ m_tx2      .macro    SCRATCH_PAD, STATE
     mov     r30.b0, r2.b0
     mov     r30.b0, r2.b1
 ; original macro END
-    qba      L_END_M_TX2
+    qba      L_END_M_TX2?
 
-L_CALL_EOF_BYTE2:
+L_CALL_EOF_BYTE2?:
     m_eof_byte2 SCRATCH_PAD, STATE
-    qba      L_END_M_TX2
+    qba      L_END_M_TX2?
 
-L_CALL_EOF_BYTE3:
+L_CALL_EOF_BYTE3?:
     m_eof_byte3 SCRATCH_PAD, STATE
 
-L_END_M_TX2:
+L_END_M_TX2?:
 ; save context for R0-R24
     xout     SCRATCH_PAD, &r0, 100
     .endm
@@ -297,13 +297,13 @@ m_eof_byte2   .macro        SCRATCH_PAD, STATE
     lbco    &r26, c24, READ_PTR_ADDRESS, 4  ; cc 3
 
 ; if READ_PTR == WRITE_PTR, buffer is empty
-    qbeq    L_END_M_EOF_BYTE2, READ_PTR, WRITE_PTR
+    qbeq    L_END_M_EOF_BYTE2?, READ_PTR, WRITE_PTR
 
 ; else, the buffer has active data
 ; set STATE to TX1_STATE
     ldi     STATE, TX1_STATE
 
-L_END_M_EOF_BYTE2:
+L_END_M_EOF_BYTE2?:
 ; return to m_tx2
     .endm
 
@@ -357,13 +357,13 @@ m_eof_byte3   .macro        SCRATCH_PAD, STATE
     lbco    &r26, c24, READ_PTR_ADDRESS, 4  ; cc 3
 
 ; if READ_PTR == WRITE_PTR, buffer is empty
-    qbeq    L_END_M_EOF_BYTE3, READ_PTR, WRITE_PTR
+    qbeq    L_END_M_EOF_BYTE3?, READ_PTR, WRITE_PTR
 
 ; else, the buffer has active data
 ; set STATE to TX1_STATE
     ldi     STATE, TX1_STATE
 
-L_END_M_EOF_BYTE3:
+L_END_M_EOF_BYTE3?:
 ; return to m_tx2
     .endm
 
@@ -392,7 +392,7 @@ m_tx3   .macro    SCRATCH_PAD, STATE
 ; r2.b3 | r3.b1
 
 ; check for EOF condition
-    qbeq     L_CALL_EOF_BYTE4, CNT_BYTES_LOADED, 4
+    qbeq     L_CALL_EOF_BYTE4?, CNT_BYTES_LOADED, 4
 
 ; d1-d7 in b1, shift does 0 padding on higher bits!
     lsr     r2.b0, r2.b1, 1
@@ -408,12 +408,12 @@ m_tx3   .macro    SCRATCH_PAD, STATE
     mov     r30.b0, r2.b0
     mov     r30.b0, r2.b1
 ; original macro END
-    qba      L_END_M_TX3
+    qba      L_END_M_TX3?
 
-L_CALL_EOF_BYTE4:
+L_CALL_EOF_BYTE4?:
     m_eof_byte4 SCRATCH_PAD, STATE
 
-L_END_M_TX3:
+L_END_M_TX3?:
 ; save context for R0-R24
     xout     SCRATCH_PAD, &r0, 100
     .endm
@@ -461,13 +461,13 @@ m_eof_byte4   .macro        SCRATCH_PAD, STATE
     lbco    &r26, c24, READ_PTR_ADDRESS, 4  ; cc 3
 
 ; if READ_PTR == WRITE_PTR, buffer is empty
-    qbeq    L_END_M_EOF_BYTE4, READ_PTR, WRITE_PTR
+    qbeq    L_END_M_EOF_BYTE4?, READ_PTR, WRITE_PTR
 
 ; else, the buffer has active data
 ; set STATE to TX1_STATE
     ldi     STATE, TX1_STATE
 
-L_END_M_EOF_BYTE4:
+L_END_M_EOF_BYTE4?:
 ; return to m_tx3
     .endm
 
@@ -498,8 +498,8 @@ m_tx4   .macro    SCRATCH_PAD, STATE
 ; r2.b3 | r3.b3
 
 ; check for EOF conditions
-    qbeq     L_CALL_EOF_BYTE5, CNT_BYTES_LOADED, 5
-    qbeq     L_CALL_EOF_BYTE6, CNT_BYTES_LOADED, 6
+    qbeq     L_CALL_EOF_BYTE5?, CNT_BYTES_LOADED, 5
+    qbeq     L_CALL_EOF_BYTE6?, CNT_BYTES_LOADED, 6
 
 ; d7 in b0, shift does 0 padding on higher bits!
     lsr     r2.b0, r2.b0, 7
@@ -522,16 +522,16 @@ m_tx4   .macro    SCRATCH_PAD, STATE
     mov     r30.b0, r2.b0
     mov     r30.b0, r2.b1
 ; original macro END
-    qba     L_END_M_TX4
+    qba     L_END_M_TX4?
 
-L_CALL_EOF_BYTE5:
+L_CALL_EOF_BYTE5?:
     m_eof_byte5 SCRATCH_PAD, STATE
-    qba     L_END_M_TX4
+    qba     L_END_M_TX4?
 
-L_CALL_EOF_BYTE6:
+L_CALL_EOF_BYTE6?:
     m_eof_byte6 SCRATCH_PAD, STATE
 
-L_END_M_TX4:
+L_END_M_TX4?:
 ; save context for R0-R24
     xout    SCRATCH_PAD, &r0, 100
     .endm
@@ -573,13 +573,13 @@ m_eof_byte5   .macro        SCRATCH_PAD, STATE
     lbco    &r26, c24, READ_PTR_ADDRESS, 4  ; cc 3
 
 ; if READ_PTR == WRITE_PTR, buffer is empty
-    qbeq    L_END_M_EOF_BYTE5, READ_PTR, WRITE_PTR
+    qbeq    L_END_M_EOF_BYTE5?, READ_PTR, WRITE_PTR
 
 ; else, the buffer has active data
 ; set STATE to TX1_STATE
     ldi     STATE, TX1_STATE
 
-L_END_M_EOF_BYTE5:
+L_END_M_EOF_BYTE5?:
 ; return to m_tx4
     .endm
 
@@ -633,13 +633,13 @@ m_eof_byte6   .macro        SCRATCH_PAD, STATE
     lbco    &r26, c24, READ_PTR_ADDRESS, 4  ; cc 3
 
 ; if READ_PTR == WRITE_PTR, buffer is empty
-    qbeq    L_END_M_EOF_BYTE6, READ_PTR, WRITE_PTR
+    qbeq    L_END_M_EOF_BYTE6?, READ_PTR, WRITE_PTR
 
 ; else, the buffer has active data
 ; set STATE to TX1_STATE
     ldi     STATE, TX1_STATE
 
-L_END_M_EOF_BYTE6:
+L_END_M_EOF_BYTE6?:
 ; return to m_tx4
     .endm
 
@@ -658,8 +658,11 @@ L_END_M_EOF_BYTE6:
 m_tx5    .macro    SCRATCH_PAD, STATE
 
 ; check for EOF conditions
-    qbeq     L_CALL_EOF_BYTE7, CNT_BYTES_LOADED, 7
-    qbeq     L_CALL_EOF_BYTE8, CNT_BYTES_LOADED, 8
+    qbeq     L_CALL_EOF_BYTE7?, CNT_BYTES_LOADED, 7
+    qbeq     L_CALL_EOF_BYTE8?, CNT_BYTES_LOADED, 8
+
+; TODO: delete this code, since we should always branch to either
+; L_CALL_EOF_BYTE7? or L_CALL_EOF_BYTE8?
 
 ; d3-d7 in b2, shift does 0 padding on higher bits!
     lsr     r2.b0, r2.b2, 3
@@ -677,16 +680,16 @@ m_tx5    .macro    SCRATCH_PAD, STATE
     mov     r30.b0, r2.b0
     mov     r30.b0, r2.b1
 ; original macro END
-    qba     L_END_M_TX5
+    qba     L_END_M_TX5?
 
-L_CALL_EOF_BYTE7:
+L_CALL_EOF_BYTE7?:
     m_eof_byte7 SCRATCH_PAD, STATE
-    qba     L_END_M_TX5
+    qba     L_END_M_TX5?
 
-L_CALL_EOF_BYTE8:
+L_CALL_EOF_BYTE8?:
     m_eof_byte8 SCRATCH_PAD, STATE
 
-L_END_M_TX5:
+L_END_M_TX5?:
 ; save context for R0-R24
     xout    SCRATCH_PAD, &r0, 100
     .endm
@@ -728,13 +731,13 @@ m_eof_byte7   .macro        SCRATCH_PAD, STATE
     lbco    &r26, c24, READ_PTR_ADDRESS, 4  ; cc 3
 
 ; if READ_PTR == WRITE_PTR, buffer is empty
-    qbeq    L_END_M_EOF_BYTE7, READ_PTR, WRITE_PTR
+    qbeq    L_END_M_EOF_BYTE7?, READ_PTR, WRITE_PTR
 
 ; else, the buffer has active data
 ; set STATE to TX1_STATE
     ldi     STATE, TX1_STATE
 
-L_END_M_EOF_BYTE7:
+L_END_M_EOF_BYTE7?:
 ; return to m_tx5
     .endm
 
@@ -788,13 +791,13 @@ m_eof_byte8   .macro        SCRATCH_PAD, STATE
     lbco    &r26, c24, READ_PTR_ADDRESS, 4  ; cc 3
 
 ; if READ_PTR == WRITE_PTR, buffer is empty
-    qbeq    L_END_M_EOF_BYTE8, READ_PTR, WRITE_PTR
+    qbeq    L_END_M_EOF_BYTE8?, READ_PTR, WRITE_PTR
 
 ; else, the buffer has active data
 ; set STATE to TX1_STATE
     ldi     STATE, TX1_STATE
 
-L_END_M_EOF_BYTE8:
+L_END_M_EOF_BYTE8?:
 ; return to m_tx5
     .endm
 
