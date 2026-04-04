@@ -1,5 +1,10 @@
 # MAC Multiply-Accumulate (C)
 
+## Introduction
+
+This example demonstrates the PRU MAC (Multiply and Accumulate) hardware
+accelerator using PRU C firmware.
+
 ## Overview
 
 This example demonstrates the PRU MAC (Multiply and Accumulate) hardware
@@ -17,14 +22,9 @@ fits within the target device's Data RAM.
 
 ## Supported Combinations
 
- Parameter      | Value
- ---------------|-----------
- PRU subsystem  | PRUSS0 - PRU0, PRU1 (AM62x); ICSS_G0 - PRU0, PRU1 (AM64x)
- Toolchain      | pru-cgt
- Board          | am62x-sk, am64x-evm
- Example folder | academy/mac/mac_c/
-
-For portability to other devices, see [academy/readme.md §Supported processors per-project](../../readme.md#supported-processors-per-project).
+Refer to open-pru/academy/readme.md > Supported processors per-project
+for the list of processors that support building this project, and information
+about porting this project to other processors.
 
 ## Validated HW & SW
 

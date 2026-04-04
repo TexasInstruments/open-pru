@@ -1,5 +1,10 @@
 # UART Loopback
 
+## Introduction
+
+This example demonstrates the PRU UART peripheral by configuring it in
+loopback mode and exercising a transmit/receive cycle.
+
 ## Overview
 
 This example demonstrates the PRU UART peripheral by configuring it at 115200
@@ -13,14 +18,9 @@ The example is adapted from the PRU Software Support Package (PSSP)
 
 ## Supported Combinations
 
- Parameter      | Value
- ---------------|-----------
- PRU subsystem  | PRUSS0 - PRU0
- Toolchain      | pru-cgt
- Board          | am62x-sk
- Example folder | academy/uart/uart_loopback/
-
-For portability to other devices, see [academy/readme.md §Supported processors per-project](../../readme.md#supported-processors-per-project).
+Refer to open-pru/academy/readme.md > Supported processors per-project
+for the list of processors that support building this project, and information
+about porting this project to other processors.
 
 ## Hardware
 

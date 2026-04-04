@@ -16,12 +16,25 @@ In both cases, the toggled signal is routed to a readily accessible location on 
 
 The oscillating signal generated can be used to validate proper PRU operation and GPIO configuration, making this example particularly useful for initial hardware bring-up and verification of PRU GPIO functionality.
 
-# Supported Combinations
+## Supported Combinations
 
- Parameter      | Value
- ---------------|-----------
- ICSSM          | ICSSM0 - PRU0, PRU1; ICSSM1 (only in am261x) - PRU0, PRU1
- Toolchain      | pru-cgt
- Board          | am261x-lp, am263px-lp, am263x-lp
- Example folder | academy/gpio/gpio_toggle
+Refer to open-pru/academy/readme.md > Supported processors per-project
+for the list of processors that support building this project, and information
+about porting this project to other processors.
+
+## Validated HW & SW
+
+This project was tested on hardware with these software versions:
+
+| Processor | Hardware | Software                                |
+| --------- | -------- | --------------------------------------- |
+| am261x    | TODO     | MCU PLUS SDK TODO, OpenPRU TODO         |
+| am263px   | TODO     | MCU PLUS SDK TODO, OpenPRU TODO         |
+| am263x    | TODO     | MCU PLUS SDK TODO, OpenPRU TODO         |
+
+## Steps to Run the Example
+
+1. Build and run the PRU firmware
+2. Connect a logic analyzer or oscilloscope to header pin BP.17 (J2) and
+   observe the toggling signal
 
