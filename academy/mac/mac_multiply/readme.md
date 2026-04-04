@@ -4,10 +4,6 @@
 
 This example acts as a basic demonstration of the usage of MAC module in Multiply-Only mode in ICSSM PRU.
 
-## Overview 
-
-Here's the Overview section for the MAC (Multiply Only Mode) example README:
-
 ## Overview
 
 This example demonstrates the usage of PRU's MAC (Multiply and Accumulate) broadside accelerator in its Multiply Only mode. While the MAC module is capable of both multiplication and accumulation operations, this mode specifically showcases its ability to perform high-speed unsigned multiplications without accumulation, making it ideal for applications requiring quick multiplication operations.
@@ -22,12 +18,27 @@ The MAC module performs the multiplication without any accumulation, demonstrati
 
 This simple demonstration shows how the PRU's hardware acceleration can be utilized for basic arithmetic operations with improved performance compared to software-based multiplication.
 
-# Supported Combinations
+## Supported Combinations
 
- Parameter      | Value
- ---------------|-----------
- ICSSM          | ICSSM0 - PRU0, PRU1; ICSSM1 (only in am261x) - PRU0, PRU1
- Toolchain      | pru-cgt
- Board          | am261x-lp, am261x-som, am263px-cc, am263px-lp, am263x-cc, am263x-lp
- Example folder | academy/mac/mac_multiply
+Refer to open-pru/academy/readme.md > Supported processors per-project
+for the list of processors that support building this project, and information
+about porting this project to other processors.
+
+## Validated HW & SW
+
+This project was tested on hardware with these software versions:
+
+| Processor | Hardware | Software                                |
+| --------- | -------- | --------------------------------------- |
+| am261x    | TODO     | MCU PLUS SDK TODO, OpenPRU TODO         |
+| am263px   | TODO     | MCU PLUS SDK TODO, OpenPRU TODO         |
+| am263x    | TODO     | MCU PLUS SDK TODO, OpenPRU TODO         |
+
+## Steps to Run the Example
+
+1. Build and run the PRU firmware.
+2. After the firmware finishes running, inspect the PRU register values:
+   - R26: lower 32 bits of the multiplication result; expected `0x4E2`
+     (1250 decimal = 50 × 25)
+   - R27: upper 32 bits; expected `0x00`
 
