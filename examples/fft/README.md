@@ -8,6 +8,21 @@
 ## Introduction
 The code performs a real valued 4096-point Fast-Fourier Transform on 4096 discrete input samples in the ICSS Shared Memory. The implementation makes use of a Real-valued DIT Split-Radix algorithm and has two versions that each runs on ICSSG PRU0 and ICSSM PRU0.  
 
+## Supported Combinations
+
+Refer to open-pru/examples/readme.md > Supported processors per-project
+for the list of processors that support building this project, and information
+about porting this project to other processors.
+
+## Validated HW & SW
+
+This project was tested on hardware with these software versions:
+
+| Processor | Hardware | Software                                        |
+| --------- | -------- | ----------------------------------------------- |
+| am243x    | TODO     | MCU PLUS SDK 10.01.00.32, OpenPRU TODO          |
+| am261x    | TODO     | MCU PLUS SDK 10.00.01.10, OpenPRU TODO          |
+
 ## Overview
 The algorithm assumes input samples in Q24 format to be present in the configured memory space. The current implementation assumes unsigned inputs which are common for ADC measurement values. 
 

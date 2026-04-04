@@ -11,6 +11,19 @@ The F283879D initiates requests for 16-bit or 32-bit reads/writes over EMIF1 & P
 ICSSG PRU cores has been implemented to emulate the EMIF interface to repsond to 16 bit reads/writes. 
 It also responds to 32 bit reads/writes by converting into two 16 bit read/writes request seperately. 
 
+## Supported Combinations
+
+Refer to open-pru/examples/readme.md > Supported processors per-project
+for the list of processors that support building this project, and information
+about porting this project to other processors.
+
+## Validated HW & SW
+
+This project was tested on hardware with these software versions:
+
+| Processor | Hardware     | Software                                                                         |
+| --------- | ------------ | -------------------------------------------------------------------------------- |
+| am243x    | TMDS243GPEVM | MCU PLUS SDK TODO, C2000Ware 4.02.00.00, C2000 CGT 22.6.1 LTS, OpenPRU TODO      |
 
 ## Setup Details
 
