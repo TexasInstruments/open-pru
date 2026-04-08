@@ -7,10 +7,11 @@
 
 [Introduction](#introduction)  
 [Features](#features)  
+[Training](#training)  
 [Getting started](#getting-started)  
 [OpenPRU organization](#open-pru-organization)  
 [Building the examples](#building-the-examples)  
-[Information about using EVM boards](#information-about-using-evm-boards)  
+[Using EVM boards](#using-evm-boards)  
 [Creating a new OpenPRU project](#creating-a-new-open-pru-project)  
 [Contributing to the OpenPRU repo](#contributing-to-the-open-pru-repo)  
 [Technical Support](#technical-support)  
@@ -37,7 +38,8 @@ notes for information like compatible SDK versions on each release.
 
 The OpenPRU project provides:
   - [PRU Academy](./academy)
-    - PRU Getting Started Labs (project creation, coding in assembly & C, compiling, loading PRU code, debugging PRU code)
+    - PRU Getting Started Labs (project creation, coding in assembly & C,
+      compiling, loading PRU code, debugging PRU code)
     - Training labs (GPIO, interrupt controller, broadside accelerators, etc.)
   - [Application examples](./examples)
     - These PRU examples can be used as a foundation for your design: I2S, SPI, I2C, ADC, etc.
@@ -52,9 +54,17 @@ configuration for the other processors. For more information, refer to
 [academy/readme.md](./academy/readme.md) and
 [examples/readme.md](./examples/readme.md).
 
+## Training
+
+TI provides additional training for programming the PRU subsystem in
+processor-specific academies. The currently published PRU Academies are:
+[PRU Academy for AM243x](https://dev.ti.com/tirex/explore/node?isTheia=false&node=A__AB.mSUi9ihL.a5hIt1grfw__AM24X-ACADEMY__ZPSnq-h__LATEST)  
+[PRU Academy for AM64x](https://dev.ti.com/tirex/explore/node?isTheia=false&node=A__AB.mSUi9ihL.a5hIt1grfw__AM64-ACADEMY__WI1KRXP__LATEST)  
+
 ## Getting started
 
-Please follow the [Getting started steps](./docs/getting_started.md) to install dependencies and properly set up the OpenPRU repository.
+Please follow the [Getting started steps](./docs/getting_started.md) to install
+dependencies and properly set up the OpenPRU repository.
 
 ## OpenPRU organization
 
@@ -83,32 +93,47 @@ Makefiles can be used to:
 For detailed steps on how to use makefiles, run ```make help``` from the root
 folder of the `open-pru` repository.
 
-### Basic Building With CCS
+### Building With CCS
 
-- **When using CCS projects to build**, import the CCS project from the project
-  folder. The project files can be copied to the ccs workspace of the PRU project.
+- Import the project into CCS. For steps to create a new PRU project in CCS,
+  refer to
+  **PRU Academy > PRU Getting Started Labs > How to Create a PRU Project**
 
-- Build the PRU project using the CCS project menu. Refer to
-  **the MCU+ SDK documentation > Using SDK with CCS Projects**:
+- Right-click a PRU project in the EXPLORER menu, and select "Build Projects" to
+  build the PRU firmware, or "Clean Projects" to clean the output
+
+- For additional information about building PRU firmware, refer to the
+  **PRU Academy > PRU Getting Started Labs > How to Compile PRU Firmware**
+
+#### Building MCU+ projects in CCS
+
+- The PRU firmware must be built before the MCU+ firmware. By default, projects
+  from the OpenPRU repo place the PRU firmware header file in the CCS workspace,
+  in the top level of the PRU project's directory
+
+- The MCU+ project include paths **must** include the path to the PRU project
+  directory in the CCS workspace
+
+- For additional information, refer to
+  - **PRU Academy > PRU Getting Started Labs > How to Create a PRU Project > Creating a CCS PRU Project with MCU+ Code**
+  - **PRU Academy > PRU Getting Started Labs > How to Initialize the PRU > Initializing the PRU from MCU+ core**
+
+- For more information about using MCU+ SDK projects with CCS, refer to the
+  MCU+ SDK documentation: **Developer Guides > Using SDK with CCS Projects** 
   - [AM64x](https://software-dl.ti.com/mcu-plus-sdk/esd/AM64X/latest/exports/docs/api_guide_am64x/CCS_PROJECTS_PAGE.html)
   - [AM243x](https://software-dl.ti.com/mcu-plus-sdk/esd/AM243X/latest/exports/docs/api_guide_am243x/CCS_PROJECTS_PAGE.html)
   - [AM261x](https://software-dl.ti.com/mcu-plus-sdk/esd/AM261X/latest/exports/docs/api_guide_am261x/CCS_PROJECTS_PAGE.html)
   - [AM263Px](https://software-dl.ti.com/mcu-plus-sdk/esd/AM263PX/latest/exports/docs/api_guide_am263px/CCS_PROJECTS_PAGE.html)
-  - [AM263x](https://software-dl.ti.com/mcu-plus-sdk/esd/AM263X/latest/exports/docs/api_guide_am263x/CCS_PROJECTS_PAGE.html)
+  - [AM263x](https://software-dl.ti.com/mcu-plus-sdk/esd/AM263X/latest/exports/docs/api_guide_am263x/CCS_PROJECTS_PAGE.html
 
-#### Build the PRU firmware
+## Using EVM boards
 
-- Once you click on **build** in the PRU project, the PRU firmware header file is generated in the CCS release or debug folder. The PRU header file is moved to  `<open-pru/examples/empty/firmware/device/>`
+Please note that different EVMs have different signals pinned out. Before
+purchasing an EVM, we suggest checking the signals that are routed out on the
+board, and selecting an EVM which exposes the PRU signals that you will need for
+your development.
 
-#### Build the R5F firmware
-
-- Build the R5F project using the CCS project menu. For more details, refer to **the MCU+ SDK documentation > Using SDK with CCS Projects** linked above.
-
-- The PRU Firmware header file path is included in the R5F project include options by default.
-
-- Build Flow: Once you click on build in the R5F project, SysConfig files are generated. Then the R5F project will be generated using both the generated SysConfig files, and PRU project binaries.
-
-## Information about using EVM boards
+### Using an EVM with MCU+ SDK
 
 For more details on EVM Board usage, please refer to the Getting started section of MCU+ SDK README_FIRST_*.html page. The MCU+ SDK User guides contain information on
   
@@ -130,19 +155,12 @@ Getting started guides of MCU+ SDK are specific to a particular device. The link
 An existing project can be copied into a new directory, or imported into CCS,
 to serve as a starting point for PRU development.
 
-For example, copy `examples/empty` to `examples/my_project`.
-
-Since `empty` and `my_project` are in the same parent directory, `my_project`
-can be built from the project directory after updating any paths that use the
-project name:
-
-```
-$ cd /path/to/open-pru/examples/my_project
-$ make -s
-```
-
-For additional steps to create a new OpenPRU project, refer to page
+For steps to create a new OpenPRU project, refer to page
 [Creating a New Project in the OpenPRU Repo](./docs/open_pru_create_new_project.md).
+
+For steps to create a new project in CCS, or for device-specific steps to create
+a new OpenPRU project, refer to the
+**PRU Academy > PRU Getting Started Labs > How to Create a PRU Project**.
 
 ## Contributing to the OpenPRU repo
 

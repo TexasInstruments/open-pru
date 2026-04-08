@@ -1,10 +1,26 @@
 # Custom Frequency Generator
 
+## Introduction
+
 The project generates a square wave of the desired average clock frequency from the available system clock. A fractional adder is used to generate a pulse with a configurable average frequency.
 
 <img src="pictures/freq_gen_setup.png" alt="CFG_setup" width="600">
 <figcaption>Fig.1 Frequency Generator setup</figcaption>
 </figure>
+
+## Supported Combinations
+
+Refer to open-pru/examples/readme.md > Supported processors per-project
+for the list of processors that support building this project, and information
+about porting this project to other processors.
+
+## Validated HW & SW
+
+This project was tested on hardware with these software versions:
+
+| Processor | Hardware | Software                                |
+| --------- | -------- | --------------------------------------- |
+| am243x    | LP-AM243 | MCU PLUS SDK 11.0, OpenPRU TODO         |
 
 ## Overview
 
@@ -69,8 +85,8 @@ For the previous example,
 
 1. Import the device specific project from 'examples/custom_frequency_generator' in the open-pru repository.
 2. Keep the default configuration (for 16.384Mhz) or change the configuration according to section [Configuration](#configuration) for a desired frequency.
-3.  Build and load the "*.out" file into the core 'ICSSG0 PRU0' of AM243x device. 
-4. Run the core and the desired average frequency is available on PIN PRU0_GPO0(BP.33). To view the signal, connect a channel of a logic scope to the PIN. 
+3.  Build and load the "*.out" file into the core 'ICSSG0 PRU0' of AM243x device.
+4. Run the core and the desired average frequency is available on PIN PRU0_GPO0(BP.33). To view the signal, connect a channel of a logic scope to the PIN.
 
 ## Results
 
