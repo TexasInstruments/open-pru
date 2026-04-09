@@ -1,5 +1,22 @@
 # LCD Interface
-This project uses PRU direct GPOs to output data from frame buffer memory to parallel RGB24 interface. The LCD display is 800x480 pixel with 24 bit color and 60 Hz frame rate. PRU resources used are limited to 200 MHz clock and functions available across ICSS_M (AM261/AM263) and ICSS_G (AM243/AM64) devices. The demo is built with AM243x LP because of availability of PRU pins on header. Display used is Newhaven NHD-4.3-800480CF-ASXP-CTP (https://newhavendisplay.com/content/specs/NHD-4.3-800480CF-ASXP-CTP.pdf). For back-light power supply we use TPS61169EVM (https://www.ti.com/lit/snvu455).   
+
+## Introduction
+
+This project uses PRU direct GPOs to output data from frame buffer memory to parallel RGB24 interface. The LCD display is 800x480 pixel with 24 bit color and 60 Hz frame rate. PRU resources used are limited to 200 MHz clock and functions available across ICSS_M (AM261/AM263) and ICSS_G (AM243/AM64) devices. The demo is built with AM243x LP because of availability of PRU pins on header. Display used is Newhaven NHD-4.3-800480CF-ASXP-CTP (https://newhavendisplay.com/content/specs/NHD-4.3-800480CF-ASXP-CTP.pdf). For back-light power supply we use TPS61169EVM (https://www.ti.com/lit/snvu455).
+
+## Supported Combinations
+
+Refer to open-pru/examples/readme.md > Supported processors per-project
+for the list of processors that support building this project, and information
+about porting this project to other processors.
+
+## Validated HW & SW
+
+This project was tested on hardware with these software versions:
+
+| Processor | Hardware | Software                                |
+| --------- | -------- | --------------------------------------- |
+| am243x    | LP-AM243 | MCU PLUS SDK TODO, OpenPRU TODO         |
 
 ## Overview
 RGB interface has wide data bus of 24 bit using 8 bits per color. In addition there are vertical and horizontal sync signals to define start and end of lines and frames. The display selected has additional DE (data enable) which is active for one line of data. Each 24 bit data is captured with DCLK (pixel clock) falling edge and there is a setup and hold time of 8 ns in this case. 
@@ -35,17 +52,28 @@ In the PRU firmware there are two macros which handle both alignment issues. The
 
 ## How to Run
 
-The project is split into three parts which are needed to run the demo. Clocking, pin-mux configuration and interrupts are specified graphically using sysconfig tool and example.syscfg file located in folder "C:\ti\GitHub\open-pru\examples\LCD_interface\am243x-lp\r5fss0-0_freertos". ARM project is used to run configuration of the demo including board and SoC configurations in sysconfig file. ARM also has PRU driver to load and run firmware. It is important that PRU1 starts before PRU0 to have core synchronization working. 
+The project is split into three parts which are needed to run the demo.
 
-Third component is assembly firmware for PRU0 and PRU1 which does the RGB output from frame buffer memory. 
+1. Clocking, pin-mux configuration and interrupts are specified graphically using
+sysconfig tool and example.syscfg file located in folder
+"\path\to\open-pru\examples\LCD_interface\am243x-lp\r5fss0-0_freertos".
 
-Here are the steps to run the demo. 
+2. The
+MCU+ SDK project is used to run configuration of the demo, including board and
+SoC configurations in sysconfig file. The MCU+ core uses the PRUICSS driver to
+load and run firmware. It is important that PRU1 starts before PRU0 to have core
+synchronization working.
 
-1. Clone project from Open-PRU github repository. 
-2. Import project in CCS at LCD_interface folder. CCS will import 3 projects, one for the ARM core and two for PRU0 and PRU1 core. 
+3. The third component is assembly firmware for PRU0 and PRU1 which does the RGB
+output from frame buffer memory.
+
+Here are the steps to run the demo.
+
+1. Clone project from Open-PRU github repository.
+2. Import project in CCS at LCD_interface folder. CCS will import 3 projects, one for the ARM core and two for PRU0 and PRU1 core.
 3. Build PRU0 and PRU1 firmware first which generates header files.
-4. Build ARM project which uses newly generated header files for PRU0 and PRU1 firmware. 
-5. Load and run ARM project. It will also load and run PRU1 first followed by PRU0 code. 
+4. Build ARM project which uses newly generated header files for PRU0 and PRU1 firmware.
+5. Load and run ARM project. It will also load and run PRU1 first followed by PRU0 code.
 
 It makes sense to validate output signals with a logic scope. Important signals to capture are DCLK, VSYNC, HSYNC, DE and first bit of data line for each color. The documentation folder has PPT which contains timing plots for verification. After validating correct signal output the display can be connected to the launchpad header. The PPT shows the pin-mapping from Launchpad header perspective. 
 

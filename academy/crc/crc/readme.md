@@ -19,11 +19,25 @@ The example code configures the CRC module, performs the calculations, and store
 
 This implementation is particularly useful in applications requiring data integrity validation, error detection in communication protocols, and verification of data transmission accuracy. The example runs on various AM26x family processors and demonstrates the essential features of the PRU CRC module in a straightforward manner.
 
-# Supported Combinations
+## Supported Combinations
 
- Parameter      | Value
- ---------------|-----------
- ICSSM          | ICSSM0 - PRU0, PRU1; ICSSM1 (only in am261x) - PRU0, PRU1
- Toolchain      | pru-cgt
- Board          | am261x-lp, am261x-som, am263px-cc, am263px-lp, am263x-cc, am263x-lp
- Example folder | academy/crc/crc/
+Refer to open-pru/academy/readme.md > Supported processors per-project
+for the list of processors that support building this project, and information
+about porting this project to other processors.
+
+## Validated HW & SW
+
+This project was tested on hardware with these software versions:
+
+| Processor | Hardware | Software                                |
+| --------- | -------- | --------------------------------------- |
+| am261x    | TODO     | MCU PLUS SDK TODO, OpenPRU TODO         |
+| am263px   | TODO     | MCU PLUS SDK TODO, OpenPRU TODO         |
+| am263x    | TODO     | MCU PLUS SDK TODO, OpenPRU TODO         |
+
+## Steps to Run the Example
+
+1. Build and run the PRU firmware
+2. After program halts, inspect the PRU register values:
+   - R10: CRC16 result
+   - R11: CRC32 result

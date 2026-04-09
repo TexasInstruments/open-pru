@@ -1,7 +1,23 @@
 # 8-channel Logic Scope
 
+## Introduction
+
 The project realizes a simple logic scope that uses two cores, PRU0 and RTU0, to continuously sample a configured GPI Pin. The sampling frequency is restricted only by the clock frequency of PRU and for AM243 we could configure the clock upto 333Mhz. This gives us a maximum sampling rate of 333Mhz. The number of samples that need to be captured can be configured in multiples of 100 and the maximum number of samples is only restricted by the size of the configured storage memory. For MSRAM, this is around 2MB of sample size. The Logic-scope reads 1 Byte of data every clock cycle which contains logic data from 8 input channels.  The trigger for sampling in current implementation is set to a low to high in the 8th channel (PRU0.GPI7).
 ![alt text](images/dcls_overview.png)
+
+## Supported Combinations
+
+Refer to open-pru/examples/readme.md > Supported processors per-project
+for the list of processors that support building this project, and information
+about porting this project to other processors.
+
+## Validated HW & SW
+
+This project was tested on hardware with these software versions:
+
+| Processor | Hardware | Software                                |
+| --------- | -------- | --------------------------------------- |
+| am243x    | TODO     | MCU PLUS SDK TODO, OpenPRU TODO         |
 
 ## Overview
 
