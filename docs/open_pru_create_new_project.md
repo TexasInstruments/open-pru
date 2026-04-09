@@ -307,8 +307,15 @@ MCU_HEX_PATH     := $(OPEN_PRU_PATH)/examples/<project_name>/firmware/am243x-evm
 > project, update `MCU_HEX_PATH` accordingly — the relative depth to
 > `$(OPEN_PRU_PATH)` will have changed.
 
-For projects with a **Linux host** (e.g., AM62x), the `MCU_HEX_PATH` is not
-actually used. Only `OUTPUT_NAME` requires updating.
+For projects with a **Linux host** (e.g., AM62x) or **no host at all**
+(standalone PRU), `MCU_HEX_PATH` is not used by any host project. Only
+`OUTPUT_NAME` requires updating.
+
+> [!NOTE]
+> For projects without an MCU+ host, leave `postBuildStep` in
+> `example.projectspec` empty or omit it. The `postBuildStep` is only needed
+> when an MCU+ project must consume the generated hex array header from the
+> CCS workspace.
 
 ## Build checkpoint: verify PRU firmware
 
