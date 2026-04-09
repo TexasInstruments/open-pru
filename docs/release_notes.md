@@ -9,8 +9,9 @@
 [Checking out a specific release](#checking-out-a-specific-release)  
 [Compatible versions of CCS & other tools](#compatible-versions-of-ccs--other-tools)  
 [All Release Notes](#all-release-notes)  
-[v2026.00.00](#v20260000)  
-[v2025.00.00](#v20250000)  
+[v2026.01.00](#v20260100)
+[v2026.00.00](#v20260000)
+[v2025.00.00](#v20250000)
 
 The open-pru repo does not have official software releases like the TI SDKs.
 
@@ -38,6 +39,72 @@ Use the CCS and tool versions listed in
 repo is checked out to the specific release tag that you are using.
 
 ## All Release Notes
+
+### v2026.01.00
+
+#### Major Updates
+
+* Remove MCU+ SDK dependencies from CCS example.projectspecs
+  * PRU example.projectspecs no longer reference MCU+ SDK paths
+  * PRU-only CCS projects can be imported and built without MCU+ SDK installed
+
+* CCS example.projectspec overhaul (standardization across all projects)
+  * PRU firmware hex arrays are now written to the CCS workspace (not the repo)
+  * R5F projects reference hex arrays from the CCS workspace
+  * C optimization unified to `-O2` (release and debug)
+  * Linker flags (`--ram_model`, `--warn_sections`, etc.) aligned with makefiles
+  * Unique project names across all devices
+
+* AM62x: add CCS support to all AM62x projects [1]
+
+#### Supported Processors
+
+AM243x, AM261x, AM263Px, AM263x, AM62x, AM64x
+
+#### Compatible SDKs
+
+These SDK release versions can be used to build OpenPRU projects with a specific
+tag. The OpenPRU projects may require modifications before they can be built
+with older SDK versions. For more information, refer to
+[Using Older SDKs with OpenPRU](./using_older_sdks_with_open_pru.md).
+
+| SDK       | am243x      | am261x    | am263px   | am263x    | am62x | am64x       |
+| --------- | ----------- | --------- | --------- | --------- | ----- | ----------- |
+| MCU+ SDK  | 11.1 - 12.0 | 10.2 only | 10.2 only | 10.2 only | N/A   | 11.1 - 12.0 |
+| Linux SDK | N/A         | N/A       | N/A       | N/A       | 11.x  | 11.x        |
+
+#### Academies
+
+[PRU Academy for AM26x](https://dev.ti.com/tirex/explore/node?isTheia=false&node=A__AA63DGBS9m5Kf5FElQrpyQ__AM26X-ACADEMY__t0CaxbG__LATEST)
+[PRU Academy for AM243x](https://dev.ti.com/tirex/explore/node?isTheia=false&node=A__AB.mSUi9ihL.a5hIt1grfw__AM24X-ACADEMY__ZPSnq-h__LATEST)
+[PRU Academy for AM62x](https://dev.ti.com/tirex/explore/node?isTheia=false&node=A__AEIJm0rwIeU.2P1OBWwlaA__AM62-ACADEMY__uiYMDcq__LATEST)
+[PRU Academy for AM64x](https://dev.ti.com/tirex/explore/node?isTheia=false&node=A__AB.mSUi9ihL.a5hIt1grfw__AM64-ACADEMY__WI1KRXP__LATEST)
+
+#### Additional Updates & bugfixes
+
+* Getting Started Labs: set C optimization to `-Ooff` for pedagogical clarity
+
+* makefile: enforce PRU firmware → host application build order
+
+* Bugfix: `rpmsg_echo_linux`: add to `examples/makefile`; fix CCS build; fix AM62x
+
+* Bugfix: `spi_loopback`: fix firmware binary file build path
+
+* `logic_scope` & `multicore_scheduler`: align binary output names
+
+* AM263Px: remove stale R5F linker.cmd file
+
+* `syscfg_c.rov.xs`: remove from PRU firmware projects; add `FreeRTOS_Theia.rov`
+
+* `makefile_projectspec`: fix `OPEN_PRU_PATH` depth
+
+* GitHub CI: add CCS import & build workflow (`ccs_build.yml`)
+* GitHub CI: add AM263x to make workflow; per-processor parallel builds;
+  remove duplicate runs; add concurrency limits
+
+[1]
+* AM62x projects have no MCU+ (R5F) host core. CCS support for AM62x means
+  PRU firmware CCS projects only (no R5F project).
 
 ### v2026.00.00
 
