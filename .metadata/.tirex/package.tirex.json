@@ -4,7 +4,7 @@
         "id": "com.ti.OPEN_PRU",
         "name": "OpenPRU",
         "rootCategory": [ "OpenPRU"],
-        "version": "01.00.00.00",
+        "version": "2026.01.00",
         "type": "software",
         "license": "../../LICENSE",
         "devices": ["AM243x", "AM64x", "AM261x", "AM263Px", "AM263x", "AM62x"],
