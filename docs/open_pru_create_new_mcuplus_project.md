@@ -10,7 +10,7 @@ This document discusses how to add MCU+ code to a new project in the OpenPRU
 repo.
 
 First, create the new PRU firmware project by completing
-[Creating a New Project in the OpenPRU Repo](docs/open_pru_create_new_project.md).
+[Creating a New Project in the OpenPRU Repo](./open_pru_create_new_project.md).
 
 If your project will not include MCU+ code, skip this document and continue to
 **the PRU Academy > Getting Started Labs > Lab 2: How to Write PRU Firmware**.
@@ -53,7 +53,7 @@ the "empty" projects use `mcuplus/<board>/` for MCU+ code and
 `firmware/<board>/` for PRU firmware.
 
 For the full directory structure, see
-[OpenPRU Organization](docs/open_pru_organization.md).
+[OpenPRU Organization](./open_pru_organization.md).
 
 ## Remove or replace unused processors, boards, and cores
 
@@ -74,7 +74,7 @@ Add `mcuplus` to `NON_PRU_DEPENDENCIES` and add a `<device>_mcuplus` target
 definition that calls the MCU+ core makefile.
 
 For the target definition pattern, refer to
-[Creating a New Project in the OpenPRU Repo](docs/open_pru_create_new_project.md)
+[Creating a New Project in the OpenPRU Repo](./open_pru_create_new_project.md)
 § "Customize the project makefile".
 
 ## Rename the project and update paths
@@ -108,7 +108,7 @@ $ grep -r empty
 ### Customize the project makefile
 
 Refer to
-[Creating a New Project in the OpenPRU Repo](docs/open_pru_create_new_project.md)
+[Creating a New Project in the OpenPRU Repo](./open_pru_create_new_project.md)
 § "Customize the project makefile". Verify that:
 
 - `NON_PRU_DEPENDENCIES` includes `mcuplus`
@@ -190,7 +190,7 @@ $ make -s clean
 ## Customize the parent directory
 
 Refer to
-[Creating a New Project in the OpenPRU Repo](docs/open_pru_create_new_project.md)
+[Creating a New Project in the OpenPRU Repo](./open_pru_create_new_project.md)
 § "Customize the parent directory". The same process applies for a project with
 MCU+ code.
 
@@ -233,7 +233,7 @@ Both must stay consistent with `PROJECT_NAME` in `makefile_projectspec`.
 
 For more information about how the PRU postBuildStep is different for makefile
 builds than it is for CCS project builds, refer to
-[Creating a New Project in the OpenPRU Repo](docs/open_pru_create_new_project.md)
+[Creating a New Project in the OpenPRU Repo](./open_pru_create_new_project.md)
 § "postBuildStep is different for makefile than for CCS".
 
 The R5F project uses

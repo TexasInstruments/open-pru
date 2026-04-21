@@ -496,7 +496,7 @@ void write_pru_command(uint32_t command, uint32_t *data, uint32_t length)
 
 ### Directory Organization
 
-See [docs/open_pru_organization.md](../docs/open_pru_organization.md) for the
+See [docs/open_pru_organization.md](./docs/open_pru_organization.md) for the
 authoritative project and repository layout.
 
 ### File Naming Conventions

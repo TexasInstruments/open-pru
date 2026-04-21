@@ -24,7 +24,7 @@ terminal, or a Windows application like Git Bash.
 ### Set up the repo
 
 Before creating a new OpenPRU project, set up the OpenPRU repo by following the
-steps at [Getting Started with OpenPRU](docs/getting_started.md).
+steps at [Getting Started with OpenPRU](./getting_started.md).
 
 ### Test the make infrastructure
 
@@ -168,7 +168,7 @@ MCU+ directory. If your project targets an MCU+ host, remove any Linux
 directory. If your project has no host code at all, remove all non-PRU code.
 
 The non-PRU code is in a different directory than the PRU firmware. For the
-directory structure, see [OpenPRU Organization](docs/open_pru_organization.md).
+directory structure, see [OpenPRU Organization](./open_pru_organization.md).
 
 ## Remove unused PRU code
 
@@ -445,7 +445,7 @@ to the PRU hex arrays, like this:
 ```
 
 We discuss more about creating an MCU+ project in the OpenPRU repo in
-[Adding MCU+ Code to a New Project in the OpenPRU Repo](docs/open_pru_create_new_mcuplus_project.md).
+[Adding MCU+ Code to a New Project in the OpenPRU Repo](./open_pru_create_new_mcuplus_project.md).
 
 #### Device-specific include path
 
@@ -470,6 +470,6 @@ Update:
 ## Next steps
 
 - Will the PRU be controlled by a core running MCU+ SDK? Continue to
-  [Adding MCU+ Code to a New Project in the OpenPRU Repo](docs/open_pru_create_new_mcuplus_project.md).
+  [Adding MCU+ Code to a New Project in the OpenPRU Repo](./open_pru_create_new_mcuplus_project.md).
 - Are you done creating your PRU project? Continue to
   **the PRU Academy > Getting Started Labs > Lab 2: How to Write PRU Firmware**.
