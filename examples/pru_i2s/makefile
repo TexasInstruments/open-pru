@@ -1,6 +1,47 @@
 include ../../imports.mak
 
 #######################
+# Library build tools #
+#######################
+ifeq ($(CG_TOOL_ROOT),)
+  CC=$(CGT_TI_ARM_CLANG_PATH)/bin/tiarmclang
+  AR=$(CGT_TI_ARM_CLANG_PATH)/bin/tiarmar
+else
+  CC=$(CG_TOOL_ROOT)/bin/tiarmclang
+  AR=$(CG_TOOL_ROOT)/bin/tiarmar
+endif
+
+CFLAGS_AM261X := -mcpu=cortex-r5 -mfloat-abi=hard -mfpu=vfpv3-d16 -mthumb -Wall -Werror -g -Wno-gnu-variable-sized-type-not-at-end -Wno-unused-function -Os
+CFLAGS_AM263X := -mcpu=cortex-r5 -mfloat-abi=hard -mfpu=vfpv3-d16 -mthumb -Wall -Werror -g -Wno-gnu-variable-sized-type-not-at-end -Wno-unused-function -Os
+
+INCLUDES_AM261X := \
+	-I$(MCU_PLUS_SDK_PATH)/source \
+	-I$(OPEN_PRU_PATH)/source \
+	-I$(MCU_PLUS_SDK_PATH)/source/kernel/freertos/FreeRTOS-Kernel/include \
+	-I$(MCU_PLUS_SDK_PATH)/source/kernel/freertos/portable/TI_ARM_CLANG/ARM_CR5F \
+	-I$(MCU_PLUS_SDK_PATH)/source/kernel/freertos/config/am261x/r5f \
+	-I./include \
+	-I./firmware \
+	-I. \
+	-I.. \
+	-I$(OPEN_PRU_PATH)/examples
+
+INCLUDES_AM263X := \
+	-I$(MCU_PLUS_SDK_PATH)/source \
+	-I$(OPEN_PRU_PATH)/source \
+	-I$(MCU_PLUS_SDK_PATH)/source/kernel/freertos/FreeRTOS-Kernel/include \
+	-I$(MCU_PLUS_SDK_PATH)/source/kernel/freertos/portable/TI_ARM_CLANG/ARM_CR5F \
+	-I$(MCU_PLUS_SDK_PATH)/source/kernel/freertos/config/am263x/r5f \
+	-I./include \
+	-I./firmware \
+	-I. \
+	-I.. \
+	-I$(OPEN_PRU_PATH)/examples
+
+DEFINES_AM261X := -DSOC_AM261X -DOS_FREERTOS
+DEFINES_AM263X := -DSOC_AM263X -DOS_FREERTOS
+
+#######################
 # project information #
 #######################
 
@@ -104,14 +145,20 @@ am261x:
 	$(MAKE) -C firmware/TDM4/pru0_tx/am261x-lp/icssm0-pru0_fw/ti-pru-cgt $(ARGUMENTS_PRU)
 	$(MAKE) -C firmware/TDM4/pru1_rx/am261x-lp/icssm0-pru1_fw/ti-pru-cgt $(ARGUMENTS_PRU)
 
-am261x_mcuplus:
-# am261x-lp - Build driver library (always rebuild by removing old lib and objects first)
-	$(RM) lib/pru_i2s.am261x.r5f.ti-arm-clang.*.lib
-	$(RMDIR) lib/am261x/r5f/ti-arm-clang/obj
-	mkdir -p lib/am261x/r5f/ti-arm-clang
-	$(MAKE) -C lib/am261x/r5f/ti-arm-clang $(ARGUMENTS_MCUPLUS)
+am261x_mcuplus: build_lib_am261x
 # am261x-lp - R5F application
 	$(MAKE) -C pru_i2s_app/am261x-lp/r5fss0-0_freertos/ti-arm-clang $(ARGUMENTS_MCUPLUS)
+
+build_lib_am261x:
+# am261x-lp - Build driver library (always rebuild by removing old lib and objects first)
+	$(RM) lib/pru_i2s.am261x.r5f.ti-arm-clang.*.lib lib/pru_i2s_*_am261x.obj
+	$(MKDIR) lib
+	@echo "Building pru_i2s library for am261x..."
+	$(CC) -c $(CFLAGS_AM261X) $(INCLUDES_AM261X) $(DEFINES_AM261X) -o lib/pru_i2s_drv_am261x.obj driver/pru_i2s_drv.c
+	$(CC) -c $(CFLAGS_AM261X) $(INCLUDES_AM261X) $(DEFINES_AM261X) -o lib/pru_i2s_app_config_am261x.obj pru_i2s_app/pru_i2s_app_config.c
+	$(AR) rc lib/pru_i2s.am261x.r5f.ti-arm-clang.release.lib lib/pru_i2s_drv_am261x.obj lib/pru_i2s_app_config_am261x.obj
+	$(RM) lib/pru_i2s_*_am261x.obj
+	@echo "Library build complete."
 
 am263x:
 # am263x-cc - I2S protocol
@@ -121,13 +168,19 @@ am263x:
 	$(MAKE) -C firmware/TDM4/pru0_tx/am263x-cc/icssm0-pru0_fw/ti-pru-cgt $(ARGUMENTS_PRU)
 	$(MAKE) -C firmware/TDM4/pru1_rx/am263x-cc/icssm0-pru1_fw/ti-pru-cgt $(ARGUMENTS_PRU)
 
-am263x_mcuplus:
-# am263x-cc - Build driver library (always rebuild by removing old lib and objects first)
-	$(RM) lib/pru_i2s.am263x.r5f.ti-arm-clang.*.lib
-	$(RMDIR) lib/am263x/r5f/ti-arm-clang/obj
-	mkdir -p lib/am263x/r5f/ti-arm-clang
-	$(MAKE) -C lib/am263x/r5f/ti-arm-clang $(ARGUMENTS_MCUPLUS)
+am263x_mcuplus: build_lib_am263x
 # am263x-cc - R5F application
 	$(MAKE) -C pru_i2s_app/am263x-cc/r5fss0-0_freertos/ti-arm-clang $(ARGUMENTS_MCUPLUS)
+
+build_lib_am263x:
+# am263x-cc - Build driver library (always rebuild by removing old lib and objects first)
+	$(RM) lib/pru_i2s.am263x.r5f.ti-arm-clang.*.lib lib/pru_i2s_*_am263x.obj
+	$(MKDIR) lib
+	@echo "Building pru_i2s library for am263x..."
+	$(CC) -c $(CFLAGS_AM263X) $(INCLUDES_AM263X) $(DEFINES_AM263X) -o lib/pru_i2s_drv_am263x.obj driver/pru_i2s_drv.c
+	$(CC) -c $(CFLAGS_AM263X) $(INCLUDES_AM263X) $(DEFINES_AM263X) -o lib/pru_i2s_app_config_am263x.obj pru_i2s_app/pru_i2s_app_config.c
+	$(AR) rc lib/pru_i2s.am263x.r5f.ti-arm-clang.release.lib lib/pru_i2s_drv_am263x.obj lib/pru_i2s_app_config_am263x.obj
+	$(RM) lib/pru_i2s_*_am263x.obj
+	@echo "Library build complete."
 
 .PHONY: all clean pru host pre_build_message $(DEVICE) $(DEVICE_NON_PRU) $(SUPPORTED_PROCESSORS)
