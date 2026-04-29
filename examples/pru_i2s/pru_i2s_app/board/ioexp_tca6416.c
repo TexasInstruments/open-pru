@@ -106,13 +106,7 @@ int32_t TCA6416_open(TCA6416_Config *config, const TCA6416_Params *params)
 
 void TCA6416_close(TCA6416_Config *config)
 {
-    int32_t         status = SystemP_SUCCESS;
-
-    if(NULL == config)
-    {
-        status = SystemP_FAILURE;
-    }
-    else
+    if(NULL != config)
     {
         /* I2C Driver will be closed outside flash */
         config->i2cHandle = NULL;

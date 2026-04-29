@@ -65,11 +65,13 @@ INCLUDES_common := \
 	-I${CG_TOOL_ROOT}/include/c \
 	-I${MCU_PLUS_SDK_PATH}/source \
 	-I${OPEN_PRU_PATH}/source \
+	-I${OPEN_PRU_PATH}/examples/pru_i2s/include \
+	-I${OPEN_PRU_PATH}/examples/pru_i2s/firmware \
+	-I${OPEN_PRU_PATH}/examples/pru_i2s/pru_i2s_app \
 	-I${MCU_PLUS_SDK_PATH}/source/kernel/freertos/FreeRTOS-Kernel/include \
 	-I${MCU_PLUS_SDK_PATH}/source/kernel/freertos/portable/TI_ARM_CLANG/ARM_CR5F \
 	-I${MCU_PLUS_SDK_PATH}/source/kernel/freertos/config/am261x/r5f \
 	-I${MCU_PLUS_SDK_PATH}/source/pru_io/driver \
-	-I${OPEN_PRU_PATH}/examples/pru_i2s \
 	-Igenerated \
 
 DEFINES_common := \
@@ -181,7 +183,14 @@ $(OBJDIR)/%.obj %.obj: %.S
 	@echo  Compiling: am261x:r5fss0-0:freertos:ti-arm-clang $(LIBNAME): $<
 	$(CC) -c $(CFLAGS) -o $(OBJDIR)/$@ $<
 
-all: $(TARGETS)
+all: build_lib_if_needed $(TARGETS)
+
+build_lib_if_needed:
+	@if [ ! -f ../../../../lib/pru_i2s.am261x.r5f.ti-arm-clang.$(PROFILE).lib ]; then \
+		echo "Building pru_i2s library..."; \
+		mkdir -p ../../../../lib/am261x/r5f/ti-arm-clang; \
+		$(MAKE) -C ../../../../lib/am261x/r5f/ti-arm-clang all PROFILE=$(PROFILE); \
+	fi
 
 SYSCFG_GEN_FILES=generated/ti_drivers_config.c generated/ti_drivers_config.h
 SYSCFG_GEN_FILES+=generated/ti_drivers_open_close.c generated/ti_drivers_open_close.h
@@ -197,6 +206,12 @@ ifeq ($(SYSTEM_FLAG), false)
 else
 	SYSTEM_COMMAND := $(OBJS) $(LNK_FILES) $(LIBS_NAME)
 endif
+
+# Build pru_i2s library as a prerequisite
+pru_i2s.am261x.r5f.ti-arm-clang.$(PROFILE).lib: FORCE
+	$(MAKE) -C ../../../../lib/am261x/r5f/ti-arm-clang all
+
+FORCE:
 
 $(OUTNAME):  $(SYSTEM_COMMAND)
 	@echo  .

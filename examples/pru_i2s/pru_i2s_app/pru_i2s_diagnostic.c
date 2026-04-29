@@ -145,11 +145,11 @@
 #include "ti_drivers_open_close.h"
 #include "ti_board_open_close.h"
 #include "data.h"
-#include "include/pru_i2s_drv.h"
-#include "pru_i2s_app/pru_i2s_app_config.h"
+#include "pru_i2s_drv.h"
+#include "pru_i2s_app_config.h"
 
 #ifdef SOC_AM263X
-#include <pru_i2s_app/board/ioexp_tca6416.h>
+#include "board/ioexp_tca6416.h"
 #endif
 
 /* Firmware selection based on mode and enabled instances */
@@ -157,18 +157,18 @@
 #if (CONFIG_I2S0_MODE == TDM_MODE)
     /* TDM Mode firmware */
     #if defined(CONFIG_PRU_I2S0_ENABLED) && (CONFIG_PRU_I2S0_ENABLED == 1)
-        #include "firmware/TDM4/pru_i2s_tdm4_pru0_array.h"  /* PRU0 TDM firmware */
+        #include "TDM4/pru_i2s_tdm4_pru0_array.h"  /* PRU0 TDM firmware */
     #endif
     #if defined(CONFIG_PRU_I2S1_ENABLED) && (CONFIG_PRU_I2S1_ENABLED == 1)
-        #include "firmware/TDM4/pru_i2s_tdm4_pru1_array.h"  /* PRU1 TDM firmware */
+        #include "TDM4/pru_i2s_tdm4_pru1_array.h"  /* PRU1 TDM firmware */
     #endif
 #else
     /* I2S Mode firmware */
     #if defined(CONFIG_PRU_I2S0_ENABLED) && (CONFIG_PRU_I2S0_ENABLED == 1)
-        #include "pru_i2s/firmware/I2S/pru_i2s_pru0_array.h"  /* PRU0 I2S firmware */
+        #include "I2S/pru_i2s_pru0_array.h"  /* PRU0 I2S firmware */
     #endif
     #if defined(CONFIG_PRU_I2S1_ENABLED) && (CONFIG_PRU_I2S1_ENABLED == 1)
-        #include "pru_i2s/firmware/I2S/pru_i2s_pru1_array.h"  /* PRU1 I2S firmware */
+        #include "I2S/pru_i2s_pru1_array.h"  /* PRU1 I2S firmware */
     #endif
 #endif
 
