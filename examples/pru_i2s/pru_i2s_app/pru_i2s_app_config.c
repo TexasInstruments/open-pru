@@ -43,9 +43,9 @@
  *  - Instance enable flags
  */
 
-#include "include/pru_i2s_config.h"
-#include "include/pru_i2s_drv.h"
-#include "pru_i2s_app/pru_i2s_app_config.h"
+#include "pru_i2s_config.h"
+#include "pru_i2s_drv.h"
+#include "pru_i2s_app_config.h"
 
 /* ========================================================================== */
 /*                          USER CONFIGURATION                                 */

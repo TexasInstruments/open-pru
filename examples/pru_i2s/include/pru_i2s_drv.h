@@ -46,7 +46,7 @@
 #include <kernel/dpl/AddrTranslateP.h>
 #include <kernel/dpl/HwiP.h>
 #include <kernel/dpl/SemaphoreP.h>
-#include <firmware/TDM4/icss_pru_i2s_fw.h>
+#include "TDM4/icss_pru_i2s_fw.h"
 /* Number of ICSS instances */
 #define PRUI2S_NUM_ICSS_INST            ( 2 )
 /* Number of PRU instances per ICSS */

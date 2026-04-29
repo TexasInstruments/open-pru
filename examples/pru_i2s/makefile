@@ -57,6 +57,18 @@ endif
 # Make and clean commands #
 ###########################
 
+# "make pru" builds PRU firmware for all supported devices
+pru: ARGUMENTS_PRU = all
+pru: ARGUMENTS_MCUPLUS = all
+pru: MESSAGE = "Building $(PROJECT_NAME) PRU firmware"
+pru: pre_build_message $(SUPPORTED_PROCESSORS)
+
+# "make host" builds host (R5F/ARM) code for specified DEVICE
+host: ARGUMENTS_PRU = pru
+host: ARGUMENTS_MCUPLUS = all
+host: MESSAGE = "Building $(PROJECT_NAME) host code for $(DEVICE)"
+host: pre_build_message $(DEVICE_NON_PRU)
+
 ifeq ($(BUILD_PROJECT),y)
 # "make" or "make all" builds projects that match $(DEVICE) set in imports.mak
 all: ARGUMENTS_PRU = all
@@ -93,7 +105,10 @@ am261x:
 	$(MAKE) -C firmware/TDM4/pru1_rx/am261x-lp/icssm0-pru1_fw/ti-pru-cgt $(ARGUMENTS_PRU)
 
 am261x_mcuplus:
-# am261x-lp - Build driver library
+# am261x-lp - Build driver library (always rebuild by removing old lib and objects first)
+	$(RM) lib/pru_i2s.am261x.r5f.ti-arm-clang.*.lib
+	$(RMDIR) lib/am261x/r5f/ti-arm-clang/obj
+	mkdir -p lib/am261x/r5f/ti-arm-clang
 	$(MAKE) -C lib/am261x/r5f/ti-arm-clang $(ARGUMENTS_MCUPLUS)
 # am261x-lp - R5F application
 	$(MAKE) -C pru_i2s_app/am261x-lp/r5fss0-0_freertos/ti-arm-clang $(ARGUMENTS_MCUPLUS)
@@ -107,9 +122,12 @@ am263x:
 	$(MAKE) -C firmware/TDM4/pru1_rx/am263x-cc/icssm0-pru1_fw/ti-pru-cgt $(ARGUMENTS_PRU)
 
 am263x_mcuplus:
-# am263x-cc - Build driver library
+# am263x-cc - Build driver library (always rebuild by removing old lib and objects first)
+	$(RM) lib/pru_i2s.am263x.r5f.ti-arm-clang.*.lib
+	$(RMDIR) lib/am263x/r5f/ti-arm-clang/obj
+	mkdir -p lib/am263x/r5f/ti-arm-clang
 	$(MAKE) -C lib/am263x/r5f/ti-arm-clang $(ARGUMENTS_MCUPLUS)
 # am263x-cc - R5F application
 	$(MAKE) -C pru_i2s_app/am263x-cc/r5fss0-0_freertos/ti-arm-clang $(ARGUMENTS_MCUPLUS)
 
-.PHONY: all clean pre_build_message $(DEVICE) $(DEVICE_NON_PRU) $(SUPPORTED_PROCESSORS)
+.PHONY: all clean pru host pre_build_message $(DEVICE) $(DEVICE_NON_PRU) $(SUPPORTED_PROCESSORS)
