@@ -3,9 +3,11 @@
 This document is a checklist for the open-pru repo maintainers when they are
 tagging a new version of the open-pru repo. Most users can ignore this document.
 
-[Test SDK releases](#test-sdk-releases)  
-[Update the year](#update-the-year)  
-[Update release notes](#update-release-notes)  
+[Test SDK releases](#test-sdk-releases)
+[Update CI matrix SDK versions](#update-ci-matrix-sdk-versions)
+[Update the .metadata version](#update-the-metadata-version)
+[Update the year](#update-the-year)
+[Update release notes](#update-release-notes)
 
 ## Test SDK releases
 
@@ -71,6 +73,21 @@ Test all of DEVICE ?=
 am62x, am64x
 
 FIXME: Fill in the rest of this section after adding Linux support.
+
+## Update SDK versions in Github workflows
+
+Update the SDK versions in these github workflows to match the
+SDK versions that were validated during [Test SDK releases](#test-sdk-releases):
+
+* `.github/workflows/makefile.yml`
+* `.github/workflows/ccs_build.yml`
+
+## Update the .metadata version
+
+Update the OpenPRU version field to the new release tag (e.g. `2026.01.00`) in
+this file:
+
+`.metadata/.tirex/package.tirex.json`
 
 ## Update the year
 

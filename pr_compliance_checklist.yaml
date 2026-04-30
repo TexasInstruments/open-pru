@@ -181,4 +181,81 @@ pr_compliances:
       - "Missing constant definitions"
       - "Undocumented magic numbers"
       - "Unclear value meanings"
-      
+
+  - title: "Contributing Requirements Drift"
+    compliance_label: true
+    objective: "Keep pr_compliance_checklist.yaml in sync when contribution requirements change in docs/contributing.md"
+    success_criteria: |
+      - "If docs/contributing.md was not modified, this check is not applicable"
+      - "If docs/contributing.md was modified, pr_compliance_checklist.yaml was also modified in the same PR"
+    failure_criteria: |
+      - "PR modifies docs/contributing.md without a corresponding change to pr_compliance_checklist.yaml"
+
+  - title: "AI Documentation Drift"
+    compliance_label: true
+    objective: "Keep docs_ai/ runbooks accurate when project structure or build patterns change"
+    success_criteria: |
+      - "If the PR changes project structure, file naming conventions, makefile patterns, CCS build infrastructure, adds a new device/board, or adds/removes a shared library in source/, the PR author has checked docs_ai/ and updated any runbook that no longer accurately describes the patterns"
+      - "If no docs_ai/ runbook is affected, the PR description states this explicitly"
+    failure_criteria: |
+      - "PR adds a new project directory without confirming docs_ai/task_create_project.md still accurately describes the creation process"
+      - "PR changes makefile patterns or CCS projectspec patterns used across projects without updating docs_ai/ runbooks that document those patterns"
+      - "PR adds a new supported device or board without checking whether docs_ai/task_port_project.md needs updating"
+      - "PR adds or removes a shared library in source/ without checking whether docs_ai/ runbooks reference that library"
+
+  - title: "Tabs in Assembly and C Source Files"
+    compliance_label: true
+    objective: "Ensure assembly and C source files use spaces for indentation, not tab characters (best_practices.md §General Remarks)"
+    success_criteria: |
+      - "All .asm, .inc, .c, and .h source files use spaces only — no tab characters"
+      - "Exempt file types: linker.cmd, makefile, makefile_projectspec, makefile_ccs_bootimage_gen, and other build infrastructure files — tab characters are acceptable in those files"
+    failure_criteria: |
+      - "Any .asm, .inc, .c, or .h file containing tab characters"
+
+  - title: "Bugfix: Shared Library Impact"
+    compliance_label: true
+    objective: "Ensure that bugfixes to shared libraries in source/ do not silently break other projects (docs/contributing.md §'Adding a bugfix')"
+    success_criteria: |
+      - "If the PR does not modify any file under source/, this check is not applicable"
+      - "If a file in source/ was modified, the PR author has identified all projects that include or link that file and confirmed they are not broken"
+    failure_criteria: |
+      - "PR modifies a file in source/ without evidence that dependent projects were checked for breakage"
+
+  - title: "Feature: README Update for Behavioral Changes"
+    compliance_label: true
+    objective: "Ensure the project README is updated when a feature changes user-visible behavior or hardware requirements (docs/contributing.md §'Adding a feature to an existing project')"
+    success_criteria: |
+      - "If the feature does not change user-visible behavior or hardware requirements, this check is not applicable"
+      - "If user-visible behavior or hardware requirements changed, the project README is updated to reflect the change"
+    failure_criteria: |
+      - "PR adds or modifies a feature that changes user-visible behavior without updating the project README"
+      - "PR adds or modifies a feature that changes hardware requirements without updating the project README"
+
+  - title: "Port: Documentation Update Requirements"
+    compliance_label: true
+    objective: "Ensure documentation is updated when porting a project to a new processor or board (docs/contributing.md §'Porting a project to a new processor or board')"
+    success_criteria: |
+      - "If no porting to a new processor or board was performed, this check is not applicable"
+      - "Project README 'Validated HW & SW' section is updated with the hardware and SDK/tool versions for the new board"
+      - "Portability table in the parent section-level readme (examples/readme.md or academy/readme.md) is updated with the new board or device"
+    failure_criteria: |
+      - "PR adds firmware for a new board without updating the README 'Validated HW & SW' section for that board"
+      - "PR adds a new device or board without updating the portability table in the parent section-level readme"
+
+  - title: "New Project Documentation Requirements"
+    compliance_label: true
+    objective: "Ensure every new project directory includes complete documentation as required by docs/contributing.md"
+    success_criteria: |
+      - "If no new project directory was added, this check is not applicable"
+      - "New project directory contains README.md"
+      - "README includes an overview of what the project does"
+      - "README includes a 'Supported Combinations' section"
+      - "README includes a 'Validated HW & SW' section that specifies the exact hardware (including board revision) and the exact SDK and tool versions used during hardware validation"
+      - "README includes project-specific steps to run the example and validate the outputs"
+      - "Project is listed in the parent section-level readme (examples/readme.md or academy/readme.md) under '## Projects' with a 1–2 sentence description"
+      - "Project is added to the '## Supported processors per-project' portability table with correct Y/Yport/Npru/N-hw/N-sw entries; unknown compatibility is marked with a FIXME comment"
+    failure_criteria: |
+      - "New project directory added without a README.md"
+      - "README missing 'Validated HW & SW' section, or section does not specify SDK/tool versions or board revision"
+      - "README missing project-specific steps to run and validate the example"
+      - "New project not listed in the parent section-level readme or portability table"

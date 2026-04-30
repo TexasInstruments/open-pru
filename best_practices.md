@@ -370,7 +370,44 @@ continue:
     lbbo    &r2, r1, 0, 16     ; Load 16 bytes (4 registers)
 ```
 
-## C Code Best Practices
+## PRU C Firmware Best Practices
+
+This section covers C code compiled for **PRU cores** using the TI PRU C/C++
+compiler (clpru). For C code running on MCU+ host cores (R5F or A53), see
+[C Code Best Practices (MCU+ Host Cores)](#c-code-best-practices-mcu-host-cores).
+
+### File Structure
+
+```c
+/*
+ * SPDX-License-Identifier: <license, usually BSD-3-Clause>
+ * Copyright (C) <Year> Texas Instruments Incorporated
+ *
+ * Brief file description
+ */
+
+#include <stdint.h>
+
+int main(void)
+{
+    /* Initialization */
+
+    /* Main loop or one-shot logic */
+
+    __halt();
+}
+```
+
+Key conventions:
+- Copyright header is required on all source files (see General Remarks).
+- Use FIXME (not TODO) for pending work markers.
+- Column limits: no text beyond column 79 (soft), column 129 (hard).
+
+## C Code Best Practices (MCU+ Host Cores)
+
+These practices apply to C code running on **MCU+ host cores** (R5F or A53)
+using the TI ARM Clang compiler. For C firmware running on PRU cores, see
+[PRU C Firmware Best Practices](#pru-c-firmware-best-practices) above.
 
 ### Host Application Structure
 
@@ -458,21 +495,9 @@ void write_pru_command(uint32_t command, uint32_t *data, uint32_t length)
 ## Project Structure
 
 ### Directory Organization
-```
-project_name/
-├── .project/                   # Build configuration
-│   ├── project.js
-│   └── project_device.js
-├── firmware/                   # PRU firmware
-│   ├── main.asm               # Main assembly file
-│   ├── macros.inc             # Custom macros
-│   └── device_specific/       # Device-specific code
-├── host_app/                  # R5F/A53 application
-│   └── main.c
-├── include/                   # Shared headers
-├── docs/                      # Documentation
-└── README.md
-```
+
+See [docs/open_pru_organization.md](./docs/open_pru_organization.md) for the
+authoritative project and repository layout.
 
 ### File Naming Conventions
 - Assembly files: `main.asm`, `spi_driver.asm`
@@ -874,7 +899,7 @@ m_good_macro .macro PARAM
     .endm
 ```
 
-### C Code Pitfalls
+### C Code Pitfalls (MCU+ Host)
 
 #### 1. Shared Memory Race Conditions
 ```c
