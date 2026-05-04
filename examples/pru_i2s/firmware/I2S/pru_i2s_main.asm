@@ -42,7 +42,7 @@
 main:
 	.if	$isdefed("I2S_TX")
 	;err_stat = err_stat >> 1. Remove the Rx Overflow error bit.
-	LSR err_stat, err_stat, 1
+	lsr err_stat, err_stat, 1
 	;If there was an underflow/FrameSync Error, clearup thr Tx PingPong Buffer space
 	;err_stat is already initialized during normal operation.
 	; FS_ERROR	UNDERFLOW_ERROR
@@ -50,27 +50,27 @@ main:
 	;    0          1		Under Flow error
 	;    1          0       FS Error
 	;    1          1       Both errors
-	QBEQ CONTIUNE_INIT, err_stat, 0
+	qbeq CONTIUNE_INIT, err_stat, 0
 	;If set, this means underflow has happened.
 	;Below Initializations can be avoided but after power on, registers
 	;may contain random addresses and may result in accessing illegal addresses.
-	LDI 	ch0_data_tx, 0x0
-	LDI	scratchreg0, 0x0
-	LDI	tx_buf_size, 0x0
-	LDI		scratchreg0, I2S_TX_BUF_PING_ADD
-	LBBO	&tx_ping_buffer_address, scratchreg0, 0, 4
-	LDI		scratchreg0, I2S_PING_PONG_BUFSIZE_ADD
-	LBBO	&tx_buf_size, scratchreg0, 0, 2
-	ADD		tx_buffer_address_end, tx_ping_buffer_address, tx_buf_size
+	ldi 	ch0_data_tx, 0x0
+	ldi	scratchreg0, 0x0
+	ldi	tx_buf_size, 0x0
+	ldi		scratchreg0, I2S_TX_BUF_PING_ADD
+	lbbo	&tx_ping_buffer_address, scratchreg0, 0, 4
+	ldi		scratchreg0, I2S_PING_PONG_BUFSIZE_ADD
+	lbbo	&tx_buf_size, scratchreg0, 0, 2
+	add		tx_buffer_address_end, tx_ping_buffer_address, tx_buf_size
 ZERO_TX_PING_PONG:
-	SBBO	&ch0_data_tx, tx_ping_buffer_address, 0, 4
-	ADD		tx_ping_buffer_address, tx_ping_buffer_address, 0x4
-	QBGT	ZERO_TX_PING_PONG, tx_ping_buffer_address, tx_buffer_address_end
+	sbbo	&ch0_data_tx, tx_ping_buffer_address, 0, 4
+	add		tx_ping_buffer_address, tx_ping_buffer_address, 0x4
+	qbgt	ZERO_TX_PING_PONG, tx_ping_buffer_address, tx_buffer_address_end
 	.endif
 
 CONTIUNE_INIT:
 	;Clear registers R0-R29. 4*30=120 bytes
-	ZERO 	&r0, 128
+	zero 	&r0, 128
 	; Load pin mask registers
 	.if	$isdefed("I2S_TX")
     LDI   i2s_instance_fs_pin_pos, I2S_INSTANCE_FS_PIN_POS
