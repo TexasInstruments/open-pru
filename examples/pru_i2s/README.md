@@ -361,6 +361,30 @@ Configurable parameters in `firmware/I2S/pru_i2s_interface.h` or `firmware/TDM4/
 #define MAX_TDM_CHANNELS           <max_slots>
 ```
 
+#### FW Register Map
+
+`fw_regs.asm` (`firmware/I2S/` and `firmware/TDM4/`) lays out a fixed-layout status/config struct at DMEM offset 0 of each PRU core, shared between the firmware and the R5F driver (`icss_pru_i2s_fw.h` defines the same offsets on the C side). This is the entire handshake surface between the R5F and the PRU — the driver reads/writes these fields directly via `HW_RD/WR_REG*`, there is no other channel.
+
+| Offset | Size | Field | Direction | Description |
+|--------|------|-------|-----------|--------------|
+| 0x00 | 1B | `NUM_TX_I2S` | FW→R5F (build-time constant) | Number of TX channels this firmware build was assembled for (0, 2, or 3) |
+| 0x01 | 1B | `NUM_RX_I2S` | FW→R5F (build-time constant) | Number of RX channels (0 or 2) |
+| 0x02 | 1B | `SAMP_FREQ` | FW→R5F (build-time constant) | Sample rate identifier emitted by the build (currently a fixed value, not a literal Hz encoding) |
+| 0x04 | 4B | `TX_PING_PONG_BUF_ADDR` | FW→R5F (build-time constant) | Base address of the TX ping+pong buffer in PRU Shared RAM (e.g. `0x10000` for PRU0, `0x10200` for PRU1) |
+| 0x08 | 2B | `PING_PONG_BUF_SZ` | FW→R5F (build-time constant) | Combined ping+pong buffer size in bytes (each half is `PING_PONG_BUF_SZ/2`) |
+| 0x0A | 1B | `I2S_TX_ICSS_INTC_SYS_EVT` | FW→R5F (build-time constant) | ICSS INTC system event number used for the TX-complete interrupt |
+| 0x0B | 1B | `I2S_RX_ICSS_INTC_SYS_EVT` | FW→R5F (build-time constant) | ICSS INTC system event number used for the RX-complete interrupt |
+| 0x0C | 1B | `I2S_ERR_ICSS_INTC_SYS_EVT` | FW→R5F (build-time constant) | ICSS INTC system event number used for the error interrupt |
+| 0x0D-0x13 | 1B each | `PIN_NUM_BCLK`/`FSYNC`/`TX0`/`TX1`/`TX2`/`RX0`/`RX1` | FW→R5F (build-time constant) | Legacy PRU GPIO pin numbers for each signal; pinmux is now driven by SysConfig, these fields are no longer consulted by the driver |
+| 0x14 | 4B | `RX_PING_PONG_BUF_ADDR` | FW→R5F (build-time constant) | Base address of the RX ping+pong buffer in PRU Shared RAM (e.g. `0x10100` for PRU0, `0x10300` for PRU1) |
+| 0x18 | 1B | `TX_PING_PONG_SEL` | FW→R5F (runtime) | Which TX half (PING=0/PONG=1) the firmware is currently consuming |
+| 0x19 | 1B | `RX_PING_PONG_SEL` | FW→R5F (runtime) | Which RX half (PING=0/PONG=1) the firmware is currently filling |
+| 0x1A | 1B | `TX_PING_PONG_STAT` | R5F→FW (runtime) | bit0/bit1 = PING/PONG has valid data queued for transmit; set by the driver after `PRUI2S_write()`, cleared by firmware once consumed |
+| 0x1B | 1B | `RX_PING_PONG_STAT` | R5F→FW (runtime) | bit0/bit1 = PING/PONG has been drained by the host; cleared by the driver after `PRUI2S_read()`, set by firmware once filled |
+| 0x1C | 1B | `ERR_STAT` | FW→R5F (runtime) | bit0 = RX overflow, bit1 = TX underflow, bit2 = frame-sync error; cleared by the driver via `PRUI2S_clearErrStat()` |
+
+All offsets are relative to `ICSS_PRUI2S_FW_REG_BASE` (0x0000) within each PRU's own local DMEM — PRU0 and PRU1 each have an independent copy of this struct. `TX_PING_PONG_BUF_ADDR` is a PRU Shared-RAM *offset*; `RX_PING_PONG_BUF_ADDR` in this driver is treated as an R5F-side *absolute* address instead — this asymmetry is intentional (RX buffers may live in OCRAM/DDR/etc.) but is not enforced by the type system, so pass the right kind of address for each field.
+
 ---
 
 ## Testing

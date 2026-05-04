@@ -40,6 +40,70 @@
 
 /* Application calls PRUICSS_intcInit() directly (Motor Control SDK pattern) */
 
+/* Used to check status and initialization */
+static Bool gPruI2sDrvInit = FALSE;
+
+/* Number of valid configurations */
+static uint8_t gPruI2sDrvNumValidCfg = 0;
+
+/* PRU I2S objects */
+static PRUI2S_Object gPruI2sObject[PRU_I2S_MAX_NUM_INST];
+
+/* PRU I2S SW IP attributes - Minimal configuration
+ * All INTC, GPIO, and pinmux now managed by SysConfig.
+ * Only essential base configuration remains here.
+ * NOTE: Applications must call PRUI2S_setUserConfig() to configure ICSS instance
+ * and PRU core before calling PRUI2S_init().
+ */
+static PRUI2S_SwipAttrs gPruI2sSwipAttrs[PRU_I2S_MAX_NUM_INST] =
+{
+    /* Configuration 0 - Set by PRUI2S_setUserConfig() */
+    {
+        .baseAddr = 0,                      /* Set by PRUI2S_setUserConfig() based on ICSS instance */
+        .icssInstId = 0,                    /* Set by PRUI2S_setUserConfig() */
+        .pruInstId = PRUICSS_PRU0,          /* Set by PRUI2S_setUserConfig() */
+        .numTxI2s = 0,                      /* Detected from firmware at runtime */
+        .numRxI2s = 0,                      /* Detected from firmware at runtime */
+        .sampFreq = 0,                      /* Detected from firmware at runtime */
+        .bitsPerSlot = 0,                   /* Detected from firmware at runtime */
+        .i2sTxHostIntNum = 0,               /* Detected from firmware at runtime */
+        .i2sRxHostIntNum = 0,               /* Detected from firmware at runtime */
+        .i2sErrHostIntNum = 0,              /* Detected from firmware at runtime */
+        .i2sTxIcssIntcSysEvt = 0,           /* Detected from firmware at runtime */
+        .i2sRxIcssIntcSysEvt = 0,           /* Detected from firmware at runtime */
+        .i2sErrIcssIntcSysEvt = 0,          /* Detected from firmware at runtime */
+    },
+    /* Configuration 1 - Set by PRUI2S_setUserConfig() */
+    {
+        .baseAddr = 0,                      /* Set by PRUI2S_setUserConfig() based on ICSS instance */
+        .icssInstId = 0,                    /* Set by PRUI2S_setUserConfig() */
+        .pruInstId = PRUICSS_PRU1,          /* Set by PRUI2S_setUserConfig() */
+        .numTxI2s = 0,                      /* Detected from firmware at runtime */
+        .numRxI2s = 0,                      /* Detected from firmware at runtime */
+        .sampFreq = 0,                      /* Detected from firmware at runtime */
+        .bitsPerSlot = 0,                   /* Detected from firmware at runtime */
+        .i2sTxHostIntNum = 0,               /* Detected from firmware at runtime */
+        .i2sRxHostIntNum = 0,               /* Detected from firmware at runtime */
+        .i2sErrHostIntNum = 0,              /* Detected from firmware at runtime */
+        .i2sTxIcssIntcSysEvt = 0,           /* Detected from firmware at runtime */
+        .i2sRxIcssIntcSysEvt = 0,           /* Detected from firmware at runtime */
+        .i2sErrIcssIntcSysEvt = 0,          /* Detected from firmware at runtime */
+    }
+};
+
+/* PRU I2S configurations */
+static PRUI2S_Config gPruI2sConfig[PRU_I2S_NUM_CONFIG] =
+{
+    {
+        &gPruI2sObject[0],
+        &gPruI2sSwipAttrs[0]
+    },
+    {
+        &gPruI2sObject[1],
+        &gPruI2sSwipAttrs[1]
+    }
+};
+
 /*
  * Sets user configuration for a PRU I2S instance
  *
@@ -293,9 +357,24 @@ void PRUI2S_deinit(void)
             /* Get object pointer */
             pObj = gPruI2sConfig[i].object;
 
-            /* Destroy PRU instance lock */                
-            SemaphoreP_destruct(pObj->pruInstLock);
+            /* Destroy PRU instance lock */
+            if (pObj->pruInstLock != NULL)
+            {
+                SemaphoreP_destruct(&pObj->pruInstlockObj);
+                pObj->pruInstLock = NULL;
+            }
+
+            /* Reset per-object state to safe baseline */
+            pObj->pruIcssHandle = NULL;
+            pObj->isOpen = FALSE;
+            pObj->i2sTxHwiHandle = NULL;
+            pObj->i2sRxHwiHandle = NULL;
+            pObj->i2sErrHwiHandle = NULL;
         }
+
+        /* Reset driver init state so PRUI2S_init() can be called again */
+        gPruI2sDrvNumValidCfg = 0;
+        gPruI2sDrvInit = FALSE;
     }
 }
 
@@ -424,6 +503,7 @@ PRUI2S_Handle PRUI2S_open(
         if (pObj->pruIcssHandle == NULL)
         {
             status = PRUI2S_DRV_SERR_INV_PRMS;
+            goto fail;
         }
 
         if (status == SystemP_SUCCESS)
@@ -469,6 +549,11 @@ PRUI2S_Handle PRUI2S_open(
         {
             status = PRUI2S_checkOpenParams(pSwipAttrs, &pObj->prms);
         }
+
+        if (status != SystemP_SUCCESS)
+        {
+            goto fail;
+        }
     }
 
     if (status == SystemP_SUCCESS)
@@ -487,9 +572,6 @@ PRUI2S_Handle PRUI2S_open(
                 pObj->i2sTxHwiHandle = &pObj->i2sTxHwiObj;
             }
         }
-        else
-        {
-        }
 
         if (status == SystemP_SUCCESS && pObj->prms.i2sRxCallbackFxn != NULL)
         {
@@ -504,9 +586,6 @@ PRUI2S_Handle PRUI2S_open(
                 pObj->i2sRxHwiHandle = &pObj->i2sRxHwiObj;
             }
         }
-        else if (status == SystemP_SUCCESS)
-        {
-        }
 
         if (status == SystemP_SUCCESS && pObj->prms.i2sErrCallbackFxn != NULL)
         {
@@ -520,9 +599,6 @@ PRUI2S_Handle PRUI2S_open(
             {
                 pObj->i2sErrHwiHandle = &pObj->i2sErrHwiObj;
             }
-        }
-        else if (status == SystemP_SUCCESS)
-        {
         }
     }
 
@@ -548,8 +624,30 @@ PRUI2S_Handle PRUI2S_open(
     {
         pObj->isOpen = TRUE;
         handle = (PRUI2S_Handle)pCfg;
+        goto done;
     }
 
+fail:
+    /* Destruct any HWIs constructed so far and reset object state */
+    if (pObj->i2sTxHwiHandle != NULL)
+    {
+        HwiP_destruct(&pObj->i2sTxHwiObj);
+        pObj->i2sTxHwiHandle = NULL;
+    }
+    if (pObj->i2sRxHwiHandle != NULL)
+    {
+        HwiP_destruct(&pObj->i2sRxHwiObj);
+        pObj->i2sRxHwiHandle = NULL;
+    }
+    if (pObj->i2sErrHwiHandle != NULL)
+    {
+        HwiP_destruct(&pObj->i2sErrHwiObj);
+        pObj->i2sErrHwiHandle = NULL;
+    }
+    /* Reset pruIcssHandle so a future open can retry */
+    pObj->pruIcssHandle = NULL;
+
+done:
     /* Unlock instance */
     SemaphoreP_post(pObj->pruInstLock);
 

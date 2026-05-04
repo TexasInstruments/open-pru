@@ -83,7 +83,7 @@ clean:
 
 post-build:
 		-$(CG_TOOL_ROOT)/bin/hexpru --diag_wrap=off --array --array:name_prefix=pru_prupru_i2s0_image_0 -o pru_i2s_pru0_array.h  pru_i2s_pru0_array_am263x-cc_icssm0-pru0_fw_ti-pru-cgt.out
-		-$(CAT) ${OPEN_PRU_PATH}/source/pru_io/firmware/pru_load_bin_copyright.h pru_i2s_pru0_array.h > ${OPEN_PRU_PATH}/examples/pru_i2s/firmware/I2S/pru_i2s_pru0_array.h
+		-$(CAT) ${OPEN_PRU_PATH}/source/firmware/pru_load_bin_copyright.h pru_i2s_pru0_array.h > ${OPEN_PRU_PATH}/examples/pru_i2s/firmware/I2S/pru_i2s_pru0_array.h
 		-$(RM) pru_i2s_pru0_array.h
 	-@echo ' '
 

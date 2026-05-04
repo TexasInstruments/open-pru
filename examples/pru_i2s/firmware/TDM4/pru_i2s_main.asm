@@ -426,7 +426,7 @@ RESET_SD_COUNTER:
 	; reset fs_counter and wait for falling edge
 	LDI	tx_sd_counter, I2S_SAMPLES_PER_CHANNEL_LESS_1
 	QBGE 	TX_DATA_LOADING, current_channel_no, TDM_CHANNELS
-	LDI32 	ch0_data_tx,0
+	LDI 	ch0_data_tx,0
 	QBA 	TX_DATA_LOADING_DONE
 TX_DATA_LOADING:
 	MOV ch0_data_tx, scratchreg0
