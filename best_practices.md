@@ -727,6 +727,13 @@ Compiler does not support forward declarations of symbols via the .set directive
 
 ## Header File include rules
 - It is recommended to include only header files required in .asm sources
+- Use the backslash character (`\`) in PRU assembly `.include` paths for
+  cross-platform compatibility with the PRU assembler. Do not use forward
+  slash (`/`) separators in `.include` operands.
+  ```
+  ; portable across Windows and Linux builds for PRU assembly includes
+  .include "source\firmware\common\icss_constant_defines.inc"
+  ```
 - Four underscores recommended in header guard, example below:
   ```
   .if !$isdefed("____icss_header_h")
@@ -954,6 +961,3 @@ For the complete and up-to-date PRU Assembly Instruction Cheat Sheet, see:
 - **Solution**: Document all timing-critical sections and hardware dependencies
 
 ---
-
-
-
