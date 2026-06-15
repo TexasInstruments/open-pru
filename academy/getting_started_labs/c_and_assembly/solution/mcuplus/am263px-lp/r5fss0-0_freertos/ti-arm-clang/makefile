@@ -73,6 +73,7 @@ INCLUDES_common := \
 
 DEFINES_common := \
 	-DSOC_AM263PX \
+	-DOS_FREERTOS \
 
 CFLAGS_common := \
 	-mcpu=cortex-r5 \
