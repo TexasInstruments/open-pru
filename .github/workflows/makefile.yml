@@ -28,17 +28,17 @@ jobs:
             sdk_installer: mcu_plus_sdk_am243x_11_02_00_24-linux-x64-installer.run
             sdk_url: https://dr-download.ti.com/software-development/software-development-kit-sdk/MD-ouHbHEm1PK/11.02.00.24/mcu_plus_sdk_am243x_11_02_00_24-linux-x64-installer.run
           - device: am261x
-            mcu_plus_sdk: mcu_plus_sdk_am261x_10_02_00_15
-            sdk_installer: mcu_plus_sdk_am261x_10_02_00_15-linux-x64-installer.run
-            sdk_url: https://dr-download.ti.com/software-development/software-development-kit-sdk/MD-h64OlWnQrg/10.02.00.15/mcu_plus_sdk_am261x_10_02_00_15-linux-x64-installer.run
+            mcu_plus_sdk: mcu_plus_sdk_am261x_11_01_00_19
+            sdk_installer: mcu_plus_sdk_am261x_11_01_00_19-linux-x64-installer.run
+            sdk_url: https://dr-download.ti.com/software-development/software-development-kit-sdk/MD-h64OlWnQrg/11.01.00.19/mcu_plus_sdk_am261x_11_01_00_19-linux-x64-installer.run
           - device: am263px
-            mcu_plus_sdk: mcu_plus_sdk_am263px_10_02_00_15
-            sdk_installer: mcu_plus_sdk_am263px_10_02_00_15-linux-x64-installer.run
-            sdk_url: https://dr-download.ti.com/software-development/software-development-kit-sdk/MD-JVtW1V4WfA/10.02.00.15/mcu_plus_sdk_am263px_10_02_00_15-linux-x64-installer.run
+            mcu_plus_sdk: mcu_plus_sdk_am263px_11_01_00_19
+            sdk_installer: mcu_plus_sdk_am263px_11_01_00_19-linux-x64-installer.run
+            sdk_url: https://dr-download.ti.com/software-development/software-development-kit-sdk/MD-JVtW1V4WfA/11.01.00.19/mcu_plus_sdk_am263px_11_01_00_19-linux-x64-installer.run
           - device: am263x
-            mcu_plus_sdk: mcu_plus_sdk_am263x_10_02_00_13
-            sdk_installer: mcu_plus_sdk_am263x_10_02_00_13-linux-x64-installer.run
-            sdk_url: https://dr-download.ti.com/software-development/software-development-kit-sdk/MD-r5FY9rRaGv/10.02.00.13/mcu_plus_sdk_am263x_10_02_00_13-linux-x64-installer.run
+            mcu_plus_sdk: mcu_plus_sdk_am263x_11_01_00_19
+            sdk_installer: mcu_plus_sdk_am263x_11_01_00_19-linux-x64-installer.run
+            sdk_url: https://dr-download.ti.com/software-development/software-development-kit-sdk/MD-r5FY9rRaGv/11.01.00.19/mcu_plus_sdk_am263x_11_01_00_19-linux-x64-installer.run
           - device: am64x
             mcu_plus_sdk: mcu_plus_sdk_am64x_11_02_00_24
             sdk_installer: mcu_plus_sdk_am64x_11_02_00_24-linux-x64-installer.run
