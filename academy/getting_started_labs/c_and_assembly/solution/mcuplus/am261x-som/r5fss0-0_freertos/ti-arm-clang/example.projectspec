@@ -82,8 +82,8 @@
             "
             linkerBuildOptions="
                 -lfreertos.am261x.r5f.ti-arm-clang.debug.lib
-                -ldrivers.am261x.r5f.ti-arm-clang.debug.lib
-                -lboard.am261x.r5f.ti-arm-clang.debug.lib
+                -ldrivers.am261x.r5f.ti-arm-clang.freertos.debug.lib
+                -lboard.am261x.r5f.ti-arm-clang.freertos.debug.lib
                 -llibc.a
                 -llibsysbm.a
             "
