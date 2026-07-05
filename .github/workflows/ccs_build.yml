@@ -66,8 +66,8 @@ jobs:
             ~/ti/ccs_20.3.1
             ~/ti/ti-cgt-pru_2.3.3
             ~/ti/ti-cgt-armllvm_4.0.3.LTS
-            ~/ti/sysconfig_1.26.2
-          key: toolchain-ccs-${{ runner.os }}-v5-ccs20_3_1-sysconfig1_26_2-pru2_3_3-armclang4_0_3
+            ~/ti/sysconfig_1.27.0
+          key: toolchain-ccs-${{ runner.os }}-v5-ccs20_3_1-sysconfig1_27_0-pru2_3_3-armclang4_0_3
 
       - name: Install CCS, SYSCONFIG, TIARMCLANG and PRU CGT if missing
         if: success() && steps.cache.outputs.cache-hit != 'true'
@@ -87,14 +87,14 @@ jobs:
             cd CCS_20.3.1.00005_linux
             ./ccs_setup_20.3.1.00005.run --mode unattended --enable-components PF_ARM_MPU,PF_SITARA_MCU --prefix "$HOME/ti/ccs_20.3.1"
           fi
-          # Install SYSCONFIG 1.26.2
-          if [ ! -d "$HOME/ti/ccs_20.3.1/ccs/utils/sysconfig_1.26.2" ] && [ ! -d "$HOME/ti/sysconfig_1.26.2" ]; then
+          # Install SYSCONFIG 1.27.0
+          if [ ! -d "$HOME/ti/ccs_20.3.1/ccs/utils/sysconfig_1.27.0" ] && [ ! -d "$HOME/ti/sysconfig_1.27.0" ]; then
             cd "$HOME/ti/downloads"
             wget -q --retry-connrefused --waitretry=1 --tries=5 --timeout=30 \
-              https://dr-download.ti.com/software-development/ide-configuration-compiler-or-debugger/MD-nsUM6f7Vvb/1.26.2.4477/sysconfig-1.26.2_4477-setup.run
-            chmod +x sysconfig-1.26.2_4477-setup.run
-            ./sysconfig-1.26.2_4477-setup.run --mode unattended --prefix "$HOME/ti/sysconfig_1.26.2"
-            chmod -R +x "$HOME/ti/sysconfig_1.26.2"
+              https://dr-download.ti.com/software-development/ide-configuration-compiler-or-debugger/MD-nsUM6f7Vvb/1.27.0.4565/sysconfig-1.27.0_4565-setup.run
+            chmod +x sysconfig-1.27.0_4565-setup.run
+            ./sysconfig-1.27.0_4565-setup.run --mode unattended --prefix "$HOME/ti/sysconfig_1.27.0"
+            chmod -R +x "$HOME/ti/sysconfig_1.27.0"
           fi
           # Install ARM CLANG CGT 4.0.3
           if [ ! -d "$HOME/ti/ccs_20.3.1/ccs/tools/compiler/ti-cgt-armllvm_4.0.3.LTS" ] && [ ! -d "$HOME/ti/ti-cgt-armllvm_4.0.3.LTS" ]; then
@@ -134,7 +134,7 @@ jobs:
           rm -rf "$HOME/ti/ccs_20.3.1/ccs/uninstallers"
           echo "=== Toolchain sizes after cleanup ==="
           du -sh "$HOME/ti/ccs_20.3.1" "$HOME/ti/ti-cgt-pru_2.3.3" \
-                 "$HOME/ti/ti-cgt-armllvm_4.0.3.LTS" "$HOME/ti/sysconfig_1.26.2" 2>/dev/null || true
+                 "$HOME/ti/ti-cgt-armllvm_4.0.3.LTS" "$HOME/ti/sysconfig_1.27.0" 2>/dev/null || true
 
       - name: Save toolchain cache
         if: success() && steps.cache.outputs.cache-hit != 'true'
@@ -144,8 +144,8 @@ jobs:
             ~/ti/ccs_20.3.1
             ~/ti/ti-cgt-pru_2.3.3
             ~/ti/ti-cgt-armllvm_4.0.3.LTS
-            ~/ti/sysconfig_1.26.2
-          key: toolchain-ccs-${{ runner.os }}-v5-ccs20_3_1-sysconfig1_26_2-pru2_3_3-armclang4_0_3
+            ~/ti/sysconfig_1.27.0
+          key: toolchain-ccs-${{ runner.os }}-v5-ccs20_3_1-sysconfig1_27_0-pru2_3_3-armclang4_0_3
 
   ccs-build:
     name: CCS Build (${{ matrix.device }})
@@ -161,17 +161,17 @@ jobs:
             sdk_installer: mcu_plus_sdk_am243x_12_00_00_26-linux-x64-installer.run
             sdk_url: https://dr-download.ti.com/software-development/software-development-kit-sdk/MD-ouHbHEm1PK/12.00.00.26/mcu_plus_sdk_am243x_12_00_00_26-linux-x64-installer.run
           - device: am261x
-            mcu_plus_sdk: mcu_plus_sdk_am261x_11_01_00_19
-            sdk_installer: mcu_plus_sdk_am261x_11_01_00_19-linux-x64-installer.run
-            sdk_url: https://dr-download.ti.com/software-development/software-development-kit-sdk/MD-h64OlWnQrg/11.01.00.19/mcu_plus_sdk_am261x_11_01_00_19-linux-x64-installer.run
+            mcu_plus_sdk: mcu_plus_sdk_am261x_26_00_00_06
+            sdk_installer: mcu_plus_sdk_am261x_26_00_00_06-linux-x64-installer.run
+            sdk_url: https://dr-download.ti.com/software-development/software-development-kit-sdk/MD-h64OlWnQrg/26.00.00.06.STS/mcu_plus_sdk_am261x_26_00_00_06-linux-x64-installer.run
           - device: am263px
-            mcu_plus_sdk: mcu_plus_sdk_am263px_11_01_00_19
-            sdk_installer: mcu_plus_sdk_am263px_11_01_00_19-linux-x64-installer.run
-            sdk_url: https://dr-download.ti.com/software-development/software-development-kit-sdk/MD-JVtW1V4WfA/11.01.00.19/mcu_plus_sdk_am263px_11_01_00_19-linux-x64-installer.run
+            mcu_plus_sdk: mcu_plus_sdk_am263px_26_00_00_06
+            sdk_installer: mcu_plus_sdk_am263px_26_00_00_06-linux-x64-installer.run
+            sdk_url: https://dr-download.ti.com/software-development/software-development-kit-sdk/MD-JVtW1V4WfA/26.00.00.06.STS/mcu_plus_sdk_am263px_26_00_00_06-linux-x64-installer.run
           - device: am263x
-            mcu_plus_sdk: mcu_plus_sdk_am263x_11_01_00_19
-            sdk_installer: mcu_plus_sdk_am263x_11_01_00_19-linux-x64-installer.run
-            sdk_url: https://dr-download.ti.com/software-development/software-development-kit-sdk/MD-r5FY9rRaGv/11.01.00.19/mcu_plus_sdk_am263x_11_01_00_19-linux-x64-installer.run
+            mcu_plus_sdk: mcu_plus_sdk_am263x_26_00_00_06
+            sdk_installer: mcu_plus_sdk_am263x_26_00_00_06-linux-x64-installer.run
+            sdk_url: https://dr-download.ti.com/software-development/software-development-kit-sdk/MD-r5FY9rRaGv/26.00.00.06.STS/mcu_plus_sdk_am263x_26_00_00_06-linux-x64-installer.run
           - device: am64x
             mcu_plus_sdk: mcu_plus_sdk_am64x_12_00_00_27
             sdk_installer: mcu_plus_sdk_am64x_12_00_00_27-linux-x64-installer.run
@@ -204,8 +204,8 @@ jobs:
             ~/ti/ccs_20.3.1
             ~/ti/ti-cgt-pru_2.3.3
             ~/ti/ti-cgt-armllvm_4.0.3.LTS
-            ~/ti/sysconfig_1.26.2
-          key: toolchain-ccs-${{ runner.os }}-v5-ccs20_3_1-sysconfig1_26_2-pru2_3_3-armclang4_0_3
+            ~/ti/sysconfig_1.27.0
+          key: toolchain-ccs-${{ runner.os }}-v5-ccs20_3_1-sysconfig1_27_0-pru2_3_3-armclang4_0_3
           fail-on-cache-miss: true
 
       - name: Install device MCU+ SDK
@@ -255,7 +255,7 @@ jobs:
         # initializing the workspace. See test_ccs_import.sh for background.
         # No backup/restore needed — CI workspace is ephemeral.
         run: |
-          SYSCFG_VERSION="1.26.2"
+          SYSCFG_VERSION="1.27.0"
           OPENPRU_VERSION="1.${SYSCFG_VERSION}"
           sed -i "s/^        \"version\": \"[^\"]*\"/        \"version\": \"${OPENPRU_VERSION}\"/" \
               .metadata/.tirex/package.tirex.json
@@ -276,9 +276,9 @@ jobs:
           WORKSPACE="${HOME}/workspace_ccs_${DEVICE}"
           CCS_CLI="$HOME/ti/ccs_20.3.1/ccs/eclipse/ccs-server-cli.sh"
 
-          PRODUCT_PATHS="${GITHUB_WORKSPACE};$HOME/ti/sysconfig_1.26.2"
-          if [ -d "$HOME/ti/ccs_20.3.1/ccs/utils/sysconfig_1.26.2" ]; then
-            PRODUCT_PATHS="${GITHUB_WORKSPACE};$HOME/ti/ccs_20.3.1/ccs/utils/sysconfig_1.26.2"
+          PRODUCT_PATHS="${GITHUB_WORKSPACE};$HOME/ti/sysconfig_1.27.0"
+          if [ -d "$HOME/ti/ccs_20.3.1/ccs/utils/sysconfig_1.27.0" ]; then
+            PRODUCT_PATHS="${GITHUB_WORKSPACE};$HOME/ti/ccs_20.3.1/ccs/utils/sysconfig_1.27.0"
           fi
           if [ -n "${{ matrix.mcu_plus_sdk }}" ]; then
             PRODUCT_PATHS="${PRODUCT_PATHS};$HOME/ti/${{ matrix.mcu_plus_sdk }}"
