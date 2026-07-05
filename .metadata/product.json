@@ -1,7 +1,7 @@
 {
     "name": "OPEN_PRU",
     "displayName": "OPEN_PRU",
-    "version": "2026.01.00",
+    "version": "2026.02.00",
     "documentationPath": "../docs",
     "includePaths": [
         "../source",
