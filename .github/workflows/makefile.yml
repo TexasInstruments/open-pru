@@ -24,25 +24,25 @@ jobs:
       matrix:
         include:
           - device: am243x
-            mcu_plus_sdk: mcu_plus_sdk_am243x_11_02_00_24
-            sdk_installer: mcu_plus_sdk_am243x_11_02_00_24-linux-x64-installer.run
-            sdk_url: https://dr-download.ti.com/software-development/software-development-kit-sdk/MD-ouHbHEm1PK/11.02.00.24/mcu_plus_sdk_am243x_11_02_00_24-linux-x64-installer.run
+            mcu_plus_sdk: mcu_plus_sdk_am243x_12_00_00_26
+            sdk_installer: mcu_plus_sdk_am243x_12_00_00_26-linux-x64-installer.run
+            sdk_url: https://dr-download.ti.com/software-development/software-development-kit-sdk/MD-ouHbHEm1PK/12.00.00.26/mcu_plus_sdk_am243x_12_00_00_26-linux-x64-installer.run
           - device: am261x
-            mcu_plus_sdk: mcu_plus_sdk_am261x_10_02_00_15
-            sdk_installer: mcu_plus_sdk_am261x_10_02_00_15-linux-x64-installer.run
-            sdk_url: https://dr-download.ti.com/software-development/software-development-kit-sdk/MD-h64OlWnQrg/10.02.00.15/mcu_plus_sdk_am261x_10_02_00_15-linux-x64-installer.run
+            mcu_plus_sdk: mcu_plus_sdk_am261x_26_00_00_06
+            sdk_installer: mcu_plus_sdk_am261x_26_00_00_06-linux-x64-installer.run
+            sdk_url: https://dr-download.ti.com/software-development/software-development-kit-sdk/MD-h64OlWnQrg/26.00.00.06.STS/mcu_plus_sdk_am261x_26_00_00_06-linux-x64-installer.run
           - device: am263px
-            mcu_plus_sdk: mcu_plus_sdk_am263px_10_02_00_15
-            sdk_installer: mcu_plus_sdk_am263px_10_02_00_15-linux-x64-installer.run
-            sdk_url: https://dr-download.ti.com/software-development/software-development-kit-sdk/MD-JVtW1V4WfA/10.02.00.15/mcu_plus_sdk_am263px_10_02_00_15-linux-x64-installer.run
+            mcu_plus_sdk: mcu_plus_sdk_am263px_26_00_00_06
+            sdk_installer: mcu_plus_sdk_am263px_26_00_00_06-linux-x64-installer.run
+            sdk_url: https://dr-download.ti.com/software-development/software-development-kit-sdk/MD-JVtW1V4WfA/26.00.00.06.STS/mcu_plus_sdk_am263px_26_00_00_06-linux-x64-installer.run
           - device: am263x
-            mcu_plus_sdk: mcu_plus_sdk_am263x_10_02_00_13
-            sdk_installer: mcu_plus_sdk_am263x_10_02_00_13-linux-x64-installer.run
-            sdk_url: https://dr-download.ti.com/software-development/software-development-kit-sdk/MD-r5FY9rRaGv/10.02.00.13/mcu_plus_sdk_am263x_10_02_00_13-linux-x64-installer.run
+            mcu_plus_sdk: mcu_plus_sdk_am263x_26_00_00_06
+            sdk_installer: mcu_plus_sdk_am263x_26_00_00_06-linux-x64-installer.run
+            sdk_url: https://dr-download.ti.com/software-development/software-development-kit-sdk/MD-r5FY9rRaGv/26.00.00.06.STS/mcu_plus_sdk_am263x_26_00_00_06-linux-x64-installer.run
           - device: am64x
-            mcu_plus_sdk: mcu_plus_sdk_am64x_11_02_00_24
-            sdk_installer: mcu_plus_sdk_am64x_11_02_00_24-linux-x64-installer.run
-            sdk_url: https://dr-download.ti.com/software-development/software-development-kit-sdk/MD-SfkcjYAjGS/11.02.00.24/mcu_plus_sdk_am64x_11_02_00_24-linux-x64-installer.run
+            mcu_plus_sdk: mcu_plus_sdk_am64x_12_00_00_27
+            sdk_installer: mcu_plus_sdk_am64x_12_00_00_27-linux-x64-installer.run
+            sdk_url: https://dr-download.ti.com/software-development/software-development-kit-sdk/MD-SfkcjYAjGS/12.00.00.27/mcu_plus_sdk_am64x_12_00_00_27-linux-x64-installer.run
           - device: am62x
             mcu_plus_sdk: ""
             sdk_installer: ""
@@ -82,8 +82,8 @@ jobs:
           path: |
             ~/ti/ti-cgt-pru_2.3.3
             ~/ti/ti-cgt-armllvm_4.0.3.LTS
-            ~/ti/sysconfig_1.26.2
-          key: toolchain-make-${{ runner.os }}-v3-sysconfig1_26_2-pru2_3_3-armclang4_0_3
+            ~/ti/sysconfig_1.27.0
+          key: toolchain-make-${{ runner.os }}-v3-sysconfig1_27_0-pru2_3_3-armclang4_0_3
 
       - name: Install SYSCONFIG, TIARMCLANG and PRU CGT if missing
         if: steps.cache.outputs.cache-hit != 'true'
@@ -91,14 +91,14 @@ jobs:
           set -e
           mkdir -p "$HOME/ti/downloads"
 
-          # Install SYSCONFIG 1.26.2
-          if [ ! -d "$HOME/ti/sysconfig_1.26.2" ]; then
+          # Install SYSCONFIG 1.27.0
+          if [ ! -d "$HOME/ti/sysconfig_1.27.0" ]; then
             cd "$HOME/ti/downloads"
             wget -q --retry-connrefused --waitretry=1 --tries=5 --timeout=30 \
-              https://dr-download.ti.com/software-development/ide-configuration-compiler-or-debugger/MD-nsUM6f7Vvb/1.26.2.4477/sysconfig-1.26.2_4477-setup.run
-            chmod +x sysconfig-1.26.2_4477-setup.run
-            ./sysconfig-1.26.2_4477-setup.run --mode unattended --prefix "$HOME/ti/sysconfig_1.26.2"
-            chmod -R +x "$HOME/ti/sysconfig_1.26.2"
+              https://dr-download.ti.com/software-development/ide-configuration-compiler-or-debugger/MD-nsUM6f7Vvb/1.27.0.4565/sysconfig-1.27.0_4565-setup.run
+            chmod +x sysconfig-1.27.0_4565-setup.run
+            ./sysconfig-1.27.0_4565-setup.run --mode unattended --prefix "$HOME/ti/sysconfig_1.27.0"
+            chmod -R +x "$HOME/ti/sysconfig_1.27.0"
           fi
           # Install ARM CLANG CGT 4.0.3
           if [ ! -d "$HOME/ti/ti-cgt-armllvm_4.0.3.LTS" ]; then
@@ -142,7 +142,7 @@ jobs:
           # Toolchains (standalone; CCS not installed in make CI)
           CGT_TI_PRU_PATH := $(HOME)/ti/ti-cgt-pru_2.3.3
           CGT_TI_ARM_CLANG_PATH := $(HOME)/ti/ti-cgt-armllvm_4.0.3.LTS
-          SYSCFG_PATH ?= $(HOME)/ti/sysconfig_1.26.2
+          SYSCFG_PATH ?= $(HOME)/ti/sysconfig_1.27.0
           # Other variables
           # you probably will not need to edit these values
           OPEN_PRU_PATH ?= $(abspath .)
