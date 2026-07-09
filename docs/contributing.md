@@ -55,6 +55,9 @@ If the existing runbooks in `docs_ai/` still accurately describe the patterns
 after your change, no update is needed. If they no longer match, update the
 relevant runbook(s) as part of the same PR.
 
+When adding a new runbook or reference to `docs_ai/`, or otherwise changing its
+structure, follow [`docs_ai/authoring_guide.md`](../docs_ai/authoring_guide.md).
+
 ### Update pr_compliance_checklist.yaml
 
 If your PR adds or changes a contribution requirement in this file, also
