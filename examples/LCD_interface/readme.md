@@ -16,7 +16,7 @@ This project was tested on hardware with these software versions:
 
 | Processor | Hardware | Software                                |
 | --------- | -------- | --------------------------------------- |
-| am243x    | LP-AM243 | MCU PLUS SDK TODO, OpenPRU TODO         |
+| am243x    | LP-AM243 | MCU PLUS SDK FIXME, OpenPRU FIXME         |
 
 ## Overview
 RGB interface has wide data bus of 24 bit using 8 bits per color. In addition there are vertical and horizontal sync signals to define start and end of lines and frames. The display selected has additional DE (data enable) which is active for one line of data. Each 24 bit data is captured with DCLK (pixel clock) falling edge and there is a setup and hold time of 8 ns in this case. 

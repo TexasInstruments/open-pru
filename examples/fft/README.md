@@ -20,8 +20,8 @@ This project was tested on hardware with these software versions:
 
 | Processor | Hardware | Software                                        |
 | --------- | -------- | ----------------------------------------------- |
-| am243x    | TODO     | MCU PLUS SDK 10.01.00.32, OpenPRU TODO          |
-| am261x    | TODO     | MCU PLUS SDK 10.00.01.10, OpenPRU TODO          |
+| am243x    | FIXME     | MCU PLUS SDK 10.01.00.32, OpenPRU FIXME          |
+| am261x    | FIXME     | MCU PLUS SDK 10.00.01.10, OpenPRU FIXME          |
 
 ## Overview
 The algorithm assumes input samples in Q24 format to be present in the configured memory space. The current implementation assumes unsigned inputs which are common for ADC measurement values. 
