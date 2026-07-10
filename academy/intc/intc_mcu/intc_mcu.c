@@ -98,7 +98,7 @@ int32_t PRUICSS_goToSection(PRUICSS_Handle handle, uint32_t pruCore, uint32_t se
         else
             return SystemP_FAILURE;
 
-        /* TODO: decide the final memory and offset */
+        /* FIXME: decide the final memory and offset */
         CSL_REG32_WR(baseaddr + PRUICSS_PRGM_FLOW_CNTRL_OFFSET, sectionId);
         retVal = PRUICSS_sendEvent(handle, eventNum);
     }

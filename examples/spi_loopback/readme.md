@@ -228,4 +228,4 @@ This project was tested on hardware with these software versions:
 
 | Processor | Hardware | Software                                |
 | --------- | -------- | --------------------------------------- |
-| am243x    | LP-AM243 | MCU PLUS SDK TODO, OpenPRU TODO         |
+| am243x    | LP-AM243 | MCU PLUS SDK FIXME, OpenPRU FIXME         |

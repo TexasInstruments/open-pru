@@ -17,12 +17,12 @@ This project was tested on hardware with these software versions:
 
 | Processor | Hardware | Software                                |
 | --------- | -------- | --------------------------------------- |
-| am243x    | TODO     | MCU PLUS SDK TODO, OpenPRU TODO         |
-| am261x    | TODO     | MCU PLUS SDK TODO, OpenPRU TODO         |
-| am263x    | TODO     | MCU PLUS SDK TODO, OpenPRU TODO         |
-| am263px   | TODO     | MCU PLUS SDK TODO, OpenPRU TODO         |
-| am62x     | TODO     | OpenPRU TODO                            |
-| am64x     | TODO     | MCU PLUS SDK TODO, OpenPRU TODO         |
+| am243x    | FIXME     | MCU PLUS SDK FIXME, OpenPRU FIXME         |
+| am261x    | FIXME     | MCU PLUS SDK FIXME, OpenPRU FIXME         |
+| am263x    | FIXME     | MCU PLUS SDK FIXME, OpenPRU FIXME         |
+| am263px   | FIXME     | MCU PLUS SDK FIXME, OpenPRU FIXME         |
+| am62x     | FIXME     | OpenPRU FIXME                            |
+| am64x     | FIXME     | MCU PLUS SDK FIXME, OpenPRU FIXME         |
 
 ## Steps to Run the Example
 

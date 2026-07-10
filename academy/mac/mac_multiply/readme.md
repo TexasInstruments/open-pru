@@ -30,9 +30,9 @@ This project was tested on hardware with these software versions:
 
 | Processor | Hardware | Software                                |
 | --------- | -------- | --------------------------------------- |
-| am261x    | TODO     | MCU PLUS SDK TODO, OpenPRU TODO         |
-| am263px   | TODO     | MCU PLUS SDK TODO, OpenPRU TODO         |
-| am263x    | TODO     | MCU PLUS SDK TODO, OpenPRU TODO         |
+| am261x    | FIXME     | MCU PLUS SDK FIXME, OpenPRU FIXME         |
+| am263px   | FIXME     | MCU PLUS SDK FIXME, OpenPRU FIXME         |
+| am263x    | FIXME     | MCU PLUS SDK FIXME, OpenPRU FIXME         |
 
 ## Steps to Run the Example
 

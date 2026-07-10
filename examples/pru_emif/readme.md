@@ -23,7 +23,7 @@ This project was tested on hardware with these software versions:
 
 | Processor | Hardware     | Software                                                                         |
 | --------- | ------------ | -------------------------------------------------------------------------------- |
-| am243x    | TMDS243GPEVM | MCU PLUS SDK TODO, C2000Ware 4.02.00.00, C2000 CGT 22.6.1 LTS, OpenPRU TODO      |
+| am243x    | TMDS243GPEVM | MCU PLUS SDK FIXME, C2000Ware 4.02.00.00, C2000 CGT 22.6.1 LTS, OpenPRU FIXME      |
 
 ## Setup Details
 

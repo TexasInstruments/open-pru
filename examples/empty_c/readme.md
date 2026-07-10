@@ -17,12 +17,12 @@ This project was tested on hardware with these software versions:
 
 | Processor | Hardware   | Software                   |
 | --------- | ---------- | -------------------------- |
-| AM243x    | TODO       | TODO                       |
-| AM261x    | TODO       | TODO                       |
-| AM263Px   | TODO       | TODO                       |
-| AM263x    | TODO       | TODO                       |
-| AM62x     | TODO       | TODO                       |
-| AM64x     | TODO       | TODO                       |
+| AM243x    | FIXME       | FIXME                       |
+| AM261x    | FIXME       | FIXME                       |
+| AM263Px   | FIXME       | FIXME                       |
+| AM263x    | FIXME       | FIXME                       |
+| AM62x     | FIXME       | FIXME                       |
+| AM64x     | FIXME       | FIXME                       |
 
 ## Overview
 
