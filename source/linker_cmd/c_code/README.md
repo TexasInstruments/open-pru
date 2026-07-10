@@ -6,13 +6,14 @@ is written in C, or mixed C and assembly.
 ## More information
 
 For training on how to customize the linker.cmd file for your project, refer to
-the PRU Academy.
+your processor's PRU Academy > Getting Started Labs > Lab 2: How to Write PRU
+Firmware.
 
 ## Common modifications
 
-Until these examples are ported to OpenPRU, we will refer to the older PRU
-Software Support Package (PSSP).
-<PSSP_PATH> = https://git.ti.com/cgit/pru-software-support-package/pru-software-support-package/tree
+The Linux RPMsg echo examples under `examples/rpmsg_echo_linux/firmware/`
+show how OpenPRU projects add Linux-specific INTC map and resource table
+sections to PRU linker command files.
 
 ### Add the INTC map (Linux only)
 
@@ -20,7 +21,7 @@ The INTC map is used in order to allow the Linux PRU remoteproc driver to
 configure the PRU's interrupt controller (INTC) during initialization.
 
 1. Add the INTC map file to the project. Use this file as a template:
-   <PSSP_PATH>/examples/<processor>/PRU_Direct_Connect0/intc_map_0.h
+   `examples/rpmsg_echo_linux/firmware/<board>/<core>/ti-pru-cgt/intc_map.h`
 
 2. Include the INTC map file in the main.c file.
 
@@ -29,7 +30,7 @@ configure the PRU's interrupt controller (INTC) during initialization.
 ```
 
 3. Add the INTC map structure to the linker command file. Reference
-   <PSSP_PATH>/examples/<processor>/PRU_Direct_Connect0/xxx_PRU0_intc.cmd
+   `examples/rpmsg_echo_linux/firmware/<board>/<core>/ti-pru-cgt/linker.cmd`
 
 ```
 /* Specify the sections allocation into memory */
@@ -53,7 +54,7 @@ communication protocol (IPC) to communicate with Linux. If RPMsg is not used,
 then a resource table is not needed.
 
 1. Add a resource table file to the project. Use this file as a template:
-   <PSSP_PATH>/examples/<processor>/xxx_RPMsg_Echo_InterruptX/resource_table.h
+   `source/include/linux/resource_table.h`
 
 2. Include the resource table in the main.c file:
 
@@ -62,7 +63,7 @@ then a resource table is not needed.
 ```
 
 3. Add the resource table to the linker command file. Reference
-   <PSSP_PATH>/examples/<processor>/xxx_RPMsg_Echo_InterruptX/xxx_PRU0_intc_rscTbl.cmd
+   `examples/rpmsg_echo_linux/firmware/<board>/<core>/ti-pru-cgt/linker.cmd`
 
 For example, on AM64x RTU1:
 ```
