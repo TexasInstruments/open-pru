@@ -5,21 +5,21 @@
 This example provides a base for running loopback spi connection between a pair of master and slave PRU cores. 
 The example uses generic SPI macros introduced in files spi_master_macros.inc and spi_slave_macros.inc to emulate generic SPI master and slave interfaces over PRU GPIO pins.
 
- ## Overview
- ### Timing Parameters
- All cycle level frequency calculations are based on a 333MHz PRU System clock, which gives 3ns per instruction cycle, i.e $t_{f} = 3ns$
- 
- $t_{slew}$ : Slew rate of Data toggling (slew rate of PRU GPIO mode pin) = $2ns$
- $t_{p}$ : Propagation delay of wire (In the example, a 15 cm wire was used) = $0.5ns$
- #### SPI Master Macros: 
+## Overview
+### Timing Parameters
+All cycle level frequency calculations are based on a 333MHz PRU System clock, which gives 3ns per instruction cycle, i.e $t_{f} = 3ns$
 
- | Macros Name | Description         | Peak cycles per bit | Theoretical Max. SCLK | Recommended delay components (50% duty cycle) | Practical Max. SCLK
- |--------------|:------------------:|:--------:|:--------:|:-------:|:-------:|
- | m_read_packet_spi_msb_gpo_sclk |  SPI Master side macro to read 1 data packet through SPI interface MSB first.  | (2+d1)+(5+d2) cycles  | 33.33MHz | d1 =10, d2 =7 | 13.88MHz
- | m_read_packet_spi_lsb_gpo_sclk |  SPI Master side macro to read 1 data packet through SPI interface LSB first.  | (2+d1)+(5+d2) cycles  | 33.33MHz | d1 =10, d2 =7 | 13.88MHz
- | m_send_packet_spi_msb_gpo_sclk |  SPI Master side macro to send 1 data packet through SPI interface MSB first.  | (4+d1)+(3+d2) cycles  | 41.66MHz | d1 =0, d2 =1 | 41.66MHz
- | m_send_packet_spi_lsb_gpo_sclk |  SPI Master side macro to send 1 data packet through SPI interface LSB first.  | (4+d1)+(3+d2) cycles  | 41.66MHz | d1 =0, d2 =1 | 41.66MHz
- | m_transfer_packet_spi_master_gpo_sclk |  SPI Master side macro to read 1 data packet and write 1 data packet concurrently through the SPI interface. | (4+d1)+(6+d2) cycles  | 27.77MHz | d1 =9, d2 =7 | 12.8MHz
+$t_{slew}$ : Slew rate of Data toggling (slew rate of PRU GPIO mode pin) = $2ns$
+$t_{p}$ : Propagation delay of wire (In the example, a 15 cm wire was used) = $0.5ns$
+#### SPI Master Macros: 
+
+| Macros Name | Description         | Peak cycles per bit | Theoretical Max. SCLK | Recommended delay components (50% duty cycle) | Practical Max. SCLK
+|--------------|:------------------:|:--------:|:--------:|:-------:|:-------:|
+| m_read_packet_spi_msb_gpo_sclk |  SPI Master side macro to read 1 data packet through SPI interface MSB first.  | (2+d1)+(5+d2) cycles  | 33.33MHz | d1 =10, d2 =7 | 13.88MHz
+| m_read_packet_spi_lsb_gpo_sclk |  SPI Master side macro to read 1 data packet through SPI interface LSB first.  | (2+d1)+(5+d2) cycles  | 33.33MHz | d1 =10, d2 =7 | 13.88MHz
+| m_send_packet_spi_msb_gpo_sclk |  SPI Master side macro to send 1 data packet through SPI interface MSB first.  | (4+d1)+(3+d2) cycles  | 41.66MHz | d1 =0, d2 =1 | 41.66MHz
+| m_send_packet_spi_lsb_gpo_sclk |  SPI Master side macro to send 1 data packet through SPI interface LSB first.  | (4+d1)+(3+d2) cycles  | 41.66MHz | d1 =0, d2 =1 | 41.66MHz
+| m_transfer_packet_spi_master_gpo_sclk |  SPI Master side macro to read 1 data packet and write 1 data packet concurrently through the SPI interface. | (4+d1)+(6+d2) cycles  | 27.77MHz | d1 =9, d2 =7 | 12.8MHz
 
 Timing parameters for macros: **m_read_packet_spi_msb_gpo_sclk** and **m_read_packet_spi_lsb_gpo_sclk** are shown below:
 
@@ -78,8 +78,8 @@ Timing parameters for macro **m_transfer_packet_spi_master_gpo_sclk** is shown b
  |$t_{si}$         | SetUp time: Time SDI needs to be stable before sampling edge | $0$ |  | ns |
  |$t_{hi}$         | Hold time: Time SDI needs to be stable after sampling edge | $t_{f}$ |  | ns |
 
- #### SPI Slave Macros:  
-  | Macros Name | Description         | Peak cycle per bit| Max. SCLK | Practical Max. SCLK| 
+#### SPI Slave Macros:  
+ | Macros Name | Description         | Peak cycle per bit| Max. SCLK | Practical Max. SCLK| 
  |--------------|:------------------:|:--------:|:--------:|:--------:|
  | m_read_packet_spi_slave_msb_gpi_sclk |  SPI Slave side macro to read 1 data packet through SPI interface MSB first.  | 7 cycles  | 47.619MHz |47.619MHz |
  | m_read_packet_spi_slave_lsb_gpi_sclk |  SPI Slave side macro to read 1 data packet through SPI interface LSB first.  | 7 cycles  | 47.619MHz | 47.619MHz |
@@ -215,11 +215,17 @@ Note: None of the ICSS Broadside Accelerators are used for this implementation.
 
  ## Limitations
  Some of the macros were not stable at the theoretical maximum. These include: m_send_packet_spi_slave_msb_gpo_sclk, m_send_packet_spi_slave_lsb_gpo_sclk, m_transfer_packet_spi_slave_gpi_sclk, m_read_packet_spi_msb_gpo_sclk, m_read_packet_spi_lsb_gpo_sclk and m_transfer_packet_spi_master_gpo_sclk. Experimentally a frequency limitation was found and is documented in this document a "Practical Max SCLK." at which tests where successfully carried out.
-# Supported Combinations
 
- Parameter      | Value
- ---------------|-----------
- ICSSG          | ICSSG0 - PRU0, PRU1
- Toolchain      | pru-cgt
- Board          | am243x-lp
- Example folder | examples/spi_loopback
+## Supported Combinations
+
+Refer to open-pru/examples/readme.md > Supported processors per-project
+for the list of processors that support building this project, and information
+about porting this project to other processors.
+
+## Validated HW & SW
+
+This project was tested on hardware with these software versions:
+
+| Processor | Hardware | Software                                |
+| --------- | -------- | --------------------------------------- |
+| am243x    | LP-AM243 | MCU PLUS SDK TODO, OpenPRU TODO         |
