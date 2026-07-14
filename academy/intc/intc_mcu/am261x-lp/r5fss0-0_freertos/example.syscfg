@@ -43,19 +43,17 @@ const section12       = section.addInstance();
 /**
  * Write custom configuration values to the imported modules.
  */
-pruicss1.$name                                                                    = "CONFIG_PRU_ICSS0";
-pruicss1.instance                                                                 = "ICSSM1";
-pruicss1.AdditionalICSSSettings[0].$name                                          = "CONFIG_PRU_ICSS_IO0";
+pruicss1.$name                                                                  = "CONFIG_PRU_ICSS0";
+pruicss1.AdditionalICSSSettings[0].$name                                        = "CONFIG_PRU_ICSS_IO0";
 pruicss1.AdditionalICSSSettings[0].PruGPIO.create(1);
-pruicss1.AdditionalICSSSettings[0].PruGPIO[0].$name                               = "CONFIG_PRU_ICSS_GPIO0";
-pruicss1.AdditionalICSSSettings[0].PruGPIO[0]["PRU-ICSS1"].PR1_PRU0_GPIO0.$assign = "GPIO81";
-pruicss1.AdditionalICSSSettings[0].PruGPIO[0]["PRU-ICSS1"].PR1_PRU0_GPIO0.$used   = true;
-pruicss1.AdditionalICSSSettings[0].PruGPIO[0]["PRU-ICSS1"].PR1_PRU0_GPIO8.$used   = true;
+pruicss1.AdditionalICSSSettings[0].PruGPIO[0].$name                             = "CONFIG_PRU_ICSS_GPIO0";
+pruicss1.AdditionalICSSSettings[0].PruGPIO[0]["PRU-ICSS0"].PR0_PRU0_GPIO0.$used = true;
+pruicss1.AdditionalICSSSettings[0].PruGPIO[0]["PRU-ICSS0"].PR0_PRU0_GPIO8.$used = true;
 pruicss1.intcMapping.create(2);
-pruicss1.intcMapping[0].$name                                                     = "CONFIG_ICSS1_INTC_MODE1_MAPPING0";
-pruicss1.intcMapping[1].$name                                                     = "CONFIG_ICSS1_INTC_MODE1_MAPPING1";
-pruicss1.intcMapping[1].event                                                     = "60";
-pruicss1.intcMapping[1].channel                                                   = "1";
+pruicss1.intcMapping[0].$name                                                   = "CONFIG_ICSS0_INTC_MODE1_MAPPING0";
+pruicss1.intcMapping[1].$name                                                   = "CONFIG_ICSS0_INTC_MODE1_MAPPING1";
+pruicss1.intcMapping[1].event                                                   = "60";
+pruicss1.intcMapping[1].channel                                                 = "1";
 
 debug_log.enableUartLog            = true;
 debug_log.enableSharedMemLog       = true;
@@ -292,5 +290,6 @@ section12.output_section[0].alignment = 0;
  * version of the tool will not impact the pinmux you originally saw.  These lines can be completely deleted in order to
  * re-solve from scratch.
  */
-pruicss1.AdditionalICSSSettings[0].PruGPIO[0]["PRU-ICSS1"].$suggestSolution                = "PRU-ICSS1";
-pruicss1.AdditionalICSSSettings[0].PruGPIO[0]["PRU-ICSS1"].PR1_PRU0_GPIO8.$suggestSolution = "GPIO44";
+pruicss1.AdditionalICSSSettings[0].PruGPIO[0]["PRU-ICSS0"].$suggestSolution                = "PRU-ICSS0";
+pruicss1.AdditionalICSSSettings[0].PruGPIO[0]["PRU-ICSS0"].PR0_PRU0_GPIO0.$suggestSolution = "GPIO93";
+pruicss1.AdditionalICSSSettings[0].PruGPIO[0]["PRU-ICSS0"].PR0_PRU0_GPIO8.$suggestSolution = "GPIO90";

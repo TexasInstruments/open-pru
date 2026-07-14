@@ -126,11 +126,7 @@ void intc_mcu_main(void *args)
    DebugP_assert(gPruIcss0Handle != NULL);
 
    /* Initialize INTC */
-   #if defined(SOC_AM261X)
-   status = PRUICSS_intcInit(gPruIcss0Handle, &icss1_intc_initdata);
-   #else
    status = PRUICSS_intcInit(gPruIcss0Handle, &icss0_intc_initdata);
-   #endif
    DebugP_assert(SystemP_SUCCESS == status);
 
    /* Register interrupt handler */
