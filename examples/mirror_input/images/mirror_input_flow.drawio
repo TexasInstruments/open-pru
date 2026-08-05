@@ -1,0 +1,90 @@
+<mxfile host="app.diagrams.net">
+  <diagram name="mirror_input flow" id="mirror-input-flow">
+    <mxGraphModel dx="800" dy="600" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="900" pageHeight="850" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+
+        <mxCell id="boot" value="Start up&lt;br&gt;&lt;font style=&quot;font-size: 10px&quot; face=&quot;monospace&quot; color=&quot;#666666&quot;&gt;zero &amp;amp;r0,124&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="320" y="40" width="220" height="60" as="geometry" />
+        </mxCell>
+
+        <mxCell id="high_pulse" value="Wait for EPWM to go HIGH&lt;br&gt;&lt;font style=&quot;font-size: 10px&quot; face=&quot;monospace&quot; color=&quot;#666666&quot;&gt;wbs r31, EPWM_SIGNAL&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;" vertex="1" parent="1">
+          <mxGeometry x="290" y="140" width="260" height="70" as="geometry" />
+        </mxCell>
+
+        <mxCell id="qbbs1" value="Is CMP high?&lt;br&gt;&lt;font style=&quot;font-size: 10px&quot; face=&quot;monospace&quot; color=&quot;#666666&quot;&gt;qbbs bit_set0, r31, CMP_SIGNAL&lt;/font&gt;" style="rhombus;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;" vertex="1" parent="1">
+          <mxGeometry x="300" y="250" width="240" height="100" as="geometry" />
+        </mxCell>
+
+        <mxCell id="clr0" value="Drive ICL LOW&lt;br&gt;&lt;font style=&quot;font-size: 10px&quot; face=&quot;monospace&quot; color=&quot;#666666&quot;&gt;clr r30, r30, ICL_SIGNAL&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;" vertex="1" parent="1">
+          <mxGeometry x="120" y="390" width="220" height="60" as="geometry" />
+        </mxCell>
+
+        <mxCell id="set0" value="Drive ICL HIGH&lt;br&gt;&lt;font style=&quot;font-size: 10px&quot; face=&quot;monospace&quot; color=&quot;#666666&quot;&gt;set r30, r30, ICL_SIGNAL&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;" vertex="1" parent="1">
+          <mxGeometry x="500" y="390" width="220" height="60" as="geometry" />
+        </mxCell>
+
+        <mxCell id="low_pulse" value="Wait for EPWM to go LOW&lt;br&gt;&lt;font style=&quot;font-size: 10px&quot; face=&quot;monospace&quot; color=&quot;#666666&quot;&gt;wbc r31, EPWM_SIGNAL&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;" vertex="1" parent="1">
+          <mxGeometry x="290" y="500" width="260" height="70" as="geometry" />
+        </mxCell>
+
+        <mxCell id="qbbs2" value="Is CMP high?&lt;br&gt;&lt;font style=&quot;font-size: 10px&quot; face=&quot;monospace&quot; color=&quot;#666666&quot;&gt;qbbs bit_set1, r31, CMP_SIGNAL&lt;/font&gt;" style="rhombus;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;" vertex="1" parent="1">
+          <mxGeometry x="300" y="610" width="240" height="100" as="geometry" />
+        </mxCell>
+
+        <mxCell id="clr1" value="Drive ICL LOW&lt;br&gt;&lt;font style=&quot;font-size: 10px&quot; face=&quot;monospace&quot; color=&quot;#666666&quot;&gt;clr r30, r30, ICL_SIGNAL&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;" vertex="1" parent="1">
+          <mxGeometry x="120" y="750" width="220" height="60" as="geometry" />
+        </mxCell>
+
+        <mxCell id="set1" value="Drive ICL HIGH&lt;br&gt;&lt;font style=&quot;font-size: 10px&quot; face=&quot;monospace&quot; color=&quot;#666666&quot;&gt;set r30, r30, ICL_SIGNAL&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;" vertex="1" parent="1">
+          <mxGeometry x="500" y="750" width="220" height="60" as="geometry" />
+        </mxCell>
+
+        <mxCell id="e1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;" edge="1" parent="1" source="boot" target="high_pulse">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e2" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;" edge="1" parent="1" source="high_pulse" target="qbbs1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e3" value="No" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;" edge="1" parent="1" source="qbbs1" target="clr0">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e4" value="Yes" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;" edge="1" parent="1" source="qbbs1" target="set0">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e5" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;" edge="1" parent="1" source="clr0" target="low_pulse">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e6" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;" edge="1" parent="1" source="set0" target="low_pulse">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e7" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;" edge="1" parent="1" source="low_pulse" target="qbbs2">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e8" value="No" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;" edge="1" parent="1" source="qbbs2" target="clr1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e9" value="Yes" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;" edge="1" parent="1" source="qbbs2" target="set1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e10" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;exitX=0;exitY=0.5;entryX=0;entryY=0.5;" edge="1" parent="1" source="clr1" target="high_pulse">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="60" y="780" />
+              <mxPoint x="60" y="175" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e11" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;exitX=1;exitY=0.5;entryX=1;entryY=0.5;" edge="1" parent="1" source="set1" target="high_pulse">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="800" y="780" />
+              <mxPoint x="800" y="175" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
