@@ -1,0 +1,7 @@
+const uint32_t PRU0Firmware_0[] = {
+0xd100ff03,
+0x1d01fefe,
+0x7f0000fe,
+0x1f01fefe,
+0x7f0000fc};
+
