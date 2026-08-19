@@ -61,6 +61,15 @@ Curr_A_not_set0:
     SET     a_b_transition, a_b_transition, 0
 Curr_B_not_set0:
 
+    ; Publish QPOSMAX to R5F once at boot, so the host can read the actual
+    ; counter modulus instead of relying on a hand-duplicated constant.
+    ldi32   scratch2, QPOSMAX
+    sbco    &scratch2, DMEM1, QPOSMAX_OFFSET, 4
+
+    ; Cache QPOSMAX in a dedicated register once at boot, so the hot-path
+    ; overflow compares below don't pay for an ldi32 reload on every edge.
+    ldi32   qposmax_reg, QPOSMAX
+
     ; Start high-speed capture routine
     M_RESET_CYCLCNT
 
@@ -131,11 +140,18 @@ no_phase_err0:
     ; Handle increment/decrement based on direction
     qbbc    no_increment0, qpos_update, 0
     add     QPOS, QPOS, 1
+    qbge    no_qpos_overflow0, QPOS, qposmax_reg   ; jump if qposmax_reg >= QPOS (i.e. QPOS <= QPOSMAX)
+    ldi     QPOS, 0
+no_qpos_overflow0:
     sbco    &QPOS, DMEM1, CH_POS_OFFSET, 4
     qba     capture_wrap
 no_increment0:
     qbbc    no_decrement0, qpos_update, 1
     sub     QPOS, QPOS, 1
+    ldi32   scratch2, 0xFFFFFFFF
+    qbne    no_qpos_underflow0, QPOS, scratch2  ; only reload if result is exactly 0xFFFFFFFF (true underflow)
+    ldi32   QPOS, QPOSMAX
+no_qpos_underflow0:
 no_decrement0:
     sbco    &QPOS, DMEM1, CH_POS_OFFSET, 4
     qba     capture_wrap
@@ -165,11 +181,18 @@ no_phase_err1:
     ; Handle increment/decrement based on direction
     qbbc    no_increment, qpos_update, 0
     add     QPOS, QPOS, 1
+    qbge    no_qpos_overflow, QPOS, qposmax_reg    ; jump if qposmax_reg >= QPOS (i.e. QPOS <= QPOSMAX)
+    ldi     QPOS, 0
+no_qpos_overflow:
     sbco    &QPOS, DMEM1, CH_POS_OFFSET, 4
     qba     capture_wrap
 no_increment:
     qbbc    no_decrement, qpos_update, 1
     sub     QPOS, QPOS, 1
+    ldi32   scratch2, 0xFFFFFFFF
+    qbne    no_qpos_underflow, QPOS, scratch2   ; only reload if result is exactly 0xFFFFFFFF (true underflow)
+    ldi32   QPOS, QPOSMAX
+no_qpos_underflow:
 no_decrement:
     sbco    &QPOS, DMEM1, CH_POS_OFFSET, 4
 

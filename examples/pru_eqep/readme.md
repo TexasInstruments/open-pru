@@ -131,7 +131,7 @@ Z signal pins omitted — not a customer requirement, not wired/tested (see `TES
 - **Check `PhaseErr` first if position looks wrong.** Phase error is detected when A and B transition simultaneously — the PRU firmware's LUT lookup returns `3` (diagonal/invalid state), increments `PHASE_ERR_CNT` in DMEM1 for that channel, and skips the QPOS update for that edge. On the R5F side, the polling loop compares `PHASE_ERR_CNT` against `phase_err_count_last_seen` each pass — if it has moved, `phase_error_flag` is set to `1` (sticky). The 1-second status print logs this as `PhaseErr: Ch0=... Ch5=...`. `QPOS` is not corrupted by phase-error events (the edge is skipped, not miscounted), but a set flag means real edges are being lost or misread — check wiring/noise on that channel's A/B lines. To clear the flag once the root cause is fixed, call `EQEP_PRU_clearPhaseErrorFlag(channel)` — this zeroes only the R5F-local `phase_error_flag` and never touches DMEM1 or the PRU-side `PHASE_ERR_CNT` (single-owner rule: PRU owns that counter, R5F only reads it).
 - **`QPOS` lags the ring buffer by one edge.** The firmware publishes the timestamp/write-pointer for the *current* edge before updating `QPOS` for it — this is expected, not a bug, if you see `QPOS` one edge "behind" the buffer contents in a memory dump.
 - **Speed reads 0 or garbage after ~55ms of silence on a channel.** `EQEP_Get_Speed_ABZ`'s `delta_t` is derived from a 24-bit-masked timestamp that wraps every ~55ms at 300 MHz — a divide-by-zero guard is not yet in place. If you hit this, it's the known gap, not new.
-- **Direction flips unexpectedly.** Already fixed for the 32-bit `QPOS` wraparound boundary (`0xFFFFFFFF → 0`) via a signed-diff comparison — if you see a wrong direction reading anywhere else, it's a new bug, not a recurrence of that one.
+- **Direction flips unexpectedly.** `QPOS` is bounded to `[0, QPOSMAX]`, not free-running, so direction is computed from a modulus-aware re-wrap of the QPOS diff (`modulus = QPOSMAX + 1`, with `QPOSMAX` read from firmware once at boot into R5F's `qposmax` field) — not a raw 32-bit signed-diff comparison. If you see a wrong direction reading, check that this re-wrap logic is intact before suspecting anything else.
 - **A channel shows no activity at all.** Confirm `A_B_Z_GPI_mask`/`A_SIGNAL_GPI`/`B_SIGNAL_GPI` in `memory.inc` for that core match the actual pin wiring and `example.syscfg` mux assignment — the two must agree (see "Configuring A/B/Z Pin Assignments").
 - **Check the raw A/B input directly on `r31` before suspecting firmware logic.** Each PRU core's live GPI state is `r31` — halt the core in a CCS debug session (Registers view or `r31` in the Watch window) and confirm the bits toggle as the encoder is rotated by hand:
   - RTU_PRU0/PRU0/TX_PRU0 (Ch0/1/2) all read the *same* physical byte, `r31.b0` — use each core's `A_B_Z_GPI_mask` from `memory.inc` to know which bits in that shared byte are that channel's A/B (e.g. Ch0 = bits 0,1; Ch1 = bits 2,3; Ch2 = bits 4,5).
@@ -179,6 +179,24 @@ Z_interrupt0:
 This is disabled because Z-based position reset was raised and then explicitly dropped as a customer requirement — not a bug or an oversight. Real hardware eQEP's `QPOSMAX`/`PCRM` (position-counter-reset-mode) semantics, which this would need to approximate, only make sense with a Z pulse establishing an unambiguous reset point once per revolution; without validating that Z is wired and firing correctly on real hardware, uncommenting this line would silently reset `QPOS` on every Z edge, valid or not.
 
 To re-enable: uncomment the `zero &QPOS, 4` line in **both** duplicated LUT-handling blocks in `main.asm` (the buffer-wrap-reset path and the normal-continuation path use separate copies of this logic), rebuild, and bench-test against a real encoder's Z pulse before trusting it — this path has no existing test coverage (see `TESTING.md` test #11, dropped from scope).
+
+### 8d. Configuring Position Counter Wraparound (QPOSMAX / Pulses-Per-Revolution)
+
+`QPOS` (the PRU's free-running position register) is bounded to `[0, QPOSMAX]` instead of wrapping across the full 32-bit range. On increment past `QPOSMAX`, `QPOS` reloads to `0`; on decrement below `0`, `QPOS` reloads to `QPOSMAX`. This mirrors real hardware eQEP's `QPOSMAX` bound (SPRU790D) and needs to match your encoder's pulses-per-revolution (PPR), not the default test value.
+
+`QPOSMAX` is a single build-time constant in `firmware/include/macros.inc`:
+
+```asm
+; Position counter maximum value (QPPR * 4 - 1)
+QPOSMAX .set 3999
+```
+
+`3999` is `1000 × 4 − 1`, for a 1000 PPR encoder in ×4 quadrature decoding (4 counts per line). To match a different encoder, set `QPOSMAX = (PPR × 4) − 1`.
+
+1. Edit `QPOSMAX` in `firmware/include/macros.inc` to `(your encoder's PPR × 4) − 1`.
+2. Rebuild the firmware project for the target core(s) — `QPOSMAX` is a firmware compile-time constant, so a rebuild+reflash is required. R5F reads the new value from DMEM1 once at boot (firmware publishes it via `QPOSMAX_OFFSET`), so no R5F-side code change is needed.
+
+**Not yet runtime-configurable** — this is a per-build constant today, shared identically across all 6 cores/channels.
 
 ## 9. References
 

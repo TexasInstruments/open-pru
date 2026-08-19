@@ -32,6 +32,7 @@
 ; REGISTER ASSIGNMENT
     .asg   r0,     scratch
     .asg   r1,     scratch2
+    .asg   r2,     qposmax_reg      ; Cached QPOSMAX, loaded once at boot
     .asg   r17.b0, curr_gpi_sample  ; Current GPI state after masking
     .asg   r17.b1, A_B_Z_edge       ; Edge detection for A,B,Z signals
     .asg   r18,    curr_ts          ; Timestamp counter
@@ -87,6 +88,7 @@ A_B_Z_GPI_mask      .set    0x43     ; Byte level mask for GPI0,1 (0b0100_0011)
 CH_POS_OFFSET       .set    0x1C
 WRITE_PTR_OFFSET    .set    0x0
 PHASE_ERR_CNT_OFFSET .set   0x34
+QPOSMAX_OFFSET      .set    0x4C
     .endif
 
 ; PRU0 Configuration (GPIs 8-15)
@@ -101,6 +103,7 @@ A_B_Z_GPI_mask      .set    0x4C    ; Byte level mask for GPI2,3 (0b0100_1100)
 CH_POS_OFFSET       .set    0x20
 WRITE_PTR_OFFSET    .set    0x4
 PHASE_ERR_CNT_OFFSET .set   0x38
+QPOSMAX_OFFSET      .set    0x50
     .endif
 
 ; TX_PRU0 Configuration (GPIs 16-19)
@@ -115,6 +118,7 @@ A_B_Z_GPI_mask      .set    0x70     ; Byte level mask for GPI4,5 (0b0111_0000)
 CH_POS_OFFSET       .set    0x24
 WRITE_PTR_OFFSET    .set    0x8
 PHASE_ERR_CNT_OFFSET .set   0x3C
+QPOSMAX_OFFSET      .set    0x54
     .endif
 
 ; RTU_PRU1 Configuration (GPIs 0-7)
@@ -129,6 +133,7 @@ A_B_Z_GPI_mask      .set    0x7     ; Byte level mask for GPI0,1 (0b0000_0111)
 CH_POS_OFFSET       .set    0x28
 WRITE_PTR_OFFSET    .set    0xC
 PHASE_ERR_CNT_OFFSET .set   0x40
+QPOSMAX_OFFSET      .set    0x58
     .endif
 
 ; PRU1 Configuration (GPIs 8-15)
@@ -143,6 +148,7 @@ A_B_Z_GPI_mask      .set    0x5C    ; Byte level mask for GPI11,12 (0b0101_1100)
 CH_POS_OFFSET       .set    0x2C
 WRITE_PTR_OFFSET    .set    0x10
 PHASE_ERR_CNT_OFFSET .set   0x44
+QPOSMAX_OFFSET      .set    0x5C
     .endif
 
 ; TX_PRU1 Configuration (GPIs 16-19)
@@ -158,6 +164,7 @@ A_B_Z_GPI_mask      .set    0xA4     ; Byte level mask for GPI13,15 (0b1010_0100
 CH_POS_OFFSET       .set    0x30
 WRITE_PTR_OFFSET    .set    0x14
 PHASE_ERR_CNT_OFFSET .set   0x48
+QPOSMAX_OFFSET      .set    0x60
     .endif
 
 ;--------------------------------------------------------------------------;
