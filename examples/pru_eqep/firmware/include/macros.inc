@@ -52,3 +52,6 @@ M_RESET_CYCLCNT .macro
 M_READ_CYCLCNT .macro dst
     lbco    &dst, PRU_CTRL_CONST, PRU_CYCLCNT, 4
     .endm
+
+; Position counter maximum value (QPPR * 4 - 1)
+QPOSMAX .set 3999
