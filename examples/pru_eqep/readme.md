@@ -180,6 +180,24 @@ This is disabled because Z-based position reset was raised and then explicitly d
 
 To re-enable: uncomment the `zero &QPOS, 4` line in **both** duplicated LUT-handling blocks in `main.asm` (the buffer-wrap-reset path and the normal-continuation path use separate copies of this logic), rebuild, and bench-test against a real encoder's Z pulse before trusting it — this path has no existing test coverage (see `TESTING.md` test #11, dropped from scope).
 
+### 8d. Configuring Position Counter Wraparound (QPOSMAX / Pulses-Per-Revolution)
+
+`QPOS` (the PRU's free-running position register) is bounded to `[0, QPOSMAX]` instead of wrapping across the full 32-bit range. On increment past `QPOSMAX`, `QPOS` reloads to `0`; on decrement below `0`, `QPOS` reloads to `QPOSMAX`. This mirrors real hardware eQEP's `QPOSMAX` bound (SPRU790D) and needs to match your encoder's pulses-per-revolution (PPR), not the default test value.
+
+`QPOSMAX` is a single build-time constant in `firmware/include/macros.inc`:
+
+```asm
+; Position counter maximum value (QPPR * 4 - 1)
+QPOSMAX .set 3999
+```
+
+`3999` is `1000 × 4 − 1`, for a 1000 PPR encoder in ×4 quadrature decoding (4 counts per line). To match a different encoder, set `QPOSMAX = (PPR × 4) − 1`.
+
+1. Edit `QPOSMAX` in `firmware/include/macros.inc` to `(your encoder's PPR × 4) − 1`.
+2. Rebuild the firmware project for the target core(s) — `QPOSMAX` is compile-time, not read from DMEM1, so a rebuild+reflash is required; there's no R5F-side equivalent to update.
+
+**Not yet runtime-configurable** — this is a per-build constant today, shared identically across all 6 cores/channels. Making it a per-channel, R5F-writable DMEM1 value (so different channels could use different PPR encoders without separate firmware builds) is an open item tracked under the customer's Parameter Configuration ask (see `progress.md`).
+
 ## 9. References
 
 - [PRU-ICSS Documentation](https://www.ti.com/tool/PRU-ICSS)

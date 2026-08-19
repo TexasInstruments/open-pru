@@ -131,11 +131,19 @@ no_phase_err0:
     ; Handle increment/decrement based on direction
     qbbc    no_increment0, qpos_update, 0
     add     QPOS, QPOS, 1
+    ldi32   scratch2, QPOSMAX
+    qbge    no_qpos_overflow0, QPOS, scratch2   ; jump if scratch2 >= QPOS (i.e. QPOS <= QPOSMAX)
+    ldi     QPOS, 0
+no_qpos_overflow0:
     sbco    &QPOS, DMEM1, CH_POS_OFFSET, 4
     qba     capture_wrap
 no_increment0:
     qbbc    no_decrement0, qpos_update, 1
     sub     QPOS, QPOS, 1
+    ldi32   scratch2, 0xFFFFFFFF
+    qbne    no_qpos_underflow0, QPOS, scratch2  ; only reload if result is exactly 0xFFFFFFFF (true underflow)
+    ldi32   QPOS, QPOSMAX
+no_qpos_underflow0:
 no_decrement0:
     sbco    &QPOS, DMEM1, CH_POS_OFFSET, 4
     qba     capture_wrap
@@ -165,11 +173,19 @@ no_phase_err1:
     ; Handle increment/decrement based on direction
     qbbc    no_increment, qpos_update, 0
     add     QPOS, QPOS, 1
+    ldi32   scratch2, QPOSMAX
+    qbge    no_qpos_overflow, QPOS, scratch2    ; jump if scratch2 >= QPOS (i.e. QPOS <= QPOSMAX)
+    ldi     QPOS, 0
+no_qpos_overflow:
     sbco    &QPOS, DMEM1, CH_POS_OFFSET, 4
     qba     capture_wrap
 no_increment:
     qbbc    no_decrement, qpos_update, 1
     sub     QPOS, QPOS, 1
+    ldi32   scratch2, 0xFFFFFFFF
+    qbne    no_qpos_underflow, QPOS, scratch2   ; only reload if result is exactly 0xFFFFFFFF (true underflow)
+    ldi32   QPOS, QPOSMAX
+no_qpos_underflow:
 no_decrement:
     sbco    &QPOS, DMEM1, CH_POS_OFFSET, 4
 
