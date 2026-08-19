@@ -97,13 +97,12 @@ pruicss1.intcMapping[5].$name                                              = "CO
 pruicss1.intcMapping[5].event                                              = "21";
 pruicss1.intcMapping[5].channel                                            = "7";
 
-debug_log.enableUartLog            = true;
-debug_log.enableSharedMemLog       = true;
-debug_log.enableMemLog             = true;
-debug_log.enableSharedMemLogReader = true;
-debug_log.uartLog.$name            = "CONFIG_UART_CONSOLE";
-debug_log.uartLog.inputClkFreq     = 192000000;
-debug_log.uartLog.UART.$assign     = "USART0";
+debug_log.enableUartLog        = true;
+debug_log.enableCssLog         = false;
+debug_log.uartLog.$name        = "CONFIG_UART_CONSOLE";
+debug_log.uartLog.inputClkFreq = 192000000;
+debug_log.uartLog.baudRate     = 921600;
+debug_log.uartLog.UART.$assign = "USART0";
 
 const uart_v0_template  = scripting.addModule("/drivers/uart/v0/uart_v0_template", {}, false);
 const uart_v0_template1 = uart_v0_template.addInstance({}, false);

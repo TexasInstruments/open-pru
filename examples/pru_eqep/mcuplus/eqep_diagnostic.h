@@ -30,31 +30,31 @@
 *  OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-// Typedef for ABZ handle
+/* Typedef for ABZ handle  */
 typedef struct ABZ_Config_s *ABZ_Handle;
 
-// Enum for different states
+/* Enum for different states */
 typedef enum
 {
-    // States for Prev_A_edge=0, Prev_B_edge=0
+    /* States for Prev_A_edge=0, Prev_B_edge=0 */
     STATE_00_00,
     STATE_00_01,
     STATE_00_10,
     STATE_00_11,
 
-    // States for Prev_A_edge=0, Prev_B_edge=1
+    /* States for Prev_A_edge=0, Prev_B_edge=1 */
     STATE_01_00,
     STATE_01_01,
     STATE_01_10,
     STATE_01_11,
 
-    // States for Prev_A_edge=1, Prev_B_edge=0
+    /* States for Prev_A_edge=1, Prev_B_edge=0 */
     STATE_10_00,
     STATE_10_01,
     STATE_10_10,
     STATE_10_11,
 
-    // States for Prev_A_edge=1, Prev_B_edge=1
+    /* States for Prev_A_edge=1, Prev_B_edge=1 */
     STATE_11_00,
     STATE_11_01,
     STATE_11_10,
@@ -62,84 +62,95 @@ typedef enum
 
 } State;
 
-// Structure for ABZ configuration
+/* Structure for ABZ configuration */
 typedef struct ABZ_Config_s {
 
     uint8_t channel;
-    // Handle for PRUICSS instance
+    /* Handle for PRUICSS instance */
     PRUICSS_Handle icssHandle;
     /**< PRUICSS_Handle for icssg0 or icssg1 instance*/
 
-    // PRUICSS core identifier
+    /* PRUICSS core identifier */
     uint32_t pru_slice;
     /**< PRUICSS core identifier
      * Check PRUICSS_PRU0 and check other available macros
     */
 
-    // Base memory address for ABZ channel configuration
+    /* Base memory address for ABZ channel configuration */
     uint32_t *baseMemAddr0; // icssHandle->hwAttrs->baseAddr + PRUICSS_DATARAM(PRUICSS_PRUx)
     /**< Base Memory Address for ABZ channel configuration */
 
-    // Base memory address for ABZ channel configuration
+    /* Base memory address for ABZ channel configuration */
     uint32_t *baseMemAddr1; // icssHandle->hwAttrs->baseAddr + PRUICSS_DATARAM(PRUICSS_PRUx)
     /**< Base Memory Address for ABZ channel configuration */
 
-    // Pointer to ABZ interface structure
+    /* Pointer to ABZ interface structure */
     ABZ_Handle *ABZInterface;
     /**< ABZ master memory interface structure */
 
-    // Read and write pointers
+    /* Read and write pointers */
     uint32_t *read_ptr;
     uint32_t *write_ptr;
     uint32_t mem_limit;
-    // Offsets for read and write pointers
+    /* Offsets for read and write pointers */
     uint32_t write_ptr_offset;
     uint32_t read_ptr_offset;
 
-    // Edge detection variables
+    /* Edge detection variables */
     uint32_t edges;
     uint32_t prev_ts; //*Previous time stamp*
     uint32_t cur_ts;  //*Current time stamp*
 
-    // Speed and direction variables
+    /* Speed and direction variables */
     uint32_t speed;
     uint32_t delta_t;
     uint32_t iter;
     uint32_t iter1;
 
-    // Edge status variables
+    /* Edge status variables */
     uint32_t A_cur_edge;
     uint32_t A_prev_edge;
     uint32_t B_prev_edge;
     uint32_t B_cur_edge;
 
-    // Quadrature position counter
+    /* Quadrature position counter */
     uint32_t QPOSCOUNT;
 
-    // Previous quadrature position
+    /* Previous quadrature position */
     int32_t prev_QPOS;
 
-    // Edge status register
-    int32_t A_B_EDGE_STATUS;  // 4 bit status for following fields-> [(Prev_A_Edge),(Prev_B_Edge),(Curr_A_Edge),(Curr_B_Edge)]
+    /* Edge status register
+    4 bit status for following fields-> [(Prev_A_Edge),(Prev_B_Edge),(Curr_A_Edge),(Curr_B_Edge)] */
+    int32_t A_B_EDGE_STATUS;  
 
 
-    // Direction variable
+    /* Direction variable */
     int32_t direction;
 
-    // Position variable
+    /* Position variable */
     uint32_t position;
 
     uint32_t *rev_intr;
     int32_t temp_qpos;
-    // Qpos buffer
+    /* Qpos buffer */
     uint32_t *position_base;
     uint32_t position_buffer[1000];
 
-    // Phase-error shadow-compare (PRU-write-only counter, R5F-read-only)
+    /* Phase-error shadow-compare (PRU-write-only counter, R5F-read-only) */
     uint32_t *phase_err_base;
     uint32_t phase_err_count;
     uint32_t phase_err_count_last_seen;
     uint32_t phase_error_flag;
+
+    /* Counter modulus published once by firmware at boot (PRU-write-once, R5F-read-once) */
+    uint32_t *qposmax_base;
+    uint32_t qposmax;
+
+    /* Direction of the last processed edge, published by firmware every edge
+       (PRU-write-only, R5F-read-only) - avoids inferring direction from a
+       QPOS diff, which is ambiguous if R5F stalls long enough for the true
+       displacement to exceed the modulus-rewrap's +/-modulus/2 range. */
+    uint8_t *last_dir_base;
 } ABZ_Config;
 
 
