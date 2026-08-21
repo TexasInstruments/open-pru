@@ -140,6 +140,10 @@ typedef struct ABZ_Config_s {
     uint32_t phase_err_count;
     uint32_t phase_err_count_last_seen;
     uint32_t phase_error_flag;
+
+    // Counter modulus published once by firmware at boot (PRU-write-once, R5F-read-once)
+    uint32_t *qposmax_base;
+    uint32_t qposmax;
 } ABZ_Config;
 
 

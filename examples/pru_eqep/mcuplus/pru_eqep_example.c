@@ -75,6 +75,14 @@
 #define CH4_PHASE_ERR_OFFSET 0x44
 #define CH5_PHASE_ERR_OFFSET 0x48
 
+// Define QPOSMAX offsets for each channel (PRU-write-once at boot, R5F-read-once at init)
+#define CH0_QPOSMAX_OFFSET 0x4C
+#define CH1_QPOSMAX_OFFSET 0x50
+#define CH2_QPOSMAX_OFFSET 0x54
+#define CH3_QPOSMAX_OFFSET 0x58
+#define CH4_QPOSMAX_OFFSET 0x5C
+#define CH5_QPOSMAX_OFFSET 0x60
+
 // Define the delay after which we should print the results
 #define PRINT_DELAY         1000000U
 
@@ -270,6 +278,13 @@ void pru_eqep_example_main(void *args)
     ABZHandle[3]->phase_err_base = (uint32_t *)((uint32_t)(ABZHandle[3]->baseMemAddr1) + CH0_PHASE_ERR_OFFSET);
     ABZHandle[4]->phase_err_base = (uint32_t *)((uint32_t)(ABZHandle[4]->baseMemAddr1) + CH0_PHASE_ERR_OFFSET);
     ABZHandle[5]->phase_err_base = (uint32_t *)((uint32_t)(ABZHandle[5]->baseMemAddr1) + CH0_PHASE_ERR_OFFSET);
+
+    ABZHandle[0]->qposmax_base = (uint32_t *)((uint32_t)(ABZHandle[0]->baseMemAddr1) + CH0_QPOSMAX_OFFSET);
+    ABZHandle[1]->qposmax_base = (uint32_t *)((uint32_t)(ABZHandle[1]->baseMemAddr1) + CH0_QPOSMAX_OFFSET);
+    ABZHandle[2]->qposmax_base = (uint32_t *)((uint32_t)(ABZHandle[2]->baseMemAddr1) + CH0_QPOSMAX_OFFSET);
+    ABZHandle[3]->qposmax_base = (uint32_t *)((uint32_t)(ABZHandle[3]->baseMemAddr1) + CH0_QPOSMAX_OFFSET);
+    ABZHandle[4]->qposmax_base = (uint32_t *)((uint32_t)(ABZHandle[4]->baseMemAddr1) + CH0_QPOSMAX_OFFSET);
+    ABZHandle[5]->qposmax_base = (uint32_t *)((uint32_t)(ABZHandle[5]->baseMemAddr1) + CH0_QPOSMAX_OFFSET);
     // Initialize PRU ICSS for each channel
     //PRU0 cores
     ABZ_PRU_ICSS_Init(gPruIcssXHandle, ABZHandle[0], PRUICSS_RTU_PRU0);
@@ -300,6 +315,14 @@ void pru_eqep_example_main(void *args)
     // Load and run firmware
     EQEP_pruss_load_run_fw();
 
+    /* Read QPOSMAX once, after firmware start: PRU publishes it to DMEM
+     * during its own init block (before the capture loop begins), so it
+     * is guaranteed valid here. Read once, not per-poll, since firmware
+     * never rewrites it again after boot. */
+    for (int i = 0; i < 6; i++)
+    {
+        ABZHandle[i]->qposmax = HW_RD_REG32((uint32_t)ABZHandle[i]->qposmax_base);
+    }
 
     // Log messages
     DebugP_log("\r\n ABZ setup finished\n");
@@ -364,13 +387,16 @@ void pru_eqep_example_main(void *args)
              * curr < prev as raw unsigned values, so the old ">"/"<" logic
              * would report it as reverse.
              *
-             * Fix: subtract as unsigned (which wraps modulo 2^32, exactly
-             * undoing the counter's own wraparound) and reinterpret the
-             * result as signed. Since we poll fast relative to the encoder
-             * rate, the true step between polls is always tiny compared to
-             * 2^31, so the sign of the reinterpreted result always matches
-             * the true direction, wrap or no wrap. */
+             * Fix: compute the raw diff, then re-wrap it into
+             * [-modulus/2, modulus/2) using the actual counter modulus
+             * (QPOSMAX+1, read from firmware at boot). Since we poll fast
+             * relative to the encoder rate, the true step between polls is
+             * always tiny compared to modulus/2, so the sign after re-wrap
+             * always matches the true direction, wrap or no wrap. */
+            int32_t modulus = (int32_t)ABZHandle[ch]->qposmax + 1;
             int32_t qpos_diff = (int32_t)(ABZHandle[ch]->QPOSCOUNT - ABZHandle[ch]->prev_QPOS);
+            if      (qpos_diff >  modulus / 2) qpos_diff -= modulus;
+            else if (qpos_diff < -modulus / 2) qpos_diff += modulus;
             if      (qpos_diff > 0) ABZHandle[ch]->direction =  1;
             else if (qpos_diff < 0) ABZHandle[ch]->direction = -1;
 
@@ -535,10 +561,13 @@ void EQEP_Get_position_ABZ(void)
     }
         for(int channel=0;channel<6;channel++)
         {
-            /* See the wraparound-safe signed-diff note in the main polling
-             * loop above (pru_eqep_example_main) — same QPOS free-running
-             * uint32_t wrap issue applies here. */
+            /* See the QPOSMAX-modulus signed-diff note in the main polling
+             * loop above (pru_eqep_example_main) — same bounded-counter
+             * wrap issue applies here. */
+            int32_t modulus = (int32_t)ABZHandle[channel]->qposmax + 1;
             int32_t qpos_diff = (int32_t)(ABZHandle[channel]->QPOSCOUNT - ABZHandle[channel]->prev_QPOS);
+            if      (qpos_diff >  modulus / 2) qpos_diff -= modulus;
+            else if (qpos_diff < -modulus / 2) qpos_diff += modulus;
             if      (qpos_diff > 0) ABZHandle[channel]->direction =  1;
             else if (qpos_diff < 0) ABZHandle[channel]->direction = -1;
             else                    ABZHandle[channel]->direction =  0;
