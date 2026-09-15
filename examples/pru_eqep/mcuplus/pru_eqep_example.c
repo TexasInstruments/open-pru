@@ -94,8 +94,11 @@
 /* Define the delay after which we should print the results */
 #define PRINT_DELAY         1000000U
 
-/* Define to enable mem_limit ring-buffer-wrap debug prints (Ch5 bench test)
-   #define TEST_MEM_LIMIT_DEBUG */
+/* Define the below line to enable mem_limit ring-buffer-wrap debug prints (Ch5 bench test) */
+/* #define TEST_MEM_LIMIT_DEBUG */
+
+/* Define the below line to enable pulse loss detection test, refer readme section 8e for more details */
+/* #define TEST_PULSE_LOSS */ 
 
 /* Array of offsets for easier access */
 static const uint32_t DMEM_OFFSETS[6] = {
@@ -342,8 +345,11 @@ void pru_eqep_example_main(void *args)
     /* Log messages */ 
     DebugP_log("\r\n ABZ setup finished\n");
     DebugP_log("EQEP Position Speed Test Started ...\r\n");
-
+#ifdef TEST_PULSE_LOSS
+    DebugP_log("Pulse loss test active, if pulse loss detected, the corresponding channel and timestamp at which Pulse loss happened will be logged below ...\r\n");
+#else
     uint64_t last_print_us = ClockP_getTimeUsec();
+#endif
 
     /* Main polling loop */
     while (1)
@@ -402,6 +408,13 @@ void pru_eqep_example_main(void *args)
             if      (last_dir == 1) ABZHandle[ch]->direction =  1;
             else if (last_dir == 2) ABZHandle[ch]->direction = -1;
 
+#ifdef TEST_PULSE_LOSS
+            /* Assuming that the direction set for this test is positive/forward (+1)*/
+            if (ABZHandle[ch]->direction == -1 || ABZHandle[ch]->phase_error_flag == 1)
+            {
+                DebugP_log("Pulse loss detected for channel %d at timestamp %d \n",ch,ABZHandle[ch]->cur_ts);
+            }  
+#endif
             if (edge_delta >= EQEP_EDGE_THRESHOLD)
             {
                 ABZHandle[ch]->write_ptr_offset = curr_write_ptr_offset;
@@ -411,6 +424,7 @@ void pru_eqep_example_main(void *args)
 
         /* Print status every 1 second 
         this is just for calculating that atleast 1(PRINT_DELAY) second has passed since the last print */
+#ifndef TEST_PULSE_LOSS
         uint64_t now_us = ClockP_getTimeUsec();
         if ((now_us - last_print_us) >= PRINT_DELAY)
         {
@@ -428,6 +442,7 @@ void pru_eqep_example_main(void *args)
                 ABZHandle[3]->phase_error_flag, ABZHandle[4]->phase_error_flag, ABZHandle[5]->phase_error_flag);
             last_print_us = now_us;
         }
+#endif
     }
 
 

@@ -196,6 +196,43 @@ QPOSMAX .set 3999
 1. Edit `QPOSMAX` in `firmware/include/macros.inc` to `(your encoder's PPR × 4) − 1`.
 2. Rebuild the firmware project for the target core(s) — `QPOSMAX` is a firmware compile-time constant, so a rebuild+reflash is required. R5F reads the new value from DMEM1 once at boot (firmware publishes it via `QPOSMAX_OFFSET`), so no R5F-side code change is needed.
 
+### 8e. Enabling Pulse Loss test following phase/direction method 
+
+Disable line 101 in pru_eqep_example.c to enable pulse loss detection 
+
+`Note : This test assumes that the fixed direction is forward (+1)` 
+
+Assumming that the direction of the A,B pulses is fixed to forward,
+Quadrature A/B signals can only change in one of two fixed sequences:
+
+Forward: 00 → 10 → 11 → 01 → 00 → ...
+Reverse: 00 → 01 → 11 → 10 → 00 → ...
+If the encoder is running forward and an edge gets missed, the state machine skips a step. Skipping a step lands on a state that is either:
+
+Diagonal (e.g. 00 → 11) — invalid for either direction — flagged as a phase error.
+A valid reverse step — looks exactly like the encoder went backward — shows up as direction = decrement.
+The same state it started from — no transition at all, invisible.
+So: if you know the encoder should only move forward, any phase error or any decrement direction means a pulse was lost.
+
+#### What it catches, and what it doesn't : 
+
+|Count of Pulses lost| what the loss looks like | Direction and error determination
+|---|---|---| 
+|1, 5, 9, ...	| Diagonal transition |	Phase error
+|2, 6, 10, ...	|Looks like a reverse step	| Direction = decrement
+|3, 7, 11, ...	|Looks like a reverse step	| Direction = decrement
+|4, 8, 12, ...	|Lands back on the same state	| Not detected
+
+Losing a multiple of 4 pulses brings the state machine back to where it would have been anyway — there's nothing left to notice. This is a limitation of quadrature encoding itself, not something the firmware can fix. A Z (index) pulse would close this gap, but Z is not used in this design.
+
+Check out the below flow chart for more details :
+
+<figure>
+<img src="images/pulse_loss_detection_flow_chart.png" alt="pulse loss detection flow" width="900">
+<figcaption>pulse loss detection flow</figcaption>
+</figure>
+
+
 **Not yet runtime-configurable** — this is a per-build constant today, shared identically across all 6 cores/channels.
 
 ## 9. References
