@@ -151,6 +151,12 @@ typedef struct ABZ_Config_s {
        QPOS diff, which is ambiguous if R5F stalls long enough for the true
        displacement to exceed the modulus-rewrap's +/-modulus/2 range. */
     uint8_t *last_dir_base;
+
+    /* Pulse loss detection fields */
+    uint32_t *pulse_loss_base;
+    uint32_t pulse_loss_count;
+    uint32_t pulse_loss_count_last_seen;
+    uint32_t pulse_loss_flag;
 } ABZ_Config;
 
 

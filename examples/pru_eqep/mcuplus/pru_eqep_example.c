@@ -91,11 +91,23 @@
 #define CH4_LAST_DIR_OFFSET 0x74
 #define CH5_LAST_DIR_OFFSET 0x78
 
+
 /* Define the delay after which we should print the results */
 #define PRINT_DELAY         1000000U
 
-/* Define to enable mem_limit ring-buffer-wrap debug prints (Ch5 bench test)
-   #define TEST_MEM_LIMIT_DEBUG */
+/* Define the below line to enable mem_limit ring-buffer-wrap debug prints (Ch5 bench test) */
+/* #define TEST_MEM_LIMIT_DEBUG */
+
+/* Define the below line to enable pulse loss detection test, refer readme section 8e for more details */
+// #define TEST_PULSE_LOSS 
+
+/* Define Pulse loss offsets for each channel, used only when the test is enabled */
+#define CH0_PULSE_LOSS_OFFSET 0x7C
+#define CH1_PULSE_LOSS_OFFSET 0x80
+#define CH2_PULSE_LOSS_OFFSET 0x84
+#define CH3_PULSE_LOSS_OFFSET 0x88
+#define CH4_PULSE_LOSS_OFFSET 0x8C
+#define CH5_PULSE_LOSS_OFFSET 0x90
 
 /* Array of offsets for easier access */
 static const uint32_t DMEM_OFFSETS[6] = {
@@ -132,6 +144,7 @@ void EQEP_Get_Speed_ABZ(uint8_t channel);
 void EQEP_get_speed_RT(uint8_t channel);
 void EQEP_Get_position_ABZ(void);
 void EQEP_PRU_clearPhaseErrorFlag(uint8_t channel);
+void EQEP_PRU_clearPulseLossFlag(uint8_t channel);
 void create_lut(void);  /* Remove static keyword from the implementation */
 void ABZ_enable_load_share_mode(void *pruCfg, uint32_t pruSlice);
 void EQEP_pruss_load_run_fw(void);
@@ -300,6 +313,14 @@ void pru_eqep_example_main(void *args)
     ABZHandle[3]->last_dir_base = (uint8_t *)((uint32_t)(ABZHandle[3]->baseMemAddr1) + CH0_LAST_DIR_OFFSET);
     ABZHandle[4]->last_dir_base = (uint8_t *)((uint32_t)(ABZHandle[4]->baseMemAddr1) + CH0_LAST_DIR_OFFSET);
     ABZHandle[5]->last_dir_base = (uint8_t *)((uint32_t)(ABZHandle[5]->baseMemAddr1) + CH0_LAST_DIR_OFFSET);
+
+    ABZHandle[0]->pulse_loss_base = (uint32_t *)((uint32_t)(ABZHandle[0]->baseMemAddr1) + CH0_PULSE_LOSS_OFFSET);
+    ABZHandle[1]->pulse_loss_base = (uint32_t *)((uint32_t)(ABZHandle[1]->baseMemAddr1) + CH0_PULSE_LOSS_OFFSET);
+    ABZHandle[2]->pulse_loss_base = (uint32_t *)((uint32_t)(ABZHandle[2]->baseMemAddr1) + CH0_PULSE_LOSS_OFFSET);
+    ABZHandle[3]->pulse_loss_base = (uint32_t *)((uint32_t)(ABZHandle[3]->baseMemAddr1) + CH0_PULSE_LOSS_OFFSET);
+    ABZHandle[4]->pulse_loss_base = (uint32_t *)((uint32_t)(ABZHandle[4]->baseMemAddr1) + CH0_PULSE_LOSS_OFFSET);
+    ABZHandle[5]->pulse_loss_base = (uint32_t *)((uint32_t)(ABZHandle[5]->baseMemAddr1) + CH0_PULSE_LOSS_OFFSET);
+    
     /* Initialize PRU ICSS for each channel */
     /* PRU0 cores */
     ABZ_PRU_ICSS_Init(gPruIcssXHandle, ABZHandle[0], PRUICSS_RTU_PRU0);
@@ -342,7 +363,9 @@ void pru_eqep_example_main(void *args)
     /* Log messages */ 
     DebugP_log("\r\n ABZ setup finished\n");
     DebugP_log("EQEP Position Speed Test Started ...\r\n");
-
+#ifdef TEST_PULSE_LOSS
+    DebugP_log("Pulse loss test active, if pulse loss detected, the corresponding field pulse_loss_flag will be set logged below otherwise it will remain 0...\r\n");
+#endif
     uint64_t last_print_us = ClockP_getTimeUsec();
 
     /* Main polling loop */
@@ -402,6 +425,19 @@ void pru_eqep_example_main(void *args)
             if      (last_dir == 1) ABZHandle[ch]->direction =  1;
             else if (last_dir == 2) ABZHandle[ch]->direction = -1;
 
+#ifdef TEST_PULSE_LOSS
+            /* If the current pulse loss count is not equal to the last count when the pulse loss was detected or 0 (from starting)
+               OR if a phase error is detected then a pulse loss is happened and the pulse loss flag for the channel will be set  
+               This method is followed so that both R5F and PRU do not do both read/write from the same memory location */
+            uint32_t curr_pulse_loss_count = HW_RD_REG32((uint32_t)ABZHandle[ch]->pulse_loss_base);
+            if ((curr_pulse_loss_count != ABZHandle[ch]->pulse_loss_count_last_seen) || ABZHandle[ch]->phase_error_flag == 1)
+            {
+                ABZHandle[ch]->pulse_loss_flag = 1;
+                ABZHandle[ch]->pulse_loss_count_last_seen = curr_pulse_loss_count;
+            }
+            /* We can track the total number of times pulse loss was seen with pulse_loss_count field for each channel */
+            ABZHandle[ch]->pulse_loss_count = curr_pulse_loss_count;
+#endif
             if (edge_delta >= EQEP_EDGE_THRESHOLD)
             {
                 ABZHandle[ch]->write_ptr_offset = curr_write_ptr_offset;
@@ -412,6 +448,7 @@ void pru_eqep_example_main(void *args)
         /* Print status every 1 second 
         this is just for calculating that atleast 1(PRINT_DELAY) second has passed since the last print */
         uint64_t now_us = ClockP_getTimeUsec();
+#ifndef TEST_PULSE_LOSS
         if ((now_us - last_print_us) >= PRINT_DELAY)
         {
             DebugP_log("\r\nSpeeds (Hz): Ch0=%d Ch1=%d Ch2=%d Ch3=%d Ch4=%d Ch5=%d\n",
@@ -428,6 +465,15 @@ void pru_eqep_example_main(void *args)
                 ABZHandle[3]->phase_error_flag, ABZHandle[4]->phase_error_flag, ABZHandle[5]->phase_error_flag);
             last_print_us = now_us;
         }
+#else
+        if ((now_us - last_print_us) >= PRINT_DELAY)
+        {
+            DebugP_log("\r\nPulse loss flag for channel (Hz): Ch0=%d Ch1=%d Ch2=%d Ch3=%d Ch4=%d Ch5=%d\n",
+                ABZHandle[0]->pulse_loss_flag, ABZHandle[1]->pulse_loss_flag, ABZHandle[2]->pulse_loss_flag,
+                ABZHandle[3]->pulse_loss_flag, ABZHandle[4]->pulse_loss_flag, ABZHandle[5]->pulse_loss_flag);
+            last_print_us = now_us;
+        }
+#endif
     }
 
 
@@ -576,6 +622,11 @@ void EQEP_PRU_clearPhaseErrorFlag(uint8_t channel)
 {
     /* Only clears the R5F-local flag; never touches PRU/DMEM (single-owner rule) */
     ABZHandle[channel]->phase_error_flag = 0;
+}
+void EQEP_PRU_clearPulseLossFlag(uint8_t channel)
+{
+    /* Only clears the R5F-local flag; never touches PRU/DMEM (single-owner rule) */
+    ABZHandle[channel]->pulse_loss_flag = 0;
 }
 
 void EQEP_get_speed_RT(uint8_t channel)
