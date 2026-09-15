@@ -90,6 +90,7 @@ WRITE_PTR_OFFSET    .set    0x0
 PHASE_ERR_CNT_OFFSET .set   0x34
 QPOSMAX_OFFSET      .set    0x4C
 LAST_DIR_OFFSET     .set    0x64
+PULSE_LOSS_OFFSET   .set    0x7C
     .endif
 
 ; PRU0 Configuration (GPIs 8-15)
@@ -106,6 +107,7 @@ WRITE_PTR_OFFSET    .set    0x4
 PHASE_ERR_CNT_OFFSET .set   0x38
 QPOSMAX_OFFSET      .set    0x50
 LAST_DIR_OFFSET     .set    0x68
+PULSE_LOSS_OFFSET   .set    0x80
     .endif
 
 ; TX_PRU0 Configuration (GPIs 16-19)
@@ -122,6 +124,7 @@ WRITE_PTR_OFFSET    .set    0x8
 PHASE_ERR_CNT_OFFSET .set   0x3C
 QPOSMAX_OFFSET      .set    0x54
 LAST_DIR_OFFSET     .set    0x6C
+PULSE_LOSS_OFFSET   .set    0x84
     .endif
 
 ; RTU_PRU1 Configuration (GPIs 0-7)
@@ -138,6 +141,7 @@ WRITE_PTR_OFFSET    .set    0xC
 PHASE_ERR_CNT_OFFSET .set   0x40
 QPOSMAX_OFFSET      .set    0x58
 LAST_DIR_OFFSET     .set    0x70
+PULSE_LOSS_OFFSET   .set    0x88
     .endif
 
 ; PRU1 Configuration (GPIs 8-15)
@@ -154,6 +158,7 @@ WRITE_PTR_OFFSET    .set    0x10
 PHASE_ERR_CNT_OFFSET .set   0x44
 QPOSMAX_OFFSET      .set    0x5C
 LAST_DIR_OFFSET     .set    0x74
+PULSE_LOSS_OFFSET   .set    0x8C
     .endif
 
 ; TX_PRU1 Configuration (GPIs 16-19)
@@ -171,6 +176,7 @@ WRITE_PTR_OFFSET    .set    0x14
 PHASE_ERR_CNT_OFFSET .set   0x48
 QPOSMAX_OFFSET      .set    0x60
 LAST_DIR_OFFSET     .set    0x78
+PULSE_LOSS_OFFSET   .set    0x90
     .endif
 
 ;--------------------------------------------------------------------------;

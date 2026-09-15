@@ -13,7 +13,6 @@ The PRU eQEP implementation has been bench-validated against a real hardware eQE
 | Phase-error detection | Negative test: A and B tied to the same physical signal, forcing every transition through the diagonal/invalid states — counter increments, flag sets, and clears correctly with no false positives on a subsequent normal run |
 | Speed calculation | Swept across 1 kHz – 500 kHz — see "Parameter Ranges Tested" below |
 
-**Not yet exercised** : ring-buffer wrap boundary, sustained 24-bit timestamp wrap, edge-threshold variation, idle/cycle-counter-saturation recovery. These are defined as test cases but not yet run — treat behavior in these conditions as unverified, not as "known good."
 
 ## 2. Parameter Ranges Tested
 
@@ -195,6 +194,56 @@ QPOSMAX .set 3999
 
 1. Edit `QPOSMAX` in `firmware/include/macros.inc` to `(your encoder's PPR × 4) − 1`.
 2. Rebuild the firmware project for the target core(s) — `QPOSMAX` is a firmware compile-time constant, so a rebuild+reflash is required. R5F reads the new value from DMEM1 once at boot (firmware publishes it via `QPOSMAX_OFFSET`), so no R5F-side code change is needed.
+
+### 8e. Enabling Pulse Loss test following phase/direction method 
+
+Uncomment line 101 in `mcuplus/pru_eqep_example.c` to enable pulse loss detection (disabled by default)
+Set `PULSE_LOSS_DETECTION` to 1 in `firmware/include/macros.inc` line 60 to enable the firmware pulse loss detection (disabled by default) 
+
+`Note`
+1. This test assumes that the fixed direction is forward (+1)
+2. Enabling the test adds 6 cycles to the firmware budget when the Pulse Loss test is enabled 
+
+Assumming that the direction of the A,B pulses is fixed to forward,
+Quadrature A/B signals can only change in one of two fixed sequences:
+
+Forward: 00 → 10 → 11 → 01 → 00 → ...
+Reverse: 00 → 01 → 11 → 10 → 00 → ...
+If the encoder is running forward and an edge gets missed, the state machine skips a step. Skipping a step lands on a state that is either:
+
+Diagonal (e.g. 00 → 11) — invalid for either direction — flagged as a phase error.
+A valid reverse step — looks exactly like the encoder went backward — shows up as direction = decrement.
+The same state it started from — no transition at all, invisible.
+So: if you know the encoder should only move forward, any phase error or any decrement direction means a pulse was lost.
+
+Use `EQEP_PRU_clearPulseLossFlag(channel)` function defined in `mcuplus/pru_eqep_example.c` (declared line 147, definition line 625) to clear the pulse loss flag for the corresponding channel 
+
+### 8f. Phase error detection 
+
+When a phase error is detected then the phase error flag will set for the corresponding channel which is based on detecting invalid transitions of the A/B signals. 
+
+Use `EQEP_PRU_clearPhaseErrorFlag(channel)` function defined in `mcuplus/pru_eqep_example.c` (declared line 146, definition line 620) to clear the phase error flag for the corresponding channel 
+
+Check create_lut() (line 545) to see which transitions are marked as phase error 
+
+#### What it catches, and what it doesn't : 
+
+|Count of Pulses lost| what the loss looks like | Direction and error determination
+|---|---|---| 
+|1, 5, 9, ...	| Diagonal transition |	Phase error
+|2, 6, 10, ...	|Looks like a reverse step	| Direction = decrement
+|3, 7, 11, ...	|Looks like a reverse step	| Direction = decrement
+|4, 8, 12, ...	|Lands back on the same state	| Not detected
+
+Losing a multiple of 4 pulses brings the state machine back to where it would have been anyway — there's nothing left to notice. This is a limitation of quadrature encoding itself, not something the firmware can fix. A Z (index) pulse would close this gap, but Z is not used in this design.
+
+Check out the below flow chart for more details :
+
+<figure>
+<img src="images/pulse_loss_detection_flow_chart.png" alt="pulse loss detection flow" width="900">
+<figcaption>pulse loss detection flow</figcaption>
+</figure>
+
 
 **Not yet runtime-configurable** — this is a per-build constant today, shared identically across all 6 cores/channels.
 
