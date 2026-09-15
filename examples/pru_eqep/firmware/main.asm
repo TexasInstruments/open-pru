@@ -149,6 +149,11 @@ no_qpos_overflow0:
 no_increment0:
     qbbc    no_decrement0, qpos_update, 1
     sub     QPOS, QPOS, 1
+    .if  PULSE_LOSS_DETECTION
+    lbco    &scratch2, DMEM1, PULSE_LOSS_OFFSET, 4
+    add     scratch2, scratch2, 1
+    sbco    &scratch2, DMEM1, PULSE_LOSS_OFFSET, 4
+    .endif 
     fill &scratch2, 4
     qbne    no_qpos_underflow0, QPOS, scratch2  ; only reload if result is exactly 0xFFFFFFFF (true underflow)
     ldi32   QPOS, QPOSMAX
@@ -192,6 +197,11 @@ no_qpos_overflow:
 no_increment:
     qbbc    no_decrement, qpos_update, 1
     sub     QPOS, QPOS, 1
+    .if  PULSE_LOSS_DETECTION
+    lbco    &scratch2, DMEM1, PULSE_LOSS_OFFSET, 4
+    add     scratch2, scratch2, 1
+    sbco    &scratch2, DMEM1, PULSE_LOSS_OFFSET, 4
+    .endif 
     fill &scratch2, 4
     qbne    no_qpos_underflow, QPOS, scratch2   ; only reload if result is exactly 0xFFFFFFFF (true underflow)
     ldi32   QPOS, QPOSMAX

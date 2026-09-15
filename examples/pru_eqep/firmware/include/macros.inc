@@ -55,3 +55,6 @@ M_READ_CYCLCNT .macro dst
 
 ; Position counter maximum value (QPPR * 4 - 1)
 QPOSMAX .set 3999
+
+; set below to 1 to enable the firmware pulse loss detection 
+PULSE_LOSS_DETECTION   .set    0
