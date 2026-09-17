@@ -1,5 +1,13 @@
 # PRU EQEP Project
 
+## Introduction
+
+This example provides a PRU-based implementation of an eQEP (quadrature encoder) peripheral using the six PRU cores of ICSSG0 to enable six channels. The firmware emulates hardware eQEP functionality for incremental encoders, providing position counting, direction detection, speed calculation, and phase-error detection for up to six independent channels. The design is intended as a software alternative to the hardware eQEP peripheral, with R5F application code for polling or interrupt-driven readout.
+
+## Overview
+
+The PRU EQEP project targets AM243x-LP devices and uses RTU_PRU, PRU, and TX_PRU cores to process A/B quadrature signals. Each channel implements edge detection with timestamp capture, LUT-based quadrature decoding, and a wrap-around position counter with configurable QPOSMAX. Firmware publishes position, speed, direction, and phase-error counters to PRU DMEM, which the R5F application reads. Key capabilities include multi-channel simultaneous operation, phase-error and pulse-loss detection, and support for both simulated ePWM sources and real physical encoders.
+
 ## 1. Testing Done
 
 The PRU eQEP implementation has been bench-validated against a real hardware eQEP peripheral (AM263x-LP, `eqep_position_speed` example) and a physical incremental encoder. Summary of what has been run:
@@ -247,7 +255,24 @@ Check out the below flow chart for more details :
 
 **Not yet runtime-configurable** — this is a per-build constant today, shared identically across all 6 cores/channels.
 
-## 9. References
+## 9. Steps to run the example 
+
+1. Open CCS and import the PRU EQEP example (open-pru\examples\pru_eqep) from the Open-pru repo. Make sure to import projects corresponding to r5fss0-0, icss_g0_pru0, icss_g0_pru1, icss_g0_rtu_pru0, icss_g0_rtu_pru1, icss_g0_tx_pru0, icss_g0_tx_pru1 as all six cores are utilised in this example.
+
+2. Build the pru0, pru1, tx_pru0, tx_pru1, rtu_pru0, rtu_pru1 projects first. This ensures that the header files with the binary for all six cores are generated
+
+3. Now build the project pru_eqep_am243x-lp_r5fss0-0_freertos_ti-arm-clang (Here after will be called r5f project).
+ 
+4. Connect the Encoder to the PRU GPI pins corresponding to each channel as per configuration made in `firmware/include/memory.inc`. Refer point 6 for connection details 
+
+5. Power on the AM243x Launch Pad. It is recommended to go through the "Getting started" section of MCU + SDK if this is your first time working on the launchpad.
+ 
+6. Set up Target configuration window from View>>Target Configuration. Then launch any project target configuration by right clicking on the AM2434_ALX.ccxml file and selecting "launch selected configuration"
+
+7. From the debug window, select the r5f project and load the corresponding .out file and then press the "Resume" button to start the example in debug mode.  
+
+
+## 10. References
 
 - [PRU-ICSS Documentation](https://www.ti.com/tool/PRU-ICSS)
 - [MCU+ SDK AM243x](https://www.ti.com/tool/MCU-PLUS-SDK-AM243X)
@@ -255,3 +280,17 @@ Check out the below flow chart for more details :
 - [PRU-CGT (ti-pru-cgt) tool page](https://www.ti.com/tool/PRU-CGT) — required toolchain, see Steps to Run
 - SPRU790D — [AM243x/AM64x eQEP peripheral reference](https://www.ti.com/lit/ug/spruim2h/spruim2h.pdf) (real hardware eQEP semantics this PRU implementation approximates: diagonal-transition/phase-error definition, QPOSMAX/PCRM behavior)
 - [PRU-ICSS Reference Guide](https://www.ti.com/lit/ug/spruij1/spruij1.pdf) — PRU core architecture, DMEM/load-share mode, INTC
+
+## 11. Supported Combinations
+
+Refer to open-pru/examples/readme.md > Supported processors per-project
+for the list of processors that support building this project, and information
+about porting this project to other processors.
+
+## 12. Validated HW & SW
+
+This project was tested on hardware with these software versions:
+
+| Processor | Hardware | Software                                |
+| --------- | -------- | --------------------------------------- |
+| am243x    | LP-AM243 | MCU PLUS SDK 11.1.0.19, OpenPRU 2026.02.00 |
