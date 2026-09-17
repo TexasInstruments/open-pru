@@ -11,7 +11,7 @@
     </applicability>
 
     <project
-        title="Empty"
+        title="PRU EQEP fw"
         name = "pru_eqep_am243x-lp_icss_g0_tx_pru0_fw_ti-pru-cgt"
         products="com.ti.OPEN_PRU"
         configurations="
@@ -56,7 +56,7 @@
             $(CG_TOOL_ROOT)/bin/hexpru --diag_wrap=off --array --array:name_prefix=TXPRU0Firmware -o ../txpru0_load_bin.h ${BuildArtifactFileBaseName}.out;
         "
 
-        description="A Empty FW project">
+        description="A PRU EQEP fw project">
 
         <configuration name="Debug"
             compilerBuildOptions="
