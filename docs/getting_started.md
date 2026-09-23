@@ -79,3 +79,7 @@ the `UPDATE` comments to see which settings need to be modified.
 
 After the OpenPRU repository has been set up, refer back to the
 [README](./../README.md) for build steps.
+
+For the device technical reference manual, register addendum, and PRU assembly
+instruction guide, see the
+[PRU-ICSS documentation map](./pru_icss_documentation_map.md).

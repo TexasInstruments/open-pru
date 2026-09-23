@@ -69,6 +69,10 @@ processor-specific academies. The currently published PRU Academies are:
 Please follow the [Getting started steps](./docs/getting_started.md) to install
 dependencies and properly set up the OpenPRU repository.
 
+For the device technical reference manual, register addendum, and PRU assembly
+instruction guide, see the
+[PRU-ICSS documentation map](./docs/pru_icss_documentation_map.md).
+
 ## OpenPRU organization
 
 For more information about the organization of both the OpenPRU repo and the
