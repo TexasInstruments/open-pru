@@ -9,6 +9,7 @@
 [Features](#features)  
 [Training](#training)  
 [Getting started](#getting-started)  
+[Hardware and register documentation](#hardware-and-register-documentation)  
 [OpenPRU organization](#open-pru-organization)  
 [Building the examples](#building-the-examples)  
 [Using EVM boards](#using-evm-boards)  
@@ -68,6 +69,16 @@ processor-specific academies. The currently published PRU Academies are:
 
 Please follow the [Getting started steps](./docs/getting_started.md) to install
 dependencies and properly set up the OpenPRU repository.
+
+## Hardware and register documentation
+
+Hardware description and register information is visible from each processor's
+product page, listed in the [Introduction](#introduction), under
+**User guides > TRM**. Registers may be described in the TRM, or in a separate
+register addendum in the same location.
+
+When TI publishes text versions of these documents, agent-oriented copies may
+live under [`docs_ai/`](./docs_ai).
 
 ## OpenPRU organization
 
