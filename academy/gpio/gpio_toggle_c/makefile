@@ -5,7 +5,7 @@ include ../../../imports.mak
 #######################
 
 PROJECT_NAME := gpio_toggle
-SUPPORTED_PROCESSORS := am261x am263px am263x am64x
+SUPPORTED_PROCESSORS := am64x
 # Does the PRU code have dependencies outside of the open-pru repo?
 PRU_DEPENDENCIES :=
 # Use NON_PRU_DEPENDENCIES to select which makefiles to call for non-PRU cores
@@ -94,48 +94,6 @@ pre_build_message:
 # provide target definitions for each supported processor
 # PRU firmware should be built before any RTOS code that includes it
 
-am261x:
-# am261x-lp
-	$(MAKE) -C firmware/am261x-lp/icss_m0_pru0_fw/ti-pru-cgt $(ARGUMENTS_PRU)
-	$(MAKE) -C firmware/am261x-lp/icss_m0_pru1_fw/ti-pru-cgt $(ARGUMENTS_PRU)
-# am261x-som
-	$(MAKE) -C firmware/am261x-som/icss_m0_pru0_fw/ti-pru-cgt $(ARGUMENTS_PRU)
-	$(MAKE) -C firmware/am261x-som/icss_m0_pru1_fw/ti-pru-cgt $(ARGUMENTS_PRU)
-
-am261x_mcuplus:
-# am261x-lp
-	$(MAKE) -C mcuplus/am261x-lp/r5fss0-0_freertos/ti-arm-clang $(ARGUMENTS_MCUPLUS)
-# no am261x-som/r5f folder at this point in time
-#	$(MAKE) -C mcuplus/am261x-som/r5fss0-0_freertos/ti-arm-clang $(ARGUMENTS_MCUPLUS)
-
-am263px:
-# am263px-lp
-	$(MAKE) -C firmware/am263px-lp/icss_m0_pru0_fw/ti-pru-cgt $(ARGUMENTS_PRU)
-	$(MAKE) -C firmware/am263px-lp/icss_m0_pru1_fw/ti-pru-cgt $(ARGUMENTS_PRU)
-# am263px-cc
-	$(MAKE) -C firmware/am263px-cc/icss_m0_pru0_fw/ti-pru-cgt $(ARGUMENTS_PRU)
-	$(MAKE) -C firmware/am263px-cc/icss_m0_pru1_fw/ti-pru-cgt $(ARGUMENTS_PRU)
-
-am263px_mcuplus:
-# am263px-lp
-	$(MAKE) -C mcuplus/am263px-lp/r5fss0-0_freertos/ti-arm-clang $(ARGUMENTS_MCUPLUS)
-# no am263px-cc/r5f folder at this point in time
-#	$(MAKE) -C mcuplus/am263px-cc/r5fss0-0_freertos/ti-arm-clang $(ARGUMENTS_MCUPLUS)
-
-am263x:
-# am263x-lp
-	$(MAKE) -C firmware/am263x-lp/icss_m0_pru0_fw/ti-pru-cgt $(ARGUMENTS_PRU)
-	$(MAKE) -C firmware/am263x-lp/icss_m0_pru1_fw/ti-pru-cgt $(ARGUMENTS_PRU)
-# am263x-cc
-	$(MAKE) -C firmware/am263x-cc/icss_m0_pru0_fw/ti-pru-cgt $(ARGUMENTS_PRU)
-	$(MAKE) -C firmware/am263x-cc/icss_m0_pru1_fw/ti-pru-cgt $(ARGUMENTS_PRU)
-
-am263x_mcuplus:
-# am263x-lp
-	$(MAKE) -C mcuplus/am263x-lp/r5fss0-0_freertos/ti-arm-clang $(ARGUMENTS_MCUPLUS)
-# no am263x-cc/r5f folder at this point in time
-#	$(MAKE) -C mcuplus/am263x-cc/r5fss0-0_freertos/ti-arm-clang $(ARGUMENTS_MCUPLUS)
-
 am64x:
 # am64x-evm
 	$(MAKE) -C firmware/am64x-evm/icss_g0_pru0_fw/ti-pru-cgt $(ARGUMENTS_PRU)
@@ -148,5 +106,47 @@ am64x:
 am64x_mcuplus:
 # am64x-evm
 	$(MAKE) -C mcuplus/am64x-evm/r5fss0-0_freertos/ti-arm-clang $(ARGUMENTS_MCUPLUS)
+
+am261x:
+# am261x-lp
+# 	$(MAKE) -C firmware/am261x-lp/icss_m0_pru0_fw/ti-pru-cgt $(ARGUMENTS_PRU)
+# 	$(MAKE) -C firmware/am261x-lp/icss_m0_pru1_fw/ti-pru-cgt $(ARGUMENTS_PRU)
+# am261x-som
+# 	$(MAKE) -C firmware/am261x-som/icss_m0_pru0_fw/ti-pru-cgt $(ARGUMENTS_PRU)
+# 	$(MAKE) -C firmware/am261x-som/icss_m0_pru1_fw/ti-pru-cgt $(ARGUMENTS_PRU)
+
+am261x_mcuplus:
+# am261x-lp
+# 	$(MAKE) -C mcuplus/am261x-lp/r5fss0-0_freertos/ti-arm-clang $(ARGUMENTS_MCUPLUS)
+# no am261x-som/r5f folder at this point in time
+#	$(MAKE) -C mcuplus/am261x-som/r5fss0-0_freertos/ti-arm-clang $(ARGUMENTS_MCUPLUS)
+
+am263px:
+# am263px-lp
+# 	$(MAKE) -C firmware/am263px-lp/icss_m0_pru0_fw/ti-pru-cgt $(ARGUMENTS_PRU)
+# 	$(MAKE) -C firmware/am263px-lp/icss_m0_pru1_fw/ti-pru-cgt $(ARGUMENTS_PRU)
+# am263px-cc
+# 	$(MAKE) -C firmware/am263px-cc/icss_m0_pru0_fw/ti-pru-cgt $(ARGUMENTS_PRU)
+# 	$(MAKE) -C firmware/am263px-cc/icss_m0_pru1_fw/ti-pru-cgt $(ARGUMENTS_PRU)
+
+am263px_mcuplus:
+# am263px-lp
+# 	$(MAKE) -C mcuplus/am263px-lp/r5fss0-0_freertos/ti-arm-clang $(ARGUMENTS_MCUPLUS)
+# no am263px-cc/r5f folder at this point in time
+#	$(MAKE) -C mcuplus/am263px-cc/r5fss0-0_freertos/ti-arm-clang $(ARGUMENTS_MCUPLUS)
+
+am263x:
+# am263x-lp
+# 	$(MAKE) -C firmware/am263x-lp/icss_m0_pru0_fw/ti-pru-cgt $(ARGUMENTS_PRU)
+# 	$(MAKE) -C firmware/am263x-lp/icss_m0_pru1_fw/ti-pru-cgt $(ARGUMENTS_PRU)
+# am263x-cc
+# 	$(MAKE) -C firmware/am263x-cc/icss_m0_pru0_fw/ti-pru-cgt $(ARGUMENTS_PRU)
+# 	$(MAKE) -C firmware/am263x-cc/icss_m0_pru1_fw/ti-pru-cgt $(ARGUMENTS_PRU)
+
+am263x_mcuplus:
+# am263x-lp
+# 	$(MAKE) -C mcuplus/am263x-lp/r5fss0-0_freertos/ti-arm-clang $(ARGUMENTS_MCUPLUS)
+# no am263x-cc/r5f folder at this point in time
+#	$(MAKE) -C mcuplus/am263x-cc/r5fss0-0_freertos/ti-arm-clang $(ARGUMENTS_MCUPLUS)
 
 .PHONY: all clean pru host pre_build_message $(DEVICE) $(DEVICE_NON_PRU) $(SUPPORTED_PROCESSORS)

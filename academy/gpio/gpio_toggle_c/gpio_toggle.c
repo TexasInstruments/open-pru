@@ -127,46 +127,47 @@ static void i2c_io_expander(void *args)
 
 void gpio_toggle_main(void *args)
 {
-     Drivers_open(); // check return status
 
-     int status;
-     status = Board_driversOpen();
-     DebugP_assert(SystemP_SUCCESS == status);
+    Drivers_open(); // check return status
 
-     gPruIcss0Handle = PRUICSS_open(CONFIG_PRU_ICSS0);
+    int status;
+    status = Board_driversOpen();
+    DebugP_assert(SystemP_SUCCESS == status);
 
-     #if defined(SOC_AM263PX) || defined(SOC_AM64X) || defined(SOC_AM243X)
-     /* Configure the IO Expander to connect the PRU IOs */
-     i2c_io_expander(NULL);
-     #endif
+    gPruIcss0Handle = PRUICSS_open(CONFIG_PRU_ICSS0);
 
-     status = PRUICSS_initMemory(gPruIcss0Handle, PRUICSS_DATARAM(PRUICSS_PRU0));
-     DebugP_assert(status != 0);
+    #if defined(SOC_AM263PX) || defined(SOC_AM64X) || defined(SOC_AM243X)
+    /* Configure the IO Expander to connect the PRU IOs */
+    i2c_io_expander(NULL);
+    #endif
 
-     status = PRUICSS_initMemory(gPruIcss0Handle, PRUICSS_DATARAM(PRUICSS_PRU1));
-     DebugP_assert(status != 0);
+    status = PRUICSS_initMemory(gPruIcss0Handle, PRUICSS_DATARAM(PRUICSS_PRU0));
+    DebugP_assert(status != 0);
 
-     status = PRUICSS_loadFirmware(gPruIcss0Handle, PRUICSS_PRU0, PRU0Firmware_0, sizeof(PRU0Firmware_0));
-     DebugP_assert(SystemP_SUCCESS == status);
-     status = PRUICSS_loadFirmware(gPruIcss0Handle, PRUICSS_PRU1, PRU1Firmware_0, sizeof(PRU1Firmware_0));
-     DebugP_assert(SystemP_SUCCESS == status);
+    status = PRUICSS_initMemory(gPruIcss0Handle, PRUICSS_DATARAM(PRUICSS_PRU1));
+    DebugP_assert(status != 0);
 
-     #if defined(SOC_AM64X) || defined(SOC_AM243X)
-     status = PRUICSS_loadFirmware(gPruIcss0Handle, PRUICSS_RTU_PRU0, RTUPRU0Firmware_0, sizeof(RTUPRU0Firmware_0));
-     DebugP_assert(SystemP_SUCCESS == status);
-     status = PRUICSS_loadFirmware(gPruIcss0Handle, PRUICSS_RTU_PRU1, RTUPRU1Firmware_0, sizeof(RTUPRU1Firmware_0));
-     DebugP_assert(SystemP_SUCCESS == status);
-     status = PRUICSS_loadFirmware(gPruIcss0Handle, PRUICSS_TX_PRU0, TXPRU0Firmware_0, sizeof(TXPRU0Firmware_0));
-     DebugP_assert(SystemP_SUCCESS == status);
-     status = PRUICSS_loadFirmware(gPruIcss0Handle, PRUICSS_TX_PRU1, TXPRU1Firmware_0, sizeof(TXPRU1Firmware_0));
-     DebugP_assert(SystemP_SUCCESS == status);
-     #endif
+    status = PRUICSS_loadFirmware(gPruIcss0Handle, PRUICSS_PRU0, PRU0Firmware_0, sizeof(PRU0Firmware_0));
+    DebugP_assert(SystemP_SUCCESS == status);
+    status = PRUICSS_loadFirmware(gPruIcss0Handle, PRUICSS_PRU1, PRU1Firmware_0, sizeof(PRU1Firmware_0));
+    DebugP_assert(SystemP_SUCCESS == status);
 
-     while (1)
-     {
-        ClockP_usleep(1);
-     }
+    #if defined(SOC_AM64X) || defined(SOC_AM243X)
+    status = PRUICSS_loadFirmware(gPruIcss0Handle, PRUICSS_RTU_PRU0, RTUPRU0Firmware_0, sizeof(RTUPRU0Firmware_0));
+    DebugP_assert(SystemP_SUCCESS == status);
+    status = PRUICSS_loadFirmware(gPruIcss0Handle, PRUICSS_RTU_PRU1, RTUPRU1Firmware_0, sizeof(RTUPRU1Firmware_0));
+    DebugP_assert(SystemP_SUCCESS == status);
+    status = PRUICSS_loadFirmware(gPruIcss0Handle, PRUICSS_TX_PRU0, TXPRU0Firmware_0, sizeof(TXPRU0Firmware_0));
+    DebugP_assert(SystemP_SUCCESS == status);
+    status = PRUICSS_loadFirmware(gPruIcss0Handle, PRUICSS_TX_PRU1, TXPRU1Firmware_0, sizeof(TXPRU1Firmware_0));
+    DebugP_assert(SystemP_SUCCESS == status);
+    #endif
 
-     Board_driversClose();
-     Drivers_close();
+    while (1)
+    {
+    ClockP_usleep(1);
+    }
+
+    Board_driversClose();
+    Drivers_close();
 }
