@@ -1,5 +1,5 @@
 ; SPDX-License-Identifier: BSD-3-Clause
-; Copyright (C) 2024-2025 Texas Instruments Incorporated - http://www.ti.com/
+; Copyright (C) 2026 Texas Instruments Incorporated - http://www.ti.com/
 
 ;***************************************************************************************
 ;   File:     main.asm
