@@ -71,7 +71,8 @@ delay_loop2:
     ; Continue loop
     qba     main_loop
 
-    ; The GPIO toggle signal is generated at the pin 17 of J2 BoosterPack header on AM26x devices' launchpads. 
+    ; The GPIO toggled signal pin is device-specific
+    ; see readme for details
 
     ; halt the program
     halt ; end of program (never reached)
