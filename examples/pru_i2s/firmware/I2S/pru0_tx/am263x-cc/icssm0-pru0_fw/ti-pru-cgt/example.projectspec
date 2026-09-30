@@ -79,6 +79,12 @@
         </file>
         <file path="../../../../linker.cmd" openOnCreation="false" excludeFromBuild="false" action="copy">
         </file>
+        <file path="../../../../pru_i2s_interface.h" openOnCreation="false" excludeFromBuild="false" action="copy">
+        </file>
+        <file path="../../../../pru_i2s_regs.h" openOnCreation="false" excludeFromBuild="false" action="copy">
+        </file>
+        <file path="../../../../icss_pru_i2s_fw.h" openOnCreation="false" excludeFromBuild="false" action="copy">
+        </file>
         <file path="${OPEN_PRU_PATH}/docs/api_guide_am263x/pru_i2s_DESIGN.html"
                 openOnCreation="false" excludeFromBuild="false" targetName="README.html" action="link">
         </file>

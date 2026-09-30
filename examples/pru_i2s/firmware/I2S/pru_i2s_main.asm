@@ -28,7 +28,8 @@
  ;  THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  ;  (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  ;  OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- ;
+ ;  
+ ;  name: pru_i2s_main.asm
 
 ; this is intended to run on ICSSG0_PRU0/ICSSG0_PRU1
 
@@ -39,6 +40,7 @@
 	.include "pru_i2s_interface.h"
 	.include "pru_i2s_regs.h"
 
+	.asmfunc
 main:
 	.if	$isdefed("I2S_TX")
 	;err_stat = err_stat >> 1. Remove the Rx Overflow error bit.
@@ -155,6 +157,7 @@ CONTIUNE_INIT:
 	.endif
 
 INITIAL_STATE:
+	; WCET/PEAK: polling loop; PRU clock 200 MHz; branch bound by BCLK period
 	; start iterating
 	; wait until the input BCLK is low
 	; then branch to wait for the rising edge
@@ -500,3 +503,4 @@ ERROR_HANDLING_NOTIFY:
 	; notify the host
 	LDI    R31.w0, TRIGGER_HOST_I2S_ERR_IRQ
 	JMP	||main||
+	.endasmfunc

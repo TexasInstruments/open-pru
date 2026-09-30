@@ -239,10 +239,14 @@ uint32_t gPruI2s1ErrOvrCnt=0;       /* PRU I2S 1 Rx overflow error count */
 /* ========================================================================== */
 
 /* PRU I2S PRU image info */
-static PRUI2S_PruFwImageInfo gPruFwImageInfo[PRU_I2S_NUM_PRU_IMAGE] =
+static PRUI2S_PruFwImageInfo gPruFwImageInfo[2] =
 {
-    {pru_prupru_i2s0_image_0_0, pru_prupru_i2s0_image_0_1, sizeof(pru_prupru_i2s0_image_0_0), sizeof(pru_prupru_i2s0_image_0_1)},
-    {pru_prupru_i2s1_image_0_0, pru_prupru_i2s1_image_0_1, sizeof(pru_prupru_i2s1_image_0_0), sizeof(pru_prupru_i2s1_image_0_1)}
+#if defined(CONFIG_PRU_I2S0_ENABLED) && (CONFIG_PRU_I2S0_ENABLED == 1)
+    [0] = {pru_prupru_i2s0_image_0_0, pru_prupru_i2s0_image_0_1, sizeof(pru_prupru_i2s0_image_0_0), sizeof(pru_prupru_i2s0_image_0_1)},
+#endif
+#if defined(CONFIG_PRU_I2S1_ENABLED) && (CONFIG_PRU_I2S1_ENABLED == 1)
+    [1] = {pru_prupru_i2s1_image_0_0, pru_prupru_i2s1_image_0_1, sizeof(pru_prupru_i2s1_image_0_0), sizeof(pru_prupru_i2s1_image_0_1)}
+#endif
 };
 
 
@@ -657,6 +661,7 @@ static void prui2s_streaming_loop_full_duplex(PRUI2S_Handle hTx, PRUI2S_Handle h
     DebugP_log("\r\nStarting real-time audio streaming loop (FULL-DUPLEX mode)...\r\n");
     DebugP_log("Press Ctrl+C to stop\r\n\r\n");
 
+    /* INTENTIONALLY_UNBOUNDED_LOOP: real-time streaming; shutdown via gRunFlag */
     while (gRunFlag == TRUE)
     {
         /* Write next PRU I2S0 Tx ping/pong buffer */
@@ -678,14 +683,7 @@ static void prui2s_streaming_loop_full_duplex(PRUI2S_Handle hTx, PRUI2S_Handle h
             }
         }
 
-        /* Wait for Rx interrupt with timeout */
-        status = SemaphoreP_pend(&gPruI2s1RxSemObj, SEMAPHORE_TIMEOUT_MS);
-        if (status != SystemP_SUCCESS)
-        {
-            DebugP_log("ERROR: Timeout waiting for PRU I2S1 Rx event\r\n");
-            gRunFlag = FALSE;
-            continue;
-        }
+        
 
         /* Wait for Tx interrupt with timeout */
         status = SemaphoreP_pend(&gPruI2s0TxSemObj, SEMAPHORE_TIMEOUT_MS);
@@ -695,7 +693,14 @@ static void prui2s_streaming_loop_full_duplex(PRUI2S_Handle hTx, PRUI2S_Handle h
             gRunFlag = FALSE;
             continue;
         }
-
+        /* Wait for Rx interrupt with timeout */
+        status = SemaphoreP_pend(&gPruI2s1RxSemObj, SEMAPHORE_TIMEOUT_MS);
+        if (status != SystemP_SUCCESS)
+        {
+            DebugP_log("ERROR: Timeout waiting for PRU I2S1 Rx event\r\n");
+            gRunFlag = FALSE;
+            continue;
+        }
         gLoopCnt++;
 
         /* Read next PRU I2S1 Rx ping/pong buffer */
@@ -758,7 +763,7 @@ static void prui2s_streaming_loop_full_duplex(PRUI2S_Handle hTx, PRUI2S_Handle h
         }
 
         /* Display periodic progress (every 1000 iterations) */
-        if ((gLoopCnt % 1000) == 0)
+        if ((gLoopCnt % STREAM_PROGRESS_LOG_INTERVAL) == 0)
         {
             DebugP_log("Streaming: %d iterations completed\r", gLoopCnt);
         }
@@ -790,6 +795,7 @@ static void prui2s_streaming_loop_tx_only(PRUI2S_Handle hTx)
     DebugP_log("\r\nStarting real-time audio streaming loop (TX-ONLY mode)...\r\n");
     DebugP_log("Press Ctrl+C to stop\r\n\r\n");
 
+    /* INTENTIONALLY_UNBOUNDED_LOOP: real-time streaming; shutdown via gRunFlag */
     while (gRunFlag == TRUE)
     {
         /* Write next PRU I2S0 Tx ping/pong buffer */
@@ -823,7 +829,7 @@ static void prui2s_streaming_loop_tx_only(PRUI2S_Handle hTx)
         gLoopCnt++;
 
         /* Display periodic progress (every 1000 iterations) */
-        if ((gLoopCnt % 1000) == 0)
+        if ((gLoopCnt % STREAM_PROGRESS_LOG_INTERVAL) == 0)
         {
             DebugP_log("Tx streaming: %d iterations completed\r", gLoopCnt);
         }
@@ -864,6 +870,7 @@ static void prui2s_streaming_loop_rx_only(PRUI2S_Handle hRx)
     DebugP_log("\r\nStarting real-time audio streaming loop (RX-ONLY mode)...\r\n");
     DebugP_log("Press Ctrl+C to stop\r\n\r\n");
 
+    /* INTENTIONALLY_UNBOUNDED_LOOP: real-time streaming; shutdown via gRunFlag */
     while (gRunFlag == TRUE)
     {
         /* Wait for Rx interrupt with timeout */
@@ -897,7 +904,7 @@ static void prui2s_streaming_loop_rx_only(PRUI2S_Handle hRx)
         }
 
         /* Display periodic progress (every 1000 iterations) */
-        if ((gLoopCnt % 1000) == 0)
+        if ((gLoopCnt % STREAM_PROGRESS_LOG_INTERVAL) == 0)
         {
             DebugP_log("Rx streaming: %d iterations completed\r", gLoopCnt);
         }
@@ -1048,6 +1055,13 @@ static void prui2s_cleanup_instances(void)
     /* Deinitialize PRU I2S driver */
     PRUI2S_deinit();
     DebugP_log("PRU I2S driver deinitialized\r\n");
+
+    /* Close PRU-ICSS handle opened in prui2s_pruicss_init() */
+    if(gPruIcssHandle != NULL)
+    {
+        PRUICSS_close(gPruIcssHandle);
+        gPruIcssHandle = NULL;
+    }
 }
 
 /* ========================================================================== */
@@ -1061,6 +1075,7 @@ static void prui2s_cleanup_instances(void)
  */
 void pruI2s0TxIrqHandler(void *args)
 {
+    /* EXECUTION TIME BOUND: bounded; no blocking/logging; only clear + semaphore */
     PRUI2S_Handle handle = (PRUI2S_Handle)args;
     int32_t status;
 
@@ -1085,6 +1100,7 @@ void pruI2s0TxIrqHandler(void *args)
  */
 void pruI2s0ErrIrqHandler(void *args)
 {
+    /* EXECUTION TIME: bounded; logging deferred conceptually; clear + stat read + flag updates only */
     PRUI2S_Handle handle = (PRUI2S_Handle)args;
     uint8_t errStat;
     int32_t status;
@@ -1148,6 +1164,7 @@ void pruI2s0ErrIrqHandler(void *args)
  */
 void pruI2s1RxIrqHandler(void *args)
 {
+    /* EXECUTION TIME BOUND: bounded; no blocking/logging; only clear + semaphore */
     PRUI2S_Handle handle = (PRUI2S_Handle)args;
     int32_t status;
 
@@ -1172,6 +1189,7 @@ void pruI2s1RxIrqHandler(void *args)
  */
 void pruI2s1ErrIrqHandler(void *args)
 {
+    /* EXECUTION TIME: bounded; logging deferred conceptually; clear + stat read + flag updates only */
     PRUI2S_Handle handle = (PRUI2S_Handle)args;
     uint8_t errStat;
     int32_t status;
@@ -1325,12 +1343,21 @@ void pru_i2s_diagnostic_main(void *args)
 
     DebugP_log("PRU I2S driver initialized (%d valid configurations)\r\n", numValidCfg);
 
-    /* Validate test configuration indices */
-    if (((numValidCfg-1) < TEST_PRUI2S0_IDX) || ((numValidCfg-1) < TEST_PRUI2S1_IDX))
+    /* Validate test configuration indices (only for enabled instances) */
+#if defined(CONFIG_PRU_I2S0_ENABLED) && (CONFIG_PRU_I2S0_ENABLED == 1)
+    if ((numValidCfg-1) < TEST_PRUI2S0_IDX)
     {
         DebugP_log("ERROR: Invalid test configuration indices\r\n");
         goto cleanup;
     }
+#endif
+#if defined(CONFIG_PRU_I2S1_ENABLED) && (CONFIG_PRU_I2S1_ENABLED == 1)
+    if ((numValidCfg-1) < TEST_PRUI2S1_IDX)
+    {
+        DebugP_log("ERROR: Invalid test configuration indices\r\n");
+        goto cleanup;
+    }
+#endif
 
     /* Initialize PRU I2S instances (conditional based on SysConfig) */
 #if defined(CONFIG_PRU_I2S0_ENABLED) && (CONFIG_PRU_I2S0_ENABLED == 1)

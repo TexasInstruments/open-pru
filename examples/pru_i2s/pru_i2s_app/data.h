@@ -35,6 +35,7 @@
 #define SEMAPHORE_TIMEOUT_MS       5000    /* 5 second timeout for semaphore operations */
 #define ERROR_COUNT_THRESHOLD      10      /* Threshold for error counts before taking action */
 #define ERROR_LOG_INTERVAL         10      /* Log errors on first occurrence and every Nth after */
+#define STREAM_PROGRESS_LOG_INTERVAL 1000   /* Periodic streaming progress log interval (iterations) */
 
 /* Constants for buffer management */
 #define PING_PONG_BUFFER_COUNT     2       /* Number of ping-pong buffers (always 2) */

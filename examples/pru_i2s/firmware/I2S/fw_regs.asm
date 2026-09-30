@@ -36,6 +36,10 @@
 %}
 
         ; PRU I2S Firmware Registers
+        ; Memory layout:
+        ; FW registers: 0x0000 - 0x0013 (fixed layout)
+        ; TX buffer (PING): 0x10000 (PRU0) / 0x10200 (PRU1), size = PING_PONG_BUF_SZ/2
+        ; RX buffer (PING): 0x10100 (PRU0) / 0x10300 (PRU1), size = PING_PONG_BUF_SZ/2 - 1
         .sect   ".fwRegs"
         .retain ".fwRegs"
         .retainrefs ".fwRegs"
@@ -57,6 +61,7 @@
         .byte   0       ; NUM_RX_I2S
         .endif
         .byte   48      ; SAMP_FREQ
+        .byte   32      ; BITS_PER_SLOT
         .if $isdefed("PRU0")
         .word   0x10000 ; TX_PING_PONG_BUF_ADDR
         .else

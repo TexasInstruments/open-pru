@@ -165,27 +165,30 @@ int32_t TCA6416_config(TCA6416_Config *config, uint32_t ioIndex, uint32_t mode)
         i2cTransaction.readBuf      = buffer;
         i2cTransaction.readCount    = 1;
         i2cTransaction.targetAddress = i2cAddress;
-        if (I2C_transfer(config->i2cHandle, &i2cTransaction) != SystemP_SUCCESS) 
-        { 
-            status = SystemP_FAILURE ;
+        if (I2C_transfer(config->i2cHandle, &i2cTransaction) != SystemP_SUCCESS)
+        {
+            status = SystemP_FAILURE;
         }
         /* Set output or input mode to particular IO pin - read/modify/write */
-        I2C_Transaction_init(&i2cTransaction);
-        if(TCA6416_MODE_INPUT == mode)
+        if (status == SystemP_SUCCESS)
         {
-            buffer[1] = buffer[0] | (0x01 << portPin);
-        }
-        else
-        {
-            buffer[1] = buffer[0] & ~(0x01 << portPin);
-        }
-        buffer[0] = TCA6416_REG_CONFIG_PORT_0 + port;
-        i2cTransaction.writeBuf     = buffer;
-        i2cTransaction.writeCount   = 2;
-        i2cTransaction.targetAddress = i2cAddress;
-        if (I2C_transfer(config->i2cHandle, &i2cTransaction) != SystemP_SUCCESS) 
-        { 
-            status = SystemP_FAILURE ;
+            I2C_Transaction_init(&i2cTransaction);
+            if(TCA6416_MODE_INPUT == mode)
+            {
+                buffer[1] = buffer[0] | (0x01 << portPin);
+            }
+            else
+            {
+                buffer[1] = buffer[0] & ~(0x01 << portPin);
+            }
+            buffer[0] = TCA6416_REG_CONFIG_PORT_0 + port;
+            i2cTransaction.writeBuf     = buffer;
+            i2cTransaction.writeCount   = 2;
+            i2cTransaction.targetAddress = i2cAddress;
+            if (I2C_transfer(config->i2cHandle, &i2cTransaction) != SystemP_SUCCESS)
+            {
+                status = SystemP_FAILURE;
+            }
         }
         SemaphoreP_post(&config->lockObj);
     }
@@ -222,36 +225,42 @@ int32_t TCA6416_setOutput(TCA6416_Config *config, uint32_t ioIndex, uint32_t sta
 
         SemaphoreP_pend(&config->lockObj, SystemP_WAIT_FOREVER);
 
-        /* Set output port register address - needed for next read */
-        I2C_Transaction_init(&i2cTransaction);
-        buffer[0] = TCA6416_REG_OUTPUT_PORT_0 + port;
-        i2cTransaction.writeBuf     = buffer;
-        i2cTransaction.writeCount   = 1U;
-        i2cTransaction.targetAddress = i2cAddress;
-        status += I2C_transfer(config->i2cHandle, &i2cTransaction);
-
-        /* Read config register value */
-        I2C_Transaction_init(&i2cTransaction);
-        i2cTransaction.readBuf      = buffer;
-        i2cTransaction.readCount    = 1;
-        i2cTransaction.targetAddress = i2cAddress;
-        status += I2C_transfer(config->i2cHandle, &i2cTransaction);
-
-        /* Set output or input mode to particular IO pin - read/modify/write */
-        I2C_Transaction_init(&i2cTransaction);
-        if(TCA6416_OUT_STATE_HIGH == state)
+        /* Only proceed if no prior errors */
+        if (status == SystemP_SUCCESS)
         {
-            buffer[1] = buffer[0] | (0x01 << portPin);
+            /* Set output port register address - needed for next read */
+            I2C_Transaction_init(&i2cTransaction);
+            buffer[0] = TCA6416_REG_OUTPUT_PORT_0 + port;
+            i2cTransaction.writeBuf     = buffer;
+            i2cTransaction.writeCount   = 1U;
+            i2cTransaction.targetAddress = i2cAddress;
+            if (I2C_transfer(config->i2cHandle, &i2cTransaction) == SystemP_SUCCESS)
+            {
+                /* Read output register value */
+                I2C_Transaction_init(&i2cTransaction);
+                i2cTransaction.readBuf      = buffer;
+                i2cTransaction.readCount    = 1;
+                i2cTransaction.targetAddress = i2cAddress;
+                if (I2C_transfer(config->i2cHandle, &i2cTransaction) == SystemP_SUCCESS)
+                {
+                    /* Modify and write back only if both previous steps succeeded */
+                    I2C_Transaction_init(&i2cTransaction);
+                    if(TCA6416_OUT_STATE_HIGH == state)
+                    {
+                        buffer[1] = buffer[0] | (0x01 << portPin);
+                    }
+                    else
+                    {
+                        buffer[1] = buffer[0] & ~(0x01 << portPin);
+                    }
+                    buffer[0] = TCA6416_REG_OUTPUT_PORT_0 + port;
+                    i2cTransaction.writeBuf     = buffer;
+                    i2cTransaction.writeCount   = 2;
+                    i2cTransaction.targetAddress = i2cAddress;
+                    status = I2C_transfer(config->i2cHandle, &i2cTransaction);
+                }
+            }
         }
-        else
-        {
-            buffer[1] = buffer[0] & ~(0x01 << portPin);
-        }
-        buffer[0] = TCA6416_REG_OUTPUT_PORT_0 + port;
-        i2cTransaction.writeBuf     = buffer;
-        i2cTransaction.writeCount   = 2;
-        i2cTransaction.targetAddress = i2cAddress;
-        status += I2C_transfer(config->i2cHandle, &i2cTransaction);
 
         SemaphoreP_post(&config->lockObj);
     }

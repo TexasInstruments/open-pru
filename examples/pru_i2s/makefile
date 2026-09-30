@@ -11,8 +11,12 @@ else
   AR=$(CG_TOOL_ROOT)/bin/tiarmar
 endif
 
-CFLAGS_AM261X := -mcpu=cortex-r5 -mfloat-abi=hard -mfpu=vfpv3-d16 -mthumb -Wall -Werror -g -Wno-gnu-variable-sized-type-not-at-end -Wno-unused-function -Os
-CFLAGS_AM263X := -mcpu=cortex-r5 -mfloat-abi=hard -mfpu=vfpv3-d16 -mthumb -Wall -Werror -g -Wno-gnu-variable-sized-type-not-at-end -Wno-unused-function -Os
+CFLAGS_OPT_debug := -O0
+CFLAGS_OPT_release := -Os
+CFLAGS_OPT := $(CFLAGS_OPT_$(PROFILE))
+
+CFLAGS_AM261X := -mcpu=cortex-r5 -mfloat-abi=hard -mfpu=vfpv3-d16 -mthumb -Wall -Werror -g -Wno-gnu-variable-sized-type-not-at-end -Wno-unused-function $(CFLAGS_OPT)
+CFLAGS_AM263X := -mcpu=cortex-r5 -mfloat-abi=hard -mfpu=vfpv3-d16 -mthumb -Wall -Werror -g -Wno-gnu-variable-sized-type-not-at-end -Wno-unused-function $(CFLAGS_OPT)
 
 INCLUDES_AM261X := \
 	-I$(MCU_PLUS_SDK_PATH)/source \
@@ -47,6 +51,10 @@ DEFINES_AM263X := -DSOC_AM263X -DOS_FREERTOS
 
 PROJECT_NAME := pru_i2s
 SUPPORTED_PROCESSORS := am261x am263x
+
+# Profile used when naming the built pru_i2s driver library, must match the
+# ConfigName the R5F application makefiles link against (see PROFILE there).
+PROFILE?=release
 # Does the PRU code have dependencies outside of the open-pru repo?
 PRU_DEPENDENCIES := mcuplus
 # Use NON_PRU_DEPENDENCIES to select which makefiles to call for non-PRU cores
@@ -156,7 +164,7 @@ build_lib_am261x:
 	@echo "Building pru_i2s library for am261x..."
 	$(CC) -c $(CFLAGS_AM261X) $(INCLUDES_AM261X) $(DEFINES_AM261X) -o lib/pru_i2s_drv_am261x.obj driver/pru_i2s_drv.c
 	$(CC) -c $(CFLAGS_AM261X) $(INCLUDES_AM261X) $(DEFINES_AM261X) -o lib/pru_i2s_app_config_am261x.obj pru_i2s_app/pru_i2s_app_config.c
-	$(AR) rc lib/pru_i2s.am261x.r5f.ti-arm-clang.release.lib lib/pru_i2s_drv_am261x.obj lib/pru_i2s_app_config_am261x.obj
+	$(AR) rc lib/pru_i2s.am261x.r5f.ti-arm-clang.$(PROFILE).lib lib/pru_i2s_drv_am261x.obj lib/pru_i2s_app_config_am261x.obj
 	$(RM) lib/pru_i2s_*_am261x.obj
 	@echo "Library build complete."
 
@@ -179,7 +187,7 @@ build_lib_am263x:
 	@echo "Building pru_i2s library for am263x..."
 	$(CC) -c $(CFLAGS_AM263X) $(INCLUDES_AM263X) $(DEFINES_AM263X) -o lib/pru_i2s_drv_am263x.obj driver/pru_i2s_drv.c
 	$(CC) -c $(CFLAGS_AM263X) $(INCLUDES_AM263X) $(DEFINES_AM263X) -o lib/pru_i2s_app_config_am263x.obj pru_i2s_app/pru_i2s_app_config.c
-	$(AR) rc lib/pru_i2s.am263x.r5f.ti-arm-clang.release.lib lib/pru_i2s_drv_am263x.obj lib/pru_i2s_app_config_am263x.obj
+	$(AR) rc lib/pru_i2s.am263x.r5f.ti-arm-clang.$(PROFILE).lib lib/pru_i2s_drv_am263x.obj lib/pru_i2s_app_config_am263x.obj
 	$(RM) lib/pru_i2s_*_am263x.obj
 	@echo "Library build complete."
 

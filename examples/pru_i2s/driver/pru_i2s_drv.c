@@ -66,9 +66,15 @@ static PRUI2S_SwipAttrs gPruI2sSwipAttrs[PRU_I2S_MAX_NUM_INST] =
         .numRxI2s = 0,                      /* Detected from firmware at runtime */
         .sampFreq = 0,                      /* Detected from firmware at runtime */
         .bitsPerSlot = 0,                   /* Detected from firmware at runtime */
-        .i2sTxHostIntNum = 0,               /* Detected from firmware at runtime */
-        .i2sRxHostIntNum = 0,               /* Detected from firmware at runtime */
-        .i2sErrHostIntNum = 0,              /* Detected from firmware at runtime */
+#ifdef SOC_AM261X
+        .i2sTxHostIntNum = 28,
+        .i2sRxHostIntNum = 29,
+        .i2sErrHostIntNum = 30,
+#elif defined(SOC_AM263X)
+        .i2sTxHostIntNum = 0,
+        .i2sRxHostIntNum = 1,
+        .i2sErrHostIntNum = 2,
+#endif
         .i2sTxIcssIntcSysEvt = 0,           /* Detected from firmware at runtime */
         .i2sRxIcssIntcSysEvt = 0,           /* Detected from firmware at runtime */
         .i2sErrIcssIntcSysEvt = 0,          /* Detected from firmware at runtime */
@@ -82,9 +88,15 @@ static PRUI2S_SwipAttrs gPruI2sSwipAttrs[PRU_I2S_MAX_NUM_INST] =
         .numRxI2s = 0,                      /* Detected from firmware at runtime */
         .sampFreq = 0,                      /* Detected from firmware at runtime */
         .bitsPerSlot = 0,                   /* Detected from firmware at runtime */
-        .i2sTxHostIntNum = 0,               /* Detected from firmware at runtime */
-        .i2sRxHostIntNum = 0,               /* Detected from firmware at runtime */
-        .i2sErrHostIntNum = 0,              /* Detected from firmware at runtime */
+#ifdef SOC_AM261X
+        .i2sTxHostIntNum = 31,              /* PEND_3 (ICSSM1 PR1) */
+        .i2sRxHostIntNum = 32,              /* PEND_4 */
+        .i2sErrHostIntNum = 33,             /* PEND_5 */
+#elif defined(SOC_AM263X)
+        .i2sTxHostIntNum = 3,              /* PEND_3 (ICSSM1 PR1) */
+        .i2sRxHostIntNum = 4,              /* PEND_4 */
+        .i2sErrHostIntNum = 5,             /* PEND_5 */
+#endif 
         .i2sTxIcssIntcSysEvt = 0,           /* Detected from firmware at runtime */
         .i2sRxIcssIntcSysEvt = 0,           /* Detected from firmware at runtime */
         .i2sErrIcssIntcSysEvt = 0,          /* Detected from firmware at runtime */
@@ -174,7 +186,16 @@ int32_t PRUI2S_setUserConfig(
  *  Parameters: 
  *      pNumValidCfg: Pointer to number of valid configurations
  *
- *  return: status code 
+ *  return: status code
+ *
+ *  Pseudocode:
+ *      - Validate pNumValidCfg and gPruFwImageInfo pointers
+ *      - For each config index i:
+ *          * Construct mutex; break on failure (cleanup prior)
+ *          * Read PRU image info (IMEM/DMEM); update SW IP attrs (numTx, numRx, sampFreq, bitsPerSlot, event numbers)
+ *          * Check SW params; break on failure
+ *          * Increment valid config count
+ *      - Set gPruI2sDrvInit = TRUE; write *pNumValidCfg
  */
 int32_t PRUI2S_init(
     uint8_t *pNumValidCfg, PRUI2S_PruFwImageInfo (*gPruFwImageInfo)[2]
@@ -318,6 +339,20 @@ int32_t PRUI2S_init(
             }
 
             gPruI2sDrvNumValidCfg++;
+        }
+
+        /* Cleanup all constructed mutexes if initialization failed */
+        if (retStatus != PRUI2S_DRV_SOK)
+        {
+            for (uint8_t j = 0; j < successfulInits; j++)
+            {
+                PRUI2S_Object *pCleanupObj = gPruI2sConfig[j].object;
+                if (pCleanupObj->pruInstLock != NULL)
+                {
+                    SemaphoreP_destruct(&pCleanupObj->pruInstlockObj);
+                    pCleanupObj->pruInstLock = NULL;
+                }
+            }
         }
 
         /* Always write output parameter */
