@@ -16,8 +16,6 @@
 #include <board/ioexp/ioexp_tca6424.h>
 #endif
 
-
-
 /*
  *  This is an example project to show R5F
  *  loading PRU firmware.
@@ -59,7 +57,6 @@ static void i2c_io_expander(void *args)
 }
 
 #endif
-
 
 void gpio_toggle_c_main(void *args)
 {
