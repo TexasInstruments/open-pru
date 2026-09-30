@@ -41,6 +41,9 @@ pru_emif
 * Emulate an Extended Memory Interface (EMIF) client 16-bit/32-bit asynchronous
   parallel interface to interface with C2K F28379D
 
+pru_i2s
+* Emulate I2S/TDM protocol using PRU, both Rx and Tx supported 
+
 spi_loopback
 * Implement a loopback SPI connection between 2 PRU cores that act as SPI master
   and SPI slave

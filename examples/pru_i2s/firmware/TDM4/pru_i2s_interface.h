@@ -96,17 +96,17 @@ I2S_INSTANCE2_SD_RX_PIN_POS     .set    8   ; 2 << I2S_INSTANCE2_SD_Rx_PIN
     .if $isdefed("SOC_AM261X")
     .if $isdefed("PRU0")
 ; PRU0 Configuration
-I2S_INSTANCE_BCLK_PIN           .set    5   ; PRU0 BCLK pin
-I2S_INSTANCE_BCLK_PIN_POS       .set    32  ; 2 << 5
+I2S_INSTANCE_BCLK_PIN           .set    0   ; PRU0 BCLK pin
+I2S_INSTANCE_BCLK_PIN_POS       .set    1   ; 2 << 0
 
-I2S_INSTANCE_FS_PIN             .set    6   ; PRU0 FSYNC pin
-I2S_INSTANCE_FS_PIN_POS         .set    64  ; 2 << 6
+I2S_INSTANCE_FS_PIN             .set    1   ; PRU0 FSYNC pin
+I2S_INSTANCE_FS_PIN_POS         .set    2   ; 2 << 1
 
     .if $isdefed("I2S_TX")
 ; PRU0 TX pins
-I2S_INSTANCE1_SD_TX_PIN         .set    7   ; TX1
+I2S_INSTANCE1_SD_TX_PIN         .set    6   ; TX1
 I2S_INSTANCE1_SD_TX_PIN_SHIFT   .set    I2S_INSTANCE1_SD_TX_PIN
-I2S_INSTANCE1_SD_TX_PIN_POS     .set    128 ; 2 << 7
+I2S_INSTANCE1_SD_TX_PIN_POS     .set    64 ; 2 << 6
 
 I2S_INSTANCE2_SD_TX_PIN         .set    8   ; TX2
 I2S_INSTANCE2_SD_TX_PIN_SHIFT   .set    I2S_INSTANCE2_SD_TX_PIN
@@ -119,19 +119,19 @@ I2S_INSTANCE3_SD_TX_PIN_POS     .set    512 ; 2 << 9
 
     .else
 ; PRU1 Configuration
-I2S_INSTANCE_BCLK_PIN           .set    5   ; PRU1 BCLK pin
-I2S_INSTANCE_BCLK_PIN_POS       .set    32  ; 2 << 5
+I2S_INSTANCE_BCLK_PIN           .set    4   ; PRU1 BCLK pin
+I2S_INSTANCE_BCLK_PIN_POS       .set    16  ; 2 << 4
 
-I2S_INSTANCE_FS_PIN             .set    9   ; PRU1 FSYNC pin
-I2S_INSTANCE_FS_PIN_POS         .set    512 ; 2 << 9
+I2S_INSTANCE_FS_PIN             .set    5   ; PRU1 FSYNC pin
+I2S_INSTANCE_FS_PIN_POS         .set    32  ; 2 << 5
 
     .if $isdefed("I2S_RX")
 ; PRU1 RX pins
-I2S_INSTANCE1_SD_RX_PIN         .set    12  ; RX1
+I2S_INSTANCE1_SD_RX_PIN         .set    11  ; RX1
 I2S_INSTANCE1_SD_RX_PIN_SHIFT   .set    I2S_INSTANCE1_SD_RX_PIN
-I2S_INSTANCE1_SD_RX_PIN_POS     .set    4096 ; 2 << 12
+I2S_INSTANCE1_SD_RX_PIN_POS     .set    2048 ; 2 << 6
 
-I2S_INSTANCE2_SD_RX_PIN         .set    13  ; RX2
+I2S_INSTANCE2_SD_RX_PIN         .set    6  ; RX2
 I2S_INSTANCE2_SD_RX_PIN_SHIFT   .set    I2S_INSTANCE2_SD_RX_PIN
 I2S_INSTANCE2_SD_RX_PIN_POS     .set    8192 ; 2 << 13
     .endif
@@ -160,6 +160,8 @@ I2S_TX_INSTANCE_PING_PONG_STAT_ADD  .set    0x1A
 I2S_RX_INSTANCE_PING_PONG_STAT_ADD  .set    0x1B
 
 I2S_ERR_STAT_ADD  .set    0x1C
+
+I2S_BCLK_DATA_DELAY  .set   1
 
 ;Load 4 bytes from memory to register.
 BYTES_TO_LOAD   .set 2   ; 4 bytes to load from memory for 4 bytes per channel configuration
