@@ -5,7 +5,7 @@ include ../../../imports.mak
 #######################
 
 PROJECT_NAME := gpio_toggle
-SUPPORTED_PROCESSORS := am261x am263px am263x am64x
+SUPPORTED_PROCESSORS := am261x am263px am263x am64x am243x
 # Does the PRU code have dependencies outside of the open-pru repo?
 PRU_DEPENDENCIES :=
 # Use NON_PRU_DEPENDENCIES to select which makefiles to call for non-PRU cores
@@ -148,5 +148,18 @@ am64x:
 am64x_mcuplus:
 # am64x-evm
 	$(MAKE) -C mcuplus/am64x-evm/r5fss0-0_freertos/ti-arm-clang $(ARGUMENTS_MCUPLUS)
+
+am243x:
+# am243x-evm
+	$(MAKE) -C firmware/am243x-evm/icss_g0_pru0_fw/ti-pru-cgt $(ARGUMENTS_PRU)
+	$(MAKE) -C firmware/am243x-evm/icss_g0_pru1_fw/ti-pru-cgt $(ARGUMENTS_PRU)
+	$(MAKE) -C firmware/am243x-evm/icss_g0_rtu_pru0_fw/ti-pru-cgt $(ARGUMENTS_PRU)
+	$(MAKE) -C firmware/am243x-evm/icss_g0_rtu_pru1_fw/ti-pru-cgt $(ARGUMENTS_PRU)
+	$(MAKE) -C firmware/am243x-evm/icss_g0_tx_pru0_fw/ti-pru-cgt $(ARGUMENTS_PRU)
+	$(MAKE) -C firmware/am243x-evm/icss_g0_tx_pru1_fw/ti-pru-cgt $(ARGUMENTS_PRU)
+
+am243x_mcuplus:
+# am243x-evm
+	$(MAKE) -C mcuplus/am243x-evm/r5fss0-0_freertos/ti-arm-clang $(ARGUMENTS_MCUPLUS)
 
 .PHONY: all clean pru host pre_build_message $(DEVICE) $(DEVICE_NON_PRU) $(SUPPORTED_PROCESSORS)
