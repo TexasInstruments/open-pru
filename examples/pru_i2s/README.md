@@ -34,7 +34,7 @@ This ensures continuous and efficient data transmission/reception with minimal l
 | Device | Board | ICSS Instance | Status |
 |--------|-------|---------------|--------|
 | AM263x | Control Card (CC) + HSECDOCK | ICSSM0 | ✓ Tested |
-| AM261x | LaunchPad (LP) E1 | ICSSM1 | ✓ Tested |
+| AM261x | LaunchPad (LP) REV A | ICSSM1 | ✓ Tested |
 
 ---
 
@@ -53,7 +53,7 @@ This ensures continuous and efficient data transmission/reception with minimal l
 
 #### AM261x LaunchPad Setup
 **Required Equipment:**
-- AM261x-LP E1 [LP-AM261](https://www.ti.com/tool/LP-AM261)
+- AM261x-LP REV A [LP-AM261](https://www.ti.com/tool/LP-AM261)
 - Power Supply: 5V, 3A PSU
 - PCM6260-Q1 Audio ADC EVM [PCM6260-Q1](https://www.ti.com/product/PCM6260-Q1)
 - Function generator (for MCLK)
@@ -62,10 +62,10 @@ This ensures continuous and efficient data transmission/reception with minimal l
 ### Software Requirements
 
 **Development Tools:**
-- Code Composer Studio 12.8.1
-- SysConfig 1.23.1
-- MCU+ SDK AM263x 10.2
-- MCU+ SDK AM261x 10.2
+- Code Composer Studio 21.0.1
+- SysConfig 1.28.1
+- MCU+ SDK AM263x 11.0
+- MCU+ SDK AM261x 11.0
 - PRU Code Generation Tools (included in CCS)
 
 **Audio Codec Software:**
@@ -113,15 +113,15 @@ This ensures continuous and efficient data transmission/reception with minimal l
 2. **Audio Clock Connections:**
    ![PCM Jumper Headers](images/pcm2.png)
    - Function generator (16MHz) → PCM6260 J7 MCLK
-   - PCM6260 J7 BCLK → AM261x LP J2.13
-   - PCM6260 J7 FSYNC → AM261x LP J1.5
-   - PCM6260 J7 DOUT1 → AM261x LP J2.18
+   - PCM6260 J7 BCLK → AM261x LP J1.5
+   - PCM6260 J7 FSYNC → AM261x LP J2.13
+   - PCM6260 J7 DOUT1 → AM261x LP J1.8
 
 3. **Open PCM6260 GUI** for codec configuration
 
 > **Note:** TLV320AIC3254EVM-K can also be used with AM261x for generating external clock sources.
 
-### PRU Pin Assignments
+### <a id="pru-pin-assignments"></a>PRU Pin Assignments
 
 #### AM263x CC Pin Mapping
 | PRU Core | I2S Signal | PRU GPIO | Direction | HSECDOCK Pin |
@@ -136,12 +136,12 @@ This ensures continuous and efficient data transmission/reception with minimal l
 #### AM261x LP Pin Mapping
 | PRU Core | I2S Signal | PRU GPIO | Direction | Header Pin |
 |----------|------------|----------|-----------|------------|
-| PRU0 | BCLK | PR1_PRU0_GPIO5 | INPUT | J7.70 |
-| PRU0 | FSYNC | PR1_PRU0_GPIO6 | INPUT | J7.69 |
-| PRU0 | TX | PR1_PRU0_GPIO7 | OUTPUT | J8.72 |
-| PRU1 | BCLK | PR1_PRU1_GPIO5 | INPUT | J2.13 |
-| PRU1 | FSYNC | PR1_PRU1_GPIO9 | INPUT | J1.5 |
-| PRU1 | RX | PR1_PRU1_GPIO12 | INPUT | J2.18 |
+| PRU0 | BCLK | PR1_PRU0_GPIO0 | INPUT | J2.11 |
+| PRU0 | FSYNC | PR1_PRU0_GPIO1 | INPUT | J7.67 |
+| PRU0 | TX | PR1_PRU0_GPIO6 | OUTPUT | J7.69 |
+| PRU1 | BCLK | PR1_PRU1_GPIO4 | INPUT | J1.5 |
+| PRU1 | FSYNC | PR1_PRU1_GPIO5 | INPUT | J2.13 |
+| PRU1 | RX | PR1_PRU1_GPIO11 | INPUT | J1.8 |
 
 ---
 
@@ -276,7 +276,7 @@ The R5F application uses SysConfig to configure PRUICSS:
 
 **ICSSM Configuration:**
 - Instance: ICSSM1 (AM261x) or ICSSM0 (AM263x)
-- PRU Clock: 333 MHz (maximizes processing cycles)
+- PRU Clock: 200/225 MHz (maximizes processing cycles)
 
 **GPIO Pin Configuration:**
 - **PRU0 (TX):**
@@ -363,27 +363,27 @@ Configurable parameters in `firmware/I2S/pru_i2s_interface.h` or `firmware/TDM4/
 
 #### FW Register Map
 
-`fw_regs.asm` (`firmware/I2S/` and `firmware/TDM4/`) lays out a fixed-layout status/config struct at DMEM offset 0 of each PRU core, shared between the firmware and the R5F driver (`icss_pru_i2s_fw.h` defines the same offsets on the C side). This is the entire handshake surface between the R5F and the PRU — the driver reads/writes these fields directly via `HW_RD/WR_REG*`, there is no other channel.
+`fw_regs.asm` (`firmware/I2S/` and `firmware/TDM4/`) lays out a fixed-layout status/config struct at DMEM offset 0 of each PRU core, shared between the firmware and the R5F driver (`icss_pru_i2s_fw.h` defines the same offsets on the C side). This is the entire handshake surface between the R5F and the PRU — the driver reads/writes these fields directly via `HW_RD/WR_REG*`, there is no other channel. `PRUI2S_getPruFwImageInfo()` (during driver init, before the PRU core is even running) only ever reads the capability/interrupt fields (`NUM_TX_I2S`, `NUM_RX_I2S`, `SAMP_FREQ`, the three `*_ICSS_INTC_SYS_EVT` fields) out of the firmware image — it never reads the buffer address/size fields.
 
 | Offset | Size | Field | Direction | Description |
 |--------|------|-------|-----------|--------------|
 | 0x00 | 1B | `NUM_TX_I2S` | FW→R5F (build-time constant) | Number of TX channels this firmware build was assembled for (0, 2, or 3) |
 | 0x01 | 1B | `NUM_RX_I2S` | FW→R5F (build-time constant) | Number of RX channels (0 or 2) |
 | 0x02 | 1B | `SAMP_FREQ` | FW→R5F (build-time constant) | Sample rate identifier emitted by the build (currently a fixed value, not a literal Hz encoding) |
-| 0x04 | 4B | `TX_PING_PONG_BUF_ADDR` | FW→R5F (build-time constant) | Base address of the TX ping+pong buffer in PRU Shared RAM (e.g. `0x10000` for PRU0, `0x10200` for PRU1) |
-| 0x08 | 2B | `PING_PONG_BUF_SZ` | FW→R5F (build-time constant) | Combined ping+pong buffer size in bytes (each half is `PING_PONG_BUF_SZ/2`) |
+| 0x04 | 4B | `TX_PING_PONG_BUF_ADDR` | R5F→FW (set at `open()`) | TX ping+pong buffer address (PRU Shared-RAM offset), written by `PRUI2S_initFw()` from `PRUI2S_Params.txPingPongBaseAddr`; firmware's build-time initializer for this field is a placeholder, overwritten before streaming starts |
+| 0x08 | 2B | `PING_PONG_BUF_SZ` | R5F→FW (set at `open()`) | Combined ping+pong buffer size in bytes (each half is `PING_PONG_BUF_SZ/2`), written by `PRUI2S_initFw()` from `PRUI2S_Params.pingPongBufSz`; firmware's build-time value is a placeholder, overwritten before streaming starts |
 | 0x0A | 1B | `I2S_TX_ICSS_INTC_SYS_EVT` | FW→R5F (build-time constant) | ICSS INTC system event number used for the TX-complete interrupt |
 | 0x0B | 1B | `I2S_RX_ICSS_INTC_SYS_EVT` | FW→R5F (build-time constant) | ICSS INTC system event number used for the RX-complete interrupt |
 | 0x0C | 1B | `I2S_ERR_ICSS_INTC_SYS_EVT` | FW→R5F (build-time constant) | ICSS INTC system event number used for the error interrupt |
 | 0x0D-0x13 | 1B each | `PIN_NUM_BCLK`/`FSYNC`/`TX0`/`TX1`/`TX2`/`RX0`/`RX1` | FW→R5F (build-time constant) | Legacy PRU GPIO pin numbers for each signal; pinmux is now driven by SysConfig, these fields are no longer consulted by the driver |
-| 0x14 | 4B | `RX_PING_PONG_BUF_ADDR` | FW→R5F (build-time constant) | Base address of the RX ping+pong buffer in PRU Shared RAM (e.g. `0x10100` for PRU0, `0x10300` for PRU1) |
+| 0x14 | 4B | `RX_PING_PONG_BUF_ADDR` | R5F→FW (set at `open()`) | RX ping+pong buffer address (R5F-side absolute address, e.g. OCRAM/DDR), written by `PRUI2S_initFw()` from `PRUI2S_Params.rxPingPongBaseAddr`; firmware's build-time initializer for this field is a placeholder, overwritten before streaming starts |
 | 0x18 | 1B | `TX_PING_PONG_SEL` | FW→R5F (runtime) | Which TX half (PING=0/PONG=1) the firmware is currently consuming |
 | 0x19 | 1B | `RX_PING_PONG_SEL` | FW→R5F (runtime) | Which RX half (PING=0/PONG=1) the firmware is currently filling |
 | 0x1A | 1B | `TX_PING_PONG_STAT` | R5F→FW (runtime) | bit0/bit1 = PING/PONG has valid data queued for transmit; set by the driver after `PRUI2S_write()`, cleared by firmware once consumed |
 | 0x1B | 1B | `RX_PING_PONG_STAT` | R5F→FW (runtime) | bit0/bit1 = PING/PONG has been drained by the host; cleared by the driver after `PRUI2S_read()`, set by firmware once filled |
 | 0x1C | 1B | `ERR_STAT` | FW→R5F (runtime) | bit0 = RX overflow, bit1 = TX underflow, bit2 = frame-sync error; cleared by the driver via `PRUI2S_clearErrStat()` |
 
-All offsets are relative to `ICSS_PRUI2S_FW_REG_BASE` (0x0000) within each PRU's own local DMEM — PRU0 and PRU1 each have an independent copy of this struct. `TX_PING_PONG_BUF_ADDR` is a PRU Shared-RAM *offset*; `RX_PING_PONG_BUF_ADDR` in this driver is treated as an R5F-side *absolute* address instead — this asymmetry is intentional (RX buffers may live in OCRAM/DDR/etc.) but is not enforced by the type system, so pass the right kind of address for each field.
+All offsets are relative to `ICSS_PRUI2S_FW_REG_BASE` (0x0000) within each PRU's own local DMEM — PRU0 and PRU1 each have an independent copy of this struct. `TX_PING_PONG_BUF_ADDR`, `RX_PING_PONG_BUF_ADDR`, and `PING_PONG_BUF_SZ` are **not** firmware build-time constants despite what `fw_regs.asm`'s initializer values might suggest — `PRUI2S_open()` always overwrites them via `PRUI2S_initFw()` using the application-supplied `PRUI2S_Params` before streaming starts, so whatever `fw_regs.asm` assembles into the image for these three fields is a placeholder only. `TX_PING_PONG_BUF_ADDR` is a PRU Shared-RAM *offset*; `RX_PING_PONG_BUF_ADDR` in this driver is treated as an R5F-side *absolute* address instead — this asymmetry is intentional (RX buffers may live in OCRAM/DDR/etc.) but is not enforced by the type system, so pass the right kind of address for each field.
 
 ---
 
@@ -419,13 +419,36 @@ All offsets are relative to `ICSS_PRUI2S_FW_REG_BASE` (0x0000) within each PRU's
 - Feed signal to amplifier (e.g., TAS6424 Class-D amp)
 - Verify audio playback
 
+### TX to RX loopback Testing Procedure
+
+**Setup**
+1. Supply BCLK and FSYNC signals to both the BCLK/FSYNC pins for TX and RX both, for am261x-lp, the connections are as per [Pin mapping](#pru-pin-assignments)
+
+2. Set I2S_TX_RX_LOOPBACK_TEST to 1 (**set to 0 by default, set to 1 if testing loopback**) in examples\pru_i2s\firmware\TDM4\pru_i2s_main.asm (line 38) and rebuild the firmware and then the R5F project 
+
+3. Connect Tx pin from PRU0 to Rx pin in PRU1, for this example, connect PR1_PRU0_GPIO6 (J7.69, Tx) to PR1_PRU1_GPIO11 (J1.8, Rx) 
+
+**Verification:**
+- Probe PRU0_Tx/PRU1_Rx pin with logic analyzer
+- Should see I2S data signals (the data stored in data.h)
+- The data which is present in data.h should be present in gPruI2s1RxBuf as per the below image 
+![Rx Data](images/rx_data.png)
+
+**Note** : For this example, just after FYNC signal toggles, the BCLK goes high and Rx is supposed to sample on the rising edge whereas Tx is supposed to send out data at the falling edge of BCLK, so Rx is one BCLK ahead of Tx, thus for getting accurate data via loopback we delay the Rx sampling by one BCLK by setting I2S_TX_RX_LOOPBACK_TEST to 1 in the firmware, **it is set to 0 by default so without setting this to 1, a right shifted data will be observed in Rx buffer** 
+
+Below Salae captures explains when does the sampling happens for Tx/Rx :
+![Clock with Fsync and Data](images/clock_with_fsync_data.png)
+
+According to this diagram if the Rx sampling happens before Tx sends out the data, we get a right shifted data in Rx buffer, so to accomodate for this we delay the Rx sampling by one BCLK 
+
+
 ### Debug Tips
 
 **Common Issues:**
 - **No data received:** Check BCLK/FSYNC connections and clock source
 - **Corrupted audio:** Verify buffer sizes match firmware configuration
 - **Interrupts not firing:** Check INTC mapping and system event configuration
-- **Timing issues:** Ensure PRU clock is 333 MHz for optimal performance
+- **Timing issues:** Ensure PRU clock is 200 MHz for optimal performance
 
 **CCS Debugging:**
 - Use Memory Browser to inspect ping-pong buffers
@@ -438,7 +461,7 @@ All offsets are relative to `ICSS_PRUI2S_FW_REG_BASE` (0x0000) within each PRU's
 
 | Metric | Value |
 |--------|-------|
-| PRU Clock | 333 MHz |
+| PRU Clock | 200 MHz |
 | Buffer Size | 128 bytes (configurable) |
 | Latency | < 1 ms (ping-pong buffering) |
 | Sample Rates | 8 kHz - 192 kHz (configurable) |

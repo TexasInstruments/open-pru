@@ -74,7 +74,13 @@
         <pathVariable name="OPEN_PRU_PATH" path="${COM_TI_OPEN_PRU_INSTALL_DIR}" scope="project" />
         <file path="../../../../pru_i2s_main.asm" openOnCreation="false" excludeFromBuild="false" action="copy">
         </file>
-        <file path="../../../../fw_regs.asm" openOnCreation="false" excludeFromBuild="false" action="copy">
+         <file path="../../../../fw_regs.asm" openOnCreation="false" excludeFromBuild="false" action="copy">
+        </file>
+        <file path="../../../../pru_i2s_interface.h" openOnCreation="false" excludeFromBuild="false" action="copy">
+        </file>
+        <file path="../../../../pru_i2s_regs.h" openOnCreation="false" excludeFromBuild="false" action="copy">
+        </file>
+        <file path="../../../../icss_pru_i2s_fw.h" openOnCreation="false" excludeFromBuild="false" action="copy">
         </file>
         <file path="../../../../linker.cmd" openOnCreation="false" excludeFromBuild="false" action="copy">
         </file>

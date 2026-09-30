@@ -34,6 +34,9 @@
 
 	.include "pru_i2s_interface.h"
 	.include "pru_i2s_regs.h"
+
+I2S_TX_RX_LOOPBACK_TEST  .set   0
+
 main:
 ;enable cyclecount
 	lbco		&R0, c11, 0x00, 4
@@ -184,12 +187,18 @@ INITIAL_STATE_FS2:
 	qba START_SAMPLE
 BCLK_RISING_EDGE_LOW:
 	QBBC	BCLK_RISING_EDGE_LOW, r31, I2S_INSTANCE_BCLK_PIN
+	.if I2S_TX_RX_LOOPBACK_TEST
+	.if	$isdefed("I2S_RX")
+BCLK_RISING_EDGE_HIGH:
+	QBBS	BCLK_RISING_EDGE_HIGH, r31, I2S_INSTANCE_BCLK_PIN
+	.endif 
+	.endif
 START_SAMPLE:
 	; Read FS.
 	.if	$isdefed("I2S_RX")
 	;program delay betwen BCLK and Data
-	loop WAIT_FOR_RX_SAMPLE_ON_PIN, 10
-	add r0,r0,0
+  	loop WAIT_FOR_RX_SAMPLE_ON_PIN, I2S_BCLK_DATA_DELAY
+ 	add r0,r0,0
 WAIT_FOR_RX_SAMPLE_ON_PIN
 	.endif
 	AND fs_level, r31, i2s_instance_fs_pin_pos
@@ -303,7 +312,7 @@ RX_CONTINUE:
 	;set a condition to do Rx Overflow check
 	LDI 	do_rx_overflow_error_check, 1
 	; notify the host
-	;LDI    R31.w0, TRIGGER_HOST_I2S_RX_IRQ
+	LDI    R31.w0, TRIGGER_HOST_I2S_RX_IRQ
 	.endif ;I2S_RX
 	JMP	CONTINUE_TX_PROCESSING
 
@@ -363,7 +372,7 @@ STORE_TX_PING_PONG_STAT:
 	;SBBO 	&tx_ping_pong_stat, scratchreg2, 2, 1
 	.endif ;I2S_TX_DETECT_UNDERFLOW
 	; notify the host
-	;LDI    R31.w0, TRIGGER_HOST_I2S_TX_IRQ
+	LDI    R31.w0, TRIGGER_HOST_I2S_TX_IRQ
 	.endif ;I2S_TX
 	; increment fs_counter and wait for falling edge
 	ADD	fs_counter, fs_counter, 0x1

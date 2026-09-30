@@ -241,8 +241,12 @@ uint32_t gPruI2s1ErrOvrCnt=0;       /* PRU I2S 1 Rx overflow error count */
 /* PRU I2S PRU image info */
 static PRUI2S_PruFwImageInfo gPruFwImageInfo[PRU_I2S_NUM_PRU_IMAGE] =
 {
+#if defined(CONFIG_PRU_I2S0_ENABLED) && (CONFIG_PRU_I2S0_ENABLED == 1)
     {pru_prupru_i2s0_image_0_0, pru_prupru_i2s0_image_0_1, sizeof(pru_prupru_i2s0_image_0_0), sizeof(pru_prupru_i2s0_image_0_1)},
+#endif
+#if defined(CONFIG_PRU_I2S1_ENABLED) && (CONFIG_PRU_I2S1_ENABLED == 1)
     {pru_prupru_i2s1_image_0_0, pru_prupru_i2s1_image_0_1, sizeof(pru_prupru_i2s1_image_0_0), sizeof(pru_prupru_i2s1_image_0_1)}
+#endif
 };
 
 
@@ -678,14 +682,7 @@ static void prui2s_streaming_loop_full_duplex(PRUI2S_Handle hTx, PRUI2S_Handle h
             }
         }
 
-        /* Wait for Rx interrupt with timeout */
-        status = SemaphoreP_pend(&gPruI2s1RxSemObj, SEMAPHORE_TIMEOUT_MS);
-        if (status != SystemP_SUCCESS)
-        {
-            DebugP_log("ERROR: Timeout waiting for PRU I2S1 Rx event\r\n");
-            gRunFlag = FALSE;
-            continue;
-        }
+        
 
         /* Wait for Tx interrupt with timeout */
         status = SemaphoreP_pend(&gPruI2s0TxSemObj, SEMAPHORE_TIMEOUT_MS);
@@ -695,7 +692,14 @@ static void prui2s_streaming_loop_full_duplex(PRUI2S_Handle hTx, PRUI2S_Handle h
             gRunFlag = FALSE;
             continue;
         }
-
+        /* Wait for Rx interrupt with timeout */
+        status = SemaphoreP_pend(&gPruI2s1RxSemObj, SEMAPHORE_TIMEOUT_MS);
+        if (status != SystemP_SUCCESS)
+        {
+            DebugP_log("ERROR: Timeout waiting for PRU I2S1 Rx event\r\n");
+            gRunFlag = FALSE;
+            continue;
+        }
         gLoopCnt++;
 
         /* Read next PRU I2S1 Rx ping/pong buffer */
@@ -1048,6 +1052,13 @@ static void prui2s_cleanup_instances(void)
     /* Deinitialize PRU I2S driver */
     PRUI2S_deinit();
     DebugP_log("PRU I2S driver deinitialized\r\n");
+
+    /* Close PRU-ICSS handle opened in prui2s_pruicss_init() */
+    if(gPruIcssHandle != NULL)
+    {
+        PRUICSS_close(gPruIcssHandle);
+        gPruIcssHandle = NULL;
+    }
 }
 
 /* ========================================================================== */
@@ -1325,12 +1336,21 @@ void pru_i2s_diagnostic_main(void *args)
 
     DebugP_log("PRU I2S driver initialized (%d valid configurations)\r\n", numValidCfg);
 
-    /* Validate test configuration indices */
-    if (((numValidCfg-1) < TEST_PRUI2S0_IDX) || ((numValidCfg-1) < TEST_PRUI2S1_IDX))
+    /* Validate test configuration indices (only for enabled instances) */
+#if defined(CONFIG_PRU_I2S0_ENABLED) && (CONFIG_PRU_I2S0_ENABLED == 1)
+    if ((numValidCfg-1) < TEST_PRUI2S0_IDX)
     {
         DebugP_log("ERROR: Invalid test configuration indices\r\n");
         goto cleanup;
     }
+#endif
+#if defined(CONFIG_PRU_I2S1_ENABLED) && (CONFIG_PRU_I2S1_ENABLED == 1)
+    if ((numValidCfg-1) < TEST_PRUI2S1_IDX)
+    {
+        DebugP_log("ERROR: Invalid test configuration indices\r\n");
+        goto cleanup;
+    }
+#endif
 
     /* Initialize PRU I2S instances (conditional based on SysConfig) */
 #if defined(CONFIG_PRU_I2S0_ENABLED) && (CONFIG_PRU_I2S0_ENABLED == 1)

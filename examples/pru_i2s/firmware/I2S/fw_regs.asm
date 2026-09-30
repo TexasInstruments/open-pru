@@ -57,6 +57,7 @@
         .byte   0       ; NUM_RX_I2S
         .endif
         .byte   48      ; SAMP_FREQ
+        .byte   32      ; BITS_PER_SLOT
         .if $isdefed("PRU0")
         .word   0x10000 ; TX_PING_PONG_BUF_ADDR
         .else
