@@ -423,7 +423,7 @@ data_high?:
 ;   Returns:
 ;       - The received data packet is stored in the `r_dataReg` register.
 ;************************************************************************************
-m_transfer_packet_spi_master_gpo_sclk   .macro  r_dataReg, s_dataReg, PACKETSIZE, bitId, SCLK_PIN, SDI_PIN, SDO_PIN, DELAY_COMPEN_1, DELAY_COMPEN_2, MODE, S_BIT
+m_transfer_packet_spi_master_gpo_sclk   .macro  r_dataReg, s_dataReg, PACKETSIZE, bitId, SCLK_PIN, SDI_PIN, SDO_PIN, DELAY_COMPEN_1_REG, DELAY_COMPEN_2_REG, MODE, S_BIT
     ; Validating packetsize parameter
     .if (PACKETSIZE > 32)  |  (PACKETSIZE < 1)
     .emsg "Error: Invalid parameter used in macro: PACKETSIZE"
@@ -446,9 +446,9 @@ data_low?:
     m_pru_clr_pin   SDO_PIN
     NOP
 data_high?:
-    .loop   DELAY_COMPEN_1 ; delay before sampling edge
+    loop   endloop1?,DELAY_COMPEN_1_REG ; delay before sampling edge
     NOP
-    .endloop
+endloop1?:
 
     ;sampling edge
     m_handle_spi_mode "SAMPLING_EDGE", MODE, SCLK_PIN
@@ -460,9 +460,9 @@ BIT_ENTRY_0?:
     clr     r_dataReg, r_dataReg, bitId
     nop
 SKIP_BIT_ENTRY_0?:
-    .loop   DELAY_COMPEN_2 ; delay before shifting edge
+    loop   endloop?,DELAY_COMPEN_2_REG ; delay before shifting edge
     NOP
-    .endloop
+endloop?:
 
     .if $symcmp(S_BIT,"MSB") = 0
     sub     bitId, bitId, 1

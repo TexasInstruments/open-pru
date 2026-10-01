@@ -59,9 +59,19 @@ Configuration and transfer data are exchanged through PRU0's own data RAM
 | 0x00        | `cfg_mode`             | R5F -> PRU0   | SPI mode, 0-3 (`PRU_SPI_Mode`), read once at startup               |
 | 0x04        | `cfg_bitorder`         | R5F -> PRU0   | 0 = MSB first, 1 = LSB first, read once at startup                 |
 | 0x10        | `cfg_trigger`          | R5F <-> PRU0  | R5F sets to 1 to start a transaction; PRU0 clears to 0 when all 5 transfers complete |
+| 0x3C        | `delay_comp_1`          | R5F <-> PRU0  | PRU cycles to wait for while SCLK is high/low depending on the spi mode  |
+| 0x40        | `delay_comp_2`          | R5F <-> PRU0  | PRU cycles to wait for while SCLK is low/low depending on the spi mode |
 | 0x14 - 0x24 | `cfg_cmd0` .. `cfg_cmd4`     | R5F -> PRU0   | 5 independent 16-bit command words, written before setting `cfg_trigger` |
 | 0x28 - 0x38 | `master_rx5_0` .. `master_rx5_4` | PRU0 -> R5F   | 5 independent 16-bit response words, written after the 5-transfer burst completes |
 
+SPI Modes and clock polarity :
+
+| SPI Mode | CPOL | CPHA |  Idle State Clock Polarity | Clock Phase Used to Sample and/or Shift the Data|
+|----------|------|------|----------------------------|-------------------------------------------------|
+|     0     |  0   |  0   |       Logic low            | Data sampled on rising edge and shifted out on the falling edge |
+|     1     |  0   |  1   |       Logic low            | Data sampled on the falling edge and shifted out on the rising edge |
+|     2     |  1   |  0   |       Logic high           | Data sampled on the falling edge and shifted out on the rising edge |
+|     3     |  1   |  1   |       Logic high           | Data sampled on the rising edge and shifted out on the falling edge |
 ### R5F driver API
 
 ```c
@@ -70,6 +80,8 @@ typedef enum { PRU_SPI_MSB_FIRST=0, PRU_SPI_LSB_FIRST } PRU_SPI_BitOrder;
 typedef struct {
     PRU_SPI_Mode     mode;
     PRU_SPI_BitOrder bitOrder;
+    uint8_t delay_comp_1;
+    uint8_t delay_comp_2;
 } PRU_SPI_Config;
 
 /* Must be called BEFORE PRUICSS_loadFirmware(PRU0) */
@@ -86,7 +98,7 @@ static int PRU_SPI_runTransaction5(const uint32_t *commandWords, uint32_t *respo
 Usage:
 
 ```c
-PRU_SPI_Config cfg = { .mode = PRU_SPI_MODE_3, .bitOrder = PRU_SPI_MSB_FIRST };
+PRU_SPI_Config cfg = { .mode = PRU_SPI_MODE_3, .bitOrder = PRU_SPI_MSB_FIRST,  .delay_comp_1 = 8, .delay_comp_2 = 27 };
 PRU_SPI_setConfig(&cfg);
 PRUICSS_loadFirmware(gPruHandle, PRUICSS_PRU1, ...);   /* slave responder first */
 PRUICSS_loadFirmware(gPruHandle, PRUICSS_PRU0, ...);   /* master, auto-starts, never halts */
@@ -134,6 +146,9 @@ all in the 5x burst version, there's nothing to be stale.
 - **Bit order** (MSB first / LSB first) — read once at PRU0 startup
 - **5 command words** (via `PRU_SPI_runTransaction5`, once per burst — not a
   one-time config value like mode/bitOrder)
+- **Delay Compensation 1/2** - read once at PRU0 startup 
+
+**Note** - SCLK frequency depends on delay_comp1(d1), delay_comp2(d2), for this example the SCKL will be **PRU_Freq(225Mhz)/(d1+d2+10) = 225/(10+8+27)Mhz ~ 5Mhz**
 
 ### Fixed at firmware build time (edit `firmware/am261x-lp/icss_m1_pru0_fw/main.asm` and rebuild)
 
@@ -142,11 +157,7 @@ all in the 5x burst version, there's nothing to be stale.
   assemble time (`.if (PACKETSIZE > 32) | (PACKETSIZE < 1) .emsg ...`) since
   data is shifted through a single 32-bit register — this is a hard ceiling
   for this bit-bang approach, not just this driver's current choice.
-- **Delay compensation constants** `DELAY_COMPEN_1`/`DELAY_COMPEN_2` — set to
-  8/27 (`d1+d2=35`), which targets **~5 MHz SCLK** at the AM261x PRU clock of
-  225 MHz. `DELAY_COMPEN_1` should not be set below 8 (found unstable on this
-  hardware); to hit a different frequency, keep `d1=8` and solve for `d2` from
-  `(10 + d1 + d2) cycles/bit * 4.44ns = 1 / target_SCLK_freq`.
+
 - **Pin assignments** (`SCLK_PIN`, `SDO_PIN`, `CS_PIN`, `SDI_PIN`)
 
 Both PRU0 (master, via `m_transfer_packet_spi_master_gpo_sclk`) and PRU1
@@ -154,16 +165,18 @@ Both PRU0 (master, via `m_transfer_packet_spi_master_gpo_sclk`) and PRU1
 full-duplex transfer macro, called 5 times per burst with no gap in between
 — see "PRU1 (slave)" below for the fixed responses PRU1 sends back.
 
-Mode and bit order can be selected at runtime because the underlying macro
+Mode, bit order and delay compensation can be selected at runtime because the underlying macro
 (`m_transfer_packet_spi_master_gpo_sclk`) internally uses assembler directives
 (`.if $symcmp(...)`) that only resolve against string literals at assemble
 time — a runtime register value can't be passed in directly. The workaround
 is an 8-way branch table: all 8 MODE x bit-order combinations are pre-assembled
 as separate labeled blocks, and PRU0 reads `cfg_mode`/`cfg_bitorder` from its
 own DMEM0 at startup and uses plain runtime branches (`qbeq`/`qba`) to jump to
-the matching block. Packet size and delays are not part of this table (would
+the matching block. Packet size are not part of this table (would
 require a much larger branch table) and remain compile-time constants for this
 prototype.
+
+**NOTE: Please refer to `open-pru\examples\spi_driver\firmware\am261x-lp\spi_master_macros.inc` for more details and implementation of the SPI macros used**
 
 **PRU0 accesses its own DMEM0 via the constant table (`c24`, `lbco`/`sbco`)**,
 whose default block index is already correctly pre-configured on this

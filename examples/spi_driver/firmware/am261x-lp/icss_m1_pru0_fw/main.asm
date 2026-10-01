@@ -55,13 +55,15 @@ SDI_PIN             .set    6
 
 ; Fixed for this driver's use case
 PACKET_SIZE         .set    16
-DELAY_COMPEN_1      .set    8
-DELAY_COMPEN_2      .set    27   ; d1+d2=35 -> (10+35)*4.44ns = ~200ns period -> ~5 MHz SCLK
+; delay_comp1_reg      .set    8
+; delay_comp2_reg      .set    27   ; d1+d2=35 -> (10+35)*4.44ns = ~200ns period -> ~5 MHz SCLK
 
 ; PRU0 DMEM0 offsets (base 0x48600000)
-DMEM_CFG_MODE       .set    0x00
-DMEM_CFG_BITORDER   .set    0x04
-DMEM_CFG_TRIGGER    .set    0x10
+DMEM_CFG_MODE         .set    0x00
+DMEM_CFG_BITORDER     .set    0x04
+DMEM_CFG_TRIGGER      .set    0x10
+DMEM_CFG_DELAY_COMP1  .set    0x3C
+DMEM_CFG_DELAY_COMP2  .set    0x40
 
 ; 5x16-bit command/response DMEM slots, all MODE x bit-order combinations
 DMEM_CFG_CMD0       .set    0x14
@@ -76,6 +78,8 @@ DMEM_MASTER_RX5_3   .set    0x34
 DMEM_MASTER_RX5_4   .set    0x38
 
     .asg    R4.b0,  bitId
+    .asg    R4.b1,   delay_comp1_reg
+    .asg    R4.b2,   delay_comp2_reg
     .asg    R6,     cfgMode
     .asg    R7,     cfgBitOrder
     .asg    R8,     cfgTrigger
@@ -106,6 +110,15 @@ main:
     ; since they change per transaction.
     lbco    &cfgMode,     c24, DMEM_CFG_MODE,     4
     lbco    &cfgBitOrder, c24, DMEM_CFG_BITORDER, 4
+    lbco    &delay_comp1_reg, c24, DMEM_CFG_DELAY_COMP1, 4
+    lbco    &delay_comp2_reg, c24, DMEM_CFG_DELAY_COMP2, 4
+    ; hardware loop takes N+1 cycles, so subtract to compensate with checks that it is not already zero 
+    qbeq skip_sub_delay_1,delay_comp1_reg,0
+    sub delay_comp1_reg,delay_comp1_reg,1
+skip_sub_delay_1:
+    qbeq skip_sub_delay_2,delay_comp2_reg,0
+    sub delay_comp2_reg,delay_comp2_reg,1
+skip_sub_delay_2:
 
     ; Branch to the (MODE x BITORDER) variant matching the runtime config
     qbeq    M0_MSB, cfgMode, 0
@@ -382,61 +395,61 @@ TRANSFER_DONE_M3_LSB:
 ; rx0..4 receive the 5 response words independently (each transfer uses its
 ; own register pair). No inter-transfer delay - back-to-back at full rate.
 DO_5X_TRANSFER_M0_MSB:
-    m_transfer_packet_spi_master_gpo_sclk rx0, tx0, PACKET_SIZE, bitId, SCLK_PIN, SDI_PIN, SDO_PIN, DELAY_COMPEN_1, DELAY_COMPEN_2, "MODE0", "MSB"
-    m_transfer_packet_spi_master_gpo_sclk rx1, tx1, PACKET_SIZE, bitId, SCLK_PIN, SDI_PIN, SDO_PIN, DELAY_COMPEN_1, DELAY_COMPEN_2, "MODE0", "MSB"
-    m_transfer_packet_spi_master_gpo_sclk rx2, tx2, PACKET_SIZE, bitId, SCLK_PIN, SDI_PIN, SDO_PIN, DELAY_COMPEN_1, DELAY_COMPEN_2, "MODE0", "MSB"
-    m_transfer_packet_spi_master_gpo_sclk rx3, tx3, PACKET_SIZE, bitId, SCLK_PIN, SDI_PIN, SDO_PIN, DELAY_COMPEN_1, DELAY_COMPEN_2, "MODE0", "MSB"
-    m_transfer_packet_spi_master_gpo_sclk rx4, tx4, PACKET_SIZE, bitId, SCLK_PIN, SDI_PIN, SDO_PIN, DELAY_COMPEN_1, DELAY_COMPEN_2, "MODE0", "MSB"
+    m_transfer_packet_spi_master_gpo_sclk rx0, tx0, PACKET_SIZE, bitId, SCLK_PIN, SDI_PIN, SDO_PIN, delay_comp1_reg, delay_comp2_reg, "MODE0", "MSB"
+    m_transfer_packet_spi_master_gpo_sclk rx1, tx1, PACKET_SIZE, bitId, SCLK_PIN, SDI_PIN, SDO_PIN, delay_comp1_reg, delay_comp2_reg, "MODE0", "MSB"
+    m_transfer_packet_spi_master_gpo_sclk rx2, tx2, PACKET_SIZE, bitId, SCLK_PIN, SDI_PIN, SDO_PIN, delay_comp1_reg, delay_comp2_reg, "MODE0", "MSB"
+    m_transfer_packet_spi_master_gpo_sclk rx3, tx3, PACKET_SIZE, bitId, SCLK_PIN, SDI_PIN, SDO_PIN, delay_comp1_reg, delay_comp2_reg, "MODE0", "MSB"
+    m_transfer_packet_spi_master_gpo_sclk rx4, tx4, PACKET_SIZE, bitId, SCLK_PIN, SDI_PIN, SDO_PIN, delay_comp1_reg, delay_comp2_reg, "MODE0", "MSB"
     jmp     retAddr
 DO_5X_TRANSFER_M0_LSB:
-    m_transfer_packet_spi_master_gpo_sclk rx0, tx0, PACKET_SIZE, bitId, SCLK_PIN, SDI_PIN, SDO_PIN, DELAY_COMPEN_1, DELAY_COMPEN_2, "MODE0", "LSB"
-    m_transfer_packet_spi_master_gpo_sclk rx1, tx1, PACKET_SIZE, bitId, SCLK_PIN, SDI_PIN, SDO_PIN, DELAY_COMPEN_1, DELAY_COMPEN_2, "MODE0", "LSB"
-    m_transfer_packet_spi_master_gpo_sclk rx2, tx2, PACKET_SIZE, bitId, SCLK_PIN, SDI_PIN, SDO_PIN, DELAY_COMPEN_1, DELAY_COMPEN_2, "MODE0", "LSB"
-    m_transfer_packet_spi_master_gpo_sclk rx3, tx3, PACKET_SIZE, bitId, SCLK_PIN, SDI_PIN, SDO_PIN, DELAY_COMPEN_1, DELAY_COMPEN_2, "MODE0", "LSB"
-    m_transfer_packet_spi_master_gpo_sclk rx4, tx4, PACKET_SIZE, bitId, SCLK_PIN, SDI_PIN, SDO_PIN, DELAY_COMPEN_1, DELAY_COMPEN_2, "MODE0", "LSB"
+    m_transfer_packet_spi_master_gpo_sclk rx0, tx0, PACKET_SIZE, bitId, SCLK_PIN, SDI_PIN, SDO_PIN, delay_comp1_reg, delay_comp2_reg, "MODE0", "LSB"
+    m_transfer_packet_spi_master_gpo_sclk rx1, tx1, PACKET_SIZE, bitId, SCLK_PIN, SDI_PIN, SDO_PIN, delay_comp1_reg, delay_comp2_reg, "MODE0", "LSB"
+    m_transfer_packet_spi_master_gpo_sclk rx2, tx2, PACKET_SIZE, bitId, SCLK_PIN, SDI_PIN, SDO_PIN, delay_comp1_reg, delay_comp2_reg, "MODE0", "LSB"
+    m_transfer_packet_spi_master_gpo_sclk rx3, tx3, PACKET_SIZE, bitId, SCLK_PIN, SDI_PIN, SDO_PIN, delay_comp1_reg, delay_comp2_reg, "MODE0", "LSB"
+    m_transfer_packet_spi_master_gpo_sclk rx4, tx4, PACKET_SIZE, bitId, SCLK_PIN, SDI_PIN, SDO_PIN, delay_comp1_reg, delay_comp2_reg, "MODE0", "LSB"
     jmp     retAddr
 
 DO_5X_TRANSFER_M1_MSB:
-    m_transfer_packet_spi_master_gpo_sclk rx0, tx0, PACKET_SIZE, bitId, SCLK_PIN, SDI_PIN, SDO_PIN, DELAY_COMPEN_1, DELAY_COMPEN_2, "MODE1", "MSB"
-    m_transfer_packet_spi_master_gpo_sclk rx1, tx1, PACKET_SIZE, bitId, SCLK_PIN, SDI_PIN, SDO_PIN, DELAY_COMPEN_1, DELAY_COMPEN_2, "MODE1", "MSB"
-    m_transfer_packet_spi_master_gpo_sclk rx2, tx2, PACKET_SIZE, bitId, SCLK_PIN, SDI_PIN, SDO_PIN, DELAY_COMPEN_1, DELAY_COMPEN_2, "MODE1", "MSB"
-    m_transfer_packet_spi_master_gpo_sclk rx3, tx3, PACKET_SIZE, bitId, SCLK_PIN, SDI_PIN, SDO_PIN, DELAY_COMPEN_1, DELAY_COMPEN_2, "MODE1", "MSB"
-    m_transfer_packet_spi_master_gpo_sclk rx4, tx4, PACKET_SIZE, bitId, SCLK_PIN, SDI_PIN, SDO_PIN, DELAY_COMPEN_1, DELAY_COMPEN_2, "MODE1", "MSB"
+    m_transfer_packet_spi_master_gpo_sclk rx0, tx0, PACKET_SIZE, bitId, SCLK_PIN, SDI_PIN, SDO_PIN, delay_comp1_reg, delay_comp2_reg, "MODE1", "MSB"
+    m_transfer_packet_spi_master_gpo_sclk rx1, tx1, PACKET_SIZE, bitId, SCLK_PIN, SDI_PIN, SDO_PIN, delay_comp1_reg, delay_comp2_reg, "MODE1", "MSB"
+    m_transfer_packet_spi_master_gpo_sclk rx2, tx2, PACKET_SIZE, bitId, SCLK_PIN, SDI_PIN, SDO_PIN, delay_comp1_reg, delay_comp2_reg, "MODE1", "MSB"
+    m_transfer_packet_spi_master_gpo_sclk rx3, tx3, PACKET_SIZE, bitId, SCLK_PIN, SDI_PIN, SDO_PIN, delay_comp1_reg, delay_comp2_reg, "MODE1", "MSB"
+    m_transfer_packet_spi_master_gpo_sclk rx4, tx4, PACKET_SIZE, bitId, SCLK_PIN, SDI_PIN, SDO_PIN, delay_comp1_reg, delay_comp2_reg, "MODE1", "MSB"
     jmp     retAddr
 DO_5X_TRANSFER_M1_LSB:
-    m_transfer_packet_spi_master_gpo_sclk rx0, tx0, PACKET_SIZE, bitId, SCLK_PIN, SDI_PIN, SDO_PIN, DELAY_COMPEN_1, DELAY_COMPEN_2, "MODE1", "LSB"
-    m_transfer_packet_spi_master_gpo_sclk rx1, tx1, PACKET_SIZE, bitId, SCLK_PIN, SDI_PIN, SDO_PIN, DELAY_COMPEN_1, DELAY_COMPEN_2, "MODE1", "LSB"
-    m_transfer_packet_spi_master_gpo_sclk rx2, tx2, PACKET_SIZE, bitId, SCLK_PIN, SDI_PIN, SDO_PIN, DELAY_COMPEN_1, DELAY_COMPEN_2, "MODE1", "LSB"
-    m_transfer_packet_spi_master_gpo_sclk rx3, tx3, PACKET_SIZE, bitId, SCLK_PIN, SDI_PIN, SDO_PIN, DELAY_COMPEN_1, DELAY_COMPEN_2, "MODE1", "LSB"
-    m_transfer_packet_spi_master_gpo_sclk rx4, tx4, PACKET_SIZE, bitId, SCLK_PIN, SDI_PIN, SDO_PIN, DELAY_COMPEN_1, DELAY_COMPEN_2, "MODE1", "LSB"
+    m_transfer_packet_spi_master_gpo_sclk rx0, tx0, PACKET_SIZE, bitId, SCLK_PIN, SDI_PIN, SDO_PIN, delay_comp1_reg, delay_comp2_reg, "MODE1", "LSB"
+    m_transfer_packet_spi_master_gpo_sclk rx1, tx1, PACKET_SIZE, bitId, SCLK_PIN, SDI_PIN, SDO_PIN, delay_comp1_reg, delay_comp2_reg, "MODE1", "LSB"
+    m_transfer_packet_spi_master_gpo_sclk rx2, tx2, PACKET_SIZE, bitId, SCLK_PIN, SDI_PIN, SDO_PIN, delay_comp1_reg, delay_comp2_reg, "MODE1", "LSB"
+    m_transfer_packet_spi_master_gpo_sclk rx3, tx3, PACKET_SIZE, bitId, SCLK_PIN, SDI_PIN, SDO_PIN, delay_comp1_reg, delay_comp2_reg, "MODE1", "LSB"
+    m_transfer_packet_spi_master_gpo_sclk rx4, tx4, PACKET_SIZE, bitId, SCLK_PIN, SDI_PIN, SDO_PIN, delay_comp1_reg, delay_comp2_reg, "MODE1", "LSB"
     jmp     retAddr
 
 DO_5X_TRANSFER_M2_MSB:
-    m_transfer_packet_spi_master_gpo_sclk rx0, tx0, PACKET_SIZE, bitId, SCLK_PIN, SDI_PIN, SDO_PIN, DELAY_COMPEN_1, DELAY_COMPEN_2, "MODE2", "MSB"
-    m_transfer_packet_spi_master_gpo_sclk rx1, tx1, PACKET_SIZE, bitId, SCLK_PIN, SDI_PIN, SDO_PIN, DELAY_COMPEN_1, DELAY_COMPEN_2, "MODE2", "MSB"
-    m_transfer_packet_spi_master_gpo_sclk rx2, tx2, PACKET_SIZE, bitId, SCLK_PIN, SDI_PIN, SDO_PIN, DELAY_COMPEN_1, DELAY_COMPEN_2, "MODE2", "MSB"
-    m_transfer_packet_spi_master_gpo_sclk rx3, tx3, PACKET_SIZE, bitId, SCLK_PIN, SDI_PIN, SDO_PIN, DELAY_COMPEN_1, DELAY_COMPEN_2, "MODE2", "MSB"
-    m_transfer_packet_spi_master_gpo_sclk rx4, tx4, PACKET_SIZE, bitId, SCLK_PIN, SDI_PIN, SDO_PIN, DELAY_COMPEN_1, DELAY_COMPEN_2, "MODE2", "MSB"
+    m_transfer_packet_spi_master_gpo_sclk rx0, tx0, PACKET_SIZE, bitId, SCLK_PIN, SDI_PIN, SDO_PIN, delay_comp1_reg, delay_comp2_reg, "MODE2", "MSB"
+    m_transfer_packet_spi_master_gpo_sclk rx1, tx1, PACKET_SIZE, bitId, SCLK_PIN, SDI_PIN, SDO_PIN, delay_comp1_reg, delay_comp2_reg, "MODE2", "MSB"
+    m_transfer_packet_spi_master_gpo_sclk rx2, tx2, PACKET_SIZE, bitId, SCLK_PIN, SDI_PIN, SDO_PIN, delay_comp1_reg, delay_comp2_reg, "MODE2", "MSB"
+    m_transfer_packet_spi_master_gpo_sclk rx3, tx3, PACKET_SIZE, bitId, SCLK_PIN, SDI_PIN, SDO_PIN, delay_comp1_reg, delay_comp2_reg, "MODE2", "MSB"
+    m_transfer_packet_spi_master_gpo_sclk rx4, tx4, PACKET_SIZE, bitId, SCLK_PIN, SDI_PIN, SDO_PIN, delay_comp1_reg, delay_comp2_reg, "MODE2", "MSB"
     jmp     retAddr
 DO_5X_TRANSFER_M2_LSB:
-    m_transfer_packet_spi_master_gpo_sclk rx0, tx0, PACKET_SIZE, bitId, SCLK_PIN, SDI_PIN, SDO_PIN, DELAY_COMPEN_1, DELAY_COMPEN_2, "MODE2", "LSB"
-    m_transfer_packet_spi_master_gpo_sclk rx1, tx1, PACKET_SIZE, bitId, SCLK_PIN, SDI_PIN, SDO_PIN, DELAY_COMPEN_1, DELAY_COMPEN_2, "MODE2", "LSB"
-    m_transfer_packet_spi_master_gpo_sclk rx2, tx2, PACKET_SIZE, bitId, SCLK_PIN, SDI_PIN, SDO_PIN, DELAY_COMPEN_1, DELAY_COMPEN_2, "MODE2", "LSB"
-    m_transfer_packet_spi_master_gpo_sclk rx3, tx3, PACKET_SIZE, bitId, SCLK_PIN, SDI_PIN, SDO_PIN, DELAY_COMPEN_1, DELAY_COMPEN_2, "MODE2", "LSB"
-    m_transfer_packet_spi_master_gpo_sclk rx4, tx4, PACKET_SIZE, bitId, SCLK_PIN, SDI_PIN, SDO_PIN, DELAY_COMPEN_1, DELAY_COMPEN_2, "MODE2", "LSB"
+    m_transfer_packet_spi_master_gpo_sclk rx0, tx0, PACKET_SIZE, bitId, SCLK_PIN, SDI_PIN, SDO_PIN, delay_comp1_reg, delay_comp2_reg, "MODE2", "LSB"
+    m_transfer_packet_spi_master_gpo_sclk rx1, tx1, PACKET_SIZE, bitId, SCLK_PIN, SDI_PIN, SDO_PIN, delay_comp1_reg, delay_comp2_reg, "MODE2", "LSB"
+    m_transfer_packet_spi_master_gpo_sclk rx2, tx2, PACKET_SIZE, bitId, SCLK_PIN, SDI_PIN, SDO_PIN, delay_comp1_reg, delay_comp2_reg, "MODE2", "LSB"
+    m_transfer_packet_spi_master_gpo_sclk rx3, tx3, PACKET_SIZE, bitId, SCLK_PIN, SDI_PIN, SDO_PIN, delay_comp1_reg, delay_comp2_reg, "MODE2", "LSB"
+    m_transfer_packet_spi_master_gpo_sclk rx4, tx4, PACKET_SIZE, bitId, SCLK_PIN, SDI_PIN, SDO_PIN, delay_comp1_reg, delay_comp2_reg, "MODE2", "LSB"
     jmp     retAddr
 
 DO_5X_TRANSFER_M3_MSB:
-    m_transfer_packet_spi_master_gpo_sclk rx0, tx0, PACKET_SIZE, bitId, SCLK_PIN, SDI_PIN, SDO_PIN, DELAY_COMPEN_1, DELAY_COMPEN_2, "MODE3", "MSB"
-    m_transfer_packet_spi_master_gpo_sclk rx1, tx1, PACKET_SIZE, bitId, SCLK_PIN, SDI_PIN, SDO_PIN, DELAY_COMPEN_1, DELAY_COMPEN_2, "MODE3", "MSB"
-    m_transfer_packet_spi_master_gpo_sclk rx2, tx2, PACKET_SIZE, bitId, SCLK_PIN, SDI_PIN, SDO_PIN, DELAY_COMPEN_1, DELAY_COMPEN_2, "MODE3", "MSB"
-    m_transfer_packet_spi_master_gpo_sclk rx3, tx3, PACKET_SIZE, bitId, SCLK_PIN, SDI_PIN, SDO_PIN, DELAY_COMPEN_1, DELAY_COMPEN_2, "MODE3", "MSB"
-    m_transfer_packet_spi_master_gpo_sclk rx4, tx4, PACKET_SIZE, bitId, SCLK_PIN, SDI_PIN, SDO_PIN, DELAY_COMPEN_1, DELAY_COMPEN_2, "MODE3", "MSB"
+    m_transfer_packet_spi_master_gpo_sclk rx0, tx0, PACKET_SIZE, bitId, SCLK_PIN, SDI_PIN, SDO_PIN, delay_comp1_reg, delay_comp2_reg, "MODE3", "MSB"
+    m_transfer_packet_spi_master_gpo_sclk rx1, tx1, PACKET_SIZE, bitId, SCLK_PIN, SDI_PIN, SDO_PIN, delay_comp1_reg, delay_comp2_reg, "MODE3", "MSB"
+    m_transfer_packet_spi_master_gpo_sclk rx2, tx2, PACKET_SIZE, bitId, SCLK_PIN, SDI_PIN, SDO_PIN, delay_comp1_reg, delay_comp2_reg, "MODE3", "MSB"
+    m_transfer_packet_spi_master_gpo_sclk rx3, tx3, PACKET_SIZE, bitId, SCLK_PIN, SDI_PIN, SDO_PIN, delay_comp1_reg, delay_comp2_reg, "MODE3", "MSB"
+    m_transfer_packet_spi_master_gpo_sclk rx4, tx4, PACKET_SIZE, bitId, SCLK_PIN, SDI_PIN, SDO_PIN, delay_comp1_reg, delay_comp2_reg, "MODE3", "MSB"
     jmp     retAddr
 DO_5X_TRANSFER_M3_LSB:
-    m_transfer_packet_spi_master_gpo_sclk rx0, tx0, PACKET_SIZE, bitId, SCLK_PIN, SDI_PIN, SDO_PIN, DELAY_COMPEN_1, DELAY_COMPEN_2, "MODE3", "LSB"
-    m_transfer_packet_spi_master_gpo_sclk rx1, tx1, PACKET_SIZE, bitId, SCLK_PIN, SDI_PIN, SDO_PIN, DELAY_COMPEN_1, DELAY_COMPEN_2, "MODE3", "LSB"
-    m_transfer_packet_spi_master_gpo_sclk rx2, tx2, PACKET_SIZE, bitId, SCLK_PIN, SDI_PIN, SDO_PIN, DELAY_COMPEN_1, DELAY_COMPEN_2, "MODE3", "LSB"
-    m_transfer_packet_spi_master_gpo_sclk rx3, tx3, PACKET_SIZE, bitId, SCLK_PIN, SDI_PIN, SDO_PIN, DELAY_COMPEN_1, DELAY_COMPEN_2, "MODE3", "LSB"
-    m_transfer_packet_spi_master_gpo_sclk rx4, tx4, PACKET_SIZE, bitId, SCLK_PIN, SDI_PIN, SDO_PIN, DELAY_COMPEN_1, DELAY_COMPEN_2, "MODE3", "LSB"
+    m_transfer_packet_spi_master_gpo_sclk rx0, tx0, PACKET_SIZE, bitId, SCLK_PIN, SDI_PIN, SDO_PIN, delay_comp1_reg, delay_comp2_reg, "MODE3", "LSB"
+    m_transfer_packet_spi_master_gpo_sclk rx1, tx1, PACKET_SIZE, bitId, SCLK_PIN, SDI_PIN, SDO_PIN, delay_comp1_reg, delay_comp2_reg, "MODE3", "LSB"
+    m_transfer_packet_spi_master_gpo_sclk rx2, tx2, PACKET_SIZE, bitId, SCLK_PIN, SDI_PIN, SDO_PIN, delay_comp1_reg, delay_comp2_reg, "MODE3", "LSB"
+    m_transfer_packet_spi_master_gpo_sclk rx3, tx3, PACKET_SIZE, bitId, SCLK_PIN, SDI_PIN, SDO_PIN, delay_comp1_reg, delay_comp2_reg, "MODE3", "LSB"
+    m_transfer_packet_spi_master_gpo_sclk rx4, tx4, PACKET_SIZE, bitId, SCLK_PIN, SDI_PIN, SDO_PIN, delay_comp1_reg, delay_comp2_reg, "MODE3", "LSB"
     jmp     retAddr

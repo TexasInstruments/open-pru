@@ -22,6 +22,8 @@
  *   0x08        master_rx     legacy single-transfer rx slot (MODE0-2, MODE3/MSB)
  *   0x0C        cfg_command   legacy single-transfer tx slot (same paths)
  *   0x10        cfg_trigger   R5F sets to 1 to start; PRU0 clears to 0 when done
+ *   0x3C        delay_comp_1   R5F sets delay comp 1 before loading PRU0
+ *   0x40        delay_comp_1   R5F sets delay comp 2 before loading PRU0
  *   0x14-0x24   cfg_cmd0..4     5 command words (MODE3/LSB path only)
  *   0x28-0x38   master_rx5_0..4 5 response words (MODE3/LSB path only)
  *
@@ -44,12 +46,14 @@
 #include <pru0_load_bin.h>
 #include <pru1_load_bin.h>
 
-#define PRU0_DMEM_BASE      (0x48600000U)
-#define DMEM_CFG_MODE       (0x00U)
-#define DMEM_CFG_BITORDER   (0x04U)
-#define DMEM_MASTER_RX      (0x08U)
-#define DMEM_CFG_COMMAND    (0x0CU)
-#define DMEM_CFG_TRIGGER    (0x10U)
+#define PRU0_DMEM_BASE       (0x48600000U)
+#define DMEM_CFG_MODE        (0x00U)
+#define DMEM_CFG_BITORDER    (0x04U)
+#define DMEM_MASTER_RX       (0x08U)
+#define DMEM_CFG_COMMAND     (0x0CU)
+#define DMEM_CFG_TRIGGER     (0x10U)
+#define DMEM_CFG_DELAY_COMP1 (0x3CU)
+#define DMEM_CFG_DELAY_COMP2 (0x40U)
 
 /* 5x16-bit command/response DMEM slots, MODE3/LSB path only (phase 3) */
 #define DMEM_CFG_CMD0       (0x14U)
@@ -93,6 +97,8 @@ typedef struct
 {
     PRU_SPI_Mode     mode;
     PRU_SPI_BitOrder bitOrder;
+    uint8_t delay_comp_1;
+    uint8_t delay_comp_2;
 } PRU_SPI_Config;
 
 static PRUICSS_Handle gPruHandle;
@@ -115,6 +121,8 @@ static void PRU_SPI_setConfig(const PRU_SPI_Config *cfg)
 {
     dmem_write32(PRU0_DMEM_BASE, DMEM_CFG_MODE,     (uint32_t)cfg->mode);
     dmem_write32(PRU0_DMEM_BASE, DMEM_CFG_BITORDER, (uint32_t)cfg->bitOrder);
+    dmem_write32(PRU0_DMEM_BASE, DMEM_CFG_DELAY_COMP1, (uint32_t)cfg->delay_comp_1);
+    dmem_write32(PRU0_DMEM_BASE, DMEM_CFG_DELAY_COMP2, (uint32_t)cfg->delay_comp_2);
 }
 
 /* Writes the command word, sets cfg_trigger, and polls until PRU0 clears it.
@@ -191,7 +199,12 @@ void empty_example_main(void *args)
 
     /* PRU1 (slave responder) is hardcoded to MODE3/MSB - match it here.
      * Must be written before PRU0 loads. Trigger starts cleared. */
-    PRU_SPI_Config cfg = { .mode = PRU_SPI_MODE_3, .bitOrder = PRU_SPI_MSB_FIRST };
+    
+    /* Declare the configurations */
+    PRU_SPI_Config cfg = { .mode = PRU_SPI_MODE_3, .bitOrder = PRU_SPI_MSB_FIRST, .delay_comp_1 = 8, .delay_comp_2 = 27 };
+    /* For this example, SCLK ~ (225Mhz/ (10+d1+d2)) =  225/45 = 5Mhz, change the delay_comp_1 and delay_comp_2 values above according to use case */
+
+    /* Set the configurations */
     PRU_SPI_setConfig(&cfg);
     dmem_write32(PRU0_DMEM_BASE, DMEM_CFG_TRIGGER, 0U);
 
