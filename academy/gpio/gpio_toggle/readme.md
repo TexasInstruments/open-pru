@@ -16,6 +16,10 @@ In both cases, the toggled signal is routed to a readily accessible location on 
 
 The oscillating signal generated can be used to validate proper PRU operation and GPIO configuration, making this example particularly useful for initial hardware bring-up and verification of PRU GPIO functionality.
 
+How R30/R31 relate to the SysConfig pad direction, and what a runtime
+direction change does and does not mean on AM26x PRU-ICSSM, is written up in
+[PRU direct GPIO vs SysConfig pad direction](../readme.md).
+
 ## Supported Combinations
 
 Refer to open-pru/academy/readme.md > Supported processors per-project

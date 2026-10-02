@@ -38,6 +38,8 @@ crc/crc
 
 gpio/gpio_toggle
 * How to toggle the SoC GPIO pins using the PRU GPIO module
+* [PRU direct GPIO vs SysConfig pad direction](gpio/readme.md) — R30/R31
+  versus pinmux on AM26x PRU-ICSSM (issue #157)
 
 intc/intc_mcu
 * How to use the INTC module to send and receive interrupts
