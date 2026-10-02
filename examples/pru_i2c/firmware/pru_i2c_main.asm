@@ -370,6 +370,10 @@ SETUP_I2C_INST_ID:
 SETUP_I2C_SCL_SDA_HIGH:
     SET_SCL_PIN_HIGH
     SET_SDA_PIN_HIGH
+    ; SDA is released whenever the bus is idle and taken back at the start of
+    ; each transfer (SET_SCL_SDA_HIGH), so the master never drives SDA high
+    ; against a target that holds it low (e.g. a stuck bus before RESET_SLAVE).
+    SET_SDA_PIN_INPUT_DIRECTION
     UPDATE_NEXT_LOCAL_STATE SETUP_I2C_TX_FIFO_SIZE
     STATE_TASK_OVER
 
@@ -621,7 +625,11 @@ ICSS_I2C_RESET_CMD_CHECK_RETURN:
 ;  set the value on iep gpo to low value for pulling the line
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 RESET_SCL_SDA_HIGH:
-    SET_OUTPUT_PIN_VALUE_HIGH RAISE_HOST_INTERRUPT_MEM_FOR_ERROR
+    SET_SDA_PIN_HIGH
+    SET_SCL_PIN_HIGH
+    SET_SDA_PIN_INPUT_DIRECTION         ; bus idle: release SDA
+    UPDATE_NEXT_LOCAL_STATE RAISE_HOST_INTERRUPT_MEM_FOR_ERROR
+    STATE_TASK_OVER
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;  checks if the setup command has been passed.
@@ -685,151 +693,24 @@ ICSS_I2C_TX_CMD_CHECK:
     STATE_TASK_OVER
 
 ICSS_I2C_TX_CMD_CHECK_RETURN:
-    UPDATE_NEXT_LOCAL_STATE ICSS_SMBUS_QUICK_CHECK
+    UPDATE_NEXT_LOCAL_STATE ICSS_SMBUS_CMD_CHECK
     STATE_TASK_OVER
 
-
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;  checks if the smbus Quick command has been passed.
-;  if Quick command is passed then start Quick data procedure
-;  else check for another command
+;  The SMBus commands (ICSS_SMBUS_QUICK_CMD .. ICSS_SMBUS_BLOCK_READ_CMD) are
+;  not implemented yet: answer them with INVALID_COMMAND. Every other command
+;  is passed on to the next check, so READ_SCL, RESET_SLAVE and LOOPBACK stay
+;  reachable and an unknown command is answered instead of stalling the
+;  dispatcher.
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-ICSS_SMBUS_QUICK_CHECK:
+ICSS_SMBUS_CMD_CHECK:
     LBBO    &TEMP_REG4, R10, ICSS_I2C_COMMAND_OFFSET, 4
-    QBNE    ICSS_SMBUS_QUICK_CMD_CHECK_NEXT, TEMP_REG4.w2, ICSS_SMBUS_QUICK_CMD
-   ;;;; UPDATE_NEXT_LOCAL_STATE QUICK_CMD_MODE
-    STATE_TASK_OVER
-    
-ICSS_SMBUS_QUICK_CMD_CHECK_NEXT:
-   ;;;; UPDATE_NEXT_LOCAL_STATE ICSS_SMBUS_SEND_BYTE
-    STATE_TASK_OVER
-    
-    
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;  checks if the smbus send byte command has been passed.
-;  if send byte command is passed then start send byte data procedure
-;  else check for another command
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;; 
-ICSS_SMBUS_SEND_BYTE:
-    LBBO    &TEMP_REG4, R10, ICSS_I2C_COMMAND_OFFSET, 4
-    QBNE    ICSS_SMBUS_SEND_BYTE_CHECK_NEXT, TEMP_REG4.w2, ICSS_SMBUS_SEND_BYTE_CMD
-   ;;;; UPDATE_NEXT_LOCAL_STATE SEND_BYTE_MODE
-    STATE_TASK_OVER
-    
-ICSS_SMBUS_SEND_BYTE_CHECK_NEXT:
-   ;;;; UPDATE_NEXT_LOCAL_STATE ICSS_SMBUS_RECEIVE_BYTE
-    STATE_TASK_OVER
-    
-    
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;  checks if the smbus receive byte command has been passed.
-;  if receive byte command is passed then start receive byte data procedure
-;  else check for another command
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-ICSS_SMBUS_RECEIVE_BYTE:
-    LBBO    &TEMP_REG4, R10, ICSS_I2C_COMMAND_OFFSET, 4
-    QBNE    ICSS_SMBUS_RECEIVE_BYTE_CHECK_NEXT, TEMP_REG4.w2, ICSS_SMBUS_RECEIVE_BYTE_CMD
-   ;;;; UPDATE_NEXT_LOCAL_STATE RECEIVE_BYTE_MODE
-    STATE_TASK_OVER
-    
-ICSS_SMBUS_RECEIVE_BYTE_CHECK_NEXT:
-    UPDATE_NEXT_LOCAL_STATE ICSS_SMBUS_WRITE_BYTE
-    STATE_TASK_OVER
-    
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;  checks if the smbus write byte command has been passed.
-;  if write byte command is passed then start write byte data procedure
-;  else check for another command
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-ICSS_SMBUS_WRITE_BYTE:
-    LBBO    &TEMP_REG4, R10, ICSS_I2C_COMMAND_OFFSET, 4
-    QBNE    ICSS_SMBUS_WRITE_BYTE_CHECK_NEXT, TEMP_REG4.w2, ICSS_SMBUS_WRITE_BYTE_CMD
-   ;;;; UPDATE_NEXT_LOCAL_STATE WRITE_BYTE_MODE
-    STATE_TASK_OVER
-    
-ICSS_SMBUS_WRITE_BYTE_CHECK_NEXT:
-   ;;;; UPDATE_NEXT_LOCAL_STATE ICSS_SMBUS_READ_BYTE
-    STATE_TASK_OVER
-   
-    
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;  checks if the smbus read byte command has been passed.
-;  if read byte command is passed then start read byte data procedure
-;  else check for another command
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-   
-ICSS_SMBUS_READ_BYTE:
-    LBBO    &TEMP_REG4, R10, ICSS_I2C_COMMAND_OFFSET, 4
-    QBNE    ICSS_SMBUS_READ_BYTE_CHECK_NEXT, TEMP_REG4.w2, ICSS_SMBUS_READ_BYTE_CMD
-  ;;;;  UPDATE_NEXT_LOCAL_STATE READ_BYTE_MODE
-    STATE_TASK_OVER
-    
-ICSS_SMBUS_READ_BYTE_CHECK_NEXT:
-  ;;;;  UPDATE_NEXT_LOCAL_STATE ICSS_SMBUS_WRITE_WORD
+    QBLT    ICSS_SMBUS_CMD_CHECK_NEXT, TEMP_REG4.w2, ICSS_SMBUS_BLOCK_READ_CMD
+    QBGT    ICSS_SMBUS_CMD_CHECK_NEXT, TEMP_REG4.w2, ICSS_SMBUS_QUICK_CMD
+    UPDATE_NEXT_LOCAL_STATE FIRMWARE_READY_COMMAND_ERROR
     STATE_TASK_OVER
 
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;  checks if the smbus write word command has been passed.
-;  if write word command is passed then start write word data procedure
-;  else check for another command
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-ICSS_SMBUS_WRITE_WORD:
-    LBBO    &TEMP_REG4, R10, ICSS_I2C_COMMAND_OFFSET, 4
-    QBNE    ICSS_SMBUS_WRITE_WORD_CHECK_NEXT, TEMP_REG4.w2, ICSS_SMBUS_WRITE_WORD_CMD
-  ;;;;  UPDATE_NEXT_LOCAL_STATE WRITE_WORD_MODE
-    STATE_TASK_OVER
-    
-ICSS_SMBUS_WRITE_WORD_CHECK_NEXT:
-  ;;;;  UPDATE_NEXT_LOCAL_STATE ICSS_SMBUS_READ_WORD
-    STATE_TASK_OVER
-
-    
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;  checks if the smbus read word command has been passed.
-;  if read word command is passed then start read word data procedure
-;  else check for another command
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-ICSS_SMBUS_READ_WORD:
-    LBBO    &TEMP_REG4, R10, ICSS_I2C_COMMAND_OFFSET, 4
-    QBNE    ICSS_SMBUS_READ_WORD_CHECK_NEXT, TEMP_REG4.w2, ICSS_SMBUS_READ_WORD_CMD
-  ;;;;  UPDATE_NEXT_LOCAL_STATE READ_WORD_MODE
-    STATE_TASK_OVER
-    
-ICSS_SMBUS_READ_WORD_CHECK_NEXT:
-  ;;;;  UPDATE_NEXT_LOCAL_STATE ICSS_SMBUS_BLOCK_WRITE
-    STATE_TASK_OVER
-   
-    
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;  checks if the smbus block write command has been passed.
-;  if block write command is passed then start block write data procedure
-;  else check for another command
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-ICSS_SMBUS_BLOCK_WRITE:
-    LBBO    &TEMP_REG4, R10, ICSS_I2C_COMMAND_OFFSET, 4
-    QBNE    ICSS_SMBUS_BLOCK_WRITE_CHECK_NEXT, TEMP_REG4.w2, ICSS_SMBUS_BLOCK_WRITE_CMD
-   ;;;; UPDATE_NEXT_LOCAL_STATE BLOCK_WRITE_MODE
-    STATE_TASK_OVER
-
-ICSS_SMBUS_BLOCK_WRITE_CHECK_NEXT:
-    UPDATE_NEXT_LOCAL_STATE ICSS_SMBUS_BLOCK_READ
-    STATE_TASK_OVER
-    
-    
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;  checks if the smbus block read command has been passed.
-;  if block read command is passed then start block read data procedure
-;  else no matching command has been found
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-    
-ICSS_SMBUS_BLOCK_READ:
-    LBBO    &TEMP_REG4, R10, ICSS_I2C_COMMAND_OFFSET, 4
-    QBNE    ICSS_SMBUS_BLOCK_READ_CHECK_NEXT, TEMP_REG4.w2, ICSS_SMBUS_BLOCK_READ_CMD
-  ;;;  UPDATE_NEXT_LOCAL_STATE BLOCK_READ_MODE
-    STATE_TASK_OVER
-    
-ICSS_SMBUS_BLOCK_READ_CHECK_NEXT:
+ICSS_SMBUS_CMD_CHECK_NEXT:
     UPDATE_NEXT_LOCAL_STATE ICSS_I2C_READ_SCL_CMD_CHECK
     STATE_TASK_OVER
     
@@ -915,7 +796,11 @@ RX_MODE:
 ;  set the value on iep gpo to low value for pulling the line
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 SET_SCL_SDA_HIGH:
-    SET_OUTPUT_PIN_VALUE_HIGH SLAVE_ADDRESS_SETUP
+    SET_SDA_PIN_HIGH
+    SET_SCL_PIN_HIGH
+    SET_SDA_PIN_OUTPUT_DIRECTION        ; take SDA back for this transfer
+    UPDATE_NEXT_LOCAL_STATE SLAVE_ADDRESS_SETUP
+    STATE_TASK_OVER
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;  read the slave address from configuration registers.
@@ -1292,6 +1177,7 @@ STOP_CONDITION_SCL_HIGH:
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 STOP_CONDITION_SDA_HIGH:
     SET_SDA_PIN_HIGH
+    SET_SDA_PIN_INPUT_DIRECTION         ; bus idle: release SDA (line stays high)
     LDI     TEMP_REG4.w0, COMMAND_SUCCESS
     SBBO    &TEMP_REG4, R10, ICSS_I2C_COMMAND_OFFSET, 2
     UPDATE_NEXT_LOCAL_STATE RAISE_HOST_INTERRUPT_MEM_FOR_READY
@@ -1363,29 +1249,19 @@ READ_SCL_PIN_DONE_RETURN:
 RESET_SLAVE_SCL_BEGIN:
     LDI    R15.w0, 0x0000
     LDI    R15.w2, 0x0900
-    UPDATE_NEXT_LOCAL_STATE RESET_SLAVE_SCL_HIGH
-    STATE_TASK_OVER
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;  make SCL high
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-RESET_SLAVE_SCL_HIGH:
-    SET_SCL_PIN_HIGH
-    UPDATE_NEXT_LOCAL_STATE RESET_SLAVE_SCL_WAIT1
-    STATE_TASK_OVER
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;  wait to match the timing parameters
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-RESET_SLAVE_SCL_WAIT1:
+    ; Bus recovery: make sure SDA is released so a target that holds it low
+    ; can let go, then clock SCL until it does. SDA stays released afterwards,
+    ; as on an idle bus.
+    SET_SDA_PIN_INPUT_DIRECTION
+    SET_SDA_PIN_HIGH
     UPDATE_NEXT_LOCAL_STATE RESET_SLAVE_SCL_LOW
     STATE_TASK_OVER
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;  make SCL low 
+;  make SCL high, counting one clock pulse per rising edge
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-RESET_SLAVE_SCL_LOW:
-    SET_SCL_PIN_LOW
+RESET_SLAVE_SCL_HIGH:
+    SET_SCL_PIN_HIGH
     ADD     R15.b0, R15.b0, 0x01
     UPDATE_NEXT_LOCAL_STATE RESET_SLAVE_SCL_WAIT2
     STATE_TASK_OVER
@@ -1393,13 +1269,28 @@ RESET_SLAVE_SCL_LOW:
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;  wait to match the timing parameters
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+RESET_SLAVE_SCL_WAIT1:
+    UPDATE_NEXT_LOCAL_STATE RESET_SLAVE_SCL_HIGH
+    STATE_TASK_OVER
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;  make SCL low 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+RESET_SLAVE_SCL_LOW:
+    SET_SCL_PIN_LOW
+    UPDATE_NEXT_LOCAL_STATE RESET_SLAVE_SCL_WAIT1
+    STATE_TASK_OVER
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;  wait to match the timing parameters; after 9 pulses SCL is left high
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 RESET_SLAVE_SCL_WAIT2:
     QBGT    RESET_SLAVE_SCL_RETURN, R15.b0, R15.b3
     UPDATE_NEXT_LOCAL_STATE RESET_SLAVE_RETURN
     STATE_TASK_OVER
 
 RESET_SLAVE_SCL_RETURN:
-    UPDATE_NEXT_LOCAL_STATE RESET_SLAVE_SCL_HIGH
+    UPDATE_NEXT_LOCAL_STATE RESET_SLAVE_SCL_LOW
     STATE_TASK_OVER
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
