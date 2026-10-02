@@ -129,9 +129,21 @@ I2C_GPIO_OUT_CTRL                   .set    ICSSM0_PRU1_GPIO_OUT_CTRL
 ;            R13.w0 next state, R13.w2 slave address shift register,
 ;            R14 b0 SCL pin, b1 SDA pin, b3 instance id,
 ;            R15 b0 bit count, b1 data byte, b2 byte index, b3 byte count,
-;            R16 control flags (ICSS_I2C_*_BIT), R17.w0 post-address state.
+;            R16 control flags (ICSS_I2C_*_BIT), R17.w0 post-address state,
+;            R17.b2 SMBus read phase length.
+;            R18 w0 SCL-low tick counter, w2 SCL-low timeout (ticks, 0 = off).
+;            R19 b0 PEC CRC, b1 SMBus command code, b3 transfer flags SMB_F_*.
 ;   R20-R21  next IEP compare value (64-bit), R22 frequency word.
-;   R27-R29  scratch for SET_SDA_PIN_*_DIRECTION.
+;   R23      shadow of I2C_GPIO_OUT_CTRL (open-drain SCL/SDA), R26 its address.
+
+; Transfer flags in R19.b3 (cleared at the start of every transfer)
+SMB_F_PEC                           .set    0   ; update the PEC CRC
+SMB_F_PECTX                         .set    1   ; last write-phase byte is the PEC
+SMB_F_RDPHASE                       .set    2   ; repeated START + read after writing
+SMB_F_BLKRD                         .set    3   ; next byte read is the block count
+SMB_F_SMB                           .set    4   ; SMBus: always START/STOP, NACK last byte
+SMB_F_PECRX                         .set    5   ; the read ends with the target's PEC
+SMB_F_ERR                           .set    6   ; error already reported, end with STOP
 
 
 ;--------------------------------------------------------------------------------------
@@ -368,12 +380,15 @@ SETUP_I2C_INST_ID:
 ;  This set the SCL clk line and SDA data line high.
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 SETUP_I2C_SCL_SDA_HIGH:
-    SET_SCL_PIN_HIGH
+    ; Open-drain bus: R30 keeps the SCL and SDA bits at 0 and the lines are
+    ; switched with their OUTDISABLE bits (see SET_SCL_PIN_HIGH). Start with
+    ; both lines released, which is also the idle state of the bus.
+    LDI32   R26, I2C_GPIO_OUT_CTRL
+    LBBO    &R23, R26, 0, 4
+    CLR     R30, R30, R14.b0
+    CLR     R30, R30, R14.b1
+    SET     R23, R23, R14.b0
     SET_SDA_PIN_HIGH
-    ; SDA is released whenever the bus is idle and taken back at the start of
-    ; each transfer (SET_SCL_SDA_HIGH), so the master never drives SDA high
-    ; against a target that holds it low (e.g. a stuck bus before RESET_SLAVE).
-    SET_SDA_PIN_INPUT_DIRECTION
     UPDATE_NEXT_LOCAL_STATE SETUP_I2C_TX_FIFO_SIZE
     STATE_TASK_OVER
 
@@ -483,23 +498,7 @@ SETUP_I2C_STOP_CTRL:
 SETUP_I2C_NO_STOP_CTRL:
     CLR     R16, R16, ICSS_I2C_STOP_BIT
 
-SETUP_I2C_STOP_DONE: 
-    UPDATE_NEXT_LOCAL_STATE SETUP_I2C_SMBUS_BURST_CTRL
-    STATE_TASK_OVER
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;  This configures the firmware for sending start bit at beginning or not
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-SETUP_I2C_SMBUS_BURST_CTRL:
-    LBBO    &TEMP_REG4, R10, ICSS_I2C_CON_OFFSET, 4
-    QBBC    SETUP_I2C_NO_SMBUS_BURST_CTRL, TEMP_REG4, ICSS_I2C_SMBUS_BURST_BIT
-    SET     R16, R16, ICSS_I2C_SMBUS_BURST_BIT
-    JMP     SETUP_I2C_SMBUS_BURST_DONE
-
-SETUP_I2C_NO_SMBUS_BURST_CTRL:
-    CLR     R16, R16, ICSS_I2C_SMBUS_BURST_BIT
-
-SETUP_I2C_SMBUS_BURST_DONE:
+SETUP_I2C_STOP_DONE:
     UPDATE_NEXT_LOCAL_STATE SETUP_I2C_NACK_CTRL
     STATE_TASK_OVER
 
@@ -524,6 +523,20 @@ SETUP_I2C_NO_NACK_CTRL:
     CLR     R16, R16, ICSS_I2C_RECIEVE_NACK_BIT
 
 SETUP_I2C_NACK_DONE:
+    UPDATE_NEXT_LOCAL_STATE SETUP_I2C_SMBUS_CTRL
+    STATE_TASK_OVER
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;  SMBus PEC enable and the SCL-low (clock stretching) timeout
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+SETUP_I2C_SMBUS_CTRL:
+    LBBO    &TEMP_REG4, R10, ICSS_I2C_CON_OFFSET, 4
+    CLR     R16, R16, ICSS_I2C_PEC_BIT
+    QBBC    SETUP_I2C_NO_PEC, TEMP_REG4, ICSS_I2C_PEC_BIT
+    SET     R16, R16, ICSS_I2C_PEC_BIT
+SETUP_I2C_NO_PEC:
+    LBBO    &R18.w2, R10, ICSS_I2C_SCL_TIMEOUT_OFFSET, 2
+    LDI     R18.w0, 0
     UPDATE_NEXT_LOCAL_STATE RAISE_HOST_INTERRUPT_MEM_FOR_READY
     
     ;debug code 
@@ -627,7 +640,6 @@ ICSS_I2C_RESET_CMD_CHECK_RETURN:
 RESET_SCL_SDA_HIGH:
     SET_SDA_PIN_HIGH
     SET_SCL_PIN_HIGH
-    SET_SDA_PIN_INPUT_DIRECTION         ; bus idle: release SDA
     UPDATE_NEXT_LOCAL_STATE RAISE_HOST_INTERRUPT_MEM_FOR_ERROR
     STATE_TASK_OVER
 
@@ -697,17 +709,14 @@ ICSS_I2C_TX_CMD_CHECK_RETURN:
     STATE_TASK_OVER
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;  The SMBus commands (ICSS_SMBUS_QUICK_CMD .. ICSS_SMBUS_BLOCK_READ_CMD) are
-;  not implemented yet: answer them with INVALID_COMMAND. Every other command
-;  is passed on to the next check, so READ_SCL, RESET_SLAVE and LOOPBACK stay
-;  reachable and an unknown command is answered instead of stalling the
-;  dispatcher.
+;  SMBus commands (ICSS_SMBUS_QUICK_CMD .. ICSS_SMBUS_BLOCK_READ_CMD) start an
+;  SMBus transfer. Every other command is passed on to the next check.
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ICSS_SMBUS_CMD_CHECK:
     LBBO    &TEMP_REG4, R10, ICSS_I2C_COMMAND_OFFSET, 4
     QBLT    ICSS_SMBUS_CMD_CHECK_NEXT, TEMP_REG4.w2, ICSS_SMBUS_BLOCK_READ_CMD
     QBGT    ICSS_SMBUS_CMD_CHECK_NEXT, TEMP_REG4.w2, ICSS_SMBUS_QUICK_CMD
-    UPDATE_NEXT_LOCAL_STATE FIRMWARE_READY_COMMAND_ERROR
+    UPDATE_NEXT_LOCAL_STATE SMBUS_MODE
     STATE_TASK_OVER
 
 ICSS_SMBUS_CMD_CHECK_NEXT:
@@ -771,34 +780,147 @@ FIRMWARE_READY_COMMAND_ERROR:
     STATE_TASK_OVER
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;  set the local register to indicate tx mode
-;  set the value on iep gpo to low value for pulling the line
+;  I2C write: send the Tx buffer to the target
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 TX_MODE:
     CLR     R16, R16, ICSS_I2C_READ_WRITE_BIT
+    I2C_TRANSFER_INIT
     UPDATE_NEXT_GLOBAL_STATE TX_DATA_SDA_BEGIN
     UPDATE_NEXT_LOCAL_STATE SET_SCL_SDA_HIGH
     STATE_TASK_OVER
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;  set the local register to indicate rx mode
-;  set the value on iep gpo to low value for pulling the line
+;  I2C read: read the data count from the target into the Rx buffer
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 RX_MODE:
     SET     R16, R16, ICSS_I2C_READ_WRITE_BIT
+    I2C_TRANSFER_INIT
     UPDATE_NEXT_GLOBAL_STATE RX_DATA_SDA_BEGIN
     UPDATE_NEXT_LOCAL_STATE SET_SCL_SDA_HIGH
     STATE_TASK_OVER
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;  set the value on iep gpo enable register to high value
-;  this will pull the line to high impedence and open drain will keep the line high
-;  set the value on iep gpo to low value for pulling the line
+;  SMBus command: decode the protocol and describe the transfer.
+;
+;  A transfer is a write phase (the "stream": optional command code and
+;  block count prefix bytes, the Tx buffer, optional PEC) followed, for the
+;  read protocols, by a repeated START and a read phase into the Rx buffer.
+;  The prefix bytes are staged at the two bytes just below the Tx buffer
+;  (instance offsets 0xFE/0xFF), so the stream is contiguous from R11.
+;
+;      protocol      write phase                  read phase
+;      quick         (address only, R/W = command code bit 0)
+;      send byte     cmd
+;      receive byte                               1 byte
+;      write byte    cmd, Tx[0]
+;      write word    cmd, Tx[0] (low), Tx[1] (high)
+;      block write   cmd, N = count, Tx[0..N-1]
+;      read byte     cmd                          Sr, 1 byte
+;      read word     cmd                          Sr, 2 bytes (low first)
+;      block read    cmd                          Sr, N, N bytes (N -> count)
+;
+;  With PEC enabled (CON ICSS_I2C_PEC_BIT) a write-only transfer ends with
+;  the PEC byte and a read phase reads one more byte, the target's PEC,
+;  which is checked. Quick command has no PEC. 10-bit addressing is not
+;  supported for SMBus.
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+SMBUS_MODE:
+    LBBO    &TEMP_REG4, R10, ICSS_I2C_COMMAND_OFFSET, 4
+    QBBS    SMBUS_MODE_10BIT, R16, ICSS_I2C_ADDRESSING_MODE_BIT
+    I2C_TRANSFER_INIT
+    SET     R19.b3, R19.b3, SMB_F_SMB
+    LBBO    &R19.b1, R10, ICSS_I2C_PRU_CMD_CODE_OFFSET, 1
+    CLR     R16, R16, ICSS_I2C_READ_WRITE_BIT
+    UPDATE_NEXT_GLOBAL_STATE TX_DATA_SDA_BEGIN
+    QBEQ    SMBUS_MODE_QUICK, TEMP_REG4.w2, ICSS_SMBUS_QUICK_CMD
+    QBBC    SMBUS_MODE_NO_PEC, R16, ICSS_I2C_PEC_BIT
+    SET     R19.b3, R19.b3, SMB_F_PEC
+SMBUS_MODE_NO_PEC:
+    QBEQ    SMBUS_MODE_RECEIVE_BYTE, TEMP_REG4.w2, ICSS_SMBUS_RECEIVE_BYTE_CMD
+    ; every other protocol starts with the command code
+    LDI     TEMP_REG5, ICSS_I2C_INSTANCE0_TX_MEM - 1
+    SBBO    &R19.b1, TEMP_REG5, 0, 1
+    LDI     R11.w0, ICSS_I2C_INSTANCE0_TX_MEM - 1
+    LDI     R15.b3, 1
+    QBEQ    SMBUS_MODE_WRITE, TEMP_REG4.w2, ICSS_SMBUS_SEND_BYTE_CMD
+    LDI     R15.b3, 2
+    QBEQ    SMBUS_MODE_WRITE, TEMP_REG4.w2, ICSS_SMBUS_WRITE_BYTE_CMD
+    LDI     R15.b3, 3
+    QBEQ    SMBUS_MODE_WRITE, TEMP_REG4.w2, ICSS_SMBUS_WRITE_WORD_CMD
+    QBEQ    SMBUS_MODE_BLOCK_WRITE, TEMP_REG4.w2, ICSS_SMBUS_BLOCK_WRITE_CMD
+    ; read byte / read word / block read: write the command code, then read
+    LDI     R15.b3, 1
+    SET     R19.b3, R19.b3, SMB_F_RDPHASE
+    LDI     R17.b2, 1
+    QBEQ    SMBUS_MODE_READ, TEMP_REG4.w2, ICSS_SMBUS_READ_BYTE_CMD
+    LDI     R17.b2, 2
+    QBEQ    SMBUS_MODE_READ, TEMP_REG4.w2, ICSS_SMBUS_READ_WORD_CMD
+    SET     R19.b3, R19.b3, SMB_F_BLKRD
+SMBUS_MODE_READ:
+    QBBC    SMBUS_MODE_START, R19.b3, SMB_F_PEC
+    SET     R19.b3, R19.b3, SMB_F_PECRX
+    JMP     SMBUS_MODE_START
+
+SMBUS_MODE_BLOCK_WRITE:
+    ; N = data count, 1..253 (252 with PEC) so that cmd, N, data and PEC fit
+    ; the 8-bit stream index
+    LBBO    &TEMP_REG4.w0, R10, ICSS_I2C_CNT_OFFSET, 2
+    QBEQ    SMBUS_MODE_COUNT_ERROR, TEMP_REG4.w0, 0
+    LDI     TEMP_REG6.w0, 253
+    QBBC    SMBUS_MODE_BLOCK_MAX, R19.b3, SMB_F_PEC
+    LDI     TEMP_REG6.w0, 252
+SMBUS_MODE_BLOCK_MAX:
+    QBLT    SMBUS_MODE_COUNT_ERROR, TEMP_REG4.w0, TEMP_REG6.w0
+    LDI     TEMP_REG5, ICSS_I2C_INSTANCE0_TX_MEM - 2
+    SBBO    &R19.b1, TEMP_REG5, 0, 1
+    SBBO    &TEMP_REG4.b0, TEMP_REG5, 1, 1
+    LDI     R11.w0, ICSS_I2C_INSTANCE0_TX_MEM - 2
+    ADD     R15.b3, TEMP_REG4.b0, 2
+SMBUS_MODE_WRITE:
+    QBBC    SMBUS_MODE_START, R19.b3, SMB_F_PEC
+    SET     R19.b3, R19.b3, SMB_F_PECTX
+    ADD     R15.b3, R15.b3, 1
+    JMP     SMBUS_MODE_START
+
+SMBUS_MODE_RECEIVE_BYTE:
+    SET     R16, R16, ICSS_I2C_READ_WRITE_BIT
+    UPDATE_NEXT_GLOBAL_STATE RX_DATA_SDA_BEGIN
+    LDI     R15.b3, 1
+    QBBC    SMBUS_MODE_START, R19.b3, SMB_F_PEC
+    SET     R19.b3, R19.b3, SMB_F_PECRX
+    LDI     R15.b3, 2
+    JMP     SMBUS_MODE_START
+
+SMBUS_MODE_QUICK:
+    ; address only; the R/W bit is bit 0 of the command code
+    QBBC    SMBUS_MODE_QUICK_W, R19.b1, 0
+    SET     R16, R16, ICSS_I2C_READ_WRITE_BIT
+SMBUS_MODE_QUICK_W:
+    LDI     R15.b3, 0
+    UPDATE_NEXT_GLOBAL_STATE DATA_PROCESSING_COMPLETE
+
+SMBUS_MODE_START:
+    UPDATE_NEXT_LOCAL_STATE SET_SCL_SDA_HIGH
+    STATE_TASK_OVER
+
+SMBUS_MODE_COUNT_ERROR:
+    LDI     TEMP_REG4.w0, INVALID_DATA_COUNT
+    SBBO    &TEMP_REG4, R10, ICSS_I2C_COMMAND_OFFSET, 2
+    UPDATE_NEXT_LOCAL_STATE RAISE_HOST_INTERRUPT_MEM_FOR_READY
+    STATE_TASK_OVER
+
+SMBUS_MODE_10BIT:
+    LDI     TEMP_REG4.w0, ADDRESSING_MODE_FAILED
+    SBBO    &TEMP_REG4, R10, ICSS_I2C_COMMAND_OFFSET, 2
+    UPDATE_NEXT_LOCAL_STATE RAISE_HOST_INTERRUPT_MEM_FOR_READY
+    STATE_TASK_OVER
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;  release both lines before the START condition
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 SET_SCL_SDA_HIGH:
     SET_SDA_PIN_HIGH
     SET_SCL_PIN_HIGH
-    SET_SDA_PIN_OUTPUT_DIRECTION        ; take SDA back for this transfer
     UPDATE_NEXT_LOCAL_STATE SLAVE_ADDRESS_SETUP
     STATE_TASK_OVER
 
@@ -811,17 +933,18 @@ SLAVE_ADDRESS_SETUP:
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;  configure the read/write bit in the slave address register for transmission
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-SLAVE_ADDRESS_RW_SETUP:    
+SLAVE_ADDRESS_RW_SETUP:
     READ_RW_REGISTER_BIT DATA_COUNT
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;  Read the number of 8 bits data need to be read or writen 
-;  also initialize the data count and bit count register to 0
+;  I2C: read the number of bytes to read or write and load the first byte.
+;  SMBus: the length was set by SMBUS_MODE, only load the first byte.
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 DATA_COUNT:
+    QBBS    DATA_COUNT_SMBUS, R19.b3, SMB_F_SMB
     LBBO    &TEMP_REG4.w0, R10, ICSS_I2C_CNT_OFFSET, 2
-    
-    ;debug code 
+
+    ;debug code
     .if $defined("DEBUG_CODE")
     ; fif count
     LDI  TEMP_REG4.w0, 1
@@ -830,20 +953,18 @@ DATA_COUNT:
     QBLT    DATA_COUNT_ERROR, TEMP_REG4.w0, 0xFF
     QBGT    DATA_COUNT_ERROR, TEMP_REG4.w0, 0x01
 
-    ;debug code 
-    .if $defined("DEBUG_CODE")
-     LDI R24.b0, 0x53
-     LDI r24.b1, 0xFF
-     LDI r24.b2, 0x00
-     ldi r24.b3, 0x00
-     ldi r25.b0, 0x33
-    SBBO &r24,  R11, 0, 1
-    .endif
-
     AND     R15.b3, TEMP_REG4.b0, 0xFF
     AND     R15.b2, R15.b2, 0x00
     LBBO    &R15.b1, R11, R15.b2, 1
 
+    UPDATE_NEXT_LOCAL_STATE START_CONDITION_SDA_LOW
+    STATE_TASK_OVER
+
+DATA_COUNT_SMBUS:
+    QBBS    DATA_COUNT_SMBUS_DONE, R16, ICSS_I2C_READ_WRITE_BIT
+    QBEQ    DATA_COUNT_SMBUS_DONE, R15.b3, 0
+    TX_FETCH_BYTE R15.b1
+DATA_COUNT_SMBUS_DONE:
     UPDATE_NEXT_LOCAL_STATE START_CONDITION_SDA_LOW
     STATE_TASK_OVER
 
@@ -854,28 +975,35 @@ DATA_COUNT_ERROR:
     STATE_TASK_OVER
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;  make SDA low for start condition
+;  START condition: SDA low while SCL is high. SMBus always sends START.
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 START_CONDITION_SDA_LOW:
+    WAIT_SCL_HIGH
+    QBBS    START_CONDITION_SDA_LOW_DO, R19.b3, SMB_F_SMB
     QBBC    START_CONDITION_SDA_LOW_RETURN, R16, ICSS_I2C_START_BIT
+START_CONDITION_SDA_LOW_DO:
     SET_SDA_PIN_LOW
 START_CONDITION_SDA_LOW_RETURN:
-    UPDATE_NEXT_LOCAL_STATE START_CONDITION_SCL_LOW
-    
+    UPDATE_NEXT_LOCAL_STATE START_CONDITION_HOLD
     STATE_TASK_OVER
-   
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;  make SCL low for start condition
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;  START hold time (tHD;STA): one more tick with SDA low and SCL high, so it
+;  is two ticks long (5 us at 100 kHz, Standard-mode/SMBus needs 4.0 us)
+START_CONDITION_HOLD:
+    UPDATE_NEXT_LOCAL_STATE START_CONDITION_SCL_LOW
+    STATE_TASK_OVER
+
 START_CONDITION_SCL_LOW:
+    QBBS    START_CONDITION_SCL_LOW_DO, R19.b3, SMB_F_SMB
     QBBC    START_CONDITION_SCL_LOW_RETURN, R16, ICSS_I2C_START_BIT
+START_CONDITION_SCL_LOW_DO:
     SET_SCL_PIN_LOW
 START_CONDITION_SCL_LOW_RETURN:
     UPDATE_NEXT_LOCAL_STATE ADDRESS_SDA_BEGIN
     STATE_TASK_OVER
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;  modify the SDA pin value based on the most significant bit of Address register
+;  address byte(s): put the next address bit on SDA (SCL is low)
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ADDRESS_SDA_BEGIN:
     RSB     TEMP_REG5.b0, R15.b0, 15
@@ -885,35 +1013,27 @@ ADDRESS_SDA_BEGIN:
 ADDRESS_SDA_LOW:
     SET_SDA_PIN_LOW
 ADDRESS_SDA_CONTINUE:
+    PEC_UPDATE R13.w2, TEMP_REG5.b0
     ADD     R15.b0, R15.b0, 0x01
     UPDATE_NEXT_LOCAL_STATE ADDRESS_SCL_BEGIN
     STATE_TASK_OVER
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;  make SCL high for sending SDA bit
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ADDRESS_SCL_BEGIN:
     SET_SCL_PIN_HIGH
     UPDATE_NEXT_LOCAL_STATE ADDRESS_SDA_READ
     STATE_TASK_OVER
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;  nothing to be read in address tx mode
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ADDRESS_SDA_READ:
+    WAIT_SCL_HIGH
     UPDATE_NEXT_LOCAL_STATE ADDRESS_SCL_END
     STATE_TASK_OVER
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;  make SCL low for ending the transmission of bit
-;  also decide the next state based on all the bits have been sent or not.
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;  pull SCL low; after the 8th bit release SDA on this same edge, so the
+;  target can drive its ACK (SCL is already low, so this is not a STOP)
 ADDRESS_SCL_END:
     SET_SCL_PIN_LOW
     QBGT    SDA_NEXT_BIT, R15.b0, 0x08
-    ; release SDA on the falling edge after the 8th bit: the target may drive
-    ; ACK from here on (SCL is already low, so this is not a STOP)
-    SET_SDA_PIN_INPUT_DIRECTION
+    SET_SDA_PIN_HIGH
     UPDATE_NEXT_LOCAL_STATE ADDRESS_ACK_BEGIN
     STATE_TASK_OVER
 
@@ -921,47 +1041,28 @@ SDA_NEXT_BIT:
     UPDATE_NEXT_LOCAL_STATE ADDRESS_SDA_BEGIN
     STATE_TASK_OVER
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;  SDA was released in ADDRESS_SCL_END; this tick keeps the 4-tick bit timing
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ADDRESS_ACK_BEGIN:
     UPDATE_NEXT_LOCAL_STATE ADDRESS_ACK_SCL_BEGIN
     STATE_TASK_OVER
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;  make SCL high for reading ACK bit
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ADDRESS_ACK_SCL_BEGIN:
     SET_SCL_PIN_HIGH
     AND     R15.b0, R15.b0, 0x00
     UPDATE_NEXT_LOCAL_STATE ADDRESS_ACK_READ
     STATE_TASK_OVER
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;  make SDA line for reading ACK bit
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ADDRESS_ACK_READ:
+    WAIT_SCL_HIGH
     READ_SDA_PIN_ACK
     UPDATE_NEXT_LOCAL_STATE ADDRESS_ACK_SCL_END
     STATE_TASK_OVER
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;  make SCL low
-;  read if ACK bit is set then start sending or receiving data else indicate no ack
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;  pull SCL low; on ACK continue with the second address byte (10-bit) or
+;  the data phase in R17.w0, on NACK abandon the transfer
 ADDRESS_ACK_SCL_END:
     SET_SCL_PIN_LOW
     QBBS    ADDRESS_ACK_NOT_RECIEVED, R16, ICSS_I2C_ACK_RECIEVED_BIT
-    ; In a read, the target starts driving the first data bit as soon as SCL
-    ; falls after its ACK, so SDA must stay released. Only take SDA back when
-    ; the master transmits next: a write, or the second byte of a 10-bit
-    ; address.
-    QBBC    ADDRESS_ACK_SDA_OUTPUT, R16, ICSS_I2C_READ_WRITE_BIT
-    QBBC    ADDRESS_ACK_SDA_DONE, R16, ICSS_I2C_ADDRESSING_MODE_BIT
-    QBEQ    ADDRESS_ACK_SDA_DONE, R15.b2, 0x01
-ADDRESS_ACK_SDA_OUTPUT:
-    SET_SDA_PIN_OUTPUT_DIRECTION
-ADDRESS_ACK_SDA_DONE:
     QBBC    ADDRESS_ACK_SCL_END_DONE, R16, ICSS_I2C_ADDRESSING_MODE_BIT
     QBEQ    ADDRESS_ACK_SCL_END_DONE, R15.b2, 0x01
     ADD     R15.b2, R15.b2, 0x01
@@ -977,186 +1078,97 @@ ADDRESS_ACK_NOT_RECIEVED:
     UPDATE_NEXT_LOCAL_STATE NO_ADDRESS_ACK_RECIEVED
     STATE_TASK_OVER
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;  if no address ack is recieved, response with no ack in response command
-;  raise an interrupt
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;  no ACK for the address: report it and end the transfer with a STOP
 NO_ADDRESS_ACK_RECIEVED:
-    SET_SDA_PIN_OUTPUT_DIRECTION
-    SET_SCL_PIN_HIGH
     LDI     TEMP_REG4.w0, ADDRESS_ACKNOWLDEGE_FAILED
     SBBO    &TEMP_REG4, R10, ICSS_I2C_COMMAND_OFFSET, 2
-    UPDATE_NEXT_LOCAL_STATE RAISE_HOST_INTERRUPT_MEM_FOR_READY
+    SET     R19.b3, R19.b3, SMB_F_ERR
+    UPDATE_NEXT_LOCAL_STATE DATA_PROCESSING_COMPLETE
     STATE_TASK_OVER
-    
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;  start sending TX data and wait for ACK receive
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-TX_DATA_SDA_BEGIN:
-    SEND_TX_DATA_CHECK_FOR_ACK R15.b1, DATA_PROCESSING_COMPLETE, RAISE_HOST_INTERRUPT_MEM_FOR_READY
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;  start sending RX data and send ACK to device
+;  write phase: send the stream and check each ACK
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+TX_DATA_SDA_BEGIN:
+    SEND_TX_DATA_CHECK_FOR_ACK R15.b1, TX_PHASE_DONE, TX_DATA_NACK
+
+;  the stream is sent: SMBus reads continue with a repeated START
+TX_PHASE_DONE:
+    QBBS    TX_PHASE_DONE_READ, R19.b3, SMB_F_RDPHASE
+    UPDATE_NEXT_LOCAL_STATE DATA_PROCESSING_COMPLETE
+    STATE_TASK_OVER
+TX_PHASE_DONE_READ:
+    UPDATE_NEXT_LOCAL_STATE RSTART_SDA_HIGH
+    STATE_TASK_OVER
+
+;  no ACK for a data byte (DATA_ACKNOWLDEGE_FAILED is already reported):
+;  end the transfer with a STOP
+TX_DATA_NACK:
+    SET     R19.b3, R19.b3, SMB_F_ERR
+    UPDATE_NEXT_LOCAL_STATE DATA_PROCESSING_COMPLETE
+    STATE_TASK_OVER
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;  repeated START (Sr) for the read phase of an SMBus read: release SDA and
+;  SCL, then SDA low while SCL is high, then the address byte with R/W = 1
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+RSTART_SDA_HIGH:
+    SET_SDA_PIN_HIGH
+    UPDATE_NEXT_LOCAL_STATE RSTART_SCL_HIGH
+    STATE_TASK_OVER
+
+RSTART_SCL_HIGH:
+    SET_SCL_PIN_HIGH
+    UPDATE_NEXT_LOCAL_STATE RSTART_SETUP
+    STATE_TASK_OVER
+
+;  repeated START setup time (tSU;STA): SCL high for two ticks before SDA falls
+RSTART_SETUP:
+    WAIT_SCL_HIGH
+    UPDATE_NEXT_LOCAL_STATE RSTART_SDA_LOW
+    STATE_TASK_OVER
+
+RSTART_SDA_LOW:
+    SET_SDA_PIN_LOW
+    CLR     R19.b3, R19.b3, SMB_F_RDPHASE
+    SET     R16, R16, ICSS_I2C_READ_WRITE_BIT
+    SET     R13.w2, R13.w2, 8
+    LDI     R15.w0, 0x0000
+    MOV     R15.b3, R17.b2
+    QBBC    RSTART_SDA_LOW_NO_PEC, R19.b3, SMB_F_PECRX
+    ADD     R15.b3, R15.b3, 1
+RSTART_SDA_LOW_NO_PEC:
+    LDI     R15.b2, 0x00
+    UPDATE_NEXT_GLOBAL_STATE RX_DATA_SDA_BEGIN
+    UPDATE_NEXT_LOCAL_STATE RSTART_HOLD
+    STATE_TASK_OVER
+
+;  repeated START hold time (tHD;STA)
+RSTART_HOLD:
+    UPDATE_NEXT_LOCAL_STATE RSTART_SCL_LOW
+    STATE_TASK_OVER
+
+RSTART_SCL_LOW:
+    SET_SCL_PIN_LOW
+    UPDATE_NEXT_LOCAL_STATE ADDRESS_SDA_BEGIN
+    STATE_TASK_OVER
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;  read phase: read bytes into the Rx buffer, ACK all but the last
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 RX_DATA_SDA_BEGIN:
     READ_RX_DATA_AND_SEND_ACK R15.b1, DATA_PROCESSING_COMPLETE
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;  start sending TX data and wait for ACK receive for smbus Burst Mode
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-TX_DATA_SDA_BEGIN_BURST:
-    SEND_TX_DATA_CHECK_FOR_ACK R17.b2, TX_DATA_SDA_BEGIN, RAISE_HOST_INTERRUPT_MEM_FOR_READY
-    
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;  start sending RX data and send ACK to device for smbus Burst Mode
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;; 
-RX_DATA_SDA_BEGIN_BURST:
-    READ_RX_DATA_AND_SEND_ACK R15.b3, RX_DATA_SDA_BEGIN
-    
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;  modify the SDA pin value based on the most significant bit of DATA value
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-CMD_CODE_SDA_BEGIN:
-    QBBC    CMD_CODE_SDA_LOW, R15.b1, 7
-    SET_SDA_PIN_HIGH
-    JMP     CMD_CODE_SDA_CONTINUE
-CMD_CODE_SDA_LOW:
-    SET_SDA_PIN_LOW
-CMD_CODE_SDA_CONTINUE:
-    LSL     R15.b1, R15.b1, 1
-    ADD     R15.b0, R15.b0, 0x01
-    UPDATE_NEXT_LOCAL_STATE CMD_CODE_SCL_BEGIN
-    STATE_TASK_OVER
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;  make SCL high for sending SDA bit
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;; 
-CMD_CODE_SCL_BEGIN:
-    SET_SCL_PIN_HIGH
-    UPDATE_NEXT_LOCAL_STATE CMD_CODE_SDA_READ
-    STATE_TASK_OVER
-    
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;  Jump to next state as this is tx mode, done for matching timing parameter.
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-CMD_CODE_SDA_READ:
-    UPDATE_NEXT_LOCAL_STATE CMD_CODE_SCL_END
-    STATE_TASK_OVER
-    
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;  make SCL low for stop sending SDA bit
-;  make decision for sending next data bit or check for ACK
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-CMD_CODE_SCL_END:
-    SET_SCL_PIN_LOW
-    QBGT    CMD_CODE_SDA_NEXT_BIT, R15.b0, 0x08
-    UPDATE_NEXT_LOCAL_STATE CMD_CODE_ACK_BEGIN
-    STATE_TASK_OVER
-
-CMD_CODE_SDA_NEXT_BIT:
-    UPDATE_NEXT_LOCAL_STATE CMD_CODE_SDA_BEGIN
-    STATE_TASK_OVER
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;  release SDA line so slave can drive it.
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-CMD_CODE_ACK_BEGIN:
-    SET_SDA_PIN_HIGH
-    SET     R13.w2, R13.w2, 0
-    UPDATE_NEXT_LOCAL_STATE CMD_CODE_ACK_SCL_BEGIN
-    STATE_TASK_OVER
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;  make SCL high for reading ACK bit
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-CMD_CODE_ACK_SCL_BEGIN:
-    SET_SCL_PIN_HIGH
-    UPDATE_NEXT_LOCAL_STATE CMD_CODE_ACK_READ
-    STATE_TASK_OVER
-
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;  make SDA line for reading ACK bit
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-CMD_CODE_ACK_READ:
-    READ_SDA_PIN_ACK
-    QBBS    CMD_CODE_ACK_READ_NEXT_STATE, R16, ICSS_I2C_SMBUS_BURST_BIT
-    UPDATE_NEXT_LOCAL_STATE CMD_CODE_ACK_SCL_END
-    STATE_TASK_OVER
-
-CMD_CODE_ACK_READ_NEXT_STATE:
-    UPDATE_NEXT_LOCAL_STATE CMD_CODE_ACK_SCL_END_V2
-    STATE_TASK_OVER
-    
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;  make SCL low
-;  read if ACK bit is set then check if data is still left to be sent
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-CMD_CODE_ACK_SCL_END:
-    SET_SCL_PIN_LOW
-    QBBS    CMD_CODE_ACK_NOT_RECIEVED, R16, ICSS_I2C_ACK_RECIEVED_BIT
-    AND     R15.b2, R15.b2, 0x00
-    AND     R15.b0, R15.b0, 0x00
-    QBBS    CMD_CODE_RX, R16, ICSS_I2C_READ_WRITE_BIT
-    LBBO    &R15.b1, R11, R15.b2, 1
-    UPDATE_NEXT_LOCAL_STATE TX_DATA_SDA_BEGIN
-    STATE_TASK_OVER
-
-CMD_CODE_RX:
-     UPDATE_NEXT_LOCAL_STATE START_CONDITION_SDA_LOW
-     SET    R13.w2, R13.w2, 8
-     UPDATE_NEXT_GLOBAL_STATE RX_DATA_SDA_BEGIN
-     STATE_TASK_OVER
-    
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;  make SCL low
-;  read if ACK bit is set then check if data is still left to be sent
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-CMD_CODE_ACK_SCL_END_V2:
-    SET_SCL_PIN_LOW
-    QBBS    CMD_CODE_ACK_NOT_RECIEVED, R16, ICSS_I2C_ACK_RECIEVED_BIT
-    AND     R15.b2, R15.b2, 0x00
-    AND     R15.b0, R15.b0, 0x00
-    QBBS    CMD_CODE_RX_V2, R16, ICSS_I2C_READ_WRITE_BIT
-    LBBO    &R15.b1, R11, R15.b2, 1
-    UPDATE_NEXT_LOCAL_STATE TX_DATA_SDA_BEGIN_BURST
-    STATE_TASK_OVER
-
-CMD_CODE_RX_V2:
-    UPDATE_NEXT_LOCAL_STATE START_CONDITION_SDA_LOW
-    SET    R13.w2, R13.w2, 8
-    UPDATE_NEXT_GLOBAL_STATE RX_DATA_SDA_BEGIN_BURST
-    STATE_TASK_OVER
-     
-    
-CMD_CODE_ACK_NOT_RECIEVED:
-    UPDATE_NEXT_LOCAL_STATE NO_CMD_CODE_ACK_RECIEVED
-    STATE_TASK_OVER
-    
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;  if no data ack is received, response with no ack in response command
-;  raise an interrupt
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-NO_CMD_CODE_ACK_RECIEVED:
-    LDI     TEMP_REG4.w0, DATA_ACKNOWLDEGE_FAILED
-    SBBO    &TEMP_REG4, R10, ICSS_I2C_COMMAND_OFFSET, 2
-    UPDATE_NEXT_LOCAL_STATE RAISE_HOST_INTERRUPT_MEM_FOR_READY
-    STATE_TASK_OVER
-    
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;  data transmit or receive is over
-;  check whether to sent stop bit or not
+;  end of the transfer (SCL is low). Send STOP if CON asks for it, and always
+;  for SMBus and after an error.
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 DATA_PROCESSING_COMPLETE:
     SET_SDA_PIN_LOW
+    QBBS    COMPLETE_WITH_STOP, R19.b3, SMB_F_SMB
+    QBBS    COMPLETE_WITH_STOP, R19.b3, SMB_F_ERR
     QBBC    COMPLETE_WITH_NO_STOP, R16, ICSS_I2C_STOP_BIT
+COMPLETE_WITH_STOP:
     UPDATE_NEXT_LOCAL_STATE STOP_CONDITION_SCL_HIGH
     STATE_TASK_OVER
 
@@ -1165,38 +1177,59 @@ COMPLETE_WITH_NO_STOP:
     STATE_TASK_OVER
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;  send stop condition by making SCL high first
+;  STOP condition: release SCL, then release SDA while SCL is high. The bus
+;  is then idle with both lines released. Report the result unless an error
+;  was already reported; an SMBus read with PEC must end with a zero CRC.
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 STOP_CONDITION_SCL_HIGH:
     SET_SCL_PIN_HIGH
+    UPDATE_NEXT_LOCAL_STATE STOP_CONDITION_SETUP
+    STATE_TASK_OVER
+
+;  STOP setup time (tSU;STO): SCL high for two ticks before SDA rises
+STOP_CONDITION_SETUP:
+    WAIT_SCL_HIGH
     UPDATE_NEXT_LOCAL_STATE STOP_CONDITION_SDA_HIGH
     STATE_TASK_OVER
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;  send stop condition by making SDA high next
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 STOP_CONDITION_SDA_HIGH:
     SET_SDA_PIN_HIGH
-    SET_SDA_PIN_INPUT_DIRECTION         ; bus idle: release SDA (line stays high)
-    LDI     TEMP_REG4.w0, COMMAND_SUCCESS
-    SBBO    &TEMP_REG4, R10, ICSS_I2C_COMMAND_OFFSET, 2
     UPDATE_NEXT_LOCAL_STATE RAISE_HOST_INTERRUPT_MEM_FOR_READY
+    QBBS    STOP_CONDITION_REPORTED, R19.b3, SMB_F_ERR
+    LDI     TEMP_REG4.w0, COMMAND_SUCCESS
+    QBBC    STOP_CONDITION_REPORT, R19.b3, SMB_F_PECRX
+    QBEQ    STOP_CONDITION_REPORT, R19.b0, 0
+    LDI     TEMP_REG4.w0, PEC_ERROR
+STOP_CONDITION_REPORT:
+    SBBO    &TEMP_REG4, R10, ICSS_I2C_COMMAND_OFFSET, 2
+STOP_CONDITION_REPORTED:
     STATE_TASK_OVER
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;  do not send stop condition by making SDA high first
+;  no STOP (I2C with CON STOP clear): release SDA, then SCL
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 NO_STOP_CONDITION_SDA_HIGH:
     SET_SDA_PIN_HIGH
     UPDATE_NEXT_LOCAL_STATE NO_STOP_CONDITION_SCL_HIGH
     STATE_TASK_OVER
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;  do not send stop condition by making SCL high next
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 NO_STOP_CONDITION_SCL_HIGH:
     SET_SCL_PIN_HIGH
     LDI     TEMP_REG4.w0, COMMAND_SUCCESS
+    SBBO    &TEMP_REG4, R10, ICSS_I2C_COMMAND_OFFSET, 2
+    UPDATE_NEXT_LOCAL_STATE RAISE_HOST_INTERRUPT_MEM_FOR_READY
+    STATE_TASK_OVER
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;  a target held SCL low for longer than the configured timeout: release
+;  both lines and report TIME_OUT_ERROR (no STOP is possible while SCL is
+;  held low)
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+SCL_LOW_TIMEOUT:
+    SET_SDA_PIN_HIGH
+    SET_SCL_PIN_HIGH
+    LDI     R18.w0, 0
+    LDI     TEMP_REG4.w0, TIME_OUT_ERROR
     SBBO    &TEMP_REG4, R10, ICSS_I2C_COMMAND_OFFSET, 2
     UPDATE_NEXT_LOCAL_STATE RAISE_HOST_INTERRUPT_MEM_FOR_READY
     STATE_TASK_OVER
@@ -1252,7 +1285,6 @@ RESET_SLAVE_SCL_BEGIN:
     ; Bus recovery: make sure SDA is released so a target that holds it low
     ; can let go, then clock SCL until it does. SDA stays released afterwards,
     ; as on an idle bus.
-    SET_SDA_PIN_INPUT_DIRECTION
     SET_SDA_PIN_HIGH
     UPDATE_NEXT_LOCAL_STATE RESET_SLAVE_SCL_LOW
     STATE_TASK_OVER

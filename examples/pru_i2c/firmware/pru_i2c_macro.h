@@ -233,69 +233,129 @@ STATE_TASK_OVER    .macro
 
 ;************************************************************************************
 ;
-;   Macro: SET_SCL_PIN_HIGH
+;   Open-drain bus pins
 ;
-;   Set high value on SCL pin
-;   
+;   SCL and SDA are never driven high. R30 keeps both pin bits at 0 and the
+;   line is controlled through the pin's OUTDISABLE bit in this core's
+;   ICSSMx_PRUy_GPIO_OUT_CTRL register (I2C_GPIO_OUT_CTRL):
+;       OUTDISABLE = 1 -> released, the external pull-up takes the line high
+;       OUTDISABLE = 0 -> driven low
+;   R23 is a shadow copy of that register and R26 holds its address, both
+;   set up in SETUP_I2C_SCL_SDA_HIGH, so a pin change is a single store.
+;   A target can therefore hold SCL low (clock stretching, see
+;   WAIT_SCL_HIGH) and the master never fights a target on SDA.
+;
 ;   PEAK cycles:
-;       
-;   Pseudo code:
-;       
+;       2 + store
 ;
-;   Parameters:
-;       None
-;
-;   Returns:
-;      None
+;   Registers modified:
+;      R23
 ;
 ;************************************************************************************
 SET_SCL_PIN_HIGH    .macro
-    SET     R30, R30, R14.b0
+    SET     R23, R23, R14.b0
+    SBBO    &R23, R26, 0, 4
+    .endm
+
+SET_SCL_PIN_LOW    .macro
+    CLR     R23, R23, R14.b0
+    SBBO    &R23, R26, 0, 4
+    .endm
+
+SET_SDA_PIN_HIGH    .macro
+    SET     R23, R23, R14.b1
+    SBBO    &R23, R26, 0, 4
+    .endm
+
+SET_SDA_PIN_LOW  .macro
+    CLR     R23, R23, R14.b1
+    SBBO    &R23, R26, 0, 4
     .endm
 
 ;************************************************************************************
 ;
-;   Macro: SET_SDA_PIN_HIGH
+;   Macro: WAIT_SCL_HIGH
 ;
-;   Set high value on SDA pin
-;   
-;   PEAK cycles:
-;       
-;   Pseudo code:
-;       
+;   Clock stretching. Put at the top of every state that runs one tick after
+;   SCL was released. If a target still holds SCL low, return without
+;   advancing the state, so the same state runs again on the next tick.
+;   R18.w0 counts the ticks SCL has been held low; when it reaches the limit
+;   in R18.w2 (ICSS_I2C_SCL_TIMEOUT_OFFSET, 0 = no limit) the transfer is
+;   abandoned with TIME_OUT_ERROR (SCL_LOW_TIMEOUT).
+;   When SCL comes up after being held, wait one more tick before going on,
+;   so the high period is counted from the moment SCL actually rose and is
+;   never shorter than without stretching (tHIGH).
+;
+;   Registers modified:
+;      R18.w0, R13.w0 (on timeout)
+;
+;************************************************************************************
+WAIT_SCL_HIGH    .macro
+    QBBS    scl_high?, R31, R14.b0
+    ADD     R18.w0, R18.w0, 1
+    QBEQ    scl_wait?, R18.w2, 0
+    QBLT    scl_wait?, R18.w2, R18.w0
+    LDI     R13.w0, $CODE(SCL_LOW_TIMEOUT)
+scl_wait?:
+    STATE_TASK_OVER
+scl_high?:
+    QBEQ    scl_ok?, R18.w0, 0
+    LDI     R18.w0, 0
+    STATE_TASK_OVER
+scl_ok?:
+    .endm
+
+;************************************************************************************
+;
+;   Macro: PEC_UPDATE
+;
+;   SMBus Packet Error Code: CRC-8, x^8 + x^2 + x + 1, initial value 0,
+;   updated one bit at a time as bits go out or come in, MSB first. Runs
+;   only when SMB_F_PEC is set for the current transfer.
 ;
 ;   Parameters:
-;      None: 
+;      src, bitn: the bit (register, bit number) just sent or received
 ;
-;   Returns:
-;      None
+;   Registers modified:
+;      R19.b0 (CRC), TEMP_REG6.b0
 ;
 ;************************************************************************************
-SET_SDA_PIN_HIGH    .macro
-    SET     R30, R30, R14.b1 
+PEC_UPDATE    .macro    src, bitn
+    QBBC    pec_done?, R19.b3, SMB_F_PEC
+    LSR     TEMP_REG6.b0, R19.b0, 7
+    QBBC    pec_bit0?, src, bitn
+    XOR     TEMP_REG6.b0, TEMP_REG6.b0, 1
+pec_bit0?:
+    LSL     R19.b0, R19.b0, 1
+    QBEQ    pec_done?, TEMP_REG6.b0, 0
+    XOR     R19.b0, R19.b0, 0x07
+pec_done?:
     .endm
 
-
-
-;----------------------------------------------------------------------
-; Macro Name: SET_SCL_PIN_LOW
-; Description: Set low value on SCL pin
-; Input Parameters: none
-; Output Parameters: none
-;----------------------------------------------------------------------
-SET_SCL_PIN_LOW    .macro
-    CLR     R30, R30, R14.b0
+;************************************************************************************
+;
+;   Macro: TX_FETCH_BYTE
+;
+;   Load byte R15.b2 of the transmit stream into dest. The stream starts at
+;   R11: the Tx buffer for I2C, or up to two SMBus prefix bytes (command
+;   code, block count) staged just in front of it. When SMB_F_PECTX is set
+;   the last byte of the stream is the PEC, taken from R19.b0, which by then
+;   covers every bit sent before it.
+;
+;   Registers modified:
+;      dest, TEMP_REG4.b0
+;
+;************************************************************************************
+TX_FETCH_BYTE    .macro    dest
+    QBBC    fetch_buf?, R19.b3, SMB_F_PECTX
+    SUB     TEMP_REG4.b0, R15.b3, 1
+    QBNE    fetch_buf?, R15.b2, TEMP_REG4.b0
+    MOV     dest, R19.b0
+    JMP     fetch_done?
+fetch_buf?:
+    LBBO    &dest, R11, R15.b2, 1
+fetch_done?:
     .endm
-
-;----------------------------------------------------------------------
-; Macro Name: SET_SDA_PIN_LOW
-; Description: Set low value on SDA pin
-; Input Parameters: Label on new memory location
-; Output Parameters: none
-;----------------------------------------------------------------------
-SET_SDA_PIN_LOW  .macro
-   CLR   R30, R30, R14.b1
-   .endm
 
 ;----------------------------------------------------------------------
 ; Macro Name: READ_SDA_PIN_ACK
@@ -420,32 +480,6 @@ INTERRUPT_RECEIVED_REPEAT_STATE?:
     STATE_TASK_OVER
     .endm
 
-
-;************************************************************************************
-;
-;   Macro: SET_OUTPUT_PIN_VALUE_HIGH
-;
-;   Set high value on SCL and SDA pin
-;   
-;   PEAK cycles:
-;       
-;   Pseudo code:
-;       
-;
-;   Parameters:
-;      arg1: Label on next memory location
-;      
-;
-;   Returns:
-;      None
-;
-;************************************************************************************
-SET_OUTPUT_PIN_VALUE_HIGH    .macro    arg1
-    SET_SDA_PIN_HIGH
-    SET_SCL_PIN_HIGH
-    UPDATE_NEXT_LOCAL_STATE arg1
-    STATE_TASK_OVER
-    .endm
 
 ;************************************************************************************
 ;
@@ -582,7 +616,7 @@ read_rw_register_bit_done?:
 ;************************************************************************************
 SEND_TX_DATA_CHECK_FOR_ACK    .macro    arg1, arg2, arg3
 ;
-;  modify the SDA pin value based on the most significant bit of DATA value
+;  put the most significant bit of the data byte on SDA (SCL is low)
 ;
 tx_data_sda_begin?:
     QBBC    tx_data_sda_low?, arg1, 7
@@ -591,13 +625,14 @@ tx_data_sda_begin?:
 tx_data_sda_low?:
     SET_SDA_PIN_LOW
 tx_data_sda_continue?:
+    PEC_UPDATE arg1, 7
     LSL     arg1, arg1, 1
     ADD     R15.b0, R15.b0, 0x01
     LDI     R13.w0, $CODE(tx_data_scl_begin?)
     STATE_TASK_OVER
 
 ;
-;  make SCL high for sending SDA bit
+;  release SCL
 ;
 tx_data_scl_begin?:
     SET_SCL_PIN_HIGH
@@ -605,23 +640,21 @@ tx_data_scl_begin?:
     STATE_TASK_OVER
 
 ;
-;  Jump to next state as this is tx mode, done for matching timing parameter.
+;  SCL high period (waits here while a target stretches the clock)
 ;
 tx_data_sda_read?:
+    WAIT_SCL_HIGH
     LDI     R13.w0, $CODE(tx_data_scl_end?)
     STATE_TASK_OVER
 
 ;
-;  make SCL low for stop sending SDA bit
-;  make decision for sending next data bit or check for ACK
+;  pull SCL low; after the 8th bit release SDA on this same edge, so the
+;  target can drive its ACK
 ;
 tx_data_scl_end?:
     SET_SCL_PIN_LOW
     QBGT    tx_sda_next_bit?, R15.b0, 0x08
-    ; The target may drive ACK as soon as SCL falls after the 8th bit, so
-    ; release SDA on this edge rather than one tick later. SCL is already low,
-    ; so the release cannot be seen as a STOP.
-    SET_SDA_PIN_INPUT_DIRECTION
+    SET_SDA_PIN_HIGH
     LDI     R13.w0, $CODE(tx_data_ack_begin?)
     STATE_TASK_OVER
 
@@ -637,7 +670,7 @@ tx_data_ack_begin?:
     STATE_TASK_OVER
 
 ;
-;  make SCL high for reading ACK bit
+;  release SCL for the ACK bit
 ;
 tx_data_ack_scl_begin?:
     SET_SCL_PIN_HIGH
@@ -645,65 +678,35 @@ tx_data_ack_scl_begin?:
     STATE_TASK_OVER
 
 ;
-;  make SDA line for reading ACK bit
+;  sample the ACK bit once SCL is high
 ;
 tx_data_ack_read?:
+    WAIT_SCL_HIGH
     READ_SDA_PIN_ACK
-    QBBS    tx_data_ack_read_next_state?, R16, ICSS_I2C_SMBUS_BURST_BIT
     LDI     R13.w0, $CODE(tx_data_ack_scl_end?)
     STATE_TASK_OVER
 
-tx_data_ack_read_next_state?:
-    LDI     R13.w0, $CODE(tx_data_ack_scl_end_v2?)
-    STATE_TASK_OVER
-
 ;
-;  make SCL low
-;  read if ACK bit is set then check if data is still left to be sent
+;  pull SCL low; on ACK send the next byte or finish
 ;
 tx_data_ack_scl_end?:
     SET_SCL_PIN_LOW
-    SET_SDA_PIN_OUTPUT_DIRECTION
     QBBS    tx_data_ack_not_recieved?, R16, ICSS_I2C_ACK_RECIEVED_BIT
     ADD     R15.b2, R15.b2, 0x01
-    AND     R15.b0, R15.b0, 0x00
+    LDI     R15.b0, 0x00
     QBGT    tx_mode_continue?, R15.b2, R15.b3
-    AND     R15.b2, R15.b2, 0x00
+    LDI     R15.b2, 0x00
     LDI     R13.w0, $CODE(arg2)
     STATE_TASK_OVER
 tx_mode_continue?:
-    LBBO    &arg1, R11, R15.b2, 1
+    TX_FETCH_BYTE arg1
     LDI     R13.w0, $CODE(tx_data_sda_begin?)
-
     STATE_TASK_OVER
 
 ;
-;  make SCL low
-;  read if ACK bit is set then check if data is still left to be sent
+;  the target did not acknowledge a data byte
 ;
-
-tx_data_ack_scl_end_v2?:
-    SET_SCL_PIN_LOW
-    SET_SDA_PIN_OUTPUT_DIRECTION
-    QBBS    tx_data_ack_not_recieved?, R16, ICSS_I2C_ACK_RECIEVED_BIT
-    AND     R15.b0, R15.b0, 0x00
-    AND     R15.b2, R15.b2, 0x00
-    CLR     R16, R16, ICSS_I2C_SMBUS_BURST_BIT
-    LBBO    &arg1, R11, R15.b2, 1
-    LDI     R13.w0, $CODE(arg2)
-    STATE_TASK_OVER
-       
-
 tx_data_ack_not_recieved?:
-    LDI     R13.w0, $CODE(no_tx_data_ack_recieved?)
-    STATE_TASK_OVER
-
-;
-;  if no data ack is recieved, response with no ack in response command
-;  raise an interrupt
-;
-no_tx_data_ack_recieved?:
-    SET_SCL_PIN_HIGH
     LDI     TEMP_REG4.w0, DATA_ACKNOWLDEGE_FAILED
     SBBO    &TEMP_REG4, R10, ICSS_I2C_COMMAND_OFFSET, 2
     LDI     R13.w0, $CODE(arg3)
@@ -785,127 +788,134 @@ iep_counter_setup_done?:
 ; Output Parameters: none
 ;----------------------------------------------------------------------------------------------------------------------------
 READ_RX_DATA_AND_SEND_ACK    .macro    arg1, arg2
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;  release SDA line so slave can drive it.
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-    SET_SDA_PIN_INPUT_DIRECTION
+;
+;  release SDA so the target can drive it
+;
+    SET_SDA_PIN_HIGH
 rx_data_sda_begin?:
     LDI     R13.w0, $CODE(rx_data_scl_begin?)
     STATE_TASK_OVER
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;  make SCL high for reading data value
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+;  release SCL for the data bit
+;
 rx_data_scl_begin?:
     SET_SCL_PIN_HIGH
     LSL     arg1, arg1, 1
     LDI     R13.w0, $CODE(rx_data_sda_read?)
     STATE_TASK_OVER
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;  Read the SDA pin value and store it in the MSB of receive register
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+;  sample SDA into the LSB once SCL is high
+;
 rx_data_sda_read?:
+    WAIT_SCL_HIGH
     QBBS    rx_data_sda_high?, R31, R14.b1
     AND     arg1, arg1, 0xFE
     JMP     rx_data_sda_read_continue?
 rx_data_sda_high?:
     OR      arg1, arg1, 0x01
 rx_data_sda_read_continue?:
+    PEC_UPDATE arg1, 0
     ADD     R15.b0, R15.b0, 0x01
     LDI     R13.w0, $CODE(rx_data_scl_end?)
     STATE_TASK_OVER
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;  make SCL low for finishing data read
-;  also check if all the data needed to read is over then send ACK
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+;  pull SCL low; after the 8th bit decide between ACK and NACK
+;
 rx_data_scl_end?:
     SET_SCL_PIN_LOW
     QBGT    rx_sda_next_bit?, R15.b0, 0x08
-    ADD     R15.b2, R15.b2, 0x01
-    QBBS    rx_data_next_state?, R16, ICSS_I2C_SMBUS_BURST_BIT
-    QBGT    rx_data_next_state?, R15.b2, R15.b3
-    QBBC    rx_data_next_state?, R16, ICSS_I2C_RECIEVE_NACK_BIT
+    QBBC    rx_data_not_count?, R19.b3, SMB_F_BLKRD
+    ; SMBus block read: this byte is the block count. It is reported in the
+    ; count register and not stored. The count plus an optional PEC byte must
+    ; fit the 8-bit byte index.
+    CLR     R19.b3, R19.b3, SMB_F_BLKRD
+    QBEQ    rx_count_bad?, arg1, 0x00
+    MOV     R15.b3, arg1
+    QBBC    rx_count_ok?, R19.b3, SMB_F_PECRX
+    QBEQ    rx_count_bad?, arg1, 0xFF
+    ADD     R15.b3, R15.b3, 0x01
+rx_count_ok?:
+    LDI     TEMP_REG4.w0, 0x0000
+    MOV     TEMP_REG4.b0, arg1
+    SBBO    &TEMP_REG4, R10, ICSS_I2C_CNT_OFFSET, 2
+    LDI     R13.w0, $CODE(rx_data_ack_begin?)
+    STATE_TASK_OVER
+rx_count_bad?:
+    LDI     TEMP_REG4.w0, INVALID_DATA_COUNT
+    SBBO    &TEMP_REG4, R10, ICSS_I2C_COMMAND_OFFSET, 2
+    SET     R19.b3, R19.b3, SMB_F_ERR
+    LDI     R15.w2, 0x0101
     LDI     R13.w0, $CODE(rx_data_nack_begin?)
-    SET_SDA_PIN_OUTPUT_DIRECTION
+    STATE_TASK_OVER
+rx_data_not_count?:
+    ADD     R15.b2, R15.b2, 0x01
+    QBGT    rx_data_next_state?, R15.b2, R15.b3
+    QBBS    rx_data_nack?, R19.b3, SMB_F_SMB
+    QBBC    rx_data_next_state?, R16, ICSS_I2C_RECIEVE_NACK_BIT
+rx_data_nack?:
+    LDI     R13.w0, $CODE(rx_data_nack_begin?)
     STATE_TASK_OVER
 
 rx_data_next_state?:
     LDI     R13.w0, $CODE(rx_data_ack_begin?)
-    SET_SDA_PIN_OUTPUT_DIRECTION
-    STATE_TASK_OVER    
+    STATE_TASK_OVER
 
 rx_sda_next_bit?:
     LDI     R13.w0, $CODE(rx_data_sda_begin?)
     STATE_TASK_OVER
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;  make SDA line low to send an ACK.
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+;  pull SDA low to ACK the byte
+;
 rx_data_ack_begin?:
     SET_SDA_PIN_LOW
     LDI     R13.w0, $CODE(rx_data_ack_scl_begin?)
     STATE_TASK_OVER
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;  make SDA line low to send an NACK.
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+;  leave SDA released to NACK the byte
+;
 rx_data_nack_begin?:
     SET_SDA_PIN_HIGH
     LDI     R13.w0, $CODE(rx_data_ack_scl_begin?)
     STATE_TASK_OVER
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;  make SCL high for reading ACK bit
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+;  release SCL for the ACK/NACK bit
+;
 rx_data_ack_scl_begin?:
     SET_SCL_PIN_HIGH
-    SBBO    &R15.b3, R10, ICSS_I2C_CNT_OFFSET, 1
     LDI     R13.w0, $CODE(rx_data_ack_read?)
     STATE_TASK_OVER
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;  jump to next state, done to match the timing
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+;  ACK/NACK high period (waits here while a target stretches the clock)
+;
 rx_data_ack_read?:
-    QBBS    rx_data_ack_read_next_state?, R16, ICSS_I2C_SMBUS_BURST_BIT
+    WAIT_SCL_HIGH
     LDI     R13.w0, $CODE(rx_data_ack_scl_end?)
     STATE_TASK_OVER
 
-rx_data_ack_read_next_state?:
-    LDI     R13.w0, $CODE(rx_data_ack_scl_end_v2?)
-    STATE_TASK_OVER
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;  make SCL low for finishing data read
-;  also check if all the data needed to read is over then finish read
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+;  pull SCL low, store the byte, then read the next one or finish. The
+;  block count byte (byte index still 0) is not stored.
+;
 rx_data_ack_scl_end?:
     SET_SCL_PIN_LOW
-    AND     R15.b0, R15.b0, 0x00
+    LDI     R15.b0, 0x00
+    QBEQ    rx_mode_continue?, R15.b2, 0x00
     SUB     TEMP_REG4.b0, R15.b2, 1
     SBBO    &arg1, R12, TEMP_REG4.b0, 1
     QBGT    rx_mode_continue?, R15.b2, R15.b3
-    AND     R15.b2, R15.b2, 0x00
-    LDI     R13.w0, $CODE(arg2)
-    ; SET_SDA_PIN_INPUT_DIRECTION
-    STATE_TASK_OVER
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;  make SCL low for finishing data read
-;  also check if all the data needed to read is over then finish read
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-rx_data_ack_scl_end_v2?:
-    SET_SCL_PIN_LOW
-    AND     R15.b0, R15.b0, 0x00
-    AND     R15.b2, R15.b2, 0x00
-    CLR     R16, R16, ICSS_I2C_SMBUS_BURST_BIT
+    LDI     R15.b2, 0x00
     LDI     R13.w0, $CODE(arg2)
     STATE_TASK_OVER
 
 rx_mode_continue?:
-    SET_SDA_PIN_INPUT_DIRECTION
+    SET_SDA_PIN_HIGH
     LDI     R13.w0, $CODE(rx_data_sda_begin?)
     STATE_TASK_OVER
 
@@ -914,58 +924,16 @@ rx_mode_continue?:
 
 ;************************************************************************************
 ;
-;   Macro: SET_SDA_PIN_INPUT_DIRECTION
+;   Macro: I2C_TRANSFER_INIT
 ;
-;   Description: Setup the Control register for SDA pin input 
-;   
-;   PEAK cycles:
-;       
-;   Pseudo code:
-;       
-;
-;   Parameters:
-;      None
-;   Returns:
-;      None
+;   Reset the per-transfer state: PEC, command code, flags (R19), the
+;   SCL-low counter and the transmit stream base (R11 = Tx buffer).
 ;
 ;************************************************************************************
-SET_SDA_PIN_INPUT_DIRECTION .macro
-
-    ; AM261x: set the SDA pin's OUTDISABLE bit in this core's
-    ; ICSSMx_PRUy_GPIO_OUT_CTRL (I2C_GPIO_OUT_CTRL, see pru_i2c_main.asm)
-    LDI32 r29, I2C_GPIO_OUT_CTRL
-    LBBO &r28, r29, 0, 4
-    SET r28, r28, R14.b1
-    SBBO  &r28, r29, 0, 4
-
+I2C_TRANSFER_INIT    .macro
+    LDI     R19, 0
+    LDI     R18.w0, 0
+    LDI     R11.w0, ICSS_I2C_INSTANCE0_TX_MEM
     .endm
 
-;************************************************************************************
-;
-;   Macro: SET_SDA_PIN_OUTPUT_DIRECTION
-;
-;   Description: Clear the Control register for SDA pin output.
-;   
-;   PEAK cycles:
-;       
-;   Pseudo code:
-;       
-;
-;   Parameters:
-;      None
-;   Returns:
-;      None
-;
-;************************************************************************************
-
-SET_SDA_PIN_OUTPUT_DIRECTION .macro 
-
-    ; AM261x: clear the SDA pin's OUTDISABLE bit in this core's
-    ; ICSSMx_PRUy_GPIO_OUT_CTRL (I2C_GPIO_OUT_CTRL, see pru_i2c_main.asm)
-    LDI32 r29, I2C_GPIO_OUT_CTRL
-    LBBO &r28, r29, 0, 4
-    CLR r28, r28, R14.b1
-    SBBO  &r28, r29, 0, 4
-
-    .endm
     .endif	; __icss_i2c_macros_h

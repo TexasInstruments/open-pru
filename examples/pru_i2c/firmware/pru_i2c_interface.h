@@ -83,10 +83,18 @@ typedef enum PRUICSS_PruCores_e
 #define ICSS_I2C_PRU_PIN_OFFSET                    (0xD8)
 /* The Memory offset of I2C clock value register */
 #define ICSS_I2C_PRU_CLK_VAL_OFFSET                (0xDC)
-/* The Memory offset of I2C smbus command code register */
+/* The Memory offset of I2C smbus command code register (u8). For
+ * ICSS_SMBUS_QUICK_CMD, bit 0 is the R/W bit sent with the address. */
 #define ICSS_I2C_PRU_CMD_CODE_OFFSET               (0xE0)
 /* The Memory offset of I2C instance id register */
 #define ICSS_I2C_PRU_INST_ID_OFFSET                (0xE4)
+/* The Memory offset of the SCL low timeout (u16): number of state machine
+ * ticks (4 per SCL period) a target may hold SCL low (clock stretching)
+ * before the transfer ends with TIME_OUT_ERROR. 0 = wait indefinitely.
+ * SMBus requires 25 ms (tTIMEOUT,MIN). Latched by ICSS_I2C_SETUP_CMD. */
+#define ICSS_I2C_SCL_TIMEOUT_OFFSET                (0xE8)
+/* Instance offsets 0xFE and 0xFF are used by the firmware to stage the
+ * SMBus command code and block count in front of the Tx buffer. */
 
 /* The register bit for enabling i2c instance */
 #define ICSS_I2C_MODULE_ENABLE_BIT                 (15)
@@ -94,8 +102,10 @@ typedef enum PRUICSS_PruCores_e
 #define ICSS_I2C_MASTER_SLAVE_MODE_BIT             (10)
 /* The register bit for selecting address mode */
 #define ICSS_I2C_ADDRESSING_MODE_BIT               (8)
-/* The register bit for enabling i2c burst mode */
+/* Reserved (was: SMBus burst mode, never implemented) */
 #define ICSS_I2C_SMBUS_BURST_BIT                   (5)
+/* The register bit for enabling SMBus Packet Error Checking (CRC-8) */
+#define ICSS_I2C_PEC_BIT                           (6)
 /* The register bit for deciding NACK recieve */
 #define ICSS_I2C_RECIEVE_NACK_BIT                  (4)
 /* The register bit for deciding ACK recieve */
@@ -170,15 +180,21 @@ typedef enum PRUICSS_PruCores_e
 #define INVALID_DATA_COUNT                         (0x050DU)
 /* The time out for the response to come */
 #define TIME_OUT_ERROR                             (0x050EU)
+/* The response for an SMBus read whose PEC byte did not match */
+#define PEC_ERROR                                  (0x050FU)
 
 
 /* The iep counter increment value for 400KHz value */
 //  The IEP counts DEFAULT_INC = 5 per 200 MHz clock, so every increment
 //  must be a multiple of 5 to land exactly on a counter value.
-//  1 I2C instance, time-slice 125 (625/5) cycles.
-//  => bus clock time is 125*4/200e6 = 2.5 usec.
-//  => bus clock speed is 1/2.5e-6 = 400 kHz
-#define IEP_CMP_INCREMENT_VAL_400KHZ               (0x00000271U)  // 400 kHz
+//  A bit is 4 ticks with SCL low for 2 of them. Fast-mode needs
+//  tLOW >= 1.3 us, and the SCL edges move by a few cycles with the work
+//  done in each state, so the tick is 0.68 us: time-slice 136 (680/5)
+//  cycles, giving tLOW >= 1.33 us.
+//  => bus clock time is 136*4/200e6 = 2.72 usec.
+//  => bus clock speed is 1/2.72e-6 = 367.6 kHz (400 kHz with 1.25 us
+//     tLOW would be out of spec)
+#define IEP_CMP_INCREMENT_VAL_400KHZ               (0x000002A8U)  // 367.6 kHz
 #define IEP_CMP_INCREMENT_HALF_VAL_400KHZ          (0x00000138U)
 
 /* The iep counter increment value for 100KHz value */
