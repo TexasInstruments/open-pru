@@ -41,6 +41,9 @@ pru_emif
 * Emulate an Extended Memory Interface (EMIF) client 16-bit/32-bit asynchronous
   parallel interface to interface with C2K F28379D
 
+pru_eqep
+* PRU implementation of EQEP (Enhanced Quadrature Encoder Pulse) 
+
 spi_loopback
 * Implement a loopback SPI connection between 2 PRU cores that act as SPI master
   and SPI slave
@@ -87,6 +90,7 @@ For more information about the PRU features on each processor, refer to app note
 | split_radix_fft_post_processing | Y      | Yport  | Yport   | Yport  | Yport | Yport |
 | LCD_interface                   | Y      | Yport  | Yport   | Yport  | N-sw  | Yport |
 | logic_scope                     | Y      | Yport  | Yport   | Yport  | Yport | Yport |
+| pru_eqep                        | Y      |        |         |        |       |       |
 | pru_emif                        | Y      | Yport  | Yport   | Yport  | N-sw  | Yport |
 | spi_loopback                    | Y      | Yport  | Yport   | Yport  | N-sw  | Yport |
 | fir                             | Y      | Yport  | Yport   | Yport  | Yport | Yport |
