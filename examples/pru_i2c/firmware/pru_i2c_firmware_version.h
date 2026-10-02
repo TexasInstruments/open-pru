@@ -29,7 +29,7 @@
 ; OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 ;************************************************************************************
-;   File:     firmware_version.h
+;   File:     pru_i2c_firmware_version.h
 ;
 ;   Brief:   ICSS I2C Firmware version control file 
 ;************************************************************************************
