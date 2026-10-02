@@ -8,9 +8,22 @@
 
 This example demonstrates usage of PRU-ICSSG to emulate EMIF(Extended Memory Interface) client 16-bit/32-bit asynchronous parallel interface to interface with C2K F28379D.
 The F283879D initiates requests for 16-bit or 32-bit reads/writes over EMIF1 & PRU_ICSSG respond to these requests.PRU firmware (PRUEMIF16) executing on AM243x
-ICSSG PRU cores has been implemented to emulate the EMIF interface to repsond to 16 bit reads/writes. 
-It also responds to 32 bit reads/writes by converting into two 16 bit read/writes request seperately. 
+ICSSG PRU cores has been implemented to emulate the EMIF interface to respond to 16 bit reads/writes.
+It also responds to 32 bit reads/writes by converting into two 16 bit read/writes request separately.
 
+## Supported Combinations
+
+Refer to open-pru/examples/readme.md > Supported processors per-project
+for the list of processors that support building this project, and information
+about porting this project to other processors.
+
+## Validated HW & SW
+
+This project was tested on hardware with these software versions:
+
+| Processor | Hardware     | Software                                                                         |
+| --------- | ------------ | -------------------------------------------------------------------------------- |
+| am243x    | TMDS243GPEVM | MCU PLUS SDK FIXME, C2000Ware 4.02.00.00, C2000 CGT 22.6.1 LTS, OpenPRU FIXME      |
 
 ## Setup Details
 
@@ -453,7 +466,7 @@ Import the AM243x Test Application from the path mentioned in the project direct
 Import the F28379D Test Application project from ${C2000ware_path}\driverlib\f2837xd\examples\cpu1\emif\CCS path.Replace Source file &
 Setup file from pru_emif project directory.
 
-You can build the projects after a successfull export. 
+You can build the projects after a successful export.
 
 Pre-built PRU0 & PRU1 FW(firmware) images are contained in C header files located in:
 ${open-pru}/examples/pru_emif/pru_emif_app/firmware
@@ -463,7 +476,7 @@ firmware unless the firmware is modified.
 
 However The PRU EMIF16 firmware code can be modified and rebuilt if desired. The PRU0 and PRU1 firmware
 images are built separately.
-To build the firmware import the firmware project from the project directory and build them seperately for PRU0 & PRU1. 
+To build the firmware import the firmware project from the project directory and build them separately for PRU0 & PRU1.
 
 ## Target Configuration 
 
@@ -473,7 +486,7 @@ Please follow the steps below :
 - Right Click -> New Target Configuration 
 - Create a new target configuration with desired file name (i.e XDS100v2_XDS100.ccxml)
 - Go to Advanced target configuration 
-    - ![Advaned Target Configuration](images/Target_config_2.png)
+    - ![Advanced Target Configuration](images/Target_config_2.png)
 - Initiate two new connections 
     - XDS100v2 Debug Probe
     - XDS110 USB Debug Probe 
@@ -481,7 +494,7 @@ Please follow the steps below :
     - TMS32028379D
     - AM243x_GP_EVM
 - Target Configuration should look like this 
-    - ![Advaned Target Configuration](images/Target_Config_3.png)
+    - ![Advanced Target Configuration](images/Target_Config_3.png)
 - Save the configuration 
 
 ## Debug
@@ -549,7 +562,7 @@ PRU0 Firmware Top Level Program Flow
 ![PRU0 FIRMWARE TOP LEVEL](images/PRU0_FIRMWARE_TOP_LEVEL.png)
 
 ***
-PRU0 Firmware EMIF Read Progarm Flow
+PRU0 Firmware EMIF Read Program Flow
 
 ![PRU0_Firmware__EMIF_Read](images/PRU0_Firmware__EMIF_Read.png)
 
@@ -587,7 +600,7 @@ PRU1 Firmware Top Level Program Flow
 ![PRU1 FIRMWARE TOP LEVEL](images/PRU1_Firmware_Top_Level.png)
 
 ***
-PRU1 Firmware EMIF Read Progarm Flow  
+PRU1 Firmware EMIF Read Program Flow
 
 ![PRU1_Firmware__EMIF_Read](images/PRU1_Firmware_EMIF_Read.png)
 
@@ -628,5 +641,3 @@ PRU1 Firmware EMIF Write Program Flow
 <tr><td>21</td><td>n Write 16-bit Read Back 32-bit, EOB</td><td>F283879D write n 16-bit, read back n/2 32-bit words to/from AM243x DPM.<br>Write immediately before read in loop.<br>Write/read toward end of DPM buffer.</td><td>PASS</td><td>n=8</td></tr>
 <tr><td>22</td><td>n Write 32-bit Read Back 16-bit, SOB</td><td>F283879D write n/2 32-bit, read back n 16-bit words to/from AM243x DPM.<br>Write immediately before read in loop.<br>Write/read toward start of DPM buffer.</td><td>PASS</td><td>n=8</td></tr>
 <tr><td>23</td><td>n Write 32-bit Read Back 16-bit, EOB</td><td>F283879D write n/2 32-bit, read back n 16-bit words to/from AM243x DPM.<br>Write immediately before read in loop.<br>Write/read toward end of DPM buffer.</td><td>PASS</td><td>n=8</td></tr>
-
-

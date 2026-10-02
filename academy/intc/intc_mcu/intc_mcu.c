@@ -98,7 +98,7 @@ int32_t PRUICSS_goToSection(PRUICSS_Handle handle, uint32_t pruCore, uint32_t se
         else
             return SystemP_FAILURE;
 
-        /* TODO: decide the final memory and offset */
+        /* FIXME: decide the final memory and offset */
         CSL_REG32_WR(baseaddr + PRUICSS_PRGM_FLOW_CNTRL_OFFSET, sectionId);
         retVal = PRUICSS_sendEvent(handle, eventNum);
     }
@@ -126,11 +126,7 @@ void intc_mcu_main(void *args)
    DebugP_assert(gPruIcss0Handle != NULL);
 
    /* Initialize INTC */
-   #if defined(SOC_AM261X)
-   status = PRUICSS_intcInit(gPruIcss0Handle, &icss1_intc_initdata);
-   #else
    status = PRUICSS_intcInit(gPruIcss0Handle, &icss0_intc_initdata);
-   #endif
    DebugP_assert(SystemP_SUCCESS == status);
 
    /* Register interrupt handler */
