@@ -25,7 +25,7 @@ number to represent each kind of modification.
   | AM243X SDK      | Mandatory modifications | Optional modifications |
   | --------------- | ----------------------- | ---------------------- |
   | MCU+ 8.6 - 9.2  | [1] [2]                 | [4]                    |
-  | MCU+ 10.0       | [1], either [2] or [7]  | [4]                    |
+  | MCU+ 10.0       | [1]; either [2] or [7]  | [4]                    |
   | MCU+ 10.1-11.0  | Either [2] or [7]       |                        |
 
 </details>
@@ -35,27 +35,30 @@ number to represent each kind of modification.
 
   | AM261x SDK      | Mandatory modifications | Optional modifications |
   | --------------- | ----------------------- | ---------------------- |
-  | MCU+ SDK 10.0.1 | Either [2] or [3]       |                        |
+  | MCU+ SDK 10.0.1 | Either [2] or [3]; [8]  |                        |
+  | MCU+ SDK 10.2   | [8]                     |                        |
 
 </details>
 
 <details>
   <summary>AM263Px</summary>
 
-  | AM263Px SDK   | Mandatory modifications | Optional modifications |
-  | ------------- | ----------------------- | ---------------------- |
-  | MCU+ SDK 10.0 | [1]. Either [2] or [3]  | [4]                    |
-  | MCU+ SDK 10.1 | Either [2] or [3]       |                        |
+  | AM263Px SDK   | Mandatory modifications      | Optional modifications |
+  | ------------- | ---------------------------- | ---------------------- |
+  | MCU+ SDK 10.0 | [1]; Either [2] or [3]; [8]  | [4]                    |
+  | MCU+ SDK 10.1 | Either [2] or [3]; [8]       |                        |
+  | MCU+ SDK 10.2 | [8]                          |                        |
 
 </details>
 
 <details>
   <summary>AM263x</summary>
 
-  | AM263x SDK      | Mandatory modifications  | Optional modifications |
-  | --------------- | ------------------------ | ---------------------- |
-  | MCU+ 9.2        | [1]. Either [2] or [3]   | [4]                    |
-  | MCU+ 10.0, 10.1 | Either [2] or [3]        |                        |
+  | AM263x SDK      | Mandatory modifications       | Optional modifications |
+  | --------------- | ----------------------------- | ---------------------- |
+  | MCU+ 9.2        | [1]; Either [2] or [3]; [8]   | [4]                    |
+  | MCU+ 10.0, 10.1 | Either [2] or [3]; [8]        |                        |
+  | MCU+ 10.2       | [8]                           |                        |
 
 </details>
 
@@ -95,6 +98,8 @@ number to represent each kind of modification.
 [6. Apply patch to enable PRU RPMsg](#6-apply-patch-to-enable-pru-rpmsg). Affects: Linux RPMsg kernel driver
 
 [7. Revert MCU+ SDK 11.1 makefile updates](#7-revert-mcu-sdk-11-1-makefile-updates). Affects: AM243x & AM64x MCU+ cores
+
+[8. Revert AM26x MCU+ SDK 11.0 makefile updates](#8-revert-am26x-mcu-sdk-110-makefile-updates). Affects: AM26x MCU+ cores
 
 ## 1. Update SysConfig version
 
@@ -202,3 +207,19 @@ adding XML build infrastructure, and several other miscellaneous changes.
 In order to undo these changes, revert the file changes that were done in
 OpenPRU commit
 [AM243x & AM64x: Add support for MCU+ SDK 11.1&11.2](https://github.com/TexasInstruments/open-pru/commit/a29c10dbb4348065d13ba91af515e64e517e11a5)
+
+## 8. Revert AM26x MCU+ SDK 11.0 makefile updates
+
+Affects: AM26x MCU+ cores (AM261x, AM263Px, AM263x)
+
+Starting in AM26x MCU+ SDK 11.0, the makefile infrastructure for MCU+ cores
+is updated. Changes include adding the `-DOS_FREERTOS` define, renaming
+libraries to include a `.freertos.` infix, adding XML build infrastructure,
+updating the boot image format from appimage to MulticoreELF (MCELF), and
+several other miscellaneous changes.
+
+In order to undo these changes, revert the file changes that were done in
+OpenPRU commit
+[AM26x: Add support for MCU+ SDK 11.0](https://github.com/TexasInstruments/open-pru/commit/402bcbbfc0b699a5ebdee3a8dedefb565fa13056)
+and
+[AM26x: Update CCS project files for MCU+ SDK 11.0+](https://github.com/TexasInstruments/open-pru/commit/b12ce335e1bfc4f82cc21b6892d3feecdd29d990).

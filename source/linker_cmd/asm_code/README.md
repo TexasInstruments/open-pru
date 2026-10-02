@@ -8,5 +8,6 @@ source/linker_cmd/c_code.
 ## More information
 
 For training on how to customize the linker.cmd file for your project, refer to
-the PRU Academy.
+your processor's PRU Academy > Getting Started Labs > Lab 2: How to Write PRU
+Firmware.
 

@@ -9,14 +9,18 @@
 [Checking out a specific release](#checking-out-a-specific-release)  
 [Compatible versions of CCS & other tools](#compatible-versions-of-ccs--other-tools)  
 [All Release Notes](#all-release-notes)  
-[v2026.01.00](#v20260100)
-[v2026.00.00](#v20260000)
+[v2026.02.00](#v20260200),
+[v2026.01.00](#v20260100),
+[v2026.00.00](#v20260000),
 [v2025.00.00](#v20250000)
 
 The open-pru repo does not have official software releases like the TI SDKs.
 
 Instead, we will regularly update the open-pru repo. When the repo has
 been significantly changed, we will add a new tag to the main branch.
+
+Starting with v2026.02.00, academy links are in the top-level README.md instead
+of specific release notes.
 
 ## Checking out a specific release
 
@@ -39,6 +43,52 @@ Use the CCS and tool versions listed in
 repo is checked out to the specific release tag that you are using.
 
 ## All Release Notes
+
+### v2026.02.00
+
+#### Major Updates
+
+* AM26x: add support for MCU+ SDK 11.0 - 26.0 [1]
+  * am261x, am263px, and am263x FreeRTOS projects build with MCU+ SDK
+    11.0, 11.1, and 26.0
+  * Update AM26x CCS project files for MCU+ SDK 11.0+
+
+* GitHub CI: test latest MCU+ SDK releases
+  * am261x, am263px, am263x: MCU+ SDK 26.0
+  * am243x, am64x: MCU+ SDK 12.0
+
+* rpmsg: add GCC (Linux/A53) build support
+  * New rpmsg example built with the GCC toolchain
+
+#### Supported Processors
+
+AM243x, AM261x, AM263Px, AM263x, AM62x, AM64x
+
+#### Compatible SDKs
+
+These SDK release versions can be used to build OpenPRU projects with a specific
+tag. The OpenPRU projects may require modifications before they can be built
+with older SDK versions. For more information, refer to
+[Using Older SDKs with OpenPRU](./using_older_sdks_with_open_pru.md).
+
+| SDK       | am243x      | am261x      | am263px     | am263x      | am62x      | am64x       |
+| --------- | ----------- | ----------- | ----------- | ----------- | ---------- | ----------- |
+| MCU+ SDK  | 11.1 - 12.0 | 11.0 - 26.0 | 11.0 - 26.0 | 11.0 - 26.0 | N/A        | 11.1 - 12.0 |
+| Linux SDK | N/A         | N/A         | N/A         | N/A         | 11.x, 12.x | 11.x, 12.x  |
+
+#### Additional Updates & bugfixes
+
+* docs: document PRU assembly `.include` separator conventions; add PR
+  compliance check for include separators
+
+* rpmsg (GCC): fix integer cast of pointer; fix compiler warning; add missing
+  header
+
+[1]
+* Adding support for AM26x MCU+ SDK 11.0 breaks backwards compatibility with
+  AM26x MCU+ SDK 10.2. For more information on building an OpenPRU project with
+  an older version of MCU+ SDK, refer to
+  [Using Older SDKs with OpenPRU](./using_older_sdks_with_open_pru.md)
 
 ### v2026.01.00
 
