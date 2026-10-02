@@ -48,18 +48,21 @@ This example has **not been validated on hardware**. It has only been built.
 
 ## PRU <-> host memory interface
 
-The host core talks to the firmware through the data RAM of the PRU core that
-runs the firmware (PRU0 -> DMEM0, PRU1 -> DMEM1). The firmware reads and writes
-this memory at local address 0. All offsets and bit definitions are in
+The host core talks to the firmware through PRU data RAM. The two global
+words (IRQ register and frequency) are always in DMEM0, for PRU0 and PRU1
+alike: the firmware reads them through `ICSS_DMEM0_CONST`. The instance block
+and the TX/RX buffers are in the data RAM of the core that runs the firmware
+(PRU0 -> DMEM0, PRU1 -> DMEM1), at local address 0x100. All offsets and bit
+definitions are in
 [firmware/pru_i2c_interface.h](firmware/pru_i2c_interface.h), the host code
 includes that header instead of repeating the values.
 
- Offset (DMEM)     | Size | Name                                   | Description
+ Offset            | Size | Name                                   | Description
  ------------------|------|----------------------------------------|-------------
- 0x0008            | u16  | `IRQ_COMMON_REGISTER_OFFSET`           | Bit `<instance id>` is **set by the PRU** when a response is ready and **cleared by the host** to acknowledge it. The PRU does not accept the next command until the bit is cleared.
- 0x000C            | u16  | `I2C_BUS_FREQUENCY_OFFSET`             | Bus frequency: `ICSS_I2C_100KHZ_FREQ` (3), `ICSS_I2C_400KHZ_FREQ` (2), `ICSS_I2C_1MHZ_FREQ` (1). Any other value sends the firmware into an error loop.
- 0x000E            | u16  | `I2C_BUS_FREQUENCY_OFFSET` + 2         | IEP compare increment for the selected frequency (`IEP_CMP_INCREMENT_VAL_400KHZ`, ...)
- 0x0100            |      | `ICSS_I2C_INSTANCE0_ADDR`              | Start of the instance 0 block (offsets below are relative to it)
+ DMEM0 0x0008      | u16  | `IRQ_COMMON_REGISTER_OFFSET`           | Shared by both cores. Bit `<instance id>` is **set by the PRU** when a response is ready and **cleared by the host** to acknowledge it. The PRU does not accept the next command until the bit is cleared.
+ DMEM0 0x000C      | u16  | `I2C_BUS_FREQUENCY_OFFSET`             | Shared by both cores. Bus frequency selector: `ICSS_I2C_100KHZ_FREQ` (3), `ICSS_I2C_400KHZ_FREQ` (2), `ICSS_I2C_1MHZ_FREQ` (1). Any other value sends the firmware into an error loop.
+ DMEM0 0x000E      | u16  | `I2C_BUS_FREQUENCY_OFFSET` + 2         | IEP compare increment per state tick (4 ticks per SCL period), a multiple of the IEP DEFAULT_INC (5). See "Bus frequency" below.
+ own DMEM 0x0100   |      | `ICSS_I2C_INSTANCE0_ADDR`              | Start of the instance 0 block (offsets below are relative to it)
  + 0x08            | u16  | `ICSS_I2C_COMMAND_OFFSET`              | Response of the PRU (`COMMAND_SUCCESS` 0x0500, `ADDRESS_ACKNOWLDEGE_FAILED`, `DATA_ACKNOWLDEGE_FAILED`, `INVALID_COMMAND`, ...)
  + 0x0A            | u16  | `ICSS_I2C_COMMAND_OFFSET` + 2          | Command from the host (`ICSS_I2C_SETUP_CMD`, `ICSS_I2C_TX_CMD`, `ICSS_I2C_RX_CMD`, ...). The PRU clears it when it raises the response.
  + 0x94 / + 0x95   | u8   | `ICSS_I2C_BUF_OFFSET`                  | TX / RX FIFO size
@@ -67,7 +70,7 @@ includes that header instead of repeating the values.
  + 0xA4            | u32  | `ICSS_I2C_CON_OFFSET`                  | Configuration: bit 15 module enable, bit 10 master (must be 1), bit 8 10-bit addressing, bit 5 SMBus burst, bit 4 NACK the last read byte, bit 1 send STOP, bit 0 send START
  + 0xAC            | u16  | `ICSS_I2C_SA_OFFSET`                   | 7-bit target address
  + 0xD8 / + 0xD9   | u8   | `ICSS_I2C_PRU_PIN_OFFSET`              | SCL / SDA pin: the bit number in R30 (output) and R31 (input)
- + 0xE4            | u8   | `ICSS_I2C_PRU_INST_ID_OFFSET`          | Instance id, the bit used in the IRQ register (use 0)
+ + 0xE4            | u8   | `ICSS_I2C_PRU_INST_ID_OFFSET`          | Instance id, the bit used in the shared IRQ register. The example uses the core number, so a PRU0 and a PRU1 instance do not collide.
  + 0x100 (0x0200)  | 256 B| `ICSS_I2C_INSTANCE0_TX_MEM`            | TX buffer
  + 0x200 (0x0300)  | 256 B| `ICSS_I2C_INSTANCE0_RX_MEM`            | RX buffer
 
@@ -107,8 +110,8 @@ MSS_CTRL (1 = output disabled; PRU0 at 0x50D00810, PRU1 at 0x50D00814) and
 back to an output by clearing it. SysConfig sets that bit for every PRU GPIO
 configured with "rx", which includes SDA. The R5F example therefore clears the
 SDA bit of this register before it starts the PRU, so that the PRU can drive
-the START condition. The example assumes the firmware uses the register of the
-PRU core it runs on.
+the START condition. The firmware selects the register of the core it is built
+for (`-DPRU0` / `-DPRU1`, and `-DICSSM1` for ICSSM1).
 
 # Pin assignment (AM261x-LP)
 
@@ -211,13 +214,14 @@ was not accepted.
   The pointer-then-read sequence of the demo therefore uses two separate
   transactions and works only with targets that keep their pointer across a
   STOP (EEPROM-like). Targets that need a repeated START are not covered.
-* **Bus frequency is nominal.** The timing constants in
-  `pru_i2c_interface.h` are calculated for a 200 MHz ICSS clock. The
-  SysConfig configuration of this example sets the ICSSM0 core clock to 225 MHz
-  and the IEP clock to 250 MHz (`CONFIG_PRU_ICSS0_CORE_CLK_FREQ_HZ`,
-  `CONFIG_PRU_ICSS0_IEP_CLK_FREQ_HZ` in the generated `ti_drivers_config.h`), so
-  the real SCL frequency can differ from the selected 100 kHz / 400 kHz /
-  1 MHz. Measure SCL on the bus before relying on the timing.
+* **Bus frequency.** The `IEP_CMP_INCREMENT_VAL_*` constants in
+  `pru_i2c_interface.h` assume a 200 MHz IEP clock. With the default SysConfig
+  settings of this example the IEP clock is 250 MHz
+  (`CONFIG_PRU_ICSS0_IEP_CLK_FREQ_HZ` in the generated `ti_drivers_config.h`;
+  200 MHz needs the R5F at 400 MHz), so the example derives the increment from
+  that define instead (`PRU_I2C_IEP_INCREMENT`), rounding up so SCL never runs
+  faster than `PRU_I2C_BUS_HZ`. At 250 MHz and 400 kHz that is 157 IEP clocks
+  per tick, about 398 kHz. Not yet measured on a board.
 * The example polls the IRQ bit instead of using the PRU interrupt.
 * The example is built for NORTOS on the r5fss0-0 core of the AM261x-LP only.
 * Build-tested only, see "Validated HW & SW".

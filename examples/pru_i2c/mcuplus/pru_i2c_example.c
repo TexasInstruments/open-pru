@@ -83,11 +83,22 @@
 #define PRU_I2C_SCL_PIN         (18U)
 #define PRU_I2C_SDA_PIN         (19U)
 
-/* I2C bus frequency selection, one of ICSS_I2C_100KHZ_FREQ,
- * ICSS_I2C_400KHZ_FREQ or ICSS_I2C_1MHZ_FREQ. The IEP compare increment
- * (time between state machine ticks) has to match the selected frequency. */
+/* I2C bus frequency. PRU_I2C_BUS_FREQ is the firmware's frequency selector
+ * (ICSS_I2C_100KHZ_FREQ, ICSS_I2C_400KHZ_FREQ or ICSS_I2C_1MHZ_FREQ). The
+ * actual SCL rate is set by the IEP compare increment below. */
 #define PRU_I2C_BUS_FREQ        (ICSS_I2C_400KHZ_FREQ)
-#define PRU_I2C_IEP_INCREMENT   (IEP_CMP_INCREMENT_VAL_400KHZ)
+#define PRU_I2C_BUS_HZ          (400000U)
+
+/* The firmware advances its state machine once per IEP compare event and
+ * needs 4 ticks per SCL period. The IEP counts PRU_I2C_IEP_DEFAULT_INC per
+ * IEP clock, and its clock comes from SysConfig (250 MHz by default on
+ * AM261x, while the IEP_CMP_INCREMENT_VAL_* constants in
+ * pru_i2c_interface.h assume 200 MHz). So derive the increment from the
+ * configured IEP clock, rounding the tick up to a whole IEP clock so that
+ * SCL never runs faster than PRU_I2C_BUS_HZ. */
+#define PRU_I2C_IEP_DEFAULT_INC (5U)
+#define PRU_I2C_IEP_CLKS_PER_TICK     ((CONFIG_PRU_ICSS0_IEP_CLK_FREQ_HZ + (4U * PRU_I2C_BUS_HZ) - 1U) / (4U * PRU_I2C_BUS_HZ))
+#define PRU_I2C_IEP_INCREMENT   (PRU_I2C_IEP_CLKS_PER_TICK * PRU_I2C_IEP_DEFAULT_INC)
 
 /* 7-bit address of the I2C target used for the demo transfers */
 #define PRU_I2C_TARGET_ADDR     (0x50U)
@@ -118,14 +129,15 @@
 #define PRU_I2C_OUT_CTRL_REG    (CSL_MSS_CTRL_U_BASE + CSL_MSS_CTRL_ICSSM0_PRU1_GPIO_OUT_CTRL)
 #endif
 
-/* Offsets inside the PRU data RAM of the selected core (PRU0 -> DMEM0,
- * PRU1 -> DMEM1; the firmware accesses it at local address 0).
- * The layout is defined by pru_i2c_interface.h. */
+/* Global words, shared by both PRU cores. The firmware reads them through
+ * ICSS_DMEM0_CONST, which is DMEM0 on PRU0 and on PRU1 alike, so they always
+ * live in PRU0's data RAM. The layout is defined by pru_i2c_interface.h. */
 #define PRU_I2C_IRQ_REG         (IRQ_COMMON_REGISTER_OFFSET)            /* u16: bit n set by PRU, cleared by R5F */
 #define PRU_I2C_FREQ_REG        (I2C_BUS_FREQUENCY_OFFSET)              /* u16: frequency selection */
 #define PRU_I2C_IEP_INC_REG     (I2C_BUS_FREQUENCY_OFFSET + 2U)         /* u16: IEP compare increment */
 
-/* Instance 0 registers. ICSS_I2C_COMMAND_OFFSET is a 32-bit word: the low
+/* Instance 0 registers, in the data RAM of the core that runs the firmware
+ * (PRU0 -> DMEM0, PRU1 -> DMEM1). ICSS_I2C_COMMAND_OFFSET is a 32-bit word: the low
  * half is the response of the PRU, the high half is the command from the R5F. */
 #define PRU_I2C_RESPONSE_REG    (ICSS_I2C_INSTANCE0_ADDR + ICSS_I2C_COMMAND_OFFSET)
 #define PRU_I2C_COMMAND_REG     (ICSS_I2C_INSTANCE0_ADDR + ICSS_I2C_COMMAND_OFFSET + 2U)
@@ -138,8 +150,9 @@
 #define PRU_I2C_SDA_PIN_REG     (ICSS_I2C_INSTANCE0_ADDR + ICSS_I2C_PRU_PIN_OFFSET + 1U) /* u8 */
 #define PRU_I2C_INST_ID_REG     (ICSS_I2C_INSTANCE0_ADDR + ICSS_I2C_PRU_INST_ID_OFFSET)  /* u8 */
 
-/* Bit of the IRQ register that belongs to instance 0 */
-#define PRU_I2C_INST_ID         (0U)
+/* Bit of the shared IRQ register that belongs to this instance. Use the core
+ * number so a PRU0 and a PRU1 instance can run side by side. */
+#define PRU_I2C_INST_ID         (PRU_I2C_PRU_CORE)
 
 /* The firmware accepts a data count of 1..255 */
 #define PRU_I2C_MAX_COUNT       (255U)
@@ -152,6 +165,8 @@ PRUICSS_Handle gPruIcss0Handle;
 
 /* Base address of the data RAM of the PRU that runs the I2C firmware */
 static uintptr_t gPruDmemBase;
+/* Base address of DMEM0, which holds the global IRQ and frequency words */
+static uintptr_t gPruGlobalBase;
 
 /* ========================================================================== */
 /*                          Local function definitions                        */
@@ -188,7 +203,7 @@ static int32_t PruI2c_waitForPru(uint32_t timeoutUs)
 {
     uint64_t start = ClockP_getTimeUsec();
 
-    while ((HW_RD_REG16(gPruDmemBase + PRU_I2C_IRQ_REG) & (1U << PRU_I2C_INST_ID)) == 0U)
+    while ((HW_RD_REG16(gPruGlobalBase + PRU_I2C_IRQ_REG) & (1U << PRU_I2C_INST_ID)) == 0U)
     {
         if ((ClockP_getTimeUsec() - start) > timeoutUs)
         {
@@ -202,10 +217,10 @@ static int32_t PruI2c_waitForPru(uint32_t timeoutUs)
  * before it accepts the next command. */
 static void PruI2c_ackPru(void)
 {
-    uint16_t irq = HW_RD_REG16(gPruDmemBase + PRU_I2C_IRQ_REG);
+    uint16_t irq = HW_RD_REG16(gPruGlobalBase + PRU_I2C_IRQ_REG);
 
     irq &= (uint16_t)~(1U << PRU_I2C_INST_ID);
-    HW_WR_REG16(gPruDmemBase + PRU_I2C_IRQ_REG, irq);
+    HW_WR_REG16(gPruGlobalBase + PRU_I2C_IRQ_REG, irq);
 }
 
 /* Send a command to the PRU, wait for its response and acknowledge it. */
@@ -240,6 +255,7 @@ static int32_t PruI2c_init(void)
     hwAttrs = PRUICSS_getAttrs(CONFIG_PRU_ICSS0);
     DebugP_assert(hwAttrs != NULL);
     gPruDmemBase = (PRU_I2C_PRU_CORE == 0U) ? hwAttrs->pru0DramBase : hwAttrs->pru1DramBase;
+    gPruGlobalBase = hwAttrs->pru0DramBase;
 
     /* PRUICSS_loadFirmware() enables the PRU core right away, and the
      * firmware reads the frequency settings once while it boots. So stop the
@@ -255,9 +271,12 @@ static int32_t PruI2c_init(void)
         return SystemP_FAILURE;
     }
 
-    /* Bus frequency (u16) and IEP compare increment (u16) */
-    HW_WR_REG16(gPruDmemBase + PRU_I2C_FREQ_REG, PRU_I2C_BUS_FREQ);
-    HW_WR_REG16(gPruDmemBase + PRU_I2C_IEP_INC_REG, PRU_I2C_IEP_INCREMENT);
+    /* Bus frequency (u16) and IEP compare increment (u16), shared by both
+     * cores. Clear only this instance's IRQ bit: the other core's instance
+     * may be using the same register. */
+    HW_WR_REG16(gPruGlobalBase + PRU_I2C_FREQ_REG, PRU_I2C_BUS_FREQ);
+    HW_WR_REG16(gPruGlobalBase + PRU_I2C_IEP_INC_REG, PRU_I2C_IEP_INCREMENT);
+    PruI2c_ackPru();
 
     /* Instance 0 configuration */
     /* TX and RX buffers are 256 bytes each */
