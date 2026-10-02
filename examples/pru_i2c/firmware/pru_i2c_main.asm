@@ -78,11 +78,62 @@ PRU1_IEP_CMP_ENABLE_BIT             .set    2
 PRU0_IEP_CMP_STATUS_BIT             .set    0
 PRU1_IEP_CMP_STATUS_BIT             .set    1
 
-
 ; Bank ids for Xfer instructions
 BANK0                 .set    10
 BANK1                 .set    11
 BANK2                 .set    12
+
+; MSS_CTRL ICSSMx_PRUy_GPIO_OUT_CTRL (AM261x, cslr_mss_ctrl.h). Setting a bit
+; disables the output driver of that PRU GPO pin, which releases the line to
+; the external pull-up. Used to hand SDA to the target for ACK and read data.
+ICSSM0_PRU0_GPIO_OUT_CTRL           .set    0x50D00810
+ICSSM0_PRU1_GPIO_OUT_CTRL           .set    0x50D00814
+ICSSM1_PRU0_GPIO_OUT_CTRL           .set    0x50D00818
+ICSSM1_PRU1_GPIO_OUT_CTRL           .set    0x50D0081C
+
+; Per-core resources. The IEP and the scratchpad banks are shared by both
+; PRUs, so each core must use its own compare register, status bit, enable
+; bit and context bank. The build must define exactly one of PRU0 / PRU1
+; (projectspec -DPRU0/-DPRU1, makefile DFLAGS); icss_constant_defines.inc
+; also relies on it to select the DMEM constants.
+    .if $defined("PRU0")
+I2C_IEP_CMP_REG                     .set    PRU0_IEP_CMP_REG
+I2C_IEP_CMP_ENABLE_BIT              .set    PRU0_IEP_CMP_ENABLE_BIT
+I2C_IEP_CMP_STATUS_BIT              .set    PRU0_IEP_CMP_STATUS_BIT
+I2C_CONTEXT_BANK                    .set    BANK0
+    .if $defined("ICSSM1")
+I2C_GPIO_OUT_CTRL                   .set    ICSSM1_PRU0_GPIO_OUT_CTRL
+    .else
+I2C_GPIO_OUT_CTRL                   .set    ICSSM0_PRU0_GPIO_OUT_CTRL
+    .endif
+    .elseif $defined("PRU1")
+I2C_IEP_CMP_REG                     .set    PRU1_IEP_CMP_REG
+I2C_IEP_CMP_ENABLE_BIT              .set    PRU1_IEP_CMP_ENABLE_BIT
+I2C_IEP_CMP_STATUS_BIT              .set    PRU1_IEP_CMP_STATUS_BIT
+I2C_CONTEXT_BANK                    .set    BANK1
+    .if $defined("ICSSM1")
+I2C_GPIO_OUT_CTRL                   .set    ICSSM1_PRU1_GPIO_OUT_CTRL
+    .else
+I2C_GPIO_OUT_CTRL                   .set    ICSSM0_PRU1_GPIO_OUT_CTRL
+    .endif
+    .else
+    .emsg "pru_i2c: define PRU0 or PRU1 for the core this firmware runs on"
+    .endif
+
+; Register usage:
+;   R1-R8    TEMP_REG1..8, scratch. TEMP_REG3.w0 holds the state return
+;            address while a state runs (JAL in I2C_WAVE_FUNCTION0).
+;   R10-R19  I2C instance context, saved/restored with XIN/XOUT on
+;            I2C_CONTEXT_BANK:
+;            R10 instance base, R11 Tx buffer, R12 Rx buffer,
+;            R13.w0 next state, R13.w2 slave address shift register,
+;            R14 b0 SCL pin, b1 SDA pin, b3 instance id,
+;            R15 b0 bit count, b1 data byte, b2 byte index, b3 byte count,
+;            R16 control flags (ICSS_I2C_*_BIT), R17.w0 post-address state.
+;   R20-R21  next IEP compare value (64-bit), R22 frequency word.
+;   R27-R29  scratch for SET_SDA_PIN_*_DIRECTION.
+
+
 ;--------------------------------------------------------------------------------------
 
 ;********
@@ -126,7 +177,7 @@ init:
     LDI32  R19 , 0x00000000
     
     LDI    R0.b0, 0x00
-    XOUT   BANK0, &R10, 40
+    XOUT   I2C_CONTEXT_BANK, &R10, 40
     
     ;add a variable delay for N cyles to avoid contention
     ;between PRU0 and PRU1 if both out of reset at the same time.
@@ -155,10 +206,9 @@ init:
     QBEQ   TASK_LOOP_400Khz, I2C_GLOBAL_FREQ_REG.w0, ICSS_I2C_400KHZ_FREQ
     QBEQ   TASK_LOOP_1Mhz, I2C_GLOBAL_FREQ_REG.w0, ICSS_I2C_1MHZ_FREQ
     
+;   Unsupported frequency selector. Do not stop the IEP counter here: it is
+;   shared with the other PRU, whose I2C instance may already be running.
 ERROR_LOOP:
-    LBCO    &TEMP_REG1, ICSS_IEP_CONST, ICSS_IEP_GLOBAL_CFG_REG, 4
-    CLR     TEMP_REG1 , TEMP_REG1 , 0
-    SBCO    &TEMP_REG1, ICSS_IEP_CONST, ICSS_IEP_GLOBAL_CFG_REG, 4
     LDI     TEMP_REG5.w0, ICSS_INTC_SRSR1
     LDI32   TEMP_REG6, 0x00400000
     SBCO    &TEMP_REG6, ICSS_INTC_CONST, TEMP_REG5.w0, 4
@@ -976,6 +1026,9 @@ ADDRESS_SDA_READ:
 ADDRESS_SCL_END:
     SET_SCL_PIN_LOW
     QBGT    SDA_NEXT_BIT, R15.b0, 0x08
+    ; release SDA on the falling edge after the 8th bit: the target may drive
+    ; ACK from here on (SCL is already low, so this is not a STOP)
+    SET_SDA_PIN_INPUT_DIRECTION
     UPDATE_NEXT_LOCAL_STATE ADDRESS_ACK_BEGIN
     STATE_TASK_OVER
 
@@ -984,10 +1037,9 @@ SDA_NEXT_BIT:
     STATE_TASK_OVER
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;  change the direction of PIN as INPUT.
+;  SDA was released in ADDRESS_SCL_END; this tick keeps the 4-tick bit timing
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ADDRESS_ACK_BEGIN:
-    SET_SDA_PIN_INPUT_DIRECTION
     UPDATE_NEXT_LOCAL_STATE ADDRESS_ACK_SCL_BEGIN
     STATE_TASK_OVER
 
@@ -1014,9 +1066,17 @@ ADDRESS_ACK_READ:
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ADDRESS_ACK_SCL_END:
     SET_SCL_PIN_LOW
-    ;SET the dirction for GPIO
-    SET_SDA_PIN_OUTPUT_DIRECTION
     QBBS    ADDRESS_ACK_NOT_RECIEVED, R16, ICSS_I2C_ACK_RECIEVED_BIT
+    ; In a read, the target starts driving the first data bit as soon as SCL
+    ; falls after its ACK, so SDA must stay released. Only take SDA back when
+    ; the master transmits next: a write, or the second byte of a 10-bit
+    ; address.
+    QBBC    ADDRESS_ACK_SDA_OUTPUT, R16, ICSS_I2C_READ_WRITE_BIT
+    QBBC    ADDRESS_ACK_SDA_DONE, R16, ICSS_I2C_ADDRESSING_MODE_BIT
+    QBEQ    ADDRESS_ACK_SDA_DONE, R15.b2, 0x01
+ADDRESS_ACK_SDA_OUTPUT:
+    SET_SDA_PIN_OUTPUT_DIRECTION
+ADDRESS_ACK_SDA_DONE:
     QBBC    ADDRESS_ACK_SCL_END_DONE, R16, ICSS_I2C_ADDRESSING_MODE_BIT
     QBEQ    ADDRESS_ACK_SCL_END_DONE, R15.b2, 0x01
     ADD     R15.b2, R15.b2, 0x01
@@ -1037,6 +1097,7 @@ ADDRESS_ACK_NOT_RECIEVED:
 ;  raise an interrupt
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 NO_ADDRESS_ACK_RECIEVED:
+    SET_SDA_PIN_OUTPUT_DIRECTION
     SET_SCL_PIN_HIGH
     LDI     TEMP_REG4.w0, ADDRESS_ACKNOWLDEGE_FAILED
     SBBO    &TEMP_REG4, R10, ICSS_I2C_COMMAND_OFFSET, 2

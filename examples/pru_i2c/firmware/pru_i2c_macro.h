@@ -29,7 +29,7 @@
 ; OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 ;************************************************************************************
-;   File:     icss_i2c_macro.h
+;   File:     pru_i2c_macro.h
 ;
 ;   Brief:   This file contains ICSS I2C macros definations  
 ;************************************************************************************
@@ -79,26 +79,32 @@ ENABLE_XIN_XOUT_SHITFTING    .macro
 ;
 ;   Macro: I2C_WAIT_FOR_IEP_CMP
 ;
-;   wait until the IEP CMP Event triggers and interrupt
-;   
+;   wait until this core's IEP compare event (I2C_IEP_CMP_STATUS_BIT) is set
+;
 ;   PEAK cycles:
-;       NA
+;       Unbounded by design: this is the scheduler tick. It returns at most
+;       one IEP compare period after the previous tick. The compare is armed
+;       by I2C_SETUP_IEP_COUNTER and re-armed by I2C_IEP_INTC_CLEAR_EVENT, and
+;       the shared IEP counter is never stopped by this firmware, so the wait
+;       always terminates. There is no other time base to time it out against.
 ;   Pseudo code:
-;       while(r31.t31==0)
+;       while(IEP_CMP_STATUS_REG.I2C_IEP_CMP_STATUS_BIT == 0)
 ;
 ;   Parameters:
-;      None 
+;      None
 ;
 ;   Returns:
 ;      None
+;
+;   Registers modified:
+;      TEMP_REG1
 ;
 ;************************************************************************************
 I2C_WAIT_FOR_IEP_CMP    .macro
 
 WAIT_FOR_INT?:
     LBCO   &TEMP_REG1, ICSS_IEP_CONST, ICSS_IEP_CMP_STATUS_REG, 4
-    QBBC    WAIT_FOR_INT?, TEMP_REG1, PRU0_IEP_CMP_STATUS_BIT
-    ;;;;QBBC WAIT_FOR_INT?, R31, 31
+    QBBC    WAIT_FOR_INT?, TEMP_REG1, I2C_IEP_CMP_STATUS_BIT
 
     .endm
 
@@ -125,33 +131,20 @@ I2C_IEP_INTC_CLEAR_EVENT    .macro    arg1
 
     ; clear the IEP compare event happened
     LBCO   &TEMP_REG1, ICSS_IEP_CONST, ICSS_IEP_CMP_STATUS_REG, 4
-    .if $defined("PRU0")
-    QBBS    IEP_INTC_CLEAR?, TEMP_REG1, PRU0_IEP_CMP_STATUS_BIT
+    QBBS    IEP_INTC_CLEAR?, TEMP_REG1, I2C_IEP_CMP_STATUS_BIT
     JMP     arg1
-    .else
-    QBBS    IEP_INTC_CLEAR?, TEMP_REG1, PRU1_IEP_CMP_STATUS_BIT
-    JMP     arg1
-    .endif
 IEP_INTC_CLEAR?:
-    
-    .if $defined("PRU0")
-    SET    TEMP_REG1, TEMP_REG1, PRU0_IEP_CMP_STATUS_BIT
-    .else
-    SET    TEMP_REG1, TEMP_REG1, PRU1_IEP_CMP_STATUS_BIT
-    .endif
+
+    ; write-1-to-clear only this core's bit: the other PRU shares the register
+    LDI     TEMP_REG1, 0
+    SET     TEMP_REG1, TEMP_REG1, I2C_IEP_CMP_STATUS_BIT
     SBCO   &TEMP_REG1, ICSS_IEP_CONST, ICSS_IEP_CMP_STATUS_REG, 4
 
     ;Set compare values
     ADD     IEP_COUNTER_NEXT_VAL1, IEP_COUNTER_NEXT_VAL1, I2C_GLOBAL_FREQ_REG.w2
     ADC     IEP_COUNTER_NEXT_VAL2, IEP_COUNTER_NEXT_VAL2, 0x00
-    .if $defined("PRU0")
-    SBCO    &IEP_COUNTER_NEXT_VAL1, ICSS_IEP_CONST, PRU0_IEP_CMP_REG, 8
-    .endif  ;PRU0
+    SBCO    &IEP_COUNTER_NEXT_VAL1, ICSS_IEP_CONST, I2C_IEP_CMP_REG, 8
 
-    .if $defined("PRU1")
-    SBCO    &IEP_COUNTER_NEXT_VAL1, ICSS_IEP_CONST, PRU1_IEP_CMP_REG, 8
-    .endif  ;PRU1
-    
     ; Clear the intc interrupt event flag
     LDI    TEMP_REG1.w0, 0x0080
     LDI    TEMP_REG2.w0, ICSS_INTC_SECR1
@@ -181,14 +174,14 @@ I2C_WAVE_FUNCTION0    .macro
 
     ;Restore I2C instance context
     LDI    R0.b0, 0x00
-    XIN    BANK0, &R10, 40
+    XIN    I2C_CONTEXT_BANK, &R10, 40
    
     ;Jump and link to the next task function
     JAL    TEMP_REG3.w0, R13.w0 ;R13 store RESET MODE 
     
     ;Save context to SPAD
     LDI    R0.b0, 0x00
-    XOUT   BANK0, &R10, 40
+    XOUT   I2C_CONTEXT_BANK, &R10, 40
     
     .endm
 
@@ -625,6 +618,10 @@ tx_data_sda_read?:
 tx_data_scl_end?:
     SET_SCL_PIN_LOW
     QBGT    tx_sda_next_bit?, R15.b0, 0x08
+    ; The target may drive ACK as soon as SCL falls after the 8th bit, so
+    ; release SDA on this edge rather than one tick later. SCL is already low,
+    ; so the release cannot be seen as a STOP.
+    SET_SDA_PIN_INPUT_DIRECTION
     LDI     R13.w0, $CODE(tx_data_ack_begin?)
     STATE_TASK_OVER
 
@@ -633,10 +630,9 @@ tx_sda_next_bit?:
     STATE_TASK_OVER
 
 ;
-;  Change direction of GPIO
+;  SDA was released in tx_data_scl_end; this tick keeps the 4-tick bit timing
 ;
 tx_data_ack_begin?:
-    SET_SDA_PIN_INPUT_DIRECTION
     LDI     R13.w0, $CODE(tx_data_ack_scl_begin?)
     STATE_TASK_OVER
 
@@ -763,41 +759,18 @@ I2C_SETUP_IEP_COUNTER     .macro
     SBCO    &TEMP_REG1, ICSS_IEP_CONST, ICSS_IEP_GLOBAL_CFG_REG, 4
 
 iep_counter_setup_done?:
-    ;Set compare values
-    
-    LDI     TEMP_REG3.w0, ICSS_I2C_CONFIG_MEMORY
-    LBCO    &IEP_COUNTER_NEXT_VAL1, ICSS_DMEM0_CONST, TEMP_REG3.w0, 8
-    LBCO    &TEMP_REG2, ICSS_IEP_CONST, ICSS_IEP_COUNT_REG, 8
-    
-    ;;;debug code 
-    ;;.if $defined("DEBUG_CODE")
-    LDI IEP_COUNTER_NEXT_VAL1, 0x9c3
-    LDI IEP_COUNTER_NEXT_VAL2, 0x0
-    ;;.endif
-
-loop3?:
+    ; First compare = current count + one tick. Starting from the live count
+    ; (rather than a constant) is what lets the second PRU join a counter the
+    ; first PRU already started.
+    LBCO    &IEP_COUNTER_NEXT_VAL1, ICSS_IEP_CONST, ICSS_IEP_COUNT_REG, 8
     ADD     IEP_COUNTER_NEXT_VAL1, IEP_COUNTER_NEXT_VAL1, I2C_GLOBAL_FREQ_REG.w2
     ADC     IEP_COUNTER_NEXT_VAL2, IEP_COUNTER_NEXT_VAL2, 0x00
-    ;;QBGT    loop3?, IEP_COUNTER_NEXT_VAL2, TEMP_REG3
-    ;;QBLT    loop4?, IEP_COUNTER_NEXT_VAL2, TEMP_REG3
-    ;;QBGT    loop3?, IEP_COUNTER_NEXT_VAL1, TEMP_REG2
-loop4?:
-    ;;ADD     IEP_COUNTER_NEXT_VAL1, IEP_COUNTER_NEXT_VAL1, I2C_GLOBAL_FREQ_REG.w2
-    ;;ADC     IEP_COUNTER_NEXT_VAL2, IEP_COUNTER_NEXT_VAL2, 0x00
-    SBCO    &IEP_COUNTER_NEXT_VAL1, ICSS_IEP_CONST, PRU0_IEP_CMP_REG, 8
+    SBCO    &IEP_COUNTER_NEXT_VAL1, ICSS_IEP_CONST, I2C_IEP_CMP_REG, 8
 
-    ;Enable compare events
-    .if $defined("PRU0")
-    ZERO    &TEMP_REG1, 4
-    SET     TEMP_REG1, TEMP_REG1, PRU0_IEP_CMP_ENABLE_BIT
+    ; Enable this core's compare event without disabling the other core's
+    LBCO    &TEMP_REG1, ICSS_IEP_CONST, ICSS_IEP_CMP_CFG_REG, 4
+    SET     TEMP_REG1, TEMP_REG1, I2C_IEP_CMP_ENABLE_BIT
     SBCO    &TEMP_REG1, ICSS_IEP_CONST, ICSS_IEP_CMP_CFG_REG, 4
-    .endif  ;PRU0
-
-    .if $defined("PRU1")
-    ZERO    &TEMP_REG1, 4
-    SET     TEMP_REG1, TEMP_REG1, PRU1_IEP_CMP_ENABLE_BIT
-    SBCO    &TEMP_REG1, ICSS_IEP_CONST, ICSS_IEP_CMP_CFG_REG, 4
-    .endif  ;PRU1
 
     .endm
 
@@ -871,8 +844,7 @@ rx_sda_next_bit?:
 ;  make SDA line low to send an ACK.
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 rx_data_ack_begin?:
-   ;SET_SDA_PIN_OUTPUT_DIRECTION
-   SET_SDA_PIN_HIGH
+    SET_SDA_PIN_LOW
     LDI     R13.w0, $CODE(rx_data_ack_scl_begin?)
     STATE_TASK_OVER
 
@@ -957,13 +929,13 @@ rx_mode_continue?:
 ;      None
 ;
 ;************************************************************************************
-SET_SDA_PIN_INPUT_DIRECTION .macro  
-    
-   ;; For Am263x LDI32 r29, 0x50D00824
-   ;for Am261x
-    LDI32 r29, 0x50D00818
+SET_SDA_PIN_INPUT_DIRECTION .macro
+
+    ; AM261x: set the SDA pin's OUTDISABLE bit in this core's
+    ; ICSSMx_PRUy_GPIO_OUT_CTRL (I2C_GPIO_OUT_CTRL, see pru_i2c_main.asm)
+    LDI32 r29, I2C_GPIO_OUT_CTRL
     LBBO &r28, r29, 0, 4
-    SET r28, r28, 9
+    SET r28, r28, R14.b1
     SBBO  &r28, r29, 0, 4
 
     .endm
@@ -988,13 +960,12 @@ SET_SDA_PIN_INPUT_DIRECTION .macro
 
 SET_SDA_PIN_OUTPUT_DIRECTION .macro 
 
-   ;; For Am263x LDI32 r29, 0x50D00824
-   ;for Am261x
-    LDI32 r29, 0x50D00818
+    ; AM261x: clear the SDA pin's OUTDISABLE bit in this core's
+    ; ICSSMx_PRUy_GPIO_OUT_CTRL (I2C_GPIO_OUT_CTRL, see pru_i2c_main.asm)
+    LDI32 r29, I2C_GPIO_OUT_CTRL
     LBBO &r28, r29, 0, 4
-    LDI32 R27, 0xFFFFFDFF
-    AND r28, r28, r27
+    CLR r28, r28, R14.b1
     SBBO  &r28, r29, 0, 4
 
     .endm
-.endif	; __icss_i2c_macros_h
+    .endif	; __icss_i2c_macros_h
