@@ -7,7 +7,7 @@
         "../source",
     ],
     "components": [
-
+    "/open_pru",
     ],
     "devices": [
         "AM64x",
