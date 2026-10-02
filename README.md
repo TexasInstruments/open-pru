@@ -129,6 +129,15 @@ folder of the `open-pru` repository.
   - [AM263Px](https://software-dl.ti.com/mcu-plus-sdk/esd/AM263PX/latest/exports/docs/api_guide_am263px/CCS_PROJECTS_PAGE.html)
   - [AM263x](https://software-dl.ti.com/mcu-plus-sdk/esd/AM263X/latest/exports/docs/api_guide_am263x/CCS_PROJECTS_PAGE.html)
 
+## PRU-ICSS documentation references
+
+There is no standalone *PRU-ICSS Reference Guide* (SPRUHF8A) for the Sitara MCUs
+supported here — the PRU-ICSS(M/G) subsystem is documented as a chapter of each
+device Technical Reference Manual, plus the device register addendum and the
+common PRU Assembly Instruction User Guide. See the
+[PRU-ICSS Documentation Map](./docs/pru_icss_documentation_map.md) for the
+per-device TRM / register addendum / instruction-set pointers.
+
 ## Using EVM boards
 
 Please note that different EVMs have different signals pinned out. Before
