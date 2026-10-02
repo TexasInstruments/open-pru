@@ -63,14 +63,17 @@ includes that header instead of repeating the values.
  DMEM0 0x000C      | u16  | `I2C_BUS_FREQUENCY_OFFSET`             | Shared by both cores. Bus frequency selector: `ICSS_I2C_100KHZ_FREQ` (3), `ICSS_I2C_400KHZ_FREQ` (2), `ICSS_I2C_1MHZ_FREQ` (1). Any other value sends the firmware into an error loop.
  DMEM0 0x000E      | u16  | `I2C_BUS_FREQUENCY_OFFSET` + 2         | IEP compare increment per state tick (4 ticks per SCL period), a multiple of the IEP DEFAULT_INC (5). See "Bus frequency" below.
  own DMEM 0x0100   |      | `ICSS_I2C_INSTANCE0_ADDR`              | Start of the instance 0 block (offsets below are relative to it)
- + 0x08            | u16  | `ICSS_I2C_COMMAND_OFFSET`              | Response of the PRU (`COMMAND_SUCCESS` 0x0500, `ADDRESS_ACKNOWLDEGE_FAILED`, `DATA_ACKNOWLDEGE_FAILED`, `INVALID_COMMAND`, ...)
- + 0x0A            | u16  | `ICSS_I2C_COMMAND_OFFSET` + 2          | Command from the host (`ICSS_I2C_SETUP_CMD`, `ICSS_I2C_TX_CMD`, `ICSS_I2C_RX_CMD`, ...). The PRU clears it when it raises the response.
+ + 0x08            | u16  | `ICSS_I2C_COMMAND_OFFSET`              | Response of the PRU (`COMMAND_SUCCESS` 0x0500, `ADDRESS_ACKNOWLDEGE_FAILED`, `DATA_ACKNOWLDEGE_FAILED`, `INVALID_DATA_COUNT`, `TIME_OUT_ERROR` (SCL held low too long), `PEC_ERROR`, `INVALID_COMMAND`, ...)
+ + 0x0A            | u16  | `ICSS_I2C_COMMAND_OFFSET` + 2          | Command from the host (`ICSS_I2C_SETUP_CMD`, `ICSS_I2C_TX_CMD`, `ICSS_I2C_RX_CMD`, `ICSS_SMBUS_*_CMD`, ...). The PRU clears it when it raises the response.
  + 0x94 / + 0x95   | u8   | `ICSS_I2C_BUF_OFFSET`                  | TX / RX FIFO size
- + 0x98            | u16  | `ICSS_I2C_CNT_OFFSET`                  | Number of bytes to transfer, 1..255
- + 0xA4            | u32  | `ICSS_I2C_CON_OFFSET`                  | Configuration: bit 15 module enable, bit 10 master (must be 1), bit 8 10-bit addressing, bit 5 SMBus burst, bit 4 NACK the last read byte, bit 1 send STOP, bit 0 send START
+ + 0x98            | u16  | `ICSS_I2C_CNT_OFFSET`                  | Number of bytes to transfer, 1..255 (I2C) or the block write length; after an SMBus block read, the byte count the target sent
+ + 0xA4            | u32  | `ICSS_I2C_CON_OFFSET`                  | Configuration: bit 15 module enable, bit 10 master (must be 1), bit 8 10-bit addressing, bit 6 SMBus PEC, bit 5 reserved, bit 4 NACK the last read byte, bit 1 send STOP, bit 0 send START (bits 4, 1 and 0 apply to I2C transfers; SMBus always sends START/STOP and NACKs the last byte)
  + 0xAC            | u16  | `ICSS_I2C_SA_OFFSET`                   | 7-bit target address
  + 0xD8 / + 0xD9   | u8   | `ICSS_I2C_PRU_PIN_OFFSET`              | SCL / SDA pin: the bit number in R30 (output) and R31 (input)
+ + 0xE0            | u8   | `ICSS_I2C_PRU_CMD_CODE_OFFSET`         | SMBus command code (for quick command, bit 0 is the R/W bit)
  + 0xE4            | u8   | `ICSS_I2C_PRU_INST_ID_OFFSET`          | Instance id, the bit used in the shared IRQ register. The example uses the core number, so a PRU0 and a PRU1 instance do not collide.
+ + 0xE8            | u16  | `ICSS_I2C_SCL_TIMEOUT_OFFSET`          | Clock stretching limit in state machine ticks (4 per SCL period); 0 = wait indefinitely. The example uses the SMBus 25 ms.
+ + 0xFE / + 0xFF   |      | (reserved)                             | Used by the firmware to stage the SMBus command code and block count
  + 0x100 (0x0200)  | 256 B| `ICSS_I2C_INSTANCE0_TX_MEM`            | TX buffer
  + 0x200 (0x0300)  | 256 B| `ICSS_I2C_INSTANCE0_RX_MEM`            | RX buffer
 
@@ -102,23 +105,47 @@ takes a one byte pointer followed by data:
 3. write `[pointer]` (STOP is sent, the target keeps its pointer)
 4. read 4 bytes and compare them with what was written
 
-## SDA direction
+## SMBus
 
-The firmware turns SDA into an input (to read the ACK bit or read data) by
-setting the bit of the SDA pin in the `ICSSM0_PRUx_GPIO_OUT_CTRL` register of
-MSS_CTRL (1 = output disabled; PRU0 at 0x50D00810, PRU1 at 0x50D00814) and
-back to an output by clearing it. SysConfig sets that bit for every PRU GPIO
-configured with "rx", which includes SDA. The R5F example therefore clears the
-SDA bit of this register before it starts the PRU, so that the PRU can drive
-the START condition. The firmware selects the register of the core it is built
-for (`-DPRU0` / `-DPRU1`, and `-DICSSM1` for ICSSM1).
+The SMBus commands use the same buffers. Write the target address (`SA`), the
+command code (+0xE0) and, for writes, the data into the TX buffer, then write
+the command:
+
+ Command                        | On the bus                              | Host input              | Result
+ -------------------------------|-----------------------------------------|-------------------------|--------
+ `ICSS_SMBUS_QUICK_CMD`         | S addr+R/W P                            | R/W = command code bit 0 | -
+ `ICSS_SMBUS_SEND_BYTE_CMD`     | S addr+W cmd P                          | cmd                     | -
+ `ICSS_SMBUS_RECEIVE_BYTE_CMD`  | S addr+R data P                         | -                       | RX[0]
+ `ICSS_SMBUS_WRITE_BYTE_CMD`    | S addr+W cmd TX[0] P                    | cmd, TX[0]              | -
+ `ICSS_SMBUS_READ_BYTE_CMD`     | S addr+W cmd Sr addr+R data P           | cmd                     | RX[0]
+ `ICSS_SMBUS_WRITE_WORD_CMD`    | S addr+W cmd low high P                 | cmd, TX[0] low, TX[1] high | -
+ `ICSS_SMBUS_READ_WORD_CMD`     | S addr+W cmd Sr addr+R low high P       | cmd                     | RX[0] low, RX[1] high
+ `ICSS_SMBUS_BLOCK_WRITE_CMD`   | S addr+W cmd N TX[0..N-1] P             | cmd, count = N (1..253, 252 with PEC) | -
+ `ICSS_SMBUS_BLOCK_READ_CMD`    | S addr+W cmd Sr addr+R N data[N] P      | cmd                     | count = N, RX[0..N-1]
+
+With PEC enabled (`CON` bit 6), writes end with the PEC byte and reads check
+the target's PEC (`PEC_ERROR` if it does not match). Quick command has no PEC.
+SMBus uses 7-bit addresses only.
+
+## Open-drain bus and clock stretching
+
+The firmware never drives SCL or SDA high. It keeps both R30 bits at 0 and
+switches each line with its bit in the `ICSSM0_PRUx_GPIO_OUT_CTRL` register of
+MSS_CTRL (PRU0 at 0x50D00810, PRU1 at 0x50D00814): 1 = output disabled, so the
+pull-up takes the line high, 0 = driven low. After releasing SCL it waits
+until SCL reads high, so targets can stretch the clock (up to
+`ICSS_I2C_SCL_TIMEOUT_OFFSET`). Both pads therefore need the input path
+("rx" in SysConfig) and a pull-up. The R5F example sets both
+`OUTDISABLE` bits (released) before it starts the PRU. The firmware selects
+the register of the core it is built for (`-DPRU0` / `-DPRU1`, and `-DICSSM1`
+for ICSSM1).
 
 # Pin assignment (AM261x-LP)
 
  Signal | PRU GPIO (R30/R31 bit) | SoC pad            | BoosterPack | Direction
  -------|------------------------|--------------------|-------------|----------
- SCL    | PR0_PRU1_GPIO18 (18)   | GPIO120 (ball C19) | J1.4        | output (push-pull)
- SDA    | PR0_PRU1_GPIO19 (19)   | GPIO119 (ball C18) | J1.3        | input and output, internal pull-up enabled
+ SCL    | PR0_PRU1_GPIO18 (18)   | GPIO120 (ball C19) | J1.4        | open-drain (rx enabled), internal pull-up enabled
+ SDA    | PR0_PRU1_GPIO19 (19)   | GPIO119 (ball C18) | J1.3        | open-drain (rx enabled), internal pull-up enabled
 
 The bit numbers are set with `PRU_I2C_SCL_PIN` and `PRU_I2C_SDA_PIN` in
 `mcuplus/pru_i2c_example.c`. The pads are configured in
@@ -151,10 +178,10 @@ Generic build, load and run steps are not repeated here, see the
 specific steps are:
 
 1. **Wire the target.** Connect an I2C target to J1.4 (SCL), J1.3 (SDA) and
-   GND, and power it from 3.3 V. SDA needs a pull-up resistor (for example
-   2.2 k to 4.7 k to 3.3 V). The example also enables the internal pull-up of
-   the SDA pad, but that one is weak, use an external resistor. SCL is driven
-   push-pull and needs no pull-up. The default target is an EEPROM-style device (for example a 24C02)
+   GND, and power it from 3.3 V. SCL and SDA both need a pull-up resistor
+   (for example 2.2 k to 4.7 k to 3.3 V). The example also enables the
+   internal pull-ups of both pads, but they are weak, use external resistors.
+   The default target is an EEPROM-style device (for example a 24C02)
    at address 0x50. Change `PRU_I2C_TARGET_ADDR` (and, if needed,
    `PRU_I2C_TARGET_REG`, `PRU_I2C_TEST_LEN`) in `mcuplus/pru_i2c_example.c`
    for another device.
@@ -198,17 +225,12 @@ was not accepted.
 
 # Known limitations
 
-* **SCL is push-pull.** The firmware drives SCL high and low; it does not
-  release it. Clock stretching by a target is not supported, and SCL must not
-  be shared with other bus masters or driven by another device.
-* **Only plain I2C read and write are implemented.** The commands for
-  `ICSS_I2C_TX_CMD` (write) and `ICSS_I2C_RX_CMD` (read) work on a data
-  count of 1..255 bytes. The SMBus commands (`ICSS_SMBUS_*`: quick command,
-  send/receive byte, read/write byte/word, block read/write) are stubs in the
-  firmware and must not be used.
 * Master mode only, one instance (instance 0) per PRU core, no multi-master
   arbitration, 7-bit addressing in the example (the `CON` bit for 10-bit
-  addressing exists in the firmware interface but is not used here).
+  addressing exists in the firmware interface but is not used here; SMBus is
+  7-bit only).
+* The demo uses plain I2C writes and reads; the SMBus commands are described
+  above but not exercised by the example code.
 * The START and STOP bits of `CON` are latched by the setup command. The
   example sets both, so each transfer is a complete START ... STOP transaction.
   The pointer-then-read sequence of the demo therefore uses two separate
@@ -219,9 +241,10 @@ was not accepted.
   settings of this example the IEP clock is 250 MHz
   (`CONFIG_PRU_ICSS0_IEP_CLK_FREQ_HZ` in the generated `ti_drivers_config.h`;
   200 MHz needs the R5F at 400 MHz), so the example derives the increment from
-  that define instead (`PRU_I2C_IEP_INCREMENT`), rounding up so SCL never runs
-  faster than `PRU_I2C_BUS_HZ`. At 250 MHz and 400 kHz that is 157 IEP clocks
-  per tick, about 398 kHz. Not yet measured on a board.
+  that define instead (`PRU_I2C_IEP_INCREMENT`). The tick is the larger of
+  1/(4 x `PRU_I2C_BUS_HZ`) and 0.68 us, so that SCL low meets the Fast-mode
+  minimum of 1.3 us. At 250 MHz and 400 kHz that is 170 IEP clocks per tick,
+  about 368 kHz. Not yet measured on a board.
 * The example polls the IRQ bit instead of using the PRU interrupt.
 * The example is built for NORTOS on the r5fss0-0 core of the AM261x-LP only.
 * Build-tested only, see "Validated HW & SW".

@@ -48,10 +48,13 @@ pruicss1.instance                                                               
 pruicss1.AdditionalICSSSettings[0].$name                                             = "CONFIG_PRU_ICSS_IO0";
 pruicss1.AdditionalICSSSettings[0].PruGPIO.create(1);
 pruicss1.AdditionalICSSSettings[0].PruGPIO[0].$name                                  = "CONFIG_PRU_ICSS_GPIO0";
-/* I2C SCL: PR0_PRU1_GPIO18, output only (BoosterPack J1.4) */
+/* I2C SCL: PR0_PRU1_GPIO18, open-drain, read back for clock stretching,
+ * internal pull-up (BoosterPack J1.4) */
 pruicss1.AdditionalICSSSettings[0].PruGPIO[0]["PRU-ICSS0"].PR0_PRU1_GPIO18.$assign  = "GPIO120";
 pruicss1.AdditionalICSSSettings[0].PruGPIO[0]["PRU-ICSS0"].PR0_PRU1_GPIO18.$used    = true;
-/* I2C SDA: PR0_PRU1_GPIO19, input and output, internal pull-up (BoosterPack J1.3) */
+pruicss1.AdditionalICSSSettings[0].PruGPIO[0]["PRU-ICSS0"].PR0_PRU1_GPIO18.rx       = true;
+pruicss1.AdditionalICSSSettings[0].PruGPIO[0]["PRU-ICSS0"].PR0_PRU1_GPIO18.pu_pd    = "pu";
+/* I2C SDA: PR0_PRU1_GPIO19, open-drain, internal pull-up (BoosterPack J1.3) */
 pruicss1.AdditionalICSSSettings[0].PruGPIO[0]["PRU-ICSS0"].PR0_PRU1_GPIO19.$assign  = "GPIO119";
 pruicss1.AdditionalICSSSettings[0].PruGPIO[0]["PRU-ICSS0"].PR0_PRU1_GPIO19.$used    = true;
 pruicss1.AdditionalICSSSettings[0].PruGPIO[0]["PRU-ICSS0"].PR0_PRU1_GPIO19.rx       = true;

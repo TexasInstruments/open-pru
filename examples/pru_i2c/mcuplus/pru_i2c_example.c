@@ -90,15 +90,29 @@
 #define PRU_I2C_BUS_HZ          (400000U)
 
 /* The firmware advances its state machine once per IEP compare event and
- * needs 4 ticks per SCL period. The IEP counts PRU_I2C_IEP_DEFAULT_INC per
- * IEP clock, and its clock comes from SysConfig (250 MHz by default on
- * AM261x, while the IEP_CMP_INCREMENT_VAL_* constants in
- * pru_i2c_interface.h assume 200 MHz). So derive the increment from the
- * configured IEP clock, rounding the tick up to a whole IEP clock so that
- * SCL never runs faster than PRU_I2C_BUS_HZ. */
+ * needs 4 ticks per SCL period, with SCL low for 2 of them. The IEP counts
+ * PRU_I2C_IEP_DEFAULT_INC per IEP clock, and its clock comes from SysConfig
+ * (250 MHz by default on AM261x, while the IEP_CMP_INCREMENT_VAL_* constants
+ * in pru_i2c_interface.h assume 200 MHz). So derive the increment from the
+ * configured IEP clock: the tick is at least 1/(4 * PRU_I2C_BUS_HZ), and at
+ * least PRU_I2C_MIN_TICK_NS so that SCL low meets the Fast-mode
+ * tLOW >= 1.3 us (with margin for the few cycles the edges move by). At
+ * 400 kHz the second limit wins: about 368 kHz. */
 #define PRU_I2C_IEP_DEFAULT_INC (5U)
-#define PRU_I2C_IEP_CLKS_PER_TICK     ((CONFIG_PRU_ICSS0_IEP_CLK_FREQ_HZ + (4U * PRU_I2C_BUS_HZ) - 1U) / (4U * PRU_I2C_BUS_HZ))
+#define PRU_I2C_MIN_TICK_NS     (680U)
+#define PRU_I2C_IEP_CLKS_BUS    \
+    ((CONFIG_PRU_ICSS0_IEP_CLK_FREQ_HZ + (4U * PRU_I2C_BUS_HZ) - 1U) / (4U * PRU_I2C_BUS_HZ))
+#define PRU_I2C_IEP_CLKS_TLOW   \
+    (((CONFIG_PRU_ICSS0_IEP_CLK_FREQ_HZ / 1000U) * PRU_I2C_MIN_TICK_NS + 999999U) / 1000000U)
+#define PRU_I2C_IEP_CLKS_PER_TICK \
+    ((PRU_I2C_IEP_CLKS_BUS > PRU_I2C_IEP_CLKS_TLOW) ? PRU_I2C_IEP_CLKS_BUS : PRU_I2C_IEP_CLKS_TLOW)
 #define PRU_I2C_IEP_INCREMENT   (PRU_I2C_IEP_CLKS_PER_TICK * PRU_I2C_IEP_DEFAULT_INC)
+
+/* How long a target may hold SCL low (clock stretching) before the transfer
+ * ends with TIME_OUT_ERROR, in state machine ticks: the SMBus tTIMEOUT of
+ * 25 ms. */
+#define PRU_I2C_SCL_TIMEOUT_TICKS \
+    ((25000U * 1000U) / ((PRU_I2C_IEP_CLKS_PER_TICK * 1000000U) / (CONFIG_PRU_ICSS0_IEP_CLK_FREQ_HZ / 1000U)))
 
 /* 7-bit address of the I2C target used for the demo transfers */
 #define PRU_I2C_TARGET_ADDR     (0x50U)
@@ -149,6 +163,7 @@
 #define PRU_I2C_SCL_PIN_REG     (ICSS_I2C_INSTANCE0_ADDR + ICSS_I2C_PRU_PIN_OFFSET)      /* u8 */
 #define PRU_I2C_SDA_PIN_REG     (ICSS_I2C_INSTANCE0_ADDR + ICSS_I2C_PRU_PIN_OFFSET + 1U) /* u8 */
 #define PRU_I2C_INST_ID_REG     (ICSS_I2C_INSTANCE0_ADDR + ICSS_I2C_PRU_INST_ID_OFFSET)  /* u8 */
+#define PRU_I2C_SCL_TIMEOUT_REG (ICSS_I2C_INSTANCE0_ADDR + ICSS_I2C_SCL_TIMEOUT_OFFSET)  /* u16 */
 
 /* Bit of the shared IRQ register that belongs to this instance. Use the core
  * number so a PRU0 and a PRU1 instance can run side by side. */
@@ -285,6 +300,7 @@ static int32_t PruI2c_init(void)
     HW_WR_REG8(gPruDmemBase + PRU_I2C_SCL_PIN_REG, PRU_I2C_SCL_PIN);
     HW_WR_REG8(gPruDmemBase + PRU_I2C_SDA_PIN_REG, PRU_I2C_SDA_PIN);
     HW_WR_REG8(gPruDmemBase + PRU_I2C_INST_ID_REG, PRU_I2C_INST_ID);
+    HW_WR_REG16(gPruDmemBase + PRU_I2C_SCL_TIMEOUT_REG, PRU_I2C_SCL_TIMEOUT_TICKS);
     /* Module enabled, master mode, 7-bit addressing, START and STOP around
      * every transfer, NACK the last byte of a read */
     reg = (1U << ICSS_I2C_MODULE_ENABLE_BIT) |
@@ -294,12 +310,13 @@ static int32_t PruI2c_init(void)
           (1U << ICSS_I2C_RECIEVE_NACK_BIT);
     HW_WR_REG32(gPruDmemBase + PRU_I2C_CON_REG, reg);
 
-    /* The firmware switches SDA between output and input with the matching
-     * bit of the ICSSM0_PRUx_GPIO_OUT_CTRL register (1 = output disabled).
-     * SysConfig sets that bit for pins configured with "rx", so make sure the
-     * SDA bit starts at 0 (output enabled) before the PRU runs. */
+    /* The bus is open-drain: the firmware keeps the R30 bits at 0 and drives
+     * a line low by clearing its bit in ICSSM0_PRUx_GPIO_OUT_CTRL
+     * (1 = output disabled = released). Start with both lines released, so
+     * the PRU does not pull the bus low between reset and its setup.
+     * SysConfig already sets these bits for pins configured with "rx". */
     reg = HW_RD_REG32(PRU_I2C_OUT_CTRL_REG);
-    reg &= ~(1U << PRU_I2C_SDA_PIN);
+    reg |= (1U << PRU_I2C_SCL_PIN) | (1U << PRU_I2C_SDA_PIN);
     HW_WR_REG32(PRU_I2C_OUT_CTRL_REG, reg);
 
     /* Load the firmware, this also starts the PRU core */
