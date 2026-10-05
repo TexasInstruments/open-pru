@@ -85,7 +85,7 @@ For more information about the PRU features on each processor, refer to app note
 | -------------------- | ------ | ------ | ------- | ------ | ----- | ----- |
 | crc/crc              | Yport  | Y      | Y       | Y      | Yport | Yport |
 | getting_started_labs | Y      | Y      | Y       | Y      | Y     | Y     |
-| gpio/gpio_toggle     | Yport  | Y      | Y       | Y      | N-sw  | Yport |
+| gpio/gpio_toggle     | Y      | Y      | Y       | Y      | N-sw  | Y     |
 | intc/intc_mcu        | Yport  | Y      | Y       | Y      | N-sw  | Yport |
 | mac/mac              | Yport  | Y      | Y       | Y      | Yport | Yport |
 | mac/mac_c            | Yport  | Yport  | Yport   | Yport  | Y     | Y     |

@@ -40,6 +40,7 @@
 #include <pru0_load_bin.h>
 #include <pru1_load_bin.h>
 #if defined(SOC_AM64X) || defined(SOC_AM243X)
+#include <board/ioexp/ioexp_tca6424.h>
 #include <rtupru0_load_bin.h>
 #include <rtupru1_load_bin.h>
 #include <txpru0_load_bin.h>
@@ -91,6 +92,38 @@ static void i2c_io_expander(void *args)
 
 #endif
 
+#if defined(SOC_AM64X) || defined(SOC_AM243X)
+
+static TCA6424_Config  gTCA6424_Config;
+
+static void i2c_io_expander(void *args)
+{
+    int32_t             status = SystemP_SUCCESS;
+    TCA6424_Params      tca6424Params;
+    TCA6424_Params_init(&tca6424Params);
+    status = TCA6424_open(&gTCA6424_Config, &tca6424Params);
+    uint32_t            ioIndex;
+
+    if(status == SystemP_SUCCESS)
+    {
+        /* set P12 high which controls CPSW_FET_SEL -> enable PRU1 and PRU0 GPIOs */
+        ioIndex = 0x0a;
+        status = TCA6424_setOutput(
+                     &gTCA6424_Config,
+                     ioIndex,
+                     TCA6424_OUT_STATE_HIGH);
+
+        /* Configure as output  */
+        status += TCA6424_config(
+                      &gTCA6424_Config,
+                      ioIndex,
+                      TCA6424_MODE_OUTPUT);
+    }
+    TCA6424_close(&gTCA6424_Config);
+}
+
+#endif
+
 
 void gpio_toggle_main(void *args)
 {
@@ -102,7 +135,7 @@ void gpio_toggle_main(void *args)
 
      gPruIcss0Handle = PRUICSS_open(CONFIG_PRU_ICSS0);
 
-     #if defined(SOC_AM263PX)
+     #if defined(SOC_AM263PX) || defined(SOC_AM64X) || defined(SOC_AM243X)
      /* Configure the IO Expander to connect the PRU IOs */
      i2c_io_expander(NULL);
      #endif
