@@ -2,7 +2,7 @@
 # Auto generated makefile
 #
 
-export OPEN_PRU_PATH?=$(abspath ../../../../../..)
+export OPEN_PRU_PATH?=$(abspath ../../../../../../..)
 include $(OPEN_PRU_PATH)/imports.mak
 include $(MCU_PLUS_SDK_PATH)/devconfig/devconfig.mak
 
@@ -58,7 +58,7 @@ FILES_common := \
 
 FILES_PATH_common = \
 	.. \
-	../../.. \
+	../../../.. \
 	generated \
 
 INCLUDES_common := \

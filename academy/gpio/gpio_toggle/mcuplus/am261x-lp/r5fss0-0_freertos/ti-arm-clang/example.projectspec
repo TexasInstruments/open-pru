@@ -105,7 +105,7 @@
         <pathVariable name="OPEN_PRU_PATH" path="${COM_TI_OPEN_PRU_INSTALL_DIR}" scope="project" />
         <file path="../main.c" openOnCreation="false" excludeFromBuild="false" action="copy">
         </file>
-        <file path="../../../gpio_toggle.c" openOnCreation="false" excludeFromBuild="false" action="copy">
+        <file path="../../../../gpio_toggle.c" openOnCreation="false" excludeFromBuild="false" action="copy">
         </file>
         <file path="../example.syscfg" openOnCreation="false" excludeFromBuild="false" action="copy">
         </file>
