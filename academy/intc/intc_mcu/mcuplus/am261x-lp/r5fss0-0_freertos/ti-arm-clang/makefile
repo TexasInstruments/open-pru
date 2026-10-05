@@ -2,7 +2,7 @@
 # Auto generated makefile
 #
 
-export OPEN_PRU_PATH?=$(abspath ../../../../../..)
+export OPEN_PRU_PATH?=$(abspath ../../../../../../..)
 include $(OPEN_PRU_PATH)/imports.mak
 include $(MCU_PLUS_SDK_PATH)/devconfig/devconfig.mak
 
@@ -58,7 +58,7 @@ FILES_common := \
 
 FILES_PATH_common = \
 	.. \
-	../../.. \
+	../../../.. \
 	generated \
 
 INCLUDES_common := \
@@ -67,13 +67,13 @@ INCLUDES_common := \
 	-I${OPEN_PRU_PATH}/source \
 	-I${MCU_PLUS_SDK_PATH}/source/kernel/freertos/FreeRTOS-Kernel/include \
 	-I${MCU_PLUS_SDK_PATH}/source/kernel/freertos/portable/TI_ARM_CLANG/ARM_CR5F \
-	-I${MCU_PLUS_SDK_PATH}/source/kernel/freertos/config/am263px/r5f \
+	-I${MCU_PLUS_SDK_PATH}/source/kernel/freertos/config/am261x/r5f \
 	-I${MCU_PLUS_SDK_PATH}/source/pru_io/driver \
-	-I${OPEN_PRU_PATH}/academy/intc/intc_mcu/firmware/am263px-cc \
+	-I${OPEN_PRU_PATH}/academy/intc/intc_mcu/firmware/am261x-lp \
 	-Igenerated \
 
 DEFINES_common := \
-	-DSOC_AM263PX \
+	-DSOC_AM261X \
 	-DOS_FREERTOS \
 
 CFLAGS_common := \
@@ -117,9 +117,9 @@ LIBS_PATH_common = \
 	-Wl,-i${CG_TOOL_ROOT}/lib \
 
 LIBS_common = \
-	-lfreertos.am263px.r5f.ti-arm-clang.${ConfigName}.lib \
-	-ldrivers.am263px.r5f.ti-arm-clang.freertos.${ConfigName}.lib \
-	-lboard.am263px.r5f.ti-arm-clang.freertos.${ConfigName}.lib \
+	-lfreertos.am261x.r5f.ti-arm-clang.${ConfigName}.lib \
+	-ldrivers.am261x.r5f.ti-arm-clang.freertos.${ConfigName}.lib \
+	-lboard.am261x.r5f.ti-arm-clang.freertos.${ConfigName}.lib \
 	-llibc.a \
 	-llibsysbm.a \
 
@@ -131,9 +131,9 @@ LFLAGS_common = \
 
 
 LIBS_NAME = \
-	freertos.am263px.r5f.ti-arm-clang.${ConfigName}.lib \
-	drivers.am263px.r5f.ti-arm-clang.freertos.${ConfigName}.lib \
-	board.am263px.r5f.ti-arm-clang.freertos.${ConfigName}.lib \
+	freertos.am261x.r5f.ti-arm-clang.${ConfigName}.lib \
+	drivers.am261x.r5f.ti-arm-clang.freertos.${ConfigName}.lib \
+	board.am261x.r5f.ti-arm-clang.freertos.${ConfigName}.lib \
 	libc.a \
 	libsysbm.a \
 
@@ -171,11 +171,11 @@ vpath %.lib $(LIBS_PATH_NAME)
 vpath %.a $(LIBS_PATH_NAME)
 
 $(OBJDIR)/%.obj %.obj: %.c
-	@echo  Compiling: am263px:r5fss0-0:freertos:ti-arm-clang $(OUTNAME): $<
+	@echo  Compiling: am261x:r5fss0-0:freertos:ti-arm-clang $(OUTNAME): $<
 	$(CC) -c $(CFLAGS) $(INCLUDES) $(DEFINES) -MMD -o $(OBJDIR)/$@ $<
 
 $(OBJDIR)/%.obj %.obj: %.S
-	@echo  Compiling: am263px:r5fss0-0:freertos:ti-arm-clang $(LIBNAME): $<
+	@echo  Compiling: am261x:r5fss0-0:freertos:ti-arm-clang $(LIBNAME): $<
 	$(CC) -c $(CFLAGS) $(INCLUDES) $(DEFINES) -o $(OBJDIR)/$@ $<
 
 all: $(TARGETS)
@@ -197,13 +197,13 @@ endif
 
 $(OUTNAME):  $(SYSTEM_COMMAND)
 	@echo  .
-	@echo  Linking: am263px:r5fss0-0:freertos:ti-arm-clang $@ ...
+	@echo  Linking: am261x:r5fss0-0:freertos:ti-arm-clang $@ ...
 	$(LNK) $(LNKOPTFLAGS) $(LFLAGS) $(LIBS_PATH) -Wl,-m=$(basename $@).map -o $@ $(addprefix $(OBJDIR), $(OBJS)) $(LIBS) $(LNK_FILES) -Wl,--xml_link_info=$(basename $@).lnkxml
-	@echo  Linking: am263px:r5fss0-0:freertos:ti-arm-clang $@ Done !!!
+	@echo  Linking: am261x:r5fss0-0:freertos:ti-arm-clang $@ Done !!!
 	@echo  .
 
 clean:
-	@echo  Cleaning: am263px:r5fss0-0:freertos:ti-arm-clang $(OUTNAME) ...
+	@echo  Cleaning: am261x:r5fss0-0:freertos:ti-arm-clang $(OUTNAME) ...
 	$(RMDIR) $(OBJDIR)
 	$(RM) $(OUTNAME)
 	$(RM) $(BOOTIMAGE_NAME)
@@ -215,7 +215,7 @@ clean:
 	$(RMDIR) generated/
 
 scrub:
-	@echo  Scrubing: am263px:r5fss0-0:freertos:ti-arm-clang intc ...
+	@echo  Scrubing: am261x:r5fss0-0:freertos:ti-arm-clang intc ...
 	$(RMDIR) obj
 ifeq ($(OS),Windows_NT)
 	$(RM) \*.out
@@ -258,11 +258,11 @@ $(SYSCFG_GEN_FILES): syscfg
 ifeq ($(SYSTEM_FLAG), false)
 syscfg: ../example.syscfg
 	@echo Generating SysConfig files ...
-	$(SYSCFG_NODE) $(SYSCFG_CLI_PATH)/dist/cli.js --product $(SYSCFG_SDKPRODUCT) --product $(SYSCFG_MCU_PLUS_SDK_PRODUCT) --context r5fss0-0 --part AM263P4 --package ZCZ_S --output generated/ ../example.syscfg
+	$(SYSCFG_NODE) $(SYSCFG_CLI_PATH)/dist/cli.js --product $(SYSCFG_SDKPRODUCT) --product $(SYSCFG_MCU_PLUS_SDK_PRODUCT) --context r5fss0-0 --part AM2612 --package ZFG --output generated/ ../example.syscfg
 endif
 
 syscfg-gui:
-	$(SYSCFG_NWJS) $(SYSCFG_PATH) --product $(SYSCFG_SDKPRODUCT) --product $(SYSCFG_MCU_PLUS_SDK_PRODUCT) --device AM263Px --context r5fss0-0 --part AM263P4 --package ZCZ_S --output generated/  ../example.syscfg
+	$(SYSCFG_NWJS) $(SYSCFG_PATH) --product $(SYSCFG_SDKPRODUCT) --product $(SYSCFG_MCU_PLUS_SDK_PRODUCT) --device AM261x_ZFG --context r5fss0-0 --part AM2612 --package ZFG --output generated/  ../example.syscfg
 
 #
 # Generation of boot image which can be loaded by Secondary Boot Loader (SBL)
@@ -333,7 +333,7 @@ else
 	$(RM) $(BOOTIMAGE_NAME_MCELF)-enc
 endif
 endif
-	@echo  Boot image: am263px:r5fss0-0:freertos:ti-arm-clang $(BOOTIMAGE_PATH)/$(BOOTIMAGE_NAME_MCELF_HS) Done !!!
+	@echo  Boot image: am261x:r5fss0-0:freertos:ti-arm-clang $(BOOTIMAGE_PATH)/$(BOOTIMAGE_NAME_MCELF_HS) Done !!!
 	@echo  .
 endif
 

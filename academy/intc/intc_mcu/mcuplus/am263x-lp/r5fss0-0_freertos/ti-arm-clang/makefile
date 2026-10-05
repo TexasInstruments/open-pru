@@ -2,7 +2,7 @@
 # Auto generated makefile
 #
 
-export OPEN_PRU_PATH?=$(abspath ../../../../../..)
+export OPEN_PRU_PATH?=$(abspath ../../../../../../..)
 include $(OPEN_PRU_PATH)/imports.mak
 include $(MCU_PLUS_SDK_PATH)/devconfig/devconfig.mak
 
@@ -58,7 +58,7 @@ FILES_common := \
 
 FILES_PATH_common = \
 	.. \
-	../../.. \
+	../../../.. \
 	generated \
 
 INCLUDES_common := \
@@ -69,7 +69,7 @@ INCLUDES_common := \
 	-I${MCU_PLUS_SDK_PATH}/source/kernel/freertos/portable/TI_ARM_CLANG/ARM_CR5F \
 	-I${MCU_PLUS_SDK_PATH}/source/kernel/freertos/config/am263x/r5f \
 	-I${MCU_PLUS_SDK_PATH}/source/pru_io/driver \
-	-I${OPEN_PRU_PATH}/academy/intc/intc_mcu/firmware/am263x-cc \
+	-I${OPEN_PRU_PATH}/academy/intc/intc_mcu/firmware/am263x-lp \
 	-Igenerated \
 
 DEFINES_common := \
