@@ -3,7 +3,7 @@
  *
  * SPDX-License-Identifier: BSD-3-Clause
  *
- * PRU-SPI encoder-emulation demo - R5F side (phase 3, MODE3/LSB only)
+ * PRU-SPI encoder-emulation demo - R5F side (phase 3, MODE3/MSB only)
  *
  * Loads PRU1 (slave responder) then PRU0 (master), both persistent — neither
  * halts after a burst. R5F sets SPI config once before loading, then
@@ -13,24 +13,18 @@
  * responses. PRU1 always responds with 5 fixed words (0x1111/0x2222/0x3333/
  * 0x4444/0x5555) regardless of the command content - no decode.
  *
- * PRU_SPI_runTransaction (single-command) is kept below for the other 7
- * (MODE x bit-order) firmware paths, which are unchanged from phase 2.
  *
  * PRU0 DMEM0 (ICSS_M1 absolute base 0x48600000):
- *   0x00        cfg_mode      R5F writes PRU_SPI_Mode before loading PRU0
- *   0x04        cfg_bitorder  R5F writes PRU_SPI_BitOrder before loading PRU0
- *   0x08        master_rx     legacy single-transfer rx slot (MODE0-2, MODE3/MSB)
- *   0x0C        cfg_command   legacy single-transfer tx slot (same paths)
- *   0x10        cfg_trigger   R5F sets to 1 to start; PRU0 clears to 0 when done
- *   0x3C        delay_comp_1   R5F sets delay comp 1 before loading PRU0
- *   0x40        delay_comp_1   R5F sets delay comp 2 before loading PRU0
- *   0x14-0x24   cfg_cmd0..4     5 command words (MODE3/LSB path only)
- *   0x28-0x38   master_rx5_0..4 5 response words (MODE3/LSB path only)
+ *   0x00        cfg_mode         R5F writes PRU_SPI_Mode before loading PRU0
+ *   0x04        cfg_bitorder     R5F writes PRU_SPI_BitOrder before loading PRU0
+ *   0x10        cfg_trigger      R5F sets to 1 to start; PRU0 clears to 0 when done
+ *   0x3C        delay_comp_1     R5F sets delay comp 1 before loading PRU0
+ *   0x40        delay_comp_2     R5F sets delay comp 2 before loading PRU0
+ *   0x14-0x24   cfg_cmd0..4      5 command words (MODE3/MSB path only)
+ *   0x28-0x38   master_rx5_0..4  5 response words (MODE3/MSB path only)
  *
- * PRU1 DMEM1 (ICSS_M1 absolute base 0x48602000):
- *   0x00  slave_rx     legacy single-transfer debug slot (unused by MODE3/LSB path)
  *
- * PRU1 is hardcoded to MODE3/LSB/16-bit and to 5 fixed responses -
+ * PRU1 is hardcoded to MODE3/MSB/16-bit and to 5 fixed responses -
  * it is not part of the configurable driver API.
  */
 
@@ -46,16 +40,13 @@
 #include <pru0_load_bin.h>
 #include <pru1_load_bin.h>
 
-#define PRU0_DMEM_BASE       (0x48600000U)
 #define DMEM_CFG_MODE        (0x00U)
 #define DMEM_CFG_BITORDER    (0x04U)
-#define DMEM_MASTER_RX       (0x08U)
-#define DMEM_CFG_COMMAND     (0x0CU)
 #define DMEM_CFG_TRIGGER     (0x10U)
 #define DMEM_CFG_DELAY_COMP1 (0x3CU)
 #define DMEM_CFG_DELAY_COMP2 (0x40U)
 
-/* 5x16-bit command/response DMEM slots, MODE3/LSB path only (phase 3) */
+/* 5x16-bit command/response DMEM slots, MODE3/MSB path only (phase 3) */
 #define DMEM_CFG_CMD0       (0x14U)
 #define DMEM_CFG_CMD1       (0x18U)
 #define DMEM_CFG_CMD2       (0x1CU)
@@ -67,7 +58,6 @@
 #define DMEM_MASTER_RX5_3   (0x34U)
 #define DMEM_MASTER_RX5_4   (0x38U)
 
-#define PRU1_DMEM_BASE      (0x48602000U)
 #define DMEM_SLAVE_RX       (0x00U)
 
 /* Must match PRU1's CMD0-3 constants in main.asm (fixed at build time) */
@@ -97,11 +87,13 @@ typedef struct
 {
     PRU_SPI_Mode     mode;
     PRU_SPI_BitOrder bitOrder;
-    uint8_t delay_comp_1;
-    uint8_t delay_comp_2;
+    uint32_t delay_comp_1;
+    uint32_t delay_comp_2;
 } PRU_SPI_Config;
 
 static PRUICSS_Handle gPruHandle;
+static uint32_t pru_dmem0 = 0U;
+static uint32_t pru_dmem1 = 0U;
 
 static inline void dmem_write32(uint32_t base, uint32_t offset, uint32_t value)
 {
@@ -119,71 +111,53 @@ static inline uint32_t dmem_read32(uint32_t base, uint32_t offset)
  * starts the core immediately, so config has to already be in DMEM0. */
 static void PRU_SPI_setConfig(const PRU_SPI_Config *cfg)
 {
-    dmem_write32(PRU0_DMEM_BASE, DMEM_CFG_MODE,     (uint32_t)cfg->mode);
-    dmem_write32(PRU0_DMEM_BASE, DMEM_CFG_BITORDER, (uint32_t)cfg->bitOrder);
-    dmem_write32(PRU0_DMEM_BASE, DMEM_CFG_DELAY_COMP1, (uint32_t)cfg->delay_comp_1);
-    dmem_write32(PRU0_DMEM_BASE, DMEM_CFG_DELAY_COMP2, (uint32_t)cfg->delay_comp_2);
+    dmem_write32(pru_dmem0, DMEM_CFG_MODE,     (uint32_t)cfg->mode);
+    dmem_write32(pru_dmem0, DMEM_CFG_BITORDER, (uint32_t)cfg->bitOrder);
+    dmem_write32(pru_dmem0, DMEM_CFG_DELAY_COMP1, (uint32_t)cfg->delay_comp_1);
+    dmem_write32(pru_dmem0, DMEM_CFG_DELAY_COMP2, (uint32_t)cfg->delay_comp_2);
 }
 
-/* Writes the command word, sets cfg_trigger, and polls until PRU0 clears it.
- * Returns 1 on success, 0 on timeout. */
-static int PRU_SPI_runTransaction(uint32_t commandWord, uint32_t *responseOut)
-{
-    dmem_write32(PRU0_DMEM_BASE, DMEM_CFG_COMMAND, commandWord);
-    dmem_write32(PRU0_DMEM_BASE, DMEM_CFG_TRIGGER, 1U);
 
-    uint32_t elapsed = 0U;
-    while (dmem_read32(PRU0_DMEM_BASE, DMEM_CFG_TRIGGER) != 0U)
-    {
-        ClockP_usleep(TRIGGER_POLL_SLEEP_US);
-        elapsed += TRIGGER_POLL_SLEEP_US;
-        if (elapsed >= TRIGGER_POLL_TIMEOUT_US)
-        {
-            return 0;
-        }
-    }
-
-    *responseOut = dmem_read32(PRU0_DMEM_BASE, DMEM_MASTER_RX);
-    return 1;
-}
-
-/* MODE3/LSB-only path (phase 3): writes 5 independent 16-bit command words,
+/* MODE3/MSB-only path (phase 3): writes 5 independent 16-bit command words,
  * sets cfg_trigger once, polls until PRU0 clears it after running all 5
  * transfers back-to-back, then reads 5 independent response words.
  * commandWords/responsesOut must each point to 5 uint32_t. Returns 1 on
  * success, 0 on timeout. */
 static int PRU_SPI_runTransaction5(const uint32_t *commandWords, uint32_t *responsesOut)
 {
-    dmem_write32(PRU0_DMEM_BASE, DMEM_CFG_CMD0, commandWords[0]);
-    dmem_write32(PRU0_DMEM_BASE, DMEM_CFG_CMD1, commandWords[1]);
-    dmem_write32(PRU0_DMEM_BASE, DMEM_CFG_CMD2, commandWords[2]);
-    dmem_write32(PRU0_DMEM_BASE, DMEM_CFG_CMD3, commandWords[3]);
-    dmem_write32(PRU0_DMEM_BASE, DMEM_CFG_CMD4, commandWords[4]);
-    dmem_write32(PRU0_DMEM_BASE, DMEM_CFG_TRIGGER, 1U);
+    dmem_write32(pru_dmem0, DMEM_CFG_CMD0, commandWords[0]);
+    dmem_write32(pru_dmem0, DMEM_CFG_CMD1, commandWords[1]);
+    dmem_write32(pru_dmem0, DMEM_CFG_CMD2, commandWords[2]);
+    dmem_write32(pru_dmem0, DMEM_CFG_CMD3, commandWords[3]);
+    dmem_write32(pru_dmem0, DMEM_CFG_CMD4, commandWords[4]);
+    dmem_write32(pru_dmem0, DMEM_CFG_TRIGGER, 1U);
 
     uint32_t elapsed = 0U;
-    while (dmem_read32(PRU0_DMEM_BASE, DMEM_CFG_TRIGGER) != 0U)
+    while (dmem_read32(pru_dmem0, DMEM_CFG_TRIGGER) != 0U)
     {
         ClockP_usleep(TRIGGER_POLL_SLEEP_US);
         elapsed += TRIGGER_POLL_SLEEP_US;
         if (elapsed >= TRIGGER_POLL_TIMEOUT_US)
         {
+            /* Clear the trigger if PRU has not cleared it after timeout */
+            dmem_write32(pru_dmem0, DMEM_CFG_TRIGGER, 0U);
             return 0;
         }
     }
 
-    responsesOut[0] = dmem_read32(PRU0_DMEM_BASE, DMEM_MASTER_RX5_0);
-    responsesOut[1] = dmem_read32(PRU0_DMEM_BASE, DMEM_MASTER_RX5_1);
-    responsesOut[2] = dmem_read32(PRU0_DMEM_BASE, DMEM_MASTER_RX5_2);
-    responsesOut[3] = dmem_read32(PRU0_DMEM_BASE, DMEM_MASTER_RX5_3);
-    responsesOut[4] = dmem_read32(PRU0_DMEM_BASE, DMEM_MASTER_RX5_4);
+    responsesOut[0] = dmem_read32(pru_dmem0, DMEM_MASTER_RX5_0);
+    responsesOut[1] = dmem_read32(pru_dmem0, DMEM_MASTER_RX5_1);
+    responsesOut[2] = dmem_read32(pru_dmem0, DMEM_MASTER_RX5_2);
+    responsesOut[3] = dmem_read32(pru_dmem0, DMEM_MASTER_RX5_3);
+    responsesOut[4] = dmem_read32(pru_dmem0, DMEM_MASTER_RX5_4);
     return 1;
 }
 
 void empty_example_main(void *args)
 {
     int32_t  status;
-    uint32_t input;
+    int32_t  scanf_status;
+    uint32_t input = 0U;
 
     Drivers_open();
     status = Board_driversOpen();
@@ -191,6 +165,11 @@ void empty_example_main(void *args)
 
     gPruHandle = PRUICSS_open(CONFIG_PRU_ICSS0);
     DebugP_assert(gPruHandle != NULL);
+
+    const PRUICSS_HwAttrs *pruAttrs = PRUICSS_getAttrs(CONFIG_PRU_ICSS0);
+    DebugP_assert(pruAttrs != NULL);
+    pru_dmem0 = pruAttrs->pru0DramBase;
+    pru_dmem1 = pruAttrs->pru1DramBase;
 
     status = PRUICSS_initMemory(gPruHandle, PRUICSS_DATARAM(PRUICSS_PRU0));
     DebugP_assert(status != 0);
@@ -206,7 +185,7 @@ void empty_example_main(void *args)
 
     /* Set the configurations */
     PRU_SPI_setConfig(&cfg);
-    dmem_write32(PRU0_DMEM_BASE, DMEM_CFG_TRIGGER, 0U);
+    dmem_write32(pru_dmem0, DMEM_CFG_TRIGGER, 0U);
 
     status = PRUICSS_loadFirmware(gPruHandle, PRUICSS_PRU1,
                                   PRU1Firmware_0, sizeof(PRU1Firmware_0));
@@ -230,11 +209,17 @@ void empty_example_main(void *args)
         while (i < 5U)
         {
             DebugP_log("  cmd[%u]: ", i);
-            DebugP_scanf("%x", &input);
+            input = 0xFFFFFFFFU;
+            scanf_status = DebugP_scanf("%x", &input);
+            if (scanf_status != SystemP_SUCCESS) {
+                DebugP_log("Invalid input (scan failed).\r\n");
+                input = 0U;
+                continue;
+            }
 
             if (input > 0xFFFFU)
             {
-                DebugP_log("Invalid input, must fit in 16 bits (0-65535).\r\n");
+                DebugP_log("Invalid input, must fit in 16 bits (0x0000-0xFFFF hex).\r\n");
                 continue;
             }
 
@@ -244,7 +229,16 @@ void empty_example_main(void *args)
 
         if (!PRU_SPI_runTransaction5(commandWords, responses))
         {
-            DebugP_log("ERROR: PRU0 timeout waiting for trigger clear.\r\n");
+            DebugP_log("ERROR: PRU0 timeout waiting for trigger clear. Reloading PRUs...\r\n");
+            dmem_write32(pru_dmem0, DMEM_CFG_TRIGGER, 0U);
+            status = PRUICSS_loadFirmware(gPruHandle, PRUICSS_PRU1,
+                                  PRU1Firmware_0, sizeof(PRU1Firmware_0));
+            DebugP_assert(SystemP_SUCCESS == status);
+            status = PRUICSS_loadFirmware(gPruHandle, PRUICSS_PRU0,
+                                  PRU0Firmware_0, sizeof(PRU0Firmware_0));
+            DebugP_assert(SystemP_SUCCESS == status);
+            PRU_SPI_setConfig(&cfg);
+            dmem_write32(pru_dmem0, DMEM_CFG_TRIGGER, 0U);
             continue;
         }
 
