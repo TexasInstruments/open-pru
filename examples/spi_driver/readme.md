@@ -59,8 +59,8 @@ Configuration and transfer data are exchanged through PRU0's own data RAM
 | 0x00        | `cfg_mode`             | R5F -> PRU0   | SPI mode, 0-3 (`PRU_SPI_Mode`), read once at startup               |
 | 0x04        | `cfg_bitorder`         | R5F -> PRU0   | 0 = MSB first, 1 = LSB first, read once at startup                 |
 | 0x10        | `cfg_trigger`          | R5F <-> PRU0  | R5F sets to 1 to start a transaction; PRU0 clears to 0 when all 5 transfers complete |
-| 0x3C        | `delay_comp_1`          | R5F <-> PRU0  | PRU cycles to wait for while SCLK is high/low depending on the spi mode  |
-| 0x40        | `delay_comp_2`          | R5F <-> PRU0  | PRU cycles to wait for while SCLK is low/low depending on the spi mode |
+| 0x3C        | `delay_comp_1`          | R5F <-> PRU0  | PRU cycles between shifting edge and sampling edge (valid: 1-255)  |
+| 0x40        | `delay_comp_2`          | R5F <-> PRU0  | PRU cycles between sampling edge and next shifting edge (valid: 1-255) |
 | 0x14 - 0x24 | `cfg_cmd0` .. `cfg_cmd4`     | R5F -> PRU0   | 5 independent 16-bit command words, written before setting `cfg_trigger` |
 | 0x28 - 0x38 | `master_rx5_0` .. `master_rx5_4` | PRU0 -> R5F   | 5 independent 16-bit response words, written after the 5-transfer burst completes |
 
@@ -146,7 +146,7 @@ all in the 5x burst version, there's nothing to be stale.
 - **Bit order** (MSB first / LSB first) — read once at PRU0 startup
 - **5 command words** (via `PRU_SPI_runTransaction5`, once per burst — not a
   one-time config value like mode/bitOrder)
-- **Delay Compensation 1/2** - read once at PRU0 startup 
+- **Delay Compensation 1/2** - read once at PRU0 startup; valid range **1–65535**  
 
 **Note** - SCLK frequency depends on delay_comp1(d1), delay_comp2(d2), for this example the SCKL will be **PRU_Freq(225Mhz)/(d1+d2+10) = 225/(10+8+27)Mhz ~ 5Mhz**
 

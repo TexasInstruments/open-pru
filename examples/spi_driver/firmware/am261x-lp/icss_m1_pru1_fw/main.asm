@@ -13,8 +13,7 @@
 ;             receiving one of the master's 5 command words; the 5 received
 ;             words are latched to DMEM1 after the burst for R5F visibility.
 ;             No decode logic — responses are fixed regardless of command
-;             content. Never halts. (Older 4-command/1-response decode path
-;             below main loop is now dead code, kept for reference.)
+;             content. Never halts.
 ;
 ;   Pin mapping (PRU1 GPO/GPI numbers):
 ;       SCLK = GPI4  (r31.4,  input  — driven by master)
@@ -43,20 +42,8 @@ SDI_PIN             .set    11
 
 PACKET_SIZE         .set    16
 
-; The 4 known commands PRU0 may send, and PRU1's fixed response to each.
-; Fixed at build time (not DMEM-configurable) per phase 2 design decision.
-CMD0                .set    0x1
-CMD1                .set    0x2
-CMD2                .set    0x3
-CMD3                .set    0x4
-RESP0               .set    0x1111
-RESP1               .set    0x2222
-RESP2               .set    0x3333
-RESP3               .set    0x4444
-RESP_DEFAULT        .set    0xABCD  ; sent on the very first transaction (nothing decoded yet)
-
-; Fixed responses for the 5x16-bit MODE3/MSB burst (independent of the 4
-; single-transfer CMD/RESP pairs above, which are now unused/dead code).
+; Fixed responses for the 5x16-bit MODE3/MSB burst (independent of any
+; single-transfer decode path, which has been removed).
 RESP5_0             .set    0x1111
 RESP5_1             .set    0x2222
 RESP5_2             .set    0x3333
@@ -71,7 +58,6 @@ DMEM_SLAVE_RX5_3    .set    0x0C
 DMEM_SLAVE_RX5_4    .set    0x10
 
 ; Register aliases
-    .asg    R2,     s_dataReg
     .asg    R3,     r_dataReg
     .asg    R4.b0,  bitId
     .asg    R5,     temp
@@ -94,10 +80,6 @@ DMEM_SLAVE_RX5_4    .set    0x10
 
 main:
     zero    &r0, 120
-
-    ; First transaction has nothing decoded yet — caller should disregard
-    ; the response read back from the very first transaction.
-    ldi32   s_dataReg, RESP_DEFAULT
 
 LOOP_BACK:
     ; Load the 5 fixed responses to send, and clear the 5 rx registers,
@@ -129,19 +111,6 @@ WAIT_CS_LOW:
     sbbo    &rx2, temp, DMEM_SLAVE_RX5_2, 4
     sbbo    &rx3, temp, DMEM_SLAVE_RX5_3, 4
     sbbo    &rx4, temp, DMEM_SLAVE_RX5_4, 4
-    qba     LOOP_BACK
-
-SET_R0:
-    ldi32   s_dataReg, RESP0
-    qba     LOOP_BACK
-SET_R1:
-    ldi32   s_dataReg, RESP1
-    qba     LOOP_BACK
-SET_R2:
-    ldi32   s_dataReg, RESP2
-    qba     LOOP_BACK
-SET_R3:
-    ldi32   s_dataReg, RESP3
     qba     LOOP_BACK
 
 ; Out-of-line subroutine: 5 independent full-duplex transfers within one

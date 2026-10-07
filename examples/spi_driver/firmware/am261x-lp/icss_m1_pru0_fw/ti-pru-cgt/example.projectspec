@@ -76,9 +76,5 @@
         </file>
         <file path="./linker.cmd" openOnCreation="false" excludeFromBuild="false" action="copy">
         </file>
-        <file path="../../spi_master_macros.inc" openOnCreation="false" excludeFromBuild="false" action="copy">
-        </file>
-        <file path="../../time_macros.inc" openOnCreation="false" excludeFromBuild="false" action="copy">
-        </file>
     </project>
 </projectSpec>

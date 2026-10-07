@@ -91,8 +91,8 @@
 ;           bitId           -  To track Bit index (8 bits wide)
 ;           SCLK_PIN        -  PRU Pin number for SCLK
 ;           SDI_PIN         -  PRU Pin number for SDI
-;           DELAY_COMPEN_1  -  PRU cycles to wait for while SCLK is high
-;           DELAY_COMPEN_2  -  PRU cycles to wait for while SCLK is low
+;           DELAY_COMPEN_1  -  PRU cycles to wait between shifting edge and sampling edge
+;           DELAY_COMPEN_2  -  PRU cycles to wait between sampling edge and next shifting edge
 ;
 ;   Returns:
 ;       - The received data packet is stored in the `dataReg` register.
@@ -170,8 +170,8 @@ SKIP_BIT_ENTRY_0?:
 ;           bitId           -  To track Bit index (8 bits wide)
 ;           SCLK_PIN        -  PRU Pin number for SCLK
 ;           SDI_PIN         -  PRU Pin number for SDI
-;           DELAY_COMPEN_1  -  PRU cycles to wait for while SCLK is high
-;           DELAY_COMPEN_2  -  PRU cycles to wait for while SCLK is low
+;           DELAY_COMPEN_1  -  PRU cycles to wait between shifting edge and sampling edge
+;           DELAY_COMPEN_2  -  PRU cycles to wait between sampling edge and next shifting edge
 ;
 ;   Returns:
 ;       - The received data packet is stored in the `dataReg` register.
@@ -249,8 +249,8 @@ SKIP_BIT_ENTRY_0?:
 ;           bitId           -  To track Bit index (8 bits wide)
 ;           SCLK_PIN        -  PRU Pin number for SCLK
 ;           SDO_PIN         -  PRU Pin number for SDO
-;           DELAY_COMPEN_1  -  PRU cycles to wait for while SCLK is high
-;           DELAY_COMPEN_2  -  PRU cycles to wait for while SCLK is low
+;           DELAY_COMPEN_1  -  PRU cycles to wait between shifting edge and sampling edge
+;           DELAY_COMPEN_2  -  PRU cycles to wait between sampling edge and next shifting edge
 ;
 ;   Returns:
 ;       - No return value
@@ -329,8 +329,8 @@ data_high?:
 ;           bitId           -  To track Bit index (8 bits wide)
 ;           SCLK_PIN        -  PRU Pin number for SCLK
 ;           SDO_PIN         -  PRU Pin number for SDO
-;           DELAY_COMPEN_1  -  PRU cycles to wait for while SCLK is high
-;           DELAY_COMPEN_2  -  PRU cycles to wait for while SCLK is low
+;           DELAY_COMPEN_1  -  PRU cycles to wait between shifting edge and sampling edge
+;           DELAY_COMPEN_2  -  PRU cycles to wait between sampling edge and next shifting edge
 ;
 ;   Returns:
 ;       - No return value
@@ -415,8 +415,8 @@ data_high?:
 ;           SCLK_PIN        -  PRU Pin number for SCLK
 ;           SDO_PIN         -  PRU Pin number for SDO
 ;           SDI_PIN         -  PRU Pin number for SDI
-;           DELAY_COMPEN_1  -  PRU cycles to wait for while SCLK is high
-;           DELAY_COMPEN_2  -  PRU cycles to wait for while SCLK is low
+;           DELAY_COMPEN_1  -  PRU cycles to wait between shifting edge and sampling edge
+;           DELAY_COMPEN_2  -  PRU cycles to wait between sampling edge and next shifting edge
 ;           MODE            -  MODE0, MODE1, MODE2 or MODE3 mode of SPI operation
 ;           S_BIT           -  MSB or LSB
 ;

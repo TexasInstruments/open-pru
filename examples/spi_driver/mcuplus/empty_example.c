@@ -13,8 +13,6 @@
  * responses. PRU1 always responds with 5 fixed words (0x1111/0x2222/0x3333/
  * 0x4444/0x5555) regardless of the command content - no decode.
  *
- * PRU_SPI_runTransaction (single-command) is kept below for the other 7
- * (MODE x bit-order) firmware paths, which are unchanged from phase 2.
  *
  * PRU0 DMEM0 (ICSS_M1 absolute base 0x48600000):
  *   0x00        cfg_mode      R5F writes PRU_SPI_Mode before loading PRU0
@@ -49,8 +47,6 @@
 #define PRU0_DMEM_BASE       (0x48600000U)
 #define DMEM_CFG_MODE        (0x00U)
 #define DMEM_CFG_BITORDER    (0x04U)
-#define DMEM_MASTER_RX       (0x08U)
-#define DMEM_CFG_COMMAND     (0x0CU)
 #define DMEM_CFG_TRIGGER     (0x10U)
 #define DMEM_CFG_DELAY_COMP1 (0x3CU)
 #define DMEM_CFG_DELAY_COMP2 (0x40U)
@@ -97,8 +93,8 @@ typedef struct
 {
     PRU_SPI_Mode     mode;
     PRU_SPI_BitOrder bitOrder;
-    uint8_t delay_comp_1;
-    uint8_t delay_comp_2;
+    uint32_t delay_comp_1;
+    uint32_t delay_comp_2;
 } PRU_SPI_Config;
 
 static PRUICSS_Handle gPruHandle;
@@ -125,27 +121,6 @@ static void PRU_SPI_setConfig(const PRU_SPI_Config *cfg)
     dmem_write32(PRU0_DMEM_BASE, DMEM_CFG_DELAY_COMP2, (uint32_t)cfg->delay_comp_2);
 }
 
-/* Writes the command word, sets cfg_trigger, and polls until PRU0 clears it.
- * Returns 1 on success, 0 on timeout. */
-static int PRU_SPI_runTransaction(uint32_t commandWord, uint32_t *responseOut)
-{
-    dmem_write32(PRU0_DMEM_BASE, DMEM_CFG_COMMAND, commandWord);
-    dmem_write32(PRU0_DMEM_BASE, DMEM_CFG_TRIGGER, 1U);
-
-    uint32_t elapsed = 0U;
-    while (dmem_read32(PRU0_DMEM_BASE, DMEM_CFG_TRIGGER) != 0U)
-    {
-        ClockP_usleep(TRIGGER_POLL_SLEEP_US);
-        elapsed += TRIGGER_POLL_SLEEP_US;
-        if (elapsed >= TRIGGER_POLL_TIMEOUT_US)
-        {
-            return 0;
-        }
-    }
-
-    *responseOut = dmem_read32(PRU0_DMEM_BASE, DMEM_MASTER_RX);
-    return 1;
-}
 
 /* MODE3/LSB-only path (phase 3): writes 5 independent 16-bit command words,
  * sets cfg_trigger once, polls until PRU0 clears it after running all 5
@@ -168,6 +143,8 @@ static int PRU_SPI_runTransaction5(const uint32_t *commandWords, uint32_t *respo
         elapsed += TRIGGER_POLL_SLEEP_US;
         if (elapsed >= TRIGGER_POLL_TIMEOUT_US)
         {
+            /* Clear the trigger if PRU has not cleared it after timeout */
+            dmem_write32(PRU0_DMEM_BASE, DMEM_CFG_TRIGGER, 0U);
             return 0;
         }
     }
@@ -183,7 +160,8 @@ static int PRU_SPI_runTransaction5(const uint32_t *commandWords, uint32_t *respo
 void empty_example_main(void *args)
 {
     int32_t  status;
-    uint32_t input;
+    int32_t  scanf_status;
+    uint32_t input = 0U;
 
     Drivers_open();
     status = Board_driversOpen();
@@ -230,11 +208,16 @@ void empty_example_main(void *args)
         while (i < 5U)
         {
             DebugP_log("  cmd[%u]: ", i);
-            DebugP_scanf("%x", &input);
+            scanf_status = DebugP_scanf("%x", &input);
+            if (scanf_status != SystemP_SUCCESS) {
+                DebugP_log("Invalid input (scan failed).\r\n");
+                input = 0U;
+                continue;
+            }
 
             if (input > 0xFFFFU)
             {
-                DebugP_log("Invalid input, must fit in 16 bits (0-65535).\r\n");
+                DebugP_log("Invalid input, must fit in 16 bits (0x0000-0xFFFF hex).\r\n");
                 continue;
             }
 

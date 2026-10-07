@@ -78,8 +78,8 @@ DMEM_MASTER_RX5_3   .set    0x34
 DMEM_MASTER_RX5_4   .set    0x38
 
     .asg    R4.b0,  bitId
-    .asg    R4.b1,   delay_comp1_reg
-    .asg    R4.b2,   delay_comp2_reg
+    .asg    R20,   delay_comp1_reg
+    .asg    R21,   delay_comp2_reg
     .asg    R6,     cfgMode
     .asg    R7,     cfgBitOrder
     .asg    R8,     cfgTrigger
@@ -108,8 +108,8 @@ main:
     ; constant table (c24 = own DMEM, default block index -> local 0x0000).
     ; cfg_command/cfg_trigger are re-read every loop iteration below instead,
     ; since they change per transaction.
-    lbco    &cfgMode,     c24, DMEM_CFG_MODE,     4
-    lbco    &cfgBitOrder, c24, DMEM_CFG_BITORDER, 4
+    lbco    &cfgMode,     c24, DMEM_CFG_MODE,     1
+    lbco    &cfgBitOrder, c24, DMEM_CFG_BITORDER, 1
     lbco    &delay_comp1_reg, c24, DMEM_CFG_DELAY_COMP1, 4
     lbco    &delay_comp2_reg, c24, DMEM_CFG_DELAY_COMP2, 4
     ; hardware loop takes N+1 cycles, so subtract to compensate with checks that it is not already zero 
@@ -141,8 +141,11 @@ M3_MSB:
     qba     DO_M3_MSB
 
 DO_M0_MSB:
+POLL_TRIGGER_MODE0_MSB:
+    m_pru_clr_pin   SCLK_PIN           ; MODE0 idle low
+    m_pru_set_pin   CS_PIN
     lbco    &cfgTrigger, c24, DMEM_CFG_TRIGGER, 4
-    qbbc    DO_M0_MSB, cfgTrigger, 0    ; wait for R5F to set cfg_trigger
+    qbbc    POLL_TRIGGER_MODE0_MSB, cfgTrigger, 0    ; wait for R5F to set cfg_trigger
     lbco    &tx0, c24, DMEM_CFG_CMD0, 4
     lbco    &tx1, c24, DMEM_CFG_CMD1, 4
     lbco    &tx2, c24, DMEM_CFG_CMD2, 4
@@ -153,15 +156,16 @@ DO_M0_MSB:
     ldi32   rx2, 0x00000000
     ldi32   rx3, 0x00000000
     ldi32   rx4, 0x00000000
-    m_pru_clr_pin   SCLK_PIN           ; MODE0 idle low
-    m_pru_set_pin   CS_PIN
     m_pru_clr_pin   CS_PIN
     m_wait_nano_sec 35
     jal     retAddr, DO_5X_TRANSFER_M0_MSB
     qba     TRANSFER_DONE_M0_MSB
 DO_M0_LSB:
+    m_pru_clr_pin   SCLK_PIN
+    m_pru_set_pin   CS_PIN
+POLL_TRIGGER_MODE0_LSB:
     lbco    &cfgTrigger, c24, DMEM_CFG_TRIGGER, 4
-    qbbc    DO_M0_LSB, cfgTrigger, 0
+    qbbc    POLL_TRIGGER_MODE0_LSB, cfgTrigger, 0
     lbco    &tx0, c24, DMEM_CFG_CMD0, 4
     lbco    &tx1, c24, DMEM_CFG_CMD1, 4
     lbco    &tx2, c24, DMEM_CFG_CMD2, 4
@@ -172,16 +176,17 @@ DO_M0_LSB:
     ldi32   rx2, 0x00000000
     ldi32   rx3, 0x00000000
     ldi32   rx4, 0x00000000
-    m_pru_clr_pin   SCLK_PIN
-    m_pru_set_pin   CS_PIN
     m_pru_clr_pin   CS_PIN
     m_wait_nano_sec 35
     jal     retAddr, DO_5X_TRANSFER_M0_LSB
     qba     TRANSFER_DONE_M0_LSB
 
 DO_M1_MSB:
+    m_pru_clr_pin   SCLK_PIN           ; MODE1 idle low
+    m_pru_set_pin   CS_PIN
+POLL_TRIGGER_MODE1_MSB:
     lbco    &cfgTrigger, c24, DMEM_CFG_TRIGGER, 4
-    qbbc    DO_M1_MSB, cfgTrigger, 0
+    qbbc    POLL_TRIGGER_MODE1_MSB, cfgTrigger, 0
     lbco    &tx0, c24, DMEM_CFG_CMD0, 4
     lbco    &tx1, c24, DMEM_CFG_CMD1, 4
     lbco    &tx2, c24, DMEM_CFG_CMD2, 4
@@ -192,15 +197,16 @@ DO_M1_MSB:
     ldi32   rx2, 0x00000000
     ldi32   rx3, 0x00000000
     ldi32   rx4, 0x00000000
-    m_pru_clr_pin   SCLK_PIN           ; MODE1 idle low
-    m_pru_set_pin   CS_PIN
     m_pru_clr_pin   CS_PIN
     m_wait_nano_sec 35
     jal     retAddr, DO_5X_TRANSFER_M1_MSB
     qba     TRANSFER_DONE_M1_MSB
 DO_M1_LSB:
+    m_pru_clr_pin   SCLK_PIN
+    m_pru_set_pin   CS_PIN
+POLL_TRIGGER_MODE1_LSB:
     lbco    &cfgTrigger, c24, DMEM_CFG_TRIGGER, 4
-    qbbc    DO_M1_LSB, cfgTrigger, 0
+    qbbc    POLL_TRIGGER_MODE1_LSB, cfgTrigger, 0
     lbco    &tx0, c24, DMEM_CFG_CMD0, 4
     lbco    &tx1, c24, DMEM_CFG_CMD1, 4
     lbco    &tx2, c24, DMEM_CFG_CMD2, 4
@@ -211,16 +217,17 @@ DO_M1_LSB:
     ldi32   rx2, 0x00000000
     ldi32   rx3, 0x00000000
     ldi32   rx4, 0x00000000
-    m_pru_clr_pin   SCLK_PIN
-    m_pru_set_pin   CS_PIN
     m_pru_clr_pin   CS_PIN
     m_wait_nano_sec 35
     jal     retAddr, DO_5X_TRANSFER_M1_LSB
     qba     TRANSFER_DONE_M1_LSB
 
 DO_M2_MSB:
+    m_pru_set_pin   SCLK_PIN           ; MODE2 idle high
+    m_pru_set_pin   CS_PIN
+POLL_TRIGGER_MODE2_MSB:
     lbco    &cfgTrigger, c24, DMEM_CFG_TRIGGER, 4
-    qbbc    DO_M2_MSB, cfgTrigger, 0
+    qbbc    POLL_TRIGGER_MODE2_MSB, cfgTrigger, 0
     lbco    &tx0, c24, DMEM_CFG_CMD0, 4
     lbco    &tx1, c24, DMEM_CFG_CMD1, 4
     lbco    &tx2, c24, DMEM_CFG_CMD2, 4
@@ -231,15 +238,16 @@ DO_M2_MSB:
     ldi32   rx2, 0x00000000
     ldi32   rx3, 0x00000000
     ldi32   rx4, 0x00000000
-    m_pru_set_pin   SCLK_PIN           ; MODE2 idle high
-    m_pru_set_pin   CS_PIN
     m_pru_clr_pin   CS_PIN
     m_wait_nano_sec 35
     jal     retAddr, DO_5X_TRANSFER_M2_MSB
     qba     TRANSFER_DONE_M2_MSB
 DO_M2_LSB:
+    m_pru_set_pin   SCLK_PIN
+    m_pru_set_pin   CS_PIN
+POLL_TRIGGER_MODE2_LSB:
     lbco    &cfgTrigger, c24, DMEM_CFG_TRIGGER, 4
-    qbbc    DO_M2_LSB, cfgTrigger, 0
+    qbbc    POLL_TRIGGER_MODE2_LSB, cfgTrigger, 0
     lbco    &tx0, c24, DMEM_CFG_CMD0, 4
     lbco    &tx1, c24, DMEM_CFG_CMD1, 4
     lbco    &tx2, c24, DMEM_CFG_CMD2, 4
@@ -250,16 +258,17 @@ DO_M2_LSB:
     ldi32   rx2, 0x00000000
     ldi32   rx3, 0x00000000
     ldi32   rx4, 0x00000000
-    m_pru_set_pin   SCLK_PIN
-    m_pru_set_pin   CS_PIN
     m_pru_clr_pin   CS_PIN
     m_wait_nano_sec 35
     jal     retAddr, DO_5X_TRANSFER_M2_LSB
     qba     TRANSFER_DONE_M2_LSB
 
 DO_M3_MSB:
+    m_pru_set_pin   SCLK_PIN           ; MODE3 idle high
+    m_pru_set_pin   CS_PIN
+POLL_TRIGGER_MODE3_MSB:
     lbco    &cfgTrigger, c24, DMEM_CFG_TRIGGER, 4
-    qbbc    DO_M3_MSB, cfgTrigger, 0
+    qbbc    POLL_TRIGGER_MODE3_MSB, cfgTrigger, 0
     lbco    &tx0, c24, DMEM_CFG_CMD0, 4
     lbco    &tx1, c24, DMEM_CFG_CMD1, 4
     lbco    &tx2, c24, DMEM_CFG_CMD2, 4
@@ -270,15 +279,16 @@ DO_M3_MSB:
     ldi32   rx2, 0x00000000
     ldi32   rx3, 0x00000000
     ldi32   rx4, 0x00000000
-    m_pru_set_pin   SCLK_PIN           ; MODE3 idle high
-    m_pru_set_pin   CS_PIN
     m_pru_clr_pin   CS_PIN
     m_wait_nano_sec 35
     jal     retAddr, DO_5X_TRANSFER_M3_MSB
     qba     TRANSFER_DONE_M3_MSB
 DO_M3_LSB:
+    m_pru_set_pin   SCLK_PIN
+    m_pru_set_pin   CS_PIN
+POLL_TRIGGER_MODE3_LSB:
     lbco    &cfgTrigger, c24, DMEM_CFG_TRIGGER, 4
-    qbbc    DO_M3_LSB, cfgTrigger, 0
+    qbbc    POLL_TRIGGER_MODE3_LSB, cfgTrigger, 0
     ; Load all 5 command words up front - the burst below runs all 5
     ; transfers back-to-back under one CS-low assertion.
     lbco    &tx0, c24, DMEM_CFG_CMD0, 4
@@ -291,8 +301,6 @@ DO_M3_LSB:
     ldi32   rx2, 0x00000000
     ldi32   rx3, 0x00000000
     ldi32   rx4, 0x00000000
-    m_pru_set_pin   SCLK_PIN
-    m_pru_set_pin   CS_PIN
     m_pru_clr_pin   CS_PIN
     m_wait_nano_sec 35
     jal     retAddr, DO_5X_TRANSFER_M3_LSB
