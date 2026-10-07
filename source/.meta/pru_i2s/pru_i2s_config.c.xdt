@@ -1,0 +1,114 @@
+%%{
+/*
+ *  Copyright (C) 2024-2025 Texas Instruments Incorporated
+ *
+ *  Redistribution and use in source and binary forms, with or without
+ *  modification, are permitted provided that the following conditions
+ *  are met:
+ *
+ *    Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ *
+ *    Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the
+ *    distribution.
+ *
+ *    Neither the name of Texas Instruments Incorporated nor the names of
+ *    its contributors may be used to endorse or promote products derived
+ *    from this software without specific prior written permission.
+ *
+ *  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+ *  "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ *  LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+ *  A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ *  OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ *  SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+ *  LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+ *  DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+ *  THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ *  (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+ *  OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ */
+
+/*
+ * Auto generated file - DO NOT MODIFY if you want to regenerate from SysConfig
+ * If you want custom configuration, you can edit this file manually after generation
+ */
+
+    let module = system.modules["/drivers/pruicss/pruicss"];
+    let common = system.getScript("/common");
+    let soc = system.getScript(`/drivers/soc/drivers_${common.getSocName()}`);
+%%}
+
+#include <drivers/pruicss.h>
+#include <kernel/dpl/HwiP.h>
+#include <include/pru_i2s_drv.h>
+
+/* PRU I2S SWIP attributes - Generated from SysConfig */
+PRUI2S_SwipAttrs gPruI2sSwipAttrs[PRU_I2S_MAX_NUM_INST] =
+{
+% if (module) {
+%   for(let i = 0; i < module.$instances.length; i++) {
+%       let instance = module.$instances[i];
+%       let config = module.getInstanceConfig(instance);
+%       let icssNum = 0;
+%       if (instance.instance == "ICSSG0" || instance.instance == "ICSSM" || instance.instance == "ICSSM0") {
+%           icssNum = 0;
+%       } else {
+%           icssNum = 1;
+%       }
+    /* Configuration `i` - `instance.$name` */
+    {
+        .baseAddr = 0,                      /* Set by driver based on ICSS instance and PRU core */
+        .icssInstId = `icssNum`,            /* ICSS instance from SysConfig */
+        .pruInstId = PRUICSS_PRU0,          /* PRU core - modify as needed (PRUICSS_PRU0 or PRUICSS_PRU1) */
+        .numTxI2s = 0,                      /* Detected from firmware at runtime */
+        .numRxI2s = 0,                      /* Detected from firmware at runtime */
+        .sampFreq = 0,                      /* Detected from firmware at runtime */
+        .bitsPerSlot = 0,                   /* Detected from firmware at runtime */
+        .i2sTxHostIntNum = 0,               /* Detected from firmware at runtime */
+        .i2sRxHostIntNum = 0,               /* Detected from firmware at runtime */
+        .i2sErrHostIntNum = 0,              /* Detected from firmware at runtime */
+        .i2sTxIcssIntcSysEvt = 0,           /* Detected from firmware at runtime */
+        .i2sRxIcssIntcSysEvt = 0,           /* Detected from firmware at runtime */
+        .i2sErrIcssIntcSysEvt = 0,          /* Detected from firmware at runtime */
+        .intcInitData = NULL,               /* Set by application via PRUI2S_setIntcInitData() */
+    },
+%   }
+% } else {
+    /* Default configuration - No PRUICSS instance configured in SysConfig */
+    {
+        .baseAddr = 0,
+        .icssInstId = 0,
+        .pruInstId = PRUICSS_PRU0,
+        .numTxI2s = 0,
+        .numRxI2s = 0,
+        .sampFreq = 0,
+        .bitsPerSlot = 0,
+        .i2sTxHostIntNum = 0,
+        .i2sRxHostIntNum = 0,
+        .i2sErrHostIntNum = 0,
+        .i2sTxIcssIntcSysEvt = 0,
+        .i2sRxIcssIntcSysEvt = 0,
+        .i2sErrIcssIntcSysEvt = 0,
+        .intcInitData = NULL,
+    },
+    {
+        .baseAddr = 0,
+        .icssInstId = 0,
+        .pruInstId = PRUICSS_PRU1,
+        .numTxI2s = 0,
+        .numRxI2s = 0,
+        .sampFreq = 0,
+        .bitsPerSlot = 0,
+        .i2sTxHostIntNum = 0,
+        .i2sRxHostIntNum = 0,
+        .i2sErrHostIntNum = 0,
+        .i2sTxIcssIntcSysEvt = 0,
+        .i2sRxIcssIntcSysEvt = 0,
+        .i2sErrIcssIntcSysEvt = 0,
+        .intcInitData = NULL,
+    },
+% }
+};
