@@ -26,68 +26,68 @@ academy examples source:
 	$(MAKE) -C $@ $(ARGUMENTS)
 
 help:
-	@echo  ****************
-	@echo  How to use make:
-	@echo  ****************
+	@echo  "****************"
+	@echo  "How to use make:"
+	@echo  "****************"
 	@echo
-	@echo  Linux:   $(MAKE) = make
-	@echo  Windows: $(MAKE) = gmake
-	@echo      gmake is present in CCS. Add the path to the CCS gmake at
-	@echo      C:\ti\ccsxxxx\ccs\utils\bin to your Windows PATH
+	@echo  "Linux:   $(MAKE) = make"
+	@echo  "Windows: $(MAKE) = gmake"
+	@echo  "    gmake is present in CCS. Add the path to the CCS gmake at"
+	@echo  "    C:/ti/ccsxxxx/ccs/utils/bin to your Windows PATH"
 	@echo
-	@echo  imports.mak
-	@echo  These entries determine which projects get built:
-	@echo  - DEVICE: select which processor to build for
-	@echo  - BUILD_MCUPLUS: build MCU+ projects? y/n
-	@echo  - BUILD_LINUX: build Linux projects? y/n
+	@echo  "imports.mak"
+	@echo  "These entries determine which projects get built:"
+	@echo  "- DEVICE: select which processor to build for"
+	@echo  "- BUILD_MCUPLUS: build MCU+ projects? y/n"
+	@echo  "- BUILD_LINUX: build Linux projects? y/n"
 	@echo
-	@echo  "-s" is used to suppress output. Remove to see all make prints
+	@echo  "-s is used to suppress output. Remove to see all make prints"
 	@echo
-	@echo  Set PROFILE=debug or PROFILE=release in imports.mak to build with
-	@echo  the debug or release profile
+	@echo  "Set PROFILE=debug or PROFILE=release in imports.mak to build with"
+	@echo  "the debug or release profile"
 	@echo
-	@echo  "-j<thread_number>" can reduce build time with parallel builds.
-	@echo  - The -j option will scramble the print order. Do not use for debug
-	@echo  - Windows command prompt may not work or require a different
-	@echo    format, like "-j" without a thread number
-	@echo  
-	@echo  Overall build targets:
-	@echo  ======================
-	@echo  $(MAKE) help          // show this help menu
+	@echo  "-j<thread_number> can reduce build time with parallel builds."
+	@echo  "- The -j option will scramble the print order. Do not use for debug"
+	@echo  "- Windows command prompt may not work or require a different"
+	@echo  "  format, like -j without a thread number"
 	@echo
-	@echo  $(MAKE) -s            // build all projects that match DEVICE
-	@echo  $(MAKE) -s pru        // build only PRU firmware for all projects
-	@echo  $(MAKE) -s host       // build only host code for all projects
-	@echo  $(MAKE) -s clean      // clean all projects that match DEVICE
+	@echo  "Overall build targets:"
+	@echo  "======================"
+	@echo  "$(MAKE) help          // show this help menu"
 	@echo
-	@echo  The overall build targets also build & clean all libraries in the
-	@echo  source/ directory
+	@echo  "$(MAKE) -s            // build all projects that match DEVICE"
+	@echo  "$(MAKE) -s pru        // build only PRU firmware for all projects"
+	@echo  "$(MAKE) -s host       // build only host code for all projects"
+	@echo  "$(MAKE) -s clean      // clean all projects that match DEVICE"
 	@echo
-	@echo  Note: "make pru" and "make host" assume source/ libraries are already
-	@echo  built. Run "make" first on a fresh clone to build everything in order.
+	@echo  "The overall build targets also build & clean all libraries in the"
+	@echo  "source/ directory"
 	@echo
-	@echo  Build a single project:
-	@echo  =======================
-	@echo  You can build the code for a single project or library like this:
-	@echo  cd examples/empty  // go to the project directory
-	@echo  $(MAKE) -s         // build PRU firmware first, then host code
-	@echo  $(MAKE) -s pru     // build only PRU firmware
-	@echo  $(MAKE) -s host    // build only host code
-	@echo  $(MAKE) -s clean   // clean code for cores that match DEVICE
+	@echo  "Note: make pru and make host assume source/ libraries are already"
+	@echo  "built. Run make first on a fresh clone to build everything in order."
 	@echo
-	@echo  Build code for a single core:
-	@echo  =============================
-	@echo  Build code for a single core like this:
-	@echo  $(MAKE) -s -C examples/empty/firmware/am64x-evm/icss_g0_pru0_fw/ti-pru-cgt [clean]
-	@echo  $(MAKE) -s -C examples/empty/firmware/am64x-evm/icss_g0_pru1_fw/ti-pru-cgt [clean]
-	@echo  $(MAKE) -s -C examples/empty/firmware/am64x-evm/icss_g0_rtu_pru0_fw/ti-pru-cgt [clean]
-	@echo  $(MAKE) -s -C examples/empty/firmware/am64x-evm/icss_g0_rtu_pru1_fw/ti-pru-cgt [clean]
-	@echo  $(MAKE) -s -C examples/empty/firmware/am64x-evm/icss_g0_tx_pru0_fw/ti-pru-cgt [clean]
-	@echo  $(MAKE) -s -C examples/empty/firmware/am64x-evm/icss_g0_tx_pru1_fw/ti-pru-cgt [clean]
-	@echo  $(MAKE) -s -C examples/empty/am64x-evm/r5fss0-0_freertos/ti-arm-clang [clean syscfg-gui syscfg]
+	@echo  "Build a single project:"
+	@echo  "======================="
+	@echo  "You can build the code for a single project or library like this:"
+	@echo  "cd examples/empty  // go to the project directory"
+	@echo  "$(MAKE) -s         // build PRU firmware first, then host code"
+	@echo  "$(MAKE) -s pru     // build only PRU firmware"
+	@echo  "$(MAKE) -s host    // build only host code"
+	@echo  "$(MAKE) -s clean   // clean code for cores that match DEVICE"
 	@echo
-	@echo  Note that PRU firmware should be built before any RTOS code that includes
-	@echo  the PRU firmware.
+	@echo  "Build code for a single core:"
+	@echo  "============================="
+	@echo  "Build code for a single core like this:"
+	@echo  "$(MAKE) -s -C examples/empty/firmware/am64x-evm/icss_g0_pru0_fw/ti-pru-cgt [clean]"
+	@echo  "$(MAKE) -s -C examples/empty/firmware/am64x-evm/icss_g0_pru1_fw/ti-pru-cgt [clean]"
+	@echo  "$(MAKE) -s -C examples/empty/firmware/am64x-evm/icss_g0_rtu_pru0_fw/ti-pru-cgt [clean]"
+	@echo  "$(MAKE) -s -C examples/empty/firmware/am64x-evm/icss_g0_rtu_pru1_fw/ti-pru-cgt [clean]"
+	@echo  "$(MAKE) -s -C examples/empty/firmware/am64x-evm/icss_g0_tx_pru0_fw/ti-pru-cgt [clean]"
+	@echo  "$(MAKE) -s -C examples/empty/firmware/am64x-evm/icss_g0_tx_pru1_fw/ti-pru-cgt [clean]"
+	@echo  "$(MAKE) -s -C examples/empty/am64x-evm/r5fss0-0_freertos/ti-arm-clang [clean syscfg-gui syscfg]"
+	@echo
+	@echo  "Note that PRU firmware should be built before any RTOS code that includes"
+	@echo  "the PRU firmware."
 	@echo
 
 .PHONY: all clean pru host help academy examples source
