@@ -51,6 +51,10 @@ fir
 multicore_scheduler
 * Makes use of IEP timer along with Task Managers in 6 cores to schedule tasks in 6 cores back to back with no delay in between.
 
+uart_hw
+* Linux project where data reads and writes to hardware UART instances are
+  offloaded to PRU cores in order to enable high speed UART communication.
+
 ## Supported processors per-project
 
 Each project is tested on at least one processor. Many projects can be ported to
@@ -91,4 +95,5 @@ For more information about the PRU features on each processor, refer to app note
 | spi_loopback                    | Y      | Yport  | Yport   | Yport  | N-sw  | Yport |
 | fir                             | Y      | Yport  | Yport   | Yport  | Yport | Yport |
 | multicore_sheduler              | Y      | Npru   | Npru    | Npru   | Npru  | Yport |
+| uart_hw                         | N-sw   | N-sw   | N-sw    | N-sw   | Y     | Y     |
 

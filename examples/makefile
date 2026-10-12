@@ -4,7 +4,7 @@ SUBDIRS := \
     custom_frequency_generator empty empty_c \
     fft/split_radix_fft_4k_single_core fft/split_radix_fft_post_processing \
     LCD_interface logic_scope pru_emif pru_eqep spi_loopback \
-    fir multicore_scheduler rpmsg_echo_linux
+    fir multicore_scheduler rpmsg_echo_linux uart_hw
 
 # "make" or "make all" builds projects that match $(DEVICE) set in imports.mak
 all: ARGUMENTS = all

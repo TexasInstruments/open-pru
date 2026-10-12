@@ -1,0 +1,66 @@
+export OPEN_PRU_PATH?=$(abspath ../../../../../..)
+include $(OPEN_PRU_PATH)/imports.mak
+
+# Define build outputs
+OUTPUT_NAME := uart_hw_am62x-sk_pruss0_pru0_fw
+
+# NOT SUPPORTED on AM62x
+# AM62x does not support initializing PRU cores from an MCU+ core
+# MCU+ projects: rename & move hex array output
+MCU_HEX_NAME := pru0_load_bin.h
+HEX_ARRAY_PREFIX := PRU0Firmware
+MCU_HEX_PATH := $(OPEN_PRU_PATH)/examples/uart_hw/firmware/am62x-sk/$(MCU_HEX_NAME)
+
+# which directories to search for assembly & C source files?
+FILES_PATH := .. ../../.. .
+
+# Linker command file
+COMMAND_FILES := linker.cmd
+
+# Silicon version (3: PRUSS, PRU-ICSS; 4: PRU_ICSSG)
+PRU_VERSION := 3
+EXPECTED_DEVICE := am62x
+
+# Default values are defined in pru_rules.mak:
+#   - include paths (INCLUDE)
+#   - compiler flags (CFLAGS)
+#   - linker flags (LFLAGS)
+
+# Optional:
+# Pre-define here to override default value
+#   OPT_LEVEL, STACK_SIZE, HEAP_SIZE, or ENTRY_POINT
+
+# pru_rules.mak has shared settings for all PRU core makefiles
+include $(OPEN_PRU_PATH)/pru_rules.mak
+
+# Optional:
+# Append values to INCLUDE, CFLAGS, or LFLAGS here.
+# Values can be appended like this:
+# INCLUDE += --include_path=<value>
+INCLUDE += --include_path=$(OPEN_PRU_PATH)/source/include/linux
+INCLUDE += --include_path=.
+
+# Core-specific settings for RPMsg Echo project
+
+# INTC CONFIGURATION
+HOST_INT_BIT = 30
+# The PRUSS system events used for RPMsg are defined in the Linux device tree
+# PRU0 uses system event 16 (To ARM) and 17 (From ARM)
+TO_ARM_HOST = 16
+FROM_ARM_HOST = 17
+
+# RPMSG CONFIGURATION
+CHAN_PORT = 30
+
+# Defines (pass instance specific definitions to the program)
+# see --define or -D in 'PRU Optimizing C/C++ Compiler User's Guide'
+# For example, to define PRU0, ICSSG0, SOC_AM243X, and set _DEBUG_=1:
+# -DPRU0 -DICSSG0 --define=SOC_AM243X -D_DEBUG_=1
+DFLAGS := \
+	-DCHAN_PORT=$(CHAN_PORT) -DHOST_INT_BIT=$(HOST_INT_BIT) \
+	-DTO_ARM_HOST=$(TO_ARM_HOST) -DFROM_ARM_HOST=$(FROM_ARM_HOST)
+
+# Libraries
+# see --library in 'PRU Optimizing C/C++ Compiler User's Guide'
+LIBS := --library=$(OPEN_PRU_PATH)/source/rpmsg/lib/rpmsg.lib
+
