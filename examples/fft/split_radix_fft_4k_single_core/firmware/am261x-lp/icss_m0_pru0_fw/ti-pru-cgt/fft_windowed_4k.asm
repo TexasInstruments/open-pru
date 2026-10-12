@@ -256,7 +256,15 @@ FOR_LOOP_J:
     jmp POST_TWIDDLE_FETCH
 SKIP_TWIDDLE_FETCH:
     xin PRU_SPAD_B0_XID, &CC1_next, 16        ; get saved values from previous cycle
+    .if (FFT_DEVICE == AM261)
+    ; ICSSM has no BSWAP widget: move the saved set into CC1, SS1, CC3, SS3
+    mov CC1, CC1_next
+    mov SS1, SS1_next
+    mov CC3, CC3_next
+    mov SS3, SS3_next
+    .else
     xin BSWAP_4_8_XID, &CC1, 16               ; byte-swap using broadside 4_8 function
+    .endif
 POST_TWIDDLE_FETCH:
     add bsram_fdb_fetch_cycle, bsram_fdb_fetch_cycle, 1 ; increment fetch cycle
 
