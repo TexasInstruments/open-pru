@@ -91,8 +91,8 @@
 ;           bitId           -  To track Bit index (8 bits wide)
 ;           SCLK_PIN        -  PRU Pin number for SCLK
 ;           SDI_PIN         -  PRU Pin number for SDI
-;           DELAY_COMPEN_1  -  PRU cycles to wait for while SCLK is high
-;           DELAY_COMPEN_2  -  PRU cycles to wait for while SCLK is low
+;           DELAY_COMPEN_1  -  PRU cycles to wait between shifting edge and sampling edge
+;           DELAY_COMPEN_2  -  PRU cycles to wait between sampling edge and next shifting edge
 ;
 ;   Returns:
 ;       - The received data packet is stored in the `dataReg` register.
@@ -170,8 +170,8 @@ SKIP_BIT_ENTRY_0?:
 ;           bitId           -  To track Bit index (8 bits wide)
 ;           SCLK_PIN        -  PRU Pin number for SCLK
 ;           SDI_PIN         -  PRU Pin number for SDI
-;           DELAY_COMPEN_1  -  PRU cycles to wait for while SCLK is high
-;           DELAY_COMPEN_2  -  PRU cycles to wait for while SCLK is low
+;           DELAY_COMPEN_1  -  PRU cycles to wait between shifting edge and sampling edge
+;           DELAY_COMPEN_2  -  PRU cycles to wait between sampling edge and next shifting edge
 ;
 ;   Returns:
 ;       - The received data packet is stored in the `dataReg` register.
@@ -249,8 +249,8 @@ SKIP_BIT_ENTRY_0?:
 ;           bitId           -  To track Bit index (8 bits wide)
 ;           SCLK_PIN        -  PRU Pin number for SCLK
 ;           SDO_PIN         -  PRU Pin number for SDO
-;           DELAY_COMPEN_1  -  PRU cycles to wait for while SCLK is high
-;           DELAY_COMPEN_2  -  PRU cycles to wait for while SCLK is low
+;           DELAY_COMPEN_1  -  PRU cycles to wait between shifting edge and sampling edge
+;           DELAY_COMPEN_2  -  PRU cycles to wait between sampling edge and next shifting edge
 ;
 ;   Returns:
 ;       - No return value
@@ -329,8 +329,8 @@ data_high?:
 ;           bitId           -  To track Bit index (8 bits wide)
 ;           SCLK_PIN        -  PRU Pin number for SCLK
 ;           SDO_PIN         -  PRU Pin number for SDO
-;           DELAY_COMPEN_1  -  PRU cycles to wait for while SCLK is high
-;           DELAY_COMPEN_2  -  PRU cycles to wait for while SCLK is low
+;           DELAY_COMPEN_1  -  PRU cycles to wait between shifting edge and sampling edge
+;           DELAY_COMPEN_2  -  PRU cycles to wait between sampling edge and next shifting edge
 ;
 ;   Returns:
 ;       - No return value
@@ -366,6 +366,111 @@ data_high?:
     .endloop
     add     bitId, bitId, 1
     qbne    SEND_BIT_LOOP?, bitId, PACKETSIZE
+
+    m_handle_spi_mode "END", MODE, SCLK_PIN
+
+    .endm
+
+;************************************************************************************
+;   Macro: m_transfer_packet_spi_master_gpo_sclk_drv
+;
+;   Description:
+;       - Reads 1 data packet and Writes 1 data packet concurrently through
+;         the SPI slave interface. SPI master initiates SCLK.
+;       - CS is to be pulled down before calling this macro.
+;       - Theoretical max frequency at 333MHz PRU clock is 27.77MHz (d1=2, d2=0)
+;       - Practical limitation upto 12.8 MHz SCLK (d1=9, d2=7) in combination with
+;         m_transfer_packet_spi_slave_gpi_sclk macro
+;
+;   PEAK cycles:
+;           ~ (4+d1) + (6+d2) cycles
+;
+;   Assumptions:
+;       - CS must be pulled low before calling this macro.
+;       - The SCLK_PIN, SDI_PIN and SDO_PIN must be configured correctly.
+;       - PACKETSIZE should not be more than 32 (bits) or less than 1
+;       - DELAY_COMPEN_1 and DELAY_COMPEN_2 are properly calculated
+;       - r_dataReg should be cleared before calling this macro
+;
+;   Pseudo code:
+;       ========== C ==========
+;       if(S_BIT == MSB)
+;           bitId = PACKETSIZE - 1 
+;       elseif(S_BIT == LSB)
+;           bitID = 0 
+;       loop:   READ_PACKET
+;           set SCLK shifting edge
+;           set SDO bit
+;           wait d1 cycles
+;           set SCLK sampling edge
+;           read SDI bit
+;           wait d2 cycles
+;       =======================
+;
+;   Parameters:
+;           s_dataReg       -  Contains data packet to send
+;           r_dataReg       -  Register where received data packet is stored
+;           PACKETSIZE      -  Size of data packet in bits
+;           bitId           -  To track Bit index (8 bits wide)
+;           SCLK_PIN        -  PRU Pin number for SCLK
+;           SDO_PIN         -  PRU Pin number for SDO
+;           SDI_PIN         -  PRU Pin number for SDI
+;           DELAY_COMPEN_1  -  PRU cycles to wait between shifting edge and sampling edge
+;           DELAY_COMPEN_2  -  PRU cycles to wait between sampling edge and next shifting edge
+;           MODE            -  MODE0, MODE1, MODE2 or MODE3 mode of SPI operation
+;           S_BIT           -  MSB or LSB
+;
+;   Returns:
+;       - The received data packet is stored in the `r_dataReg` register.
+;************************************************************************************
+m_transfer_packet_spi_master_gpo_sclk_drv   .macro  r_dataReg, s_dataReg, PACKETSIZE, bitId, SCLK_PIN, SDI_PIN, SDO_PIN, DELAY_COMPEN_1_REG, DELAY_COMPEN_2_REG, MODE, S_BIT
+    ; Validating packetsize parameter
+    .if (PACKETSIZE > 32)  |  (PACKETSIZE < 1)
+    .emsg "Error: Invalid parameter used in macro: PACKETSIZE"
+    .endif
+    .if $symcmp(S_BIT,"MSB") = 0
+    ldi     bitId, PACKETSIZE - 1
+    .elseif $symcmp(S_BIT,"LSB") = 0
+    ldi     bitId, 0
+    .else
+    .emsg "Error: Invalid parameter used in macro: S_BIT"
+    .endif
+READ_BIT_LOOP?:
+    ;shifting edge
+    m_handle_spi_mode "SHIFTING_EDGE", MODE, SCLK_PIN
+
+    qbbc    data_low?, s_dataReg, bitId
+    m_pru_set_pin   SDO_PIN
+    qba     data_high?
+data_low?:
+    m_pru_clr_pin   SDO_PIN
+    NOP
+data_high?:
+    loop   endloop1?,DELAY_COMPEN_1_REG ; delay before sampling edge
+    NOP
+endloop1?:
+
+    ;sampling edge
+    m_handle_spi_mode "SAMPLING_EDGE", MODE, SCLK_PIN
+
+    qbbc    BIT_ENTRY_0?, r31, SDI_PIN
+    set     r_dataReg, r_dataReg, bitId     ; store data in register
+    qba     SKIP_BIT_ENTRY_0?
+BIT_ENTRY_0?:
+    clr     r_dataReg, r_dataReg, bitId
+    nop
+SKIP_BIT_ENTRY_0?:
+    loop   endloop?,DELAY_COMPEN_2_REG ; delay before shifting edge
+    NOP
+endloop?:
+
+    .if $symcmp(S_BIT,"MSB") = 0
+    sub     bitId, bitId, 1
+    qbne    READ_BIT_LOOP?, bitId, 0xFF
+    .elseif $symcmp(S_BIT,"LSB") = 0
+    add     bitId, bitId, 1
+    qbne    READ_BIT_LOOP?, bitId, PACKETSIZE
+    .endif
 
     m_handle_spi_mode "END", MODE, SCLK_PIN
 

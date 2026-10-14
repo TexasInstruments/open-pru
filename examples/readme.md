@@ -45,6 +45,11 @@ spi_loopback
 * Implement a loopback SPI connection between 2 PRU cores that act as SPI master
   and SPI slave
 
+spi_driver
+* Bit-banged SPI master/slave driver on AM261x: PRU0 master writes config + trigger
+  to DMEM, PRU1 slave responds with fixed words; supports 5x16-bit back-to-back
+  bursts under one CS assertion with runtime-configurable mode/bit-order
+
 fir
 * Implements a 64-tap FIR filter on PRU with 32 bit fixed-point precision inputs(Q31).
 
@@ -89,6 +94,7 @@ For more information about the PRU features on each processor, refer to app note
 | logic_scope                     | Y      | Yport  | Yport   | Yport  | Yport | Yport |
 | pru_emif                        | Y      | Yport  | Yport   | Yport  | N-sw  | Yport |
 | spi_loopback                    | Y      | Yport  | Yport   | Yport  | N-sw  | Yport |
+| spi_driver                      | Yport  | Y      | Yport   | Yport  | N-hw  | Yport |
 | fir                             | Y      | Yport  | Yport   | Yport  | Yport | Yport |
 | multicore_sheduler              | Y      | Npru   | Npru    | Npru   | Npru  | Yport |
 

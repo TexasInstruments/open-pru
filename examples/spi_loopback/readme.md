@@ -4,6 +4,7 @@
 
 This example provides a base for running loopback spi connection between a pair of master and slave PRU cores. 
 The example uses generic SPI macros introduced in files spi_master_macros.inc and spi_slave_macros.inc to emulate generic SPI master and slave interfaces over PRU GPIO pins.
+The macro files are located under `open-pru\source\firmware\common`.
 
 ## Overview
 ### Timing Parameters
