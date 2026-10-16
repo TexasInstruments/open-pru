@@ -20,6 +20,8 @@ so acquire/release are only a couple of cycles.
   until you get a 1.
 - **Release** (`XOUT 0x90, &R1.b3, 1`): with the same lock id still in `R1.b0`, frees
   the lock.
+- An acquire by the core that **already holds** the lock also returns 1: the status says
+  "this core holds the lock", it is not a nesting count. Do not use the lock recursively.
 
 Consequences:
 
@@ -28,6 +30,10 @@ Consequences:
   events between cores, guard a shared buffer with the lock and signal separately (ICSS
   shared RAM + a system event / interrupt; see *Signalling* below).
 - Only the owner should release a lock, and it must release promptly.
+- The lock is **not fair**. A core that tries to re-acquire straight after releasing can
+  win every time, because the other core's retry loop is longer than that gap. Measured on
+  LP-AM243 with the first version of `main.c`: PRU1 never got the lock. Do some work
+  outside the lock (or wait) before trying again, as `main.c` does.
 
 ## Files
 
@@ -40,13 +46,13 @@ Consequences:
 
 ## How to Build
 
-Adapt the silicon version to your device (`--silicon_version=3` for AM62x/AM64x/AM243x
-class ICSSG).
+Adapt the silicon version to your device: `--silicon_version=4` for the AM64x/AM243x
+PRU_ICSSG (the open-pru AM243x makefiles use `PRU_VERSION := 4`).
 
 ### Assembly only
 
 ```bash
-clpru --silicon_version=3 spinlock_example.asm
+clpru --silicon_version=4 spinlock_example.asm
 ```
 
 ### C + assembly
@@ -54,8 +60,8 @@ clpru --silicon_version=3 spinlock_example.asm
 Compile both and link together; select the core with `-DPRU0` for the PRU0 build:
 
 ```bash
-clpru --silicon_version=3 -DPRU0=1 main.c spinlock.asm   # PRU0 firmware
-clpru --silicon_version=3            main.c spinlock.asm   # PRU1 firmware
+clpru --silicon_version=4 -DPRU0=1 main.c spinlock.asm   # PRU0 firmware
+clpru --silicon_version=4            main.c spinlock.asm   # PRU1 firmware
 ```
 
 ## Acquire / release pattern

@@ -41,6 +41,13 @@ volatile register uint32_t __R30;
 #define DEBUG_PIN_SHIFT     5       /* PRU1 debug pin */
 #endif
 
+/*
+ * Cycles spent outside the lock before the next attempt. The lock is not fair:
+ * with no gap, the core that just released re-acquires before the other core's
+ * retry loop comes round, every time. On LP-AM243 PRU1 never got the lock.
+ */
+#define OUTSIDE_TIME        200
+
 /* Hold the lock for a different time per core so contention is observable. */
 #if PRU0
 #define HOLD_SPINLOCK_TIME  1000    /* PRU0 holds for 1000 cycles */
@@ -67,9 +74,12 @@ void main(void)
 
         __delay_cycles(HOLD_SPINLOCK_TIME);
 
-        /* Release the lock, then drop the debug pin. */
-        spinlock_release(SPINLOCK_FLAG);
+        /* Drop the debug pin, then release, so the two pins never overlap. */
         __R30 &= ~(1 << DEBUG_PIN_SHIFT);
+        spinlock_release(SPINLOCK_FLAG);
+
+        /* Work outside the lock, so the other core gets a turn. */
+        __delay_cycles(OUTSIDE_TIME);
     }
 
     /* Not reached because of the while(1) loop above. */

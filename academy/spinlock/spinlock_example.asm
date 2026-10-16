@@ -16,7 +16,7 @@
 ;       - RELEASE: XOUT with the same lock id in R1.b0 frees the lock.
 ;
 ;   Steps to build:
-;       clpru --silicon_version=3 spinlock_example.asm
+;       clpru --silicon_version=4 spinlock_example.asm
 ;******************************************************************************
 
 ; Required for building .out with an assembly file
