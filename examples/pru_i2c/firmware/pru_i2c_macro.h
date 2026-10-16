@@ -745,6 +745,16 @@ no_tx_data_ack_recieved?:
 ;   Macro: I2C_SETUP_IEP_COUNTER
 ;
 ;   Description: Setup the IEP timer counter for periodic interrupt.
+;
+;   The IEP counter and IEP_CMP_CFG_REG are shared by PRU0 and PRU1 and there is
+;   no hardware lock around them. The first core to run this macro resets and
+;   starts the counter; the second only joins it. The read-modify-write of
+;   IEP_CMP_CFG_REG (enable bit) and the "counter already enabled" test are not
+;   atomic across the two cores, so the two PRUs must not run this macro at the
+;   same time: release PRU0 and PRU1 from reset one after the other, with the
+;   first core past its init before the second starts. Two cores starting
+;   together can lose an enable bit (that core then waits forever in
+;   I2C_WAIT_FOR_IEP_CMP) or reset the counter under the other core.
 ;   
 ;   PEAK cycles:
 ;       
