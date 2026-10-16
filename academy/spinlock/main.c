@@ -2,6 +2,8 @@
  * SPDX-License-Identifier: BSD-3-Clause
  * Copyright (C) 2024-2026 Texas Instruments Incorporated - http://www.ti.com/
  *
+ * File: main.c
+ *
  * Spinlock Example - C Version (PRU_ICSSG local hardware spinlock)
  *
  * Demonstrates mutual exclusion between PRU0 and PRU1 using the PRU-local
@@ -26,14 +28,14 @@
  * lock was acquired, 0 otherwise. The spin loop lives here in C.
  */
 uint8_t spinlock_acquire(uint8_t flag_id);
-void    spinlock_release(uint8_t flag_id);
+void spinlock_release(uint8_t flag_id);
 
 /* Spinlock flag id (valid range 0-63). Both PRUs must use the same id. */
 #define SPINLOCK_FLAG 11
 
 /* R30 drives the PRU GPO signals; use a debug pin to scope lock ownership. */
-/* TODO: pinmux the debug signals (see the GPIO lab) and update the shift to */
-/*       match your board. PRU0 is selected via -DPRU0 in the makefile.      */
+/* Before use: pinmux the debug signals (see the GPIO lab) and update the */
+/* shift to match your board. PRU0 is selected via -DPRU0 in the makefile. */
 volatile register uint32_t __R30;
 #if PRU0
 #define DEBUG_PIN_SHIFT     4       /* PRU0 debug pin */

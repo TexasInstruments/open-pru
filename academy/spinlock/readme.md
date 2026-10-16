@@ -17,7 +17,8 @@ so acquire/release are only a couple of cycles.
 - **Acquire** (`XIN 0x90, &R1.b3, 1`): the accelerator returns the acquisition status
   in **`R1.b3`** — **bit 0 = 1** means the lock is now owned by this core, **bit 0 = 0**
   means it is held by someone else, so retry. A single `XIN` is one attempt; busy-wait
-  until you get a 1.
+  until you get a 1. The wait has **no upper bound**: it lasts as long as the other
+  core holds the lock, so keep critical sections short and bounded.
 - **Release** (`XOUT 0x90, &R1.b3, 1`): with the same lock id still in `R1.b0`, frees
   the lock.
 - An acquire by the core that **already holds** the lock also returns 1: the status says

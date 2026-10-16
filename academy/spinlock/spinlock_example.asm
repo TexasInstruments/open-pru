@@ -29,9 +29,14 @@ SPINLOCK_ID     .set    0       ; lock id 0-63, fixed in PRU firmware
 ;******************************************************************************
 ;   Macro: M_SPINLOCK_ACQUIRE
 ;       Acquire the spinlock and busy-wait until successful.
-;       R1.b0 - Input : spinlock id (set to SPINLOCK_ID)
-;       R1.b3 - Output: acquisition status (bit 0: 0=failed, 1=acquired)
-;       Best case 3 cycles; worst case unbounded (busy-wait).
+;
+;   Pseudocode:
+;       R1.b0 = SPINLOCK_ID
+;       do { XIN(XID 0x90) -> R1.b3 } while (R1.b3 bit 0 == 0)
+;
+;   Registers modified : R1.b0 (lock id), R1.b3 (status, bit 0 = 1 on exit)
+;   Peak Cycles : 3 if the lock is free; unbounded while another core holds it
+;                 (2 cycles per retry)
 ;******************************************************************************
 M_SPINLOCK_ACQUIRE  .macro
     .newblock
@@ -44,7 +49,13 @@ $1:
 ;******************************************************************************
 ;   Macro: M_SPINLOCK_RELEASE
 ;       Release the spinlock. Must follow M_SPINLOCK_ACQUIRE (lock id is still
-;       in R1.b0). 2 cycles.
+;       in R1.b0).
+;
+;   Pseudocode:
+;       XOUT(XID 0x90) with lock id R1.b0   ; frees the lock
+;
+;   Registers modified : none
+;   Peak Cycles : 1 (one XOUT)
 ;******************************************************************************
 M_SPINLOCK_RELEASE  .macro
     XOUT    INT_SPIN_XID, &R1.b3, 1     ; release lock held in R1.b0
