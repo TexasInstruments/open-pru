@@ -102,6 +102,7 @@ ENABLE_XIN_XOUT_SHITFTING    .macro
 ;************************************************************************************
 I2C_WAIT_FOR_IEP_CMP    .macro
 
+    ; INTENTIONALLY_UNBOUNDED_LOOP: scheduler tick, see the notes above
 WAIT_FOR_INT?:
     LBCO   &TEMP_REG1, ICSS_IEP_CONST, ICSS_IEP_CMP_STATUS_REG, 4
     QBBC    WAIT_FOR_INT?, TEMP_REG1, I2C_IEP_CMP_STATUS_BIT
@@ -118,13 +119,24 @@ WAIT_FOR_INT?:
 ;   PEAK cycles:
 ;       
 ;   Pseudo code:
-;       
+;       status = IEP_CMP_STATUS_REG
+;       if(status.I2C_IEP_CMP_STATUS_BIT == 0)
+;           goto arg1                       ; no tick pending for this core
+;       IEP_CMP_STATUS_REG = 1 << I2C_IEP_CMP_STATUS_BIT   ; write-1-to-clear
+;       next_compare += I2C_GLOBAL_FREQ_REG.w2             ; 64-bit add
+;       I2C_IEP_CMP_REG = next_compare                     ; re-arm this core
+;       ICSS_INTC_SECR1 = 0x0080                           ; clear the INTC event
 ;
 ;   Parameters:
-;      None 
+;      arg1 - required, a label in the caller that is jumped to when no compare
+;             event is pending for this core (the "no tick yet" continuation)
 ;
 ;   Returns:
 ;      None
+;
+;   Registers modified:
+;      TEMP_REG1, TEMP_REG2.w0 (scratch)
+;      IEP_COUNTER_NEXT_VAL1, IEP_COUNTER_NEXT_VAL2 (next compare value)
 ;
 ;************************************************************************************
 I2C_IEP_INTC_CLEAR_EVENT    .macro    arg1
@@ -161,13 +173,22 @@ IEP_INTC_CLEAR?:
 ;   PEAK cycles:
 ;       
 ;   Pseudo code:
-;       
+;       restore R10..R19 from I2C_CONTEXT_BANK    ; this core's scratchpad bank
+;       call the state at R13.w0                  ; return address in TEMP_REG3.w0
+;       save R10..R19 to I2C_CONTEXT_BANK
 ;
 ;   Parameters:
 ;      None 
 ;
 ;   Returns:
 ;      None
+;
+;   Registers modified:
+;      R0.b0 (XIN/XOUT offset), TEMP_REG3.w0 (state return address)
+;      R10..R19 (context: loaded from the bank, then written back to it)
+;      plus whatever the called state writes: states use TEMP_REG1..8 and
+;      R27..R29 as scratch and update the context registers. R20..R22 belong to
+;      the scheduler (compare value, frequency word), not to the states.
 ;
 ;************************************************************************************
 I2C_WAVE_FUNCTION0    .macro
