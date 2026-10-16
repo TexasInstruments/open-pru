@@ -59,7 +59,7 @@ includes that header instead of repeating the values.
 
  Offset            | Size | Name                                   | Description
  ------------------|------|----------------------------------------|-------------
- DMEM0 0x0008      | u16  | `IRQ_COMMON_REGISTER_OFFSET`           | Shared by both cores. Bit `<instance id>` is **set by the PRU** when a response is ready and **cleared by the host** to acknowledge it. The PRU does not accept the next command until the bit is cleared.
+ DMEM0 0x0008      | u8[4]| `IRQ_COMMON_REGISTER_OFFSET`           | Shared by both cores. One u8 flag per instance at `IRQ_COMMON_REGISTER_OFFSET + <instance id>` (0..3): **set to 1 by the PRU** when a response is ready and **cleared to 0 by the host** to acknowledge it. Each side writes only its own byte, so two instances cannot lose each other's flag. The PRU does not accept the next command until the flag is cleared.
  DMEM0 0x000C      | u16  | `I2C_BUS_FREQUENCY_OFFSET`             | Shared by both cores. Bus frequency selector: `ICSS_I2C_100KHZ_FREQ` (3), `ICSS_I2C_400KHZ_FREQ` (2), `ICSS_I2C_1MHZ_FREQ` (1). Any other value sends the firmware into an error loop.
  DMEM0 0x000E      | u16  | `I2C_BUS_FREQUENCY_OFFSET` + 2         | IEP compare increment per state tick (4 ticks per SCL period), a multiple of the IEP DEFAULT_INC (5). See "Bus frequency" below.
  own DMEM 0x0100   |      | `ICSS_I2C_INSTANCE0_ADDR`              | Start of the instance 0 block (offsets below are relative to it)
@@ -71,7 +71,7 @@ includes that header instead of repeating the values.
  + 0xAC            | u16  | `ICSS_I2C_SA_OFFSET`                   | 7-bit target address
  + 0xD8 / + 0xD9   | u8   | `ICSS_I2C_PRU_PIN_OFFSET`              | SCL / SDA pin: the bit number in R30 (output) and R31 (input)
  + 0xE0            | u8   | `ICSS_I2C_PRU_CMD_CODE_OFFSET`         | SMBus command code (for quick command, bit 0 is the R/W bit)
- + 0xE4            | u8   | `ICSS_I2C_PRU_INST_ID_OFFSET`          | Instance id, the bit used in the shared IRQ register. The example uses the core number, so a PRU0 and a PRU1 instance do not collide.
+ + 0xE4            | u8   | `ICSS_I2C_PRU_INST_ID_OFFSET`          | Instance id, the byte used in the shared IRQ register. The example uses the core number, so a PRU0 and a PRU1 instance do not collide.
  + 0xE8            | u16  | `ICSS_I2C_SCL_TIMEOUT_OFFSET`          | Clock stretching limit in state machine ticks (4 per SCL period); 0 = wait indefinitely. The example uses the SMBus 25 ms.
  + 0xFE / + 0xFF   |      | (reserved)                             | Used by the firmware to stage the SMBus command code and block count
  + 0x100 (0x0200)  | 256 B| `ICSS_I2C_INSTANCE0_TX_MEM`            | TX buffer
@@ -79,7 +79,7 @@ includes that header instead of repeating the values.
 
 The PRU also raises INTC system event SRSR1 bit 20 (PRU0) or bit 21 (PRU1)
 (`ICSS_I2C_INTC_PRU0_BIT_VAL`, `ICSS_I2C_INTC_PRU1_BIT_VAL`) when it sets the
-IRQ bit. The R5F example does not use this interrupt, it polls the IRQ bit
+IRQ flag. The R5F example does not use this interrupt, it polls the IRQ flag
 in the data RAM with a timeout. An interrupt can be added with the
 `PRUICSS_intcInit()` / `PRUICSS_registerIrqHandler()` APIs.
 
@@ -90,12 +90,12 @@ in the data RAM with a timeout. An interrupt can be added with the
    So the host stops the core, clears the data RAM, writes the frequency words
    and the instance 0 block (pins, instance id, FIFO sizes, `CON` with module
    enable, master, START, STOP and NACK), and only then loads the firmware.
-2. **Setup.** Write `ICSS_I2C_SETUP_CMD`, wait for the IRQ bit, check that the
-   response is `COMMAND_SUCCESS`, clear the IRQ bit.
+2. **Setup.** Write `ICSS_I2C_SETUP_CMD`, wait for the IRQ flag, check that the
+   response is `COMMAND_SUCCESS`, clear the IRQ flag.
 3. **Transfers.** For each transfer write the target address and the byte
    count (and the data into the TX buffer for a write), then write
-   `ICSS_I2C_TX_CMD` or `ICSS_I2C_RX_CMD`. Wait for the IRQ bit, read the
-   response (and the RX buffer for a read), clear the IRQ bit.
+   `ICSS_I2C_TX_CMD` or `ICSS_I2C_RX_CMD`. Wait for the IRQ flag, read the
+   response (and the RX buffer for a read), clear the IRQ flag.
 
 The demo uses a generic EEPROM-style target (default address 0x50) that
 takes a one byte pointer followed by data:
@@ -245,6 +245,6 @@ was not accepted.
   1/(4 x `PRU_I2C_BUS_HZ`) and 0.68 us, so that SCL low meets the Fast-mode
   minimum of 1.3 us. At 250 MHz and 400 kHz that is 170 IEP clocks per tick,
   about 368 kHz. Not yet measured on a board.
-* The example polls the IRQ bit instead of using the PRU interrupt.
+* The example polls the IRQ flag instead of using the PRU interrupt.
 * The example is built for NORTOS on the r5fss0-0 core of the AM261x-LP only.
 * Build-tested only, see "Validated HW & SW".

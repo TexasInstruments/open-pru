@@ -210,7 +210,11 @@ typedef enum PRUICSS_PruCores_e
 #define IEP_CMP_INCREMENT_VAL_1MHZ                  (0x00000140U)   // 781.25 kHz, 1x instance
 #define IEP_CMP_INCREMENT_HALF_VAL_1MHZ             (0x000000A0U)
 
-/* The register offset of IRQ status for host to read */
+/* The register offset of IRQ status for host to read. One u8 flag per
+ * instance at IRQ_COMMON_REGISTER_OFFSET + instance id (0..3): the PRU sets
+ * it to 1 when a response is ready and the host writes 0 to acknowledge it.
+ * Each side only writes the byte of its own instance, so no read-modify-write
+ * is needed. */
 #define IRQ_COMMON_REGISTER_OFFSET                 (0x0008U)
 /* The register offset of global frequency set */
 #define I2C_BUS_FREQUENCY_OFFSET                   (0x000CU)

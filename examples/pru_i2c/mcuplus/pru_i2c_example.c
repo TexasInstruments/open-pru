@@ -147,7 +147,7 @@
 /* Global words, shared by both PRU cores. The firmware reads them through
  * ICSS_DMEM0_CONST, which is DMEM0 on PRU0 and on PRU1 alike, so they always
  * live in PRU0's data RAM. The layout is defined by pru_i2c_interface.h. */
-#define PRU_I2C_IRQ_REG         (IRQ_COMMON_REGISTER_OFFSET)            /* u16: bit n set by PRU, cleared by R5F */
+#define PRU_I2C_IRQ_REG         (IRQ_COMMON_REGISTER_OFFSET)            /* u8 per instance: set by PRU, cleared by R5F */
 #define PRU_I2C_FREQ_REG        (I2C_BUS_FREQUENCY_OFFSET)              /* u16: frequency selection */
 #define PRU_I2C_IEP_INC_REG     (I2C_BUS_FREQUENCY_OFFSET + 2U)         /* u16: IEP compare increment */
 
@@ -166,8 +166,8 @@
 #define PRU_I2C_INST_ID_REG     (ICSS_I2C_INSTANCE0_ADDR + ICSS_I2C_PRU_INST_ID_OFFSET)  /* u8 */
 #define PRU_I2C_SCL_TIMEOUT_REG (ICSS_I2C_INSTANCE0_ADDR + ICSS_I2C_SCL_TIMEOUT_OFFSET)  /* u16 */
 
-/* Bit of the shared IRQ register that belongs to this instance. Use the core
- * number so a PRU0 and a PRU1 instance can run side by side. */
+/* Instance id: selects this instance's byte in the shared IRQ register. Use
+ * the core number so a PRU0 and a PRU1 instance can run side by side. */
 #define PRU_I2C_INST_ID         (PRU_I2C_PRU_CORE)
 
 /* The firmware accepts a data count of 1..255 */
@@ -211,7 +211,7 @@ static const char *PruI2c_responseToString(uint16_t response)
     return str;
 }
 
-/* Wait until the PRU sets this instance's bit in the IRQ register.
+/* Wait until the PRU sets this instance's flag in the IRQ register.
  * The PRU also raises INTC system event SRSR1 bit 20 (PRU0) / 21 (PRU1) at
  * the same time (ICSS_I2C_INTC_PRU0_BIT_VAL / ICSS_I2C_INTC_PRU1_BIT_VAL).
  * This example does not use the interrupt, it polls the data RAM flag. */
@@ -219,7 +219,7 @@ static int32_t PruI2c_waitForPru(uint32_t timeoutUs)
 {
     uint64_t start = ClockP_getTimeUsec();
 
-    while ((HW_RD_REG16(gPruGlobalBase + PRU_I2C_IRQ_REG) & (1U << PRU_I2C_INST_ID)) == 0U)
+    while (HW_RD_REG8(gPruGlobalBase + PRU_I2C_IRQ_REG + PRU_I2C_INST_ID) == 0U)
     {
         if ((ClockP_getTimeUsec() - start) > timeoutUs)
         {
@@ -229,14 +229,12 @@ static int32_t PruI2c_waitForPru(uint32_t timeoutUs)
     return SystemP_SUCCESS;
 }
 
-/* Acknowledge the PRU response. The PRU waits for the bit to be cleared
- * before it accepts the next command. */
+/* Acknowledge the PRU response. The PRU waits for the flag to be cleared
+ * before it accepts the next command. Only this instance's byte is written,
+ * so the other core's flag cannot be lost. */
 static void PruI2c_ackPru(void)
 {
-    uint16_t irq = HW_RD_REG16(gPruGlobalBase + PRU_I2C_IRQ_REG);
-
-    irq &= (uint16_t)~(1U << PRU_I2C_INST_ID);
-    HW_WR_REG16(gPruGlobalBase + PRU_I2C_IRQ_REG, irq);
+    HW_WR_REG8(gPruGlobalBase + PRU_I2C_IRQ_REG + PRU_I2C_INST_ID, 0U);
 }
 
 /* Send a command to the PRU, wait for its response and acknowledge it. */
@@ -293,7 +291,7 @@ static int32_t PruI2c_init(void)
     }
 
     /* Bus frequency (u16) and IEP compare increment (u16), shared by both
-     * cores. Clear only this instance's IRQ bit: the other core's instance
+     * cores. Clear only this instance's IRQ flag: the other core's instance
      * may be using the same register. */
     HW_WR_REG16(gPruGlobalBase + PRU_I2C_FREQ_REG, PRU_I2C_BUS_FREQ);
     HW_WR_REG16(gPruGlobalBase + PRU_I2C_IEP_INC_REG, PRU_I2C_IEP_INCREMENT);

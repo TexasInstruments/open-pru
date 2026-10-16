@@ -388,6 +388,9 @@ COPY_LOCAL_TO_GLOBAL_STATE    .macro
 ;   Macro: RAISE_INTERRUPT_MEM_FOR_HOST
 ;
 ;   raise the interrupt memory for telling host which instance raise the interrupt.
+;   Each instance owns one byte of the shared IRQ word (IRQ_COMMON_REGISTER_OFFSET
+;   + instance id) and writes it with a single byte store, so two instances
+;   cannot overwrite each other's flag.
 ;   
 ;   PEAK cycles:
 ;       
@@ -407,9 +410,9 @@ RAISE_INTERRUPT_MEM_FOR_HOST    .macro    arg1
 
     LDI     TEMP_REG5.w0, ICSS_I2C_CONFIG_MEMORY
     ADD     TEMP_REG5.w0, TEMP_REG5.w0, IRQ_COMMON_REGISTER_OFFSET
-    LBCO    &TEMP_REG4.w0, ICSS_DMEM0_CONST, TEMP_REG5.w0, 2
-    SET     TEMP_REG4.w0, TEMP_REG4.w0, R14.b3
-    SBCO    &TEMP_REG4.w0, ICSS_DMEM0_CONST, TEMP_REG5.w0, 2
+    ADD     TEMP_REG5.w0, TEMP_REG5.w0, R14.b3
+    LDI     TEMP_REG4.b0, 1
+    SBCO    &TEMP_REG4.b0, ICSS_DMEM0_CONST, TEMP_REG5.w0, 1
     UPDATE_NEXT_LOCAL_STATE arg1
     STATE_TASK_OVER
     .endm
@@ -467,8 +470,9 @@ RAISE_INTERRUPT_FOR_HOST    .macro    arg1
 CHECK_INTERRUPT_RECEIVED    .macro    arg1, arg2
     LDI     TEMP_REG5.w0, ICSS_I2C_CONFIG_MEMORY
     ADD     TEMP_REG5.w0, TEMP_REG5.w0, IRQ_COMMON_REGISTER_OFFSET
-    LBCO    &TEMP_REG4.w0, ICSS_DMEM0_CONST, TEMP_REG5.w0, 2
-    QBBC    INTERRUPT_RECEIVED_JMP_STATE?, TEMP_REG4.w0, R14.b3
+    ADD     TEMP_REG5.w0, TEMP_REG5.w0, R14.b3
+    LBCO    &TEMP_REG4.b0, ICSS_DMEM0_CONST, TEMP_REG5.w0, 1
+    QBEQ    INTERRUPT_RECEIVED_JMP_STATE?, TEMP_REG4.b0, 0
     JMP     INTERRUPT_RECEIVED_REPEAT_STATE?
 
 INTERRUPT_RECEIVED_JMP_STATE?:
