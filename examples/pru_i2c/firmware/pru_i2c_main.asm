@@ -191,11 +191,12 @@ init:
     ADD     TEMP_REG1.w0, TEMP_REG1.w0, I2C_BUS_FREQUENCY_OFFSET
     LBCO    &I2C_GLOBAL_FREQ_REG.w0, ICSS_DMEM0_CONST, TEMP_REG1.w0, 4
 
-    ; The configuration only has to carry the frequency selector (w0). Derive
-    ; the IEP compare increment (w2) from it here, so that a selector-only
-    ; configuration gets a nonzero tick period. An unsupported selector keeps
-    ; w2 = 0 and ends in ERROR_LOOP below.
-    LDI     I2C_GLOBAL_FREQ_REG.w2, 0
+    ; The configuration only has to carry the frequency selector (w0). If the
+    ; host left the IEP compare increment (w2) at 0, derive it from the
+    ; selector here so that a selector-only configuration gets a nonzero tick
+    ; period. A nonzero w2 written by the host is kept as an override. An
+    ; unsupported selector ends in ERROR_LOOP below.
+    QBNE    FREQ_NOT_1MHZ, I2C_GLOBAL_FREQ_REG.w2, 0
     QBNE    FREQ_NOT_100KHZ, I2C_GLOBAL_FREQ_REG.w0, ICSS_I2C_100KHZ_FREQ
     LDI     I2C_GLOBAL_FREQ_REG.w2, IEP_CMP_INCREMENT_VAL_100KHZ
 FREQ_NOT_100KHZ:
