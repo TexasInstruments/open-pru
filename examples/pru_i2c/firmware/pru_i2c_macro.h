@@ -954,10 +954,10 @@ SET_SDA_PIN_INPUT_DIRECTION .macro
 
     ; AM261x: set the SDA pin's OUTDISABLE bit in this core's
     ; ICSSMx_PRUy_GPIO_OUT_CTRL (I2C_GPIO_OUT_CTRL, see pru_i2c_main.asm)
-    LDI32 r29, I2C_GPIO_OUT_CTRL
-    LBBO &r28, r29, 0, 4
-    SET r28, r28, R14.b1
-    SBBO  &r28, r29, 0, 4
+    LDI32   r29, I2C_GPIO_OUT_CTRL
+    LBBO    &r28, r29, 0, 4
+    SET     r28, r28, R14.b1
+    SBBO    &r28, r29, 0, 4
 
     .endm
 
@@ -983,10 +983,10 @@ SET_SDA_PIN_OUTPUT_DIRECTION .macro
 
     ; AM261x: clear the SDA pin's OUTDISABLE bit in this core's
     ; ICSSMx_PRUy_GPIO_OUT_CTRL (I2C_GPIO_OUT_CTRL, see pru_i2c_main.asm)
-    LDI32 r29, I2C_GPIO_OUT_CTRL
-    LBBO &r28, r29, 0, 4
-    CLR r28, r28, R14.b1
-    SBBO  &r28, r29, 0, 4
+    LDI32   r29, I2C_GPIO_OUT_CTRL
+    LBBO    &r28, r29, 0, 4
+    CLR     r28, r28, R14.b1
+    SBBO    &r28, r29, 0, 4
 
     .endm
     .endif	; __icss_i2c_macros_h
