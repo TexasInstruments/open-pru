@@ -1,3 +1,4 @@
+/* File: pru_i2c_example.c */
 /*
  *  Copyright (C) 2026 Texas Instruments Incorporated
  *

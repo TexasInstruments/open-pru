@@ -1,3 +1,4 @@
+/* File: main.c */
 /*
  *  Copyright (C) 2026 Texas Instruments Incorporated
  *
