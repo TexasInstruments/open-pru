@@ -244,6 +244,9 @@ static int32_t PruI2c_sendCommand(uint16_t command, uint16_t *response)
 {
     int32_t status;
 
+    /* Make sure the configuration and the TX data written by the caller are
+     * visible to the PRU before it sees the command. */
+    __sync_synchronize();
     HW_WR_REG16(gPruDmemBase + PRU_I2C_COMMAND_REG, command);
 
     status = PruI2c_waitForPru(PRU_I2C_TIMEOUT_US);
