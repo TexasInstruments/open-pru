@@ -205,7 +205,7 @@ static const char *PruI2c_responseToString(uint16_t response)
         case ADDRESSING_MODE_FAILED:      str = "ADDRESSING_MODE_FAILED"; break;
         case INVALID_COMMAND:             str = "INVALID_COMMAND"; break;
         case INVALID_DATA_COUNT:          str = "INVALID_DATA_COUNT"; break;
-        case TIME_OUT_ERROR:              str = "TIME_OUT_ERROR (no response from PRU)"; break;
+        case TIME_OUT_ERROR:              str = "TIME_OUT_ERROR (SCL held low too long)"; break;
         default:                          str = "unknown response"; break;
     }
     return str;
@@ -257,6 +257,8 @@ static int32_t PruI2c_sendCommand(uint16_t command, uint16_t *response)
     }
     else
     {
+        /* Not a firmware response: the PRU did not report anything in time */
+        DebugP_log("PRU I2C: no response from PRU within %u us\r\n", PRU_I2C_TIMEOUT_US);
         *response = TIME_OUT_ERROR;
     }
     return status;
