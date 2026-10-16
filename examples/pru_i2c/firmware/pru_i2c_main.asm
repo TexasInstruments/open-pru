@@ -190,7 +190,22 @@ init:
     LDI     TEMP_REG1.w0, ICSS_I2C_CONFIG_MEMORY
     ADD     TEMP_REG1.w0, TEMP_REG1.w0, I2C_BUS_FREQUENCY_OFFSET
     LBCO    &I2C_GLOBAL_FREQ_REG.w0, ICSS_DMEM0_CONST, TEMP_REG1.w0, 4
-    
+
+    ; The configuration only has to carry the frequency selector (w0). Derive
+    ; the IEP compare increment (w2) from it here, so that a selector-only
+    ; configuration gets a nonzero tick period. An unsupported selector keeps
+    ; w2 = 0 and ends in ERROR_LOOP below.
+    LDI     I2C_GLOBAL_FREQ_REG.w2, 0
+    QBNE    FREQ_NOT_100KHZ, I2C_GLOBAL_FREQ_REG.w0, ICSS_I2C_100KHZ_FREQ
+    LDI     I2C_GLOBAL_FREQ_REG.w2, IEP_CMP_INCREMENT_VAL_100KHZ
+FREQ_NOT_100KHZ:
+    QBNE    FREQ_NOT_400KHZ, I2C_GLOBAL_FREQ_REG.w0, ICSS_I2C_400KHZ_FREQ
+    LDI     I2C_GLOBAL_FREQ_REG.w2, IEP_CMP_INCREMENT_VAL_400KHZ
+FREQ_NOT_400KHZ:
+    QBNE    FREQ_NOT_1MHZ, I2C_GLOBAL_FREQ_REG.w0, ICSS_I2C_1MHZ_FREQ
+    LDI     I2C_GLOBAL_FREQ_REG.w2, IEP_CMP_INCREMENT_VAL_1MHZ
+FREQ_NOT_1MHZ:
+
     ;Debug code for testing 
     .if $defined("DEBUG_CODE")
     LDI TEMP_REG1.w0, ICSS_I2C_400KHZ_FREQ
