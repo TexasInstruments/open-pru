@@ -258,6 +258,8 @@ SKIP_TWIDDLE_FETCH:
     xin PRU_SPAD_B0_XID, &CC1_next, 16        ; get saved values from previous cycle
     .if (FFT_DEVICE == AM261)
     ; ICSSM has no BSWAP widget: move the saved set into CC1, SS1, CC3, SS3
+    ; Timing: 4 single-cycle MOVs, no branches: exactly 4 cycles, run on
+    ; odd fetch cycles only (every second pass through the J loop)
     mov CC1, CC1_next
     mov SS1, SS1_next
     mov CC3, CC3_next
