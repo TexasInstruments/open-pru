@@ -145,6 +145,12 @@ SMB_F_SMB                           .set    4   ; SMBus: always START/STOP, NACK
 SMB_F_PECRX                         .set    5   ; the read ends with the target's PEC
 SMB_F_ERR                           .set    6   ; error already reported, end with STOP
 
+; SMBus block write data count limits, in bytes. The stream (command code,
+; count, data and the optional PEC byte) has to fit the 8-bit stream index,
+; so the PEC byte takes one byte off the limit.
+SMBUS_BLOCK_MAX_LEN                 .set    253
+SMBUS_BLOCK_MAX_LEN_PEC             .set    252
+
 
 ;--------------------------------------------------------------------------------------
 
@@ -862,13 +868,13 @@ SMBUS_MODE_READ:
     JMP     SMBUS_MODE_START
 
 SMBUS_MODE_BLOCK_WRITE:
-    ; N = data count, 1..253 (252 with PEC) so that cmd, N, data and PEC fit
-    ; the 8-bit stream index
+    ; N = data count, 1..SMBUS_BLOCK_MAX_LEN (SMBUS_BLOCK_MAX_LEN_PEC with
+    ; PEC) so that cmd, N, data and PEC fit the 8-bit stream index
     LBBO    &TEMP_REG4.w0, R10, ICSS_I2C_CNT_OFFSET, 2
     QBEQ    SMBUS_MODE_COUNT_ERROR, TEMP_REG4.w0, 0
-    LDI     TEMP_REG6.w0, 253
+    LDI     TEMP_REG6.w0, SMBUS_BLOCK_MAX_LEN
     QBBC    SMBUS_MODE_BLOCK_MAX, R19.b3, SMB_F_PEC
-    LDI     TEMP_REG6.w0, 252
+    LDI     TEMP_REG6.w0, SMBUS_BLOCK_MAX_LEN_PEC
 SMBUS_MODE_BLOCK_MAX:
     QBLT    SMBUS_MODE_COUNT_ERROR, TEMP_REG4.w0, TEMP_REG6.w0
     LDI     TEMP_REG5, ICSS_I2C_INSTANCE0_TX_MEM - 2
