@@ -982,7 +982,10 @@ ADDRESS_ACK_NOT_RECIEVED:
 ;  raise an interrupt
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 NO_ADDRESS_ACK_RECIEVED:
-    SET_SDA_PIN_OUTPUT_DIRECTION
+    ; SDA stays released: it was handed to the target for the ACK slot and
+    ; the NACK left it high, so SCL high with SDA high is an idle bus. Taking
+    ; SDA back here would drive the last address bit (0 for a write) and hold
+    ; the bus busy. SET_SCL_SDA_HIGH takes SDA back at the next transfer.
     SET_SCL_PIN_HIGH
     LDI     TEMP_REG4.w0, ADDRESS_ACKNOWLDEGE_FAILED
     SBBO    &TEMP_REG4, R10, ICSS_I2C_COMMAND_OFFSET, 2

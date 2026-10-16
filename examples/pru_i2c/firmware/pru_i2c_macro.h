@@ -684,8 +684,10 @@ tx_data_ack_read_next_state?:
 ;
 tx_data_ack_scl_end?:
     SET_SCL_PIN_LOW
-    SET_SDA_PIN_OUTPUT_DIRECTION
     QBBS    tx_data_ack_not_recieved?, R16, ICSS_I2C_ACK_RECIEVED_BIT
+    ; ACKed: the master transmits next (data or STOP), take SDA back. On a
+    ; NACK SDA stays released so the bus is not held low.
+    SET_SDA_PIN_OUTPUT_DIRECTION
     ADD     R15.b2, R15.b2, 0x01
     AND     R15.b0, R15.b0, 0x00
     QBGT    tx_mode_continue?, R15.b2, R15.b3
@@ -705,8 +707,10 @@ tx_mode_continue?:
 
 tx_data_ack_scl_end_v2?:
     SET_SCL_PIN_LOW
-    SET_SDA_PIN_OUTPUT_DIRECTION
     QBBS    tx_data_ack_not_recieved?, R16, ICSS_I2C_ACK_RECIEVED_BIT
+    ; ACKed: the master transmits next (data or STOP), take SDA back. On a
+    ; NACK SDA stays released so the bus is not held low.
+    SET_SDA_PIN_OUTPUT_DIRECTION
     AND     R15.b0, R15.b0, 0x00
     AND     R15.b2, R15.b2, 0x00
     CLR     R16, R16, ICSS_I2C_SMBUS_BURST_BIT
