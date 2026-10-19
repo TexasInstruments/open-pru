@@ -133,8 +133,12 @@ int32_t TCA6416_config(TCA6416_Config *config, uint32_t ioIndex, uint32_t mode)
     }
     else
     {
-        /* Validate input IO number */
-        if(ioIndex >= config->attrs.numIo)
+        /* Validate mode parameter */
+        if ((mode != TCA6416_MODE_INPUT) && (mode != TCA6416_MODE_OUTPUT))
+        {
+            status = SystemP_FAILURE;
+        }
+        else if (ioIndex >= config->attrs.numIo)
         {
             status = SystemP_FAILURE;
         }
@@ -209,8 +213,12 @@ int32_t TCA6416_setOutput(TCA6416_Config *config, uint32_t ioIndex, uint32_t sta
     }
     else
     {
-        /* Validate input IO number */
-        if(ioIndex >= config->attrs.numIo)
+        /* Validate mode parameter */
+        if ((state != TCA6416_OUT_STATE_LOW) && (state != TCA6416_OUT_STATE_HIGH))
+        {
+            status = SystemP_FAILURE;
+        }
+        else if (ioIndex >= config->attrs.numIo)
         {
             status = SystemP_FAILURE;
         }
@@ -259,6 +267,14 @@ int32_t TCA6416_setOutput(TCA6416_Config *config, uint32_t ioIndex, uint32_t sta
                     i2cTransaction.targetAddress = i2cAddress;
                     status = I2C_transfer(config->i2cHandle, &i2cTransaction);
                 }
+                else
+                {
+                    status = SystemP_FAILURE;
+                }
+            }
+            else
+            {
+                status = SystemP_FAILURE;
             }
         }
 

@@ -892,10 +892,10 @@ delay_loop:
     ; Assuming this takes exactly X microseconds
 
 ; Solution: Measure and document actual timing
-; Measured timing: 3 cycles per iteration at 200MHz = 15ns per iteration
+; Measured timing: 2 cycles per iteration at 200MHz = 10ns per iteration
 delay_loop:
     sub     r1, r1, 1      ; 1 cycle
-    qbne    delay_loop, r1, 0  ; 2 cycles when branching
+    qbne    delay_loop, r1, 0  ; 1 cycles when branching
 ```
 
 #### 3. Macro Parameter Validation

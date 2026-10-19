@@ -1344,17 +1344,22 @@ void pru_i2s_diagnostic_main(void *args)
     DebugP_log("PRU I2S driver initialized (%d valid configurations)\r\n", numValidCfg);
 
     /* Validate test configuration indices (only for enabled instances) */
-#if defined(CONFIG_PRU_I2S0_ENABLED) && (CONFIG_PRU_I2S0_ENABLED == 1)
-    if ((numValidCfg-1) < TEST_PRUI2S0_IDX)
+    if (numValidCfg == 0)
     {
-        DebugP_log("ERROR: Invalid test configuration indices\r\n");
+        DebugP_log("ERROR: No valid configurations; cannot initialize test instances\r\n");
+        goto cleanup;
+    }
+#if defined(CONFIG_PRU_I2S0_ENABLED) && (CONFIG_PRU_I2S0_ENABLED == 1)
+    if (TEST_PRUI2S0_IDX >= numValidCfg)
+    {
+        DebugP_log("ERROR: Invalid test configuration index for PRU I2S0\r\n");
         goto cleanup;
     }
 #endif
 #if defined(CONFIG_PRU_I2S1_ENABLED) && (CONFIG_PRU_I2S1_ENABLED == 1)
-    if ((numValidCfg-1) < TEST_PRUI2S1_IDX)
+    if (TEST_PRUI2S1_IDX >= numValidCfg)
     {
-        DebugP_log("ERROR: Invalid test configuration indices\r\n");
+        DebugP_log("ERROR: Invalid test configuration index for PRU I2S1\r\n");
         goto cleanup;
     }
 #endif

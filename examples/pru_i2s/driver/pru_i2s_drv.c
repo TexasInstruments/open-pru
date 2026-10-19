@@ -184,7 +184,8 @@ int32_t PRUI2S_setUserConfig(
  *       - Pins (Bclk,Fsync,Tx,Rx).
  *
  *  Parameters: 
- *      pNumValidCfg: Pointer to number of valid configurations
+ *      pNumValidCfg: [OUT] Pointer to writable storage for number of valid configurations (must be non-NULL)
+ *      gPruFwImageInfo: [IN] Non-NULL pointer to array of 2 PRU firmware image descriptors (IMEM/DMEM)
  *
  *  return: status code
  *

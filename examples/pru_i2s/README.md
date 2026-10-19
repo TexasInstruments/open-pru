@@ -122,6 +122,7 @@ This ensures continuous and efficient data transmission/reception with minimal l
 2. **Audio Clock Connections:**
    ![PCM Jumper Headers](images/pcm2.png)
    - Function generator (16MHz) → PCM6260 J7 MCLK
+   - For I2S Rx on PRU1 : 
    - PCM6260 J7 BCLK → AM261x LP J1.5
    - PCM6260 J7 FSYNC → AM261x LP J2.13
    - PCM6260 J7 DOUT1 → AM261x LP J1.8
