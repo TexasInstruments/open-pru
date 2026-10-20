@@ -4,7 +4,9 @@
 
 **Board-tested on LP-AM261, ICSSM0 PRU0 and PRU1:** 20 executions per core,
 with identical cycle counts in all 40 executions and 50/50 validation checks
-passing. The measured PRU clock was 249.9 MHz.
+passing. The PRU clock was set by the MCU+ SDK clock configuration (225 MHz
+for ICSSM0) and measured at 225.0 MHz. The cycle counts do not depend on the
+clock; only the ns figures do.
 
 - **Measured DSP building-block costs:** unsigned MAC products take 5 cycles,
   signed products take 13, and signed products with Q31 extraction take 16.
@@ -121,16 +123,23 @@ which is why this is measured on hardware.
 ## Results
 
 Measured on LP-AM261, ICSSM0 PRU0 and PRU1, 20 executions of the firmware per
-core. The cycle counts were identical in every execution on both cores. PRU
-clock measured from the CYCLE counter against the host wall clock:
-249.9 MHz.
+core. The cycle counts were identical in every execution on both cores.
+Before the firmware was loaded, an MCU+ SDK application with the PRU-ICSS
+driver for ICSSM0 ran on the R5F core, so the ICSSM0 core clock was the
+SDK's 225 MHz. PRU clock measured from the CYCLE counter against the host
+wall clock over three 1 s windows: 225.01, 225.02 and 224.96 MHz.
 
-| Run | Cycles per product | ns per product at 249.9 MHz |
+| Run | Cycles per product | ns per product at 225.0 MHz |
 | ---- | ------------------ | --------------------------- |
-| 1, MAC unsigned | 5.0 | 20.0 |
-| 4, MAC + signed fixup | 13.0 | 52.0 |
-| 5, MAC + signed fixup + Q31 | 16.0 | 64.0 |
-| 3, shift/add, no MAC | 364.0 | 1456.6 |
+| 1, MAC unsigned | 5.0 | 22.2 |
+| 4, MAC + signed fixup | 13.0 | 57.8 |
+| 5, MAC + signed fixup + Q31 | 16.0 | 71.1 |
+| 3, shift/add, no MAC | 364.0 | 1617.8 |
+
+The cycle counts do not depend on the PRU clock; the ns column scales with
+it. A debug session that only runs the CCS GEL leaves ICSSM at 250 MHz, so
+if you measure without an SDK clock setup you will see times about 10%
+shorter.
 
 - empty bracket (two CYCLE reads): 4 cycles, subtracted above
 - signed fixup: 8 cycles per product, Q31 extraction: 3 more
@@ -155,31 +164,38 @@ This project was tested on hardware with these software versions:
 | --------- | -------- | -------- |
 | am261x | LP-AM261 (AM2612, HS-FS), board revision FIXME | PRU CGT 2.3.3, CCS 21.0, OpenPRU main (75f90c94) + this project |
 
-The firmware is standalone: it needs no MCU+ code. On the LP-AM261 the AM261x
-GEL file, which runs when CCS connects to the R5F core, enables the ICSSM
-clocks.
+The firmware is standalone: it has no host code of its own. The ICSSM0 core
+clock comes from the MCU+ SDK clock configuration: SysConfig with the
+PRU-ICSS driver for ICSSM0 generates a `ti_power_clock_config.c` that sets
+ICSSM0 core to 225 MHz from DPLL_ETH_HSDIV0_CLKOUT0. The results above were
+measured after such an application ran on the R5F core.
 
 ## Steps to Run the Example
 
-1. Build the firmware and load it on ICSSM0 PRU0 or PRU1. Each core has its
+1. On the R5F core, run any MCU+ SDK application that configures ICSSM0,
+   for example the SDK `empty` example with the PRU-ICSS driver added for
+   ICSSM0 in SysConfig. This sets the ICSSM0 core clock to 225 MHz. Without
+   it, the CCS GEL leaves ICSSM at 250 MHz; the cycle counts are the same,
+   but ns figures computed at 225 MHz will not match your timing.
+2. Build the firmware and load it on ICSSM0 PRU0 or PRU1. Each core has its
    own project because the address of the core's control module (and so of
    its CYCLE register) differs between PRU0 and PRU1.
-2. Run the core. It halts by itself after about 2.6 million cycles (about
-   11 ms at 250 MHz).
-3. Read 0x78 bytes from the start of the core's own data RAM: SoC address
+3. Run the core. It halts by itself after about 2.6 million cycles (about
+   12 ms at 225 MHz).
+4. Read 0x78 bytes from the start of the core's own data RAM: SoC address
    0x48000000 for ICSSM0 PRU0, 0x48002000 for ICSSM0 PRU1. Save them as a
    raw binary file, or as text with one 32-bit word per line (hex), offset
    0x00 first.
-4. Check the record on the host (Python 3, no extra packages):
+5. Check the record on the host (Python 3, no extra packages):
 
    ```
-   python utilities/mac_throughput_check.py --record <file> --clock-mhz 250
+   python utilities/mac_throughput_check.py --record <file> --clock-mhz 225
    ```
 
    It prints the cycles per product of each timed run and `PASS` when every
    value matches the model. The first word reads 0x4d414354 ("MACT") once
    the firmware has finished.
-5. Optional: `python utilities/mac_throughput_check.py --selftest` checks the
+6. Optional: `python utilities/mac_throughput_check.py --selftest` checks the
    model (signed fixup and Q31 extraction against Python integer arithmetic
    on 100,000 operand pairs, shift/add model against `a * b`) and runs six
    negative tests that corrupt a good record and confirm the checker rejects
