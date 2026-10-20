@@ -52,6 +52,11 @@ mac/mac_c
 mac/mac_multiply
 * How to use the MAC module in Multiply-Only mode (assembly)
 
+mac/mac_throughput
+* How fast the MAC module multiplies, what signed and Q31 results cost on top
+  of the unsigned product, and why an operand write needs one instruction of
+  spacing before the XIN that reads the product (assembly)
+
 uart/uart_loopback
 * Loopback example with the PRU hardware UART peripheral
 
@@ -90,4 +95,5 @@ For more information about the PRU features on each processor, refer to app note
 | mac/mac              | Yport  | Y      | Y       | Y      | Yport | Yport |
 | mac/mac_c            | Yport  | Yport  | Yport   | Yport  | Y     | Y     |
 | mac/mac_multiply     | Yport  | Y      | Y       | Y      | Yport | Yport |
+| mac/mac_throughput   | Yport  | Y      | Yport   | Yport  | Yport | Yport |
 | uart/uart_loopback   | Yport  | Yport  | Yport   | Yport  | Y     | Yport |
