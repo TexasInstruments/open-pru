@@ -1,5 +1,31 @@
 # MAC Throughput
 
+## What this lab adds
+
+**Board-tested on LP-AM261, ICSSM0 PRU0 and PRU1:** 20 executions per core,
+with identical cycle counts in all 40 executions and 50/50 validation checks
+passing. The measured PRU clock was 249.9 MHz.
+
+- **Measured DSP building-block costs:** unsigned MAC products take 5 cycles,
+  signed products take 13, and signed products with Q31 extraction take 16.
+  These are complete loop costs, including operand updates and loop control,
+  not the MAC accelerator's standalone latency.
+- **A software baseline and independent cross-check:** a branch-free
+  shift/add multiply takes 364 cycles per product, 72.8 times the unsigned
+  MAC loop cost. Host integer arithmetic, MAC and shift/add results agree.
+  This is a comparison of these loops, not an end-to-end application speedup.
+- **A hardware operand-latency demonstration:** two deliberately unspaced
+  operand writes reproduce stale-operand products on both cores. The working
+  loop puts a useful instruction between the last operand write and XIN.
+- **Complementary to the existing examples:** the MAC labs show accelerator
+  usage and `examples/fft` provides an FFT application. This lab isolates the
+  per-product timing and signed/Q31 costs needed to budget DSP kernels; it
+  does not add another FFT implementation or claim FFT/EDMA offload speedup.
+
+See [Results](#results) for the measurements and
+[Steps to Run the Example](#steps-to-run-the-example) to reproduce them.
+PRU0 and PRU1 were tested sequentially, not concurrently.
+
 ## Introduction
 
 This lab measures the PRU MAC broadside accelerator in multiply-only mode on
