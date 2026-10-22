@@ -43,6 +43,8 @@ pru_emif
 
 pru_eqep
 * PRU implementation of EQEP (Enhanced Quadrature Encoder Pulse) 
+pru_i2s
+* Emulate I2S/TDM protocol using PRU, both Rx and Tx supported 
 
 spi_loopback
 * Implement a loopback SPI connection between 2 PRU cores that act as SPI master
@@ -92,6 +94,7 @@ For more information about the PRU features on each processor, refer to app note
 | logic_scope                     | Y      | Yport  | Yport   | Yport  | Yport | Yport |
 | pru_eqep                        | Y      |        |         |        |       |       |
 | pru_emif                        | Y      | Yport  | Yport   | Yport  | N-sw  | Yport |
+| pru_i2s                         | Yport  | Y      | Yport   | Y      | N-sw  | Yport |
 | spi_loopback                    | Y      | Yport  | Yport   | Yport  | N-sw  | Yport |
 | fir                             | Y      | Yport  | Yport   | Yport  | Yport | Yport |
 | multicore_sheduler              | Y      | Npru   | Npru    | Npru   | Npru  | Yport |

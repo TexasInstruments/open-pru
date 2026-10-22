@@ -11,4 +11,4 @@ push_commands = [
 
 [config]
 invite_only_mode = true
-allowed_users = ["pratheesh-ti", "nsaulnier-ti", "dhavaljk", "tleyrer", "manojKoppolu", "a1248924", "rajul-bhambay", "achala-ti", "JC-Jayachandran"]
+allowed_users = ["pratheesh-ti", "nsaulnier-ti", "dhavaljk", "tleyrer", "manojKoppolu", "a1248924", "rajul-bhambay", "achala-ti", "JC-Jayachandran", "y-motwani"]
