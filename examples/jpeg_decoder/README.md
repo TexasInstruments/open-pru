@@ -2,7 +2,7 @@
 
 ## Overview
 
-**Tested on hardware.** Every frame result in the Measured results section was measured on TI LaunchPads with the supplied PRU firmware: LP-AM243 (ICSSG, PRU at 250 MHz) and LP-AM261 (ICSSM, PRU at 225 MHz), in both single-core and dual-core configurations. Every decoded image matched the expected sample-block CRC, which was generated from libjpeg-turbo output, so the PRU output is bit-exact with libjpeg-turbo for every measured image.
+**Tested on hardware.** Every frame result in the Measured results section was measured on TI LaunchPads with the supplied PRU firmware: LP-AM243 (ICSSG, PRU at 250 MHz for the bundled images and 333.3 MHz measured for the separate corpus) and LP-AM261 (ICSSM, PRU at 225 MHz), in both single-core and dual-core configurations. Every decoded image matched the expected sample-block CRC, which was generated from libjpeg-turbo output, so the PRU output is bit-exact with libjpeg-turbo for every measured image.
 
 This example decodes baseline JPEG entropy scans to planar sample blocks on TI PRU cores. It supports grayscale, 4:2:0 and 4:4:4 sampling, including restart markers. Progressive JPEG, arithmetic coding, 4:2:2 sampling, non-interleaved scans, 16-bit quantization tables and 12-bit sample precision are unsupported. The R5F host parses headers, builds Huffman and quantization tables, loads the scan, starts the PRU cores, polls completion, and checks the block stream CRC. The R5F libjpeg-turbo comparison below is an earlier independent measurement; that decoder is not included here.
 
@@ -47,8 +47,8 @@ Source: [host source](host/mcuplus/jpeg_host.c). The AM261x host keeps the scan 
 Frame totals below are measured PRU CYCLE counts on silicon. Firmware headers
 give conservative instruction-count bounds for local stage execution, rather
 than measured per-stage times. MSRAM latency and contention add stalls, so
-instruction counts are not a system WCET guarantee. For example, the measured max-Huffman MSRAM scan at 249.9 MHz required
-4569.3 PRU0 cycles per block. External scan and long-code table accesses
+instruction counts are not a system WCET guarantee. For example, the measured max-Huffman MSRAM scan at 333.3 MHz required
+5427.9 PRU0 cycles per block. External scan and long-code table accesses
 add stalls beyond the local instruction counts.
 
 ## Measured results
@@ -75,39 +75,39 @@ Source: measured on LP-AM243 with this host application; CRCs matched the expect
 
 Source: measured on LP-AM261 with this host application; CRCs matched the expected sample blocks.
 
-### LP-AM243, ICSSG0, 16-image test corpus at 249.9 MHz measured
+### LP-AM243, ICSSG0, 16-image test corpus at 333.3 MHz measured
 
-This separate test host requests 333.33 MHz in SysConfig, but the counter-versus-wall-clock check measured 249.9 MHz on this run. The clock query reported the requested 333.33 MHz, and the original test binaries also measured 249.9 MHz on the same setup. Therefore these results use the measured 249.9 MHz; validation at 333 MHz remains outstanding.
+The test host requests 333.33 MHz in SysConfig. The PRU CYCLE counter against wall clock measured 333.3 MHz (three samples: 333.3, 333.3 and 333.4 MHz).
 
 The test host embeds 16 synthetic images (not bundled with this example), raises the block limit to 7680, relocates output to `0x70158000` through `0x701cffff`, and unstuffs large scans in place in MSRAM. All 32 decodes (16 images x 2 modes) were bit-exact: CRC-32 matched libjpeg-turbo output. The R5F column retains the earlier libjpeg-turbo measurement at 800 MHz.
 
 
 | Image | Content | R5F ms / fps | 1 PRU cycles / ms / fps | 2 PRU cycles / ms / fps | 2 PRU vs 1 PRU | Bit-exact |
 |---|---|---|---|---|---|---|
-| flat_gray_400x400 | smooth synthetic | 6.66 / 150.1 | 5239060 / 20.965 / 47.7 | 4894202 / 19.585 / 51.1 | 1.070x | yes, both |
-| gradient_gray_400x400 | smooth synthetic | 8.63 / 115.9 | 6973094 / 27.904 / 35.8 | 6482986 / 25.942 / 38.5 | 1.076x | yes, both |
-| impulse_gray_400x400 | smooth synthetic | 6.67 / 149.9 | 5270950 / 21.092 / 47.4 | 4923452 / 19.702 / 50.8 | 1.071x | yes, both |
-| dc_only_gray_400x400 | smooth synthetic | 6.77 / 147.8 | 5325447 / 21.310 / 46.9 | 4917950 / 19.680 / 50.8 | 1.083x | yes, both |
-| single_ac_gray_400x400 | smooth synthetic | 9.87 / 101.3 | 8795766 / 35.197 / 28.4 | 6519964 / 26.090 / 38.3 | 1.349x | yes, both |
-| gradient_420_400x400 | smooth synthetic | 12.51 / 79.9 | 10433742 / 41.752 / 24.0 | 9614985 / 38.475 / 26.0 | 1.085x | yes, both |
-| gradient_444_400x400 | smooth synthetic | 23.72 / 42.2 | 19689195 / 78.788 / 12.7 | 18197201 / 72.818 / 13.7 | 1.082x | yes, both |
-| restart_gray_400x400 | smooth synthetic | 8.88 / 112.6 | 6999019 / 28.007 / 35.7 | 6482988 / 25.942 / 38.5 | 1.080x | yes, both |
-| restart_420_400x400 | smooth synthetic | 12.64 / 79.1 | 10447463 / 41.807 / 23.9 | 9614985 / 38.475 / 26.0 | 1.087x | yes, both |
-| nonmult16_gray_401x399 | smooth synthetic | 8.76 / 114.2 | 7079143 / 28.328 / 35.3 | 6581263 / 26.336 / 38.0 | 1.076x | yes, both |
-| nonmult16_420_401x399 | smooth synthetic | 12.84 / 77.9 | 10760449 / 43.059 / 23.2 | 9916621 / 39.682 / 25.2 | 1.085x | yes, both |
-| restart_nonmult16_420_401x399 | smooth synthetic | 12.95 / 77.2 | 10769783 / 43.096 / 23.2 | 9916621 / 39.682 / 25.2 | 1.086x | yes, both |
-| dense_ac_gray_400x400 | dense | 24.97 / 40.0 | 20729279 / 82.950 / 12.1 | 11406895 / 45.646 / 21.9 | 1.817x | yes, both |
-| dense_ac_420_400x400 | dense | 34.60 / 28.9 | 28146883 / 112.633 / 8.9 | 14306114 / 57.247 / 17.5 | 1.967x | yes, both |
-| dense_ac_444_400x400 | dense | 69.67 / 14.4 | 56441639 / 225.857 / 4.4 | 28617192 / 114.515 / 8.7 | 1.972x | yes, both |
-| maxhuff_gray_400x400 | worst-case Huffman | 24.79 / 40.3 | 20749254 / 83.030 / 12.0 | 11427255 / 45.727 / 21.9 | 1.816x | yes, both |
+| flat_gray_400x400 | smooth synthetic | 6.66 / 150.1 | 5297028 / 15.893 / 62.9 | 4894294 / 14.684 / 68.1 | 1.082x | yes, both |
+| gradient_gray_400x400 | smooth synthetic | 8.63 / 115.9 | 7031022 / 21.095 / 47.4 | 6483074 / 19.451 / 51.4 | 1.085x | yes, both |
+| impulse_gray_400x400 | smooth synthetic | 6.67 / 149.9 | 5329321 / 15.990 / 62.5 | 4923536 / 14.772 / 67.7 | 1.082x | yes, both |
+| dc_only_gray_400x400 | smooth synthetic | 6.77 / 147.8 | 5383580 / 16.152 / 61.9 | 4918036 / 14.756 / 67.8 | 1.095x | yes, both |
+| single_ac_gray_400x400 | smooth synthetic | 9.87 / 101.3 | 9590904 / 28.776 / 34.8 | 6520348 / 19.563 / 51.1 | 1.471x | yes, both |
+| gradient_420_400x400 | smooth synthetic | 12.51 / 79.9 | 10521039 / 31.566 / 31.7 | 9615071 / 28.848 / 34.7 | 1.094x | yes, both |
+| gradient_444_400x400 | smooth synthetic | 23.72 / 42.2 | 19863444 / 59.596 / 16.8 | 18197285 / 54.597 / 18.3 | 1.092x | yes, both |
+| restart_gray_400x400 | smooth synthetic | 8.88 / 112.6 | 7062636 / 21.190 / 47.2 | 6483074 / 19.451 / 51.4 | 1.089x | yes, both |
+| restart_420_400x400 | smooth synthetic | 12.64 / 79.1 | 10537731 / 31.616 / 31.6 | 9615071 / 28.848 / 34.7 | 1.096x | yes, both |
+| nonmult16_gray_401x399 | smooth synthetic | 8.76 / 114.2 | 7138258 / 21.417 / 46.7 | 6581347 / 19.746 / 50.6 | 1.085x | yes, both |
+| nonmult16_420_401x399 | smooth synthetic | 12.84 / 77.9 | 10851217 / 32.557 / 30.7 | 9916707 / 29.753 / 33.6 | 1.094x | yes, both |
+| restart_nonmult16_420_401x399 | smooth synthetic | 12.95 / 77.2 | 10862455 / 32.591 / 30.7 | 9916707 / 29.753 / 33.6 | 1.095x | yes, both |
+| dense_ac_gray_400x400 | dense | 24.97 / 40.0 | 22866087 / 68.605 / 14.6 | 13543585 / 40.635 / 24.6 | 1.688x | yes, both |
+| dense_ac_420_400x400 | dense | 34.60 / 28.9 | 30063455 / 90.199 / 11.1 | 16087770 / 48.268 / 20.7 | 1.869x | yes, both |
+| dense_ac_444_400x400 | dense | 69.67 / 14.4 | 60301351 / 180.922 / 5.5 | 32337046 / 97.021 / 10.3 | 1.865x | yes, both |
+| maxhuff_gray_400x400 | worst-case Huffman | 24.79 / 40.3 | 22895892 / 68.695 / 14.6 | 13573757 / 40.725 / 24.6 | 1.687x | yes, both |
 
 Source: measured on LP-AM243 (rev E1); CRCs matched the expected sample blocks. "2 PRU cycles" is the later of the two cores.
 
 | Content | Images | R5F fps (geometric mean) | 1 PRU fps | 2 PRU fps | 2 PRU vs 1 PRU |
 |---|---|---|---|---|---|
-| smooth synthetic | 12 | 98.2 | 30.0 | 33.0 | 1.10x (1.07x-1.35x) |
-| dense | 3 | 25.5 | 7.8 | 15.0 | 1.92x (1.82x-1.97x) |
-| worst-case Huffman | 1 | 40.3 | 12.0 | 21.9 | 1.82x (1.82x-1.82x) |
+| smooth synthetic | 12 | 98.2 | 39.4 | 44.0 | 1.12x (1.08x-1.47x) |
+| dense | 3 | 25.5 | 9.6 | 17.4 | 1.81x (1.69x-1.87x) |
+| worst-case Huffman | 1 | 40.3 | 14.6 | 24.6 | 1.69x (1.69x-1.69x) |
 
 Cycle counts depend on content and memory location. The smooth synthetic,
 gradient, impulse and sparse coefficient images give smaller dual-core gains
@@ -136,4 +136,4 @@ The synthetic corpus contains smooth, gradient, impulse, sparse coefficient, and
 
 On ICSSM, enabling the PRU cycle counter only in the start stub can race the host driver's read-modify-write of the PRU CONTROL register. The supplied host clears CYCLE while reset and writes CONTROL with COUNTER_ENABLE set before calling `PRUICSS_enableCore()`. Preserve that sequence when adapting the host, or the counter can stop while decoding continues. Source: [host source](host/mcuplus/jpeg_host.c).
 
-Measured on LP-AM243 (rev E1) and LP-AM261 (rev E2), built with TI PRU CGT 2.3.3, TI Arm Clang 4.0.5.LTS, MCU+ SDK 12.01.00.33 with SysConfig 1.28.0 (AM243x) and MCU+ SDK 11.00.00.29 with SysConfig 1.26.0 (AM261x). The 250 MHz (LP-AM243) and 225 MHz (LP-AM261) tables cover the three bundled images on each board with the supplied host. The separate corpus table adds 4:4:4, dense and worst-case Huffman content and scans placed in MSRAM, on LP-AM243 only, using the test host build described above. Its requested 333 MHz clock was not validated in the current run.
+Measured on LP-AM243 (rev E1) and LP-AM261 (rev E2), built with TI PRU CGT 2.3.3, TI Arm Clang 4.0.5.LTS, MCU+ SDK 12.01.00.33 with SysConfig 1.28.0 (AM243x) and MCU+ SDK 11.00.00.29 with SysConfig 1.26.0 (AM261x). The 250 MHz (LP-AM243) and 225 MHz (LP-AM261) tables cover the three bundled images on each board with the supplied host. The separate corpus table adds 4:4:4, dense and worst-case Huffman content and scans placed in MSRAM, on LP-AM243 only, using the test host build described above. Its PRU clock was measured at 333.3 MHz for the results above.
