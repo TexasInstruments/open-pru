@@ -30,14 +30,14 @@
 *  OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-// Include necessary header files
+/* Include necessary header files */
 #include <kernel/dpl/DebugP.h>
 #include <drivers/eqep.h>
 #include "ti_drivers_config.h"
 #include "ti_drivers_open_close.h"
 #include "ti_board_open_close.h"
 #include <string.h>
-// #include <drivers/pruicss/g_v0/cslr_icss_common.h>
+/* #include <drivers/pruicss/g_v0/cslr_icss_common.h> */
 #include <kernel/dpl/CacheP.h>
 #include <kernel/dpl/ClockP.h>
 #include <drivers/pruicss.h>
@@ -50,24 +50,24 @@
 #include <txpru1_load_bin.h>
 
 #define CTR_EN (1 << 3)
-// Define offsets for each channel in DMEM
-#define DMEM_CHANNEL_SIZE  0x400  // 4KB per channel
-#define DMEM_CH0_OFFSET    0x0000  // Channel 0 starts at base
-#define DMEM_CH1_OFFSET    0x400  // Channel 1 starts at base + 4KB
-#define DMEM_CH2_OFFSET    0x800  // Channel 2 starts at base + 8KB
-#define DMEM_CH3_OFFSET    0x0C00  // Channel 3 (RTU_PRU1) starts in PRU1's DRAM bank
-#define DMEM_CH4_OFFSET    0x1000  // Channel 4 (PRU1) starts in PRU1's DRAM bank
-#define DMEM_CH5_OFFSET    0x1400  // Channel 5 (TX_PRU1) starts in PRU1's DRAM bank
+/* Define offsets for each channel in DMEM */
+#define DMEM_CHANNEL_SIZE  0x400  /* 4KB per channel                                 */
+#define DMEM_CH0_OFFSET    0x0000 /* Channel 0 starts at base                        */
+#define DMEM_CH1_OFFSET    0x400  /* Channel 1 starts at base + 4KB                  */
+#define DMEM_CH2_OFFSET    0x800  /* Channel 2 starts at base + 8KB                  */
+#define DMEM_CH3_OFFSET    0x0C00 /* Channel 3 (RTU_PRU1) starts in PRU1's DRAM bank */
+#define DMEM_CH4_OFFSET    0x1000 /* Channel 4 (PRU1) starts in PRU1's DRAM bank     */
+#define DMEM_CH5_OFFSET    0x1400 /* Channel 5 (TX_PRU1) starts in PRU1's DRAM bank  */
 
-// Define position offsets for each channel (4 bytes each)
-#define CH0_POSITION_OFFSET 0x1C     // Base starting offset
-#define CH1_POSITION_OFFSET 0x20     // 0x1C + 0x4
-#define CH2_POSITION_OFFSET 0x24     // 0x20 + 0x4
-#define CH3_POSITION_OFFSET 0x28     // 0x24 + 0x4
-#define CH4_POSITION_OFFSET 0x2C     // 0x28 + 0x4
-#define CH5_POSITION_OFFSET 0x30     // 0x2C + 0x4
+/* Define position offsets for each channel (4 bytes each) */
+#define CH0_POSITION_OFFSET 0x1C     /* Base starting offset */
+#define CH1_POSITION_OFFSET 0x20     /* 0x1C + 0x4           */
+#define CH2_POSITION_OFFSET 0x24     /* 0x20 + 0x4           */
+#define CH3_POSITION_OFFSET 0x28     /* 0x24 + 0x4           */
+#define CH4_POSITION_OFFSET 0x2C     /* 0x28 + 0x4           */
+#define CH5_POSITION_OFFSET 0x30     /* 0x2C + 0x4           */
 
-// Define phase-error counter offsets for each channel (PRU-write-only, R5F-read-only)
+/* Define phase-error counter offsets for each channel (PRU-write-only, R5F-read-only) */
 #define CH0_PHASE_ERR_OFFSET 0x34
 #define CH1_PHASE_ERR_OFFSET 0x38
 #define CH2_PHASE_ERR_OFFSET 0x3C
@@ -75,13 +75,41 @@
 #define CH4_PHASE_ERR_OFFSET 0x44
 #define CH5_PHASE_ERR_OFFSET 0x48
 
-// Define the delay after which we should print the results
+/* Define QPOSMAX offsets for each channel (PRU-write-once at boot, R5F-read-once at init) */
+#define CH0_QPOSMAX_OFFSET 0x4C
+#define CH1_QPOSMAX_OFFSET 0x50
+#define CH2_QPOSMAX_OFFSET 0x54
+#define CH3_QPOSMAX_OFFSET 0x58
+#define CH4_QPOSMAX_OFFSET 0x5C
+#define CH5_QPOSMAX_OFFSET 0x60
+
+/* Define last-direction offsets for each channel (PRU-write-every-edge, R5F-read-only) */
+#define CH0_LAST_DIR_OFFSET 0x64
+#define CH1_LAST_DIR_OFFSET 0x68
+#define CH2_LAST_DIR_OFFSET 0x6C
+#define CH3_LAST_DIR_OFFSET 0x70
+#define CH4_LAST_DIR_OFFSET 0x74
+#define CH5_LAST_DIR_OFFSET 0x78
+
+
+/* Define the delay after which we should print the results */
 #define PRINT_DELAY         1000000U
 
-// Define to enable mem_limit ring-buffer-wrap debug prints (Ch5 bench test)
-// #define TEST_MEM_LIMIT_DEBUG
+/* Define the below line to enable mem_limit ring-buffer-wrap debug prints (Ch5 bench test) */
+/* #define TEST_MEM_LIMIT_DEBUG */
 
-// Array of offsets for easier access
+/* Define the below line to enable pulse loss detection test, refer readme section 8e for more details */
+// #define TEST_PULSE_LOSS 
+
+/* Define Pulse loss offsets for each channel, used only when the test is enabled */
+#define CH0_PULSE_LOSS_OFFSET 0x7C
+#define CH1_PULSE_LOSS_OFFSET 0x80
+#define CH2_PULSE_LOSS_OFFSET 0x84
+#define CH3_PULSE_LOSS_OFFSET 0x88
+#define CH4_PULSE_LOSS_OFFSET 0x8C
+#define CH5_PULSE_LOSS_OFFSET 0x90
+
+/* Array of offsets for easier access */
 static const uint32_t DMEM_OFFSETS[6] = {
     DMEM_CH0_OFFSET,
     DMEM_CH1_OFFSET,
@@ -91,24 +119,24 @@ static const uint32_t DMEM_OFFSETS[6] = {
     DMEM_CH5_OFFSET
 };
 
-// Define constants
+/* Define constants */
 #define WRITE_PTR_OFFSET_MASK 0x0000FFFF
 #define TIMESTAMP_MASK 0x00FFFFFF
 
-// Handle for PRUICSS instance
+/* Handle for PRUICSS instance */
 PRUICSS_Handle gPruIcssXHandle;
 
-// Pointer to PRU DRAM
+/* Pointer to PRU DRAM */
 void *gPru_dramx;
-//void *gPru_dramx_0;
-//void *gPru_dramx_1;
-//void *gPru_dramx_2;
-// Pointer to PRU configuration
+/*void *gPru_dramx_0;
+  void *gPru_dramx_1;
+  void *gPru_dramx_2;
+   Pointer to PRU configuration */
 static void *gPru_cfg;
 
 ABZ_Handle ABZHandle[6];
 ABZ_Config ABZInstance[6];
-// Define macros
+/* Define macros */
 #define PRU_CLK_FREQ 300000000
 #define EQEP_EDGE_THRESHOLD 4  /* edges to accumulate before processing — must match PRU firmware */
 
@@ -116,7 +144,8 @@ void EQEP_Get_Speed_ABZ(uint8_t channel);
 void EQEP_get_speed_RT(uint8_t channel);
 void EQEP_Get_position_ABZ(void);
 void EQEP_PRU_clearPhaseErrorFlag(uint8_t channel);
-void create_lut(void);  // Remove static keyword from the implementation
+void EQEP_PRU_clearPulseLossFlag(uint8_t channel);
+void create_lut(void);  /* Remove static keyword from the implementation */
 void ABZ_enable_load_share_mode(void *pruCfg, uint32_t pruSlice);
 void EQEP_pruss_load_run_fw(void);
 void ABZ_PRU_ICSS_Init(PRUICSS_Handle handle, ABZ_Handle ABZHandle, uint8_t pru_core);
@@ -132,8 +161,8 @@ void EQEP_diagnostic_main(void *args);
  */
 void EQEP_pruss_load_run_fw(void)
 {
-//PRU0 Cores
-    // Disable all cores
+    /* PRU0 Cores
+       Disable all cores */
     PRUICSS_disableCore(gPruIcssXHandle, PRUICSS_RTU_PRU0);    // ch0
     PRUICSS_disableCore(gPruIcssXHandle, PRUICSS_PRU0);        // ch1
     PRUICSS_disableCore(gPruIcssXHandle, PRUICSS_TX_PRU0);     // ch2
@@ -142,7 +171,7 @@ void EQEP_pruss_load_run_fw(void)
     gPru_cfg = (void *)(((PRUICSS_HwAttrs *)(gPruIcssXHandle->hwAttrs))->cfgRegBase);
     ABZ_enable_load_share_mode(gPru_cfg, PRUICSS_PRU0);
 
-    // Load firmware for each channel
+    /* Load firmware for each channel */
     PRUICSS_writeMemory(gPruIcssXHandle, PRUICSS_IRAM_RTU_PRU(PRUICSS_PRU0),
         0, (uint32_t *) RTUPRU0Firmware_0,
         sizeof(RTUPRU0Firmware_0));
@@ -155,7 +184,7 @@ void EQEP_pruss_load_run_fw(void)
         0, (uint32_t *) TXPRU0Firmware_0,
         sizeof(TXPRU0Firmware_0));
 
-    // Reset cores
+    /* Reset cores */
     PRUICSS_resetCore(gPruIcssXHandle, PRUICSS_RTU_PRU0);
     PRUICSS_resetCore(gPruIcssXHandle, PRUICSS_PRU0);
     PRUICSS_resetCore(gPruIcssXHandle, PRUICSS_TX_PRU0);
@@ -165,8 +194,8 @@ void EQEP_pruss_load_run_fw(void)
     PRUICSS_enableCore(gPruIcssXHandle, PRUICSS_PRU0);
     PRUICSS_enableCore(gPruIcssXHandle, PRUICSS_TX_PRU0);
 
-//PRU1 Cores
-// Disable all cores
+   /* PRU1 Cores
+      Disable all cores */
    PRUICSS_disableCore(gPruIcssXHandle, PRUICSS_RTU_PRU1);    // ch0
    PRUICSS_disableCore(gPruIcssXHandle, PRUICSS_PRU1);        // ch1
    PRUICSS_disableCore(gPruIcssXHandle, PRUICSS_TX_PRU1);     // ch2
@@ -175,7 +204,7 @@ void EQEP_pruss_load_run_fw(void)
    gPru_cfg = (void *)(((PRUICSS_HwAttrs *)(gPruIcssXHandle->hwAttrs))->cfgRegBase);
    ABZ_enable_load_share_mode(gPru_cfg, PRUICSS_PRU1);
 
-   // Load firmware for each channel
+   /* Load firmware for each channel */
    PRUICSS_writeMemory(gPruIcssXHandle, PRUICSS_IRAM_RTU_PRU(PRUICSS_PRU1),
        0, (uint32_t *) RTUPRU1Firmware_0,
        sizeof(RTUPRU1Firmware_0));
@@ -188,7 +217,7 @@ void EQEP_pruss_load_run_fw(void)
        0, (uint32_t *) TXPRU1Firmware_0,
        sizeof(TXPRU1Firmware_0));
 
-   // Reset cores
+   /* Reset cores */
    PRUICSS_resetCore(gPruIcssXHandle, PRUICSS_RTU_PRU1);
    PRUICSS_resetCore(gPruIcssXHandle, PRUICSS_PRU1);
    PRUICSS_resetCore(gPruIcssXHandle, PRUICSS_TX_PRU1);
@@ -198,34 +227,34 @@ void EQEP_pruss_load_run_fw(void)
    PRUICSS_enableCore(gPruIcssXHandle, PRUICSS_PRU1);
    PRUICSS_enableCore(gPruIcssXHandle, PRUICSS_TX_PRU1);
 }
-// Function to initialize PRU ICSS
+/* Function to initialize PRU ICSS */
 void ABZ_PRU_ICSS_Init(PRUICSS_Handle handle, ABZ_Handle ABZHandle, uint8_t pru_core)
 {
-    // Disable PRU core
+    /* Disable PRU core */ 
     PRUICSS_disableCore(handle, pru_core);
 
-    // Clear ICSS0 PRU data RAM
+    /* Clear ICSS0 PRU data RAM */
     gPru_dramx = (void *)((((PRUICSS_HwAttrs *)(handle->hwAttrs))->baseAddr) + PRUICSS_DATARAM(pru_core));
     memset(gPru_dramx, 0, (4 * 1024));
 
-    // Initialize ICSS interrupt controller
+    /* Initialize ICSS interrupt controller */
     gPru_cfg = (void *)(((PRUICSS_HwAttrs *)(handle->hwAttrs))->cfgRegBase);
     PRUICSS_intcInit(handle, &icss0_intc_initdata);
 }
 
 int32_t idx=0;
 
-// Main function
+/* Main function */
 void pru_eqep_example_main(void *args)
 {
     int32_t status;
-    // Open drivers and board
+    /* Open drivers and board */
     Drivers_open();
     status = Board_driversOpen();
 
     DebugP_assert(SystemP_SUCCESS == status);
 
-    // Initialize PRU ICSS with single handle
+    /* Initialize PRU ICSS with single handle */
     gPruIcssXHandle = PRUICSS_open(CONFIG_PRU_ICSS0);
 
     /*
@@ -239,7 +268,7 @@ void pru_eqep_example_main(void *args)
     {
         ABZHandle[i] = &ABZInstance[i];
 
-        // Use single handle for all channel configurations
+        /* Use single handle for all channel configurations */
         ABZHandle[i]->baseMemAddr0 = (uint32_t *)(
             ((PRUICSS_HwAttrs *)(gPruIcssXHandle->hwAttrs))->pru0DramBase +
             DMEM_OFFSETS[i]
@@ -270,12 +299,34 @@ void pru_eqep_example_main(void *args)
     ABZHandle[3]->phase_err_base = (uint32_t *)((uint32_t)(ABZHandle[3]->baseMemAddr1) + CH0_PHASE_ERR_OFFSET);
     ABZHandle[4]->phase_err_base = (uint32_t *)((uint32_t)(ABZHandle[4]->baseMemAddr1) + CH0_PHASE_ERR_OFFSET);
     ABZHandle[5]->phase_err_base = (uint32_t *)((uint32_t)(ABZHandle[5]->baseMemAddr1) + CH0_PHASE_ERR_OFFSET);
-    // Initialize PRU ICSS for each channel
-    //PRU0 cores
+
+    ABZHandle[0]->qposmax_base = (uint32_t *)((uint32_t)(ABZHandle[0]->baseMemAddr1) + CH0_QPOSMAX_OFFSET);
+    ABZHandle[1]->qposmax_base = (uint32_t *)((uint32_t)(ABZHandle[1]->baseMemAddr1) + CH0_QPOSMAX_OFFSET);
+    ABZHandle[2]->qposmax_base = (uint32_t *)((uint32_t)(ABZHandle[2]->baseMemAddr1) + CH0_QPOSMAX_OFFSET);
+    ABZHandle[3]->qposmax_base = (uint32_t *)((uint32_t)(ABZHandle[3]->baseMemAddr1) + CH0_QPOSMAX_OFFSET);
+    ABZHandle[4]->qposmax_base = (uint32_t *)((uint32_t)(ABZHandle[4]->baseMemAddr1) + CH0_QPOSMAX_OFFSET);
+    ABZHandle[5]->qposmax_base = (uint32_t *)((uint32_t)(ABZHandle[5]->baseMemAddr1) + CH0_QPOSMAX_OFFSET);
+
+    ABZHandle[0]->last_dir_base = (uint8_t *)((uint32_t)(ABZHandle[0]->baseMemAddr1) + CH0_LAST_DIR_OFFSET);
+    ABZHandle[1]->last_dir_base = (uint8_t *)((uint32_t)(ABZHandle[1]->baseMemAddr1) + CH0_LAST_DIR_OFFSET);
+    ABZHandle[2]->last_dir_base = (uint8_t *)((uint32_t)(ABZHandle[2]->baseMemAddr1) + CH0_LAST_DIR_OFFSET);
+    ABZHandle[3]->last_dir_base = (uint8_t *)((uint32_t)(ABZHandle[3]->baseMemAddr1) + CH0_LAST_DIR_OFFSET);
+    ABZHandle[4]->last_dir_base = (uint8_t *)((uint32_t)(ABZHandle[4]->baseMemAddr1) + CH0_LAST_DIR_OFFSET);
+    ABZHandle[5]->last_dir_base = (uint8_t *)((uint32_t)(ABZHandle[5]->baseMemAddr1) + CH0_LAST_DIR_OFFSET);
+
+    ABZHandle[0]->pulse_loss_base = (uint32_t *)((uint32_t)(ABZHandle[0]->baseMemAddr1) + CH0_PULSE_LOSS_OFFSET);
+    ABZHandle[1]->pulse_loss_base = (uint32_t *)((uint32_t)(ABZHandle[1]->baseMemAddr1) + CH0_PULSE_LOSS_OFFSET);
+    ABZHandle[2]->pulse_loss_base = (uint32_t *)((uint32_t)(ABZHandle[2]->baseMemAddr1) + CH0_PULSE_LOSS_OFFSET);
+    ABZHandle[3]->pulse_loss_base = (uint32_t *)((uint32_t)(ABZHandle[3]->baseMemAddr1) + CH0_PULSE_LOSS_OFFSET);
+    ABZHandle[4]->pulse_loss_base = (uint32_t *)((uint32_t)(ABZHandle[4]->baseMemAddr1) + CH0_PULSE_LOSS_OFFSET);
+    ABZHandle[5]->pulse_loss_base = (uint32_t *)((uint32_t)(ABZHandle[5]->baseMemAddr1) + CH0_PULSE_LOSS_OFFSET);
+    
+    /* Initialize PRU ICSS for each channel */
+    /* PRU0 cores */
     ABZ_PRU_ICSS_Init(gPruIcssXHandle, ABZHandle[0], PRUICSS_RTU_PRU0);
     ABZ_PRU_ICSS_Init(gPruIcssXHandle, ABZHandle[1], PRUICSS_PRU0);
     ABZ_PRU_ICSS_Init(gPruIcssXHandle, ABZHandle[2], PRUICSS_TX_PRU0);
-    //PRU1 cores
+    /* PRU1 cores */
     ABZ_PRU_ICSS_Init(gPruIcssXHandle, ABZHandle[3], PRUICSS_RTU_PRU1);
     ABZ_PRU_ICSS_Init(gPruIcssXHandle, ABZHandle[4], PRUICSS_PRU1);
     ABZ_PRU_ICSS_Init(gPruIcssXHandle, ABZHandle[5], PRUICSS_TX_PRU1);
@@ -300,14 +351,24 @@ void pru_eqep_example_main(void *args)
     // Load and run firmware
     EQEP_pruss_load_run_fw();
 
+    /* Read QPOSMAX once, after firmware start: PRU publishes it to DMEM
+     * during its own init block (before the capture loop begins), so it
+     * is guaranteed valid here. Read once, not per-poll, since firmware
+     * never rewrites it again after boot. */
+    for (int i = 0; i < 6; i++)
+    {
+        ABZHandle[i]->qposmax = HW_RD_REG32((uint32_t)ABZHandle[i]->qposmax_base);
+    }
 
-    // Log messages
+    /* Log messages */ 
     DebugP_log("\r\n ABZ setup finished\n");
     DebugP_log("EQEP Position Speed Test Started ...\r\n");
-
+#ifdef TEST_PULSE_LOSS
+    DebugP_log("Pulse loss test active, if pulse loss detected, the corresponding field pulse_loss_flag will be set logged below otherwise it will remain 0...\r\n");
+#endif
     uint64_t last_print_us = ClockP_getTimeUsec();
 
-    // Main polling loop
+    /* Main polling loop */
     while (1)
     {
         for (int ch = 0; ch < 6; ch++)
@@ -328,9 +389,6 @@ void pru_eqep_example_main(void *args)
                     ABZHandle[ch]->read_ptr_offset, curr_write_ptr_offset, edge_delta);
 #endif
             }
-
-            /* If no change in edge delta, then set the direction to 0 -> no change */
-            ABZHandle[ch]->direction = 0;
 
             /* Phase error shadow-compare: PRU increments its counter on invalid
              * A/B transitions; R5F only ever reads it and diffs against its own
@@ -356,24 +414,30 @@ void pru_eqep_example_main(void *args)
             ABZHandle[ch]->prev_QPOS  = ABZHandle[ch]->QPOSCOUNT;
             ABZHandle[ch]->QPOSCOUNT  = HW_RD_REG32((uint32_t)ABZHandle[ch]->position_base);
 
-            /* QPOS is a free-running uint32_t in PRU firmware (plain add/sub,
-             * no QPOSMAX ceiling), so it wraps 0xFFFFFFFF -> 0 (forward) or
-             * 0 -> 0xFFFFFFFF (reverse). A direct unsigned compare of
-             * QPOSCOUNT vs prev_QPOS breaks exactly at that wrap: e.g.
-             * prev=0xFFFFFFFF, curr=0x00000000 is still forward motion, but
-             * curr < prev as raw unsigned values, so the old ">"/"<" logic
-             * would report it as reverse.
+            /* Direction comes straight from firmware's last-processed-edge
+             * value (1 = increment, 2 = decrement).
              *
-             * Fix: subtract as unsigned (which wraps modulo 2^32, exactly
-             * undoing the counter's own wraparound) and reinterpret the
-             * result as signed. Since we poll fast relative to the encoder
-             * rate, the true step between polls is always tiny compared to
-             * 2^31, so the sign of the reinterpreted result always matches
-             * the true direction, wrap or no wrap. */
-            int32_t qpos_diff = (int32_t)(ABZHandle[ch]->QPOSCOUNT - ABZHandle[ch]->prev_QPOS);
-            if      (qpos_diff > 0) ABZHandle[ch]->direction =  1;
-            else if (qpos_diff < 0) ABZHandle[ch]->direction = -1;
+             * Intentionally sticky at idle, matching the real eQEP
+             * peripheral's QEPSTS[QDF] direction flag,
+             * which also holds the last-detected direction rather than
+             * reverting to a neutral value when motion stops */
+            uint8_t last_dir = HW_RD_REG8((uint32_t)ABZHandle[ch]->last_dir_base);
+            if      (last_dir == 1) ABZHandle[ch]->direction =  1;
+            else if (last_dir == 2) ABZHandle[ch]->direction = -1;
 
+#ifdef TEST_PULSE_LOSS
+            /* If the current pulse loss count is not equal to the last count when the pulse loss was detected or 0 (from starting)
+               OR if a phase error is detected then a pulse loss is happened and the pulse loss flag for the channel will be set  
+               This method is followed so that both R5F and PRU do not do both read/write from the same memory location */
+            uint32_t curr_pulse_loss_count = HW_RD_REG32((uint32_t)ABZHandle[ch]->pulse_loss_base);
+            if ((curr_pulse_loss_count != ABZHandle[ch]->pulse_loss_count_last_seen) || ABZHandle[ch]->phase_error_flag == 1)
+            {
+                ABZHandle[ch]->pulse_loss_flag = 1;
+                ABZHandle[ch]->pulse_loss_count_last_seen = curr_pulse_loss_count;
+            }
+            /* We can track the total number of times pulse loss was seen with pulse_loss_count field for each channel */
+            ABZHandle[ch]->pulse_loss_count = curr_pulse_loss_count;
+#endif
             if (edge_delta >= EQEP_EDGE_THRESHOLD)
             {
                 ABZHandle[ch]->write_ptr_offset = curr_write_ptr_offset;
@@ -384,6 +448,7 @@ void pru_eqep_example_main(void *args)
         /* Print status every 1 second 
         this is just for calculating that atleast 1(PRINT_DELAY) second has passed since the last print */
         uint64_t now_us = ClockP_getTimeUsec();
+#ifndef TEST_PULSE_LOSS
         if ((now_us - last_print_us) >= PRINT_DELAY)
         {
             DebugP_log("\r\nSpeeds (Hz): Ch0=%d Ch1=%d Ch2=%d Ch3=%d Ch4=%d Ch5=%d\n",
@@ -400,31 +465,40 @@ void pru_eqep_example_main(void *args)
                 ABZHandle[3]->phase_error_flag, ABZHandle[4]->phase_error_flag, ABZHandle[5]->phase_error_flag);
             last_print_us = now_us;
         }
+#else
+        if ((now_us - last_print_us) >= PRINT_DELAY)
+        {
+            DebugP_log("\r\nPulse loss flag for channel (Hz): Ch0=%d Ch1=%d Ch2=%d Ch3=%d Ch4=%d Ch5=%d\n",
+                ABZHandle[0]->pulse_loss_flag, ABZHandle[1]->pulse_loss_flag, ABZHandle[2]->pulse_loss_flag,
+                ABZHandle[3]->pulse_loss_flag, ABZHandle[4]->pulse_loss_flag, ABZHandle[5]->pulse_loss_flag);
+            last_print_us = now_us;
+        }
+#endif
     }
 
 
 
-    // Close drivers and board
+    /* Close drivers and board */
     Board_driversClose();
     Drivers_close();
 }
 
-// Function to get speed and position of ABZ
+/* Function to get speed and position of ABZ */
 void EQEP_Get_Speed_ABZ(uint8_t channel)
 {
-    // Calculate read pointer and write pointer
+    /* Calculate read pointer and write pointer */
     ABZHandle[channel]->read_ptr = (ABZHandle[channel]->baseMemAddr0) + (ABZHandle[channel]->read_ptr_offset) / 4;
     ABZHandle[channel]->write_ptr_offset = HW_RD_REG32(ABZHandle[channel]->baseMemAddr1) & WRITE_PTR_OFFSET_MASK;
     ABZHandle[channel]->write_ptr = (ABZHandle[channel]->baseMemAddr0) + (ABZHandle[channel]->write_ptr_offset) / 4;
 
-    // Get timestamps
+    /* Get timestamps */
     ABZHandle[channel]->prev_ts = HW_RD_REG32(ABZHandle[channel]->read_ptr) & TIMESTAMP_MASK;
     ABZHandle[channel]->cur_ts = HW_RD_REG32(ABZHandle[channel]->write_ptr) & TIMESTAMP_MASK;
 
-    // Calculate speed and position
+    /* Calculate speed and position */
     if (ABZHandle[channel]->read_ptr_offset > ABZHandle[channel]->write_ptr_offset)
     {
-        // Calculate delta time and edges
+        /* Calculate delta time and edges */
         if (ABZHandle[channel]->prev_ts > ABZHandle[channel]->cur_ts)
             ABZHandle[channel]->delta_t = TIMESTAMP_MASK - ABZHandle[channel]->prev_ts + ABZHandle[channel]->cur_ts;
         else
@@ -432,7 +506,7 @@ void EQEP_Get_Speed_ABZ(uint8_t channel)
 
         ABZHandle[channel]->edges = (ABZHandle[channel]->mem_limit - ABZHandle[channel]->read_ptr_offset + ABZHandle[channel]->write_ptr_offset) / 4;
 
-        // Calculate speed
+        /* Calculate speed */
         ABZHandle[channel]->speed = ABZHandle[channel]->edges * ((PRU_CLK_FREQ) / (ABZHandle[channel]->delta_t));
 
 #ifdef TEST_MEM_LIMIT_DEBUG
@@ -451,7 +525,7 @@ void EQEP_Get_Speed_ABZ(uint8_t channel)
     }
     else
     {
-        // Similar calculations for the else case
+        /* Similar calculations for the else case */
         if (ABZHandle[channel]->prev_ts > ABZHandle[channel]->cur_ts)
             ABZHandle[channel]->delta_t = TIMESTAMP_MASK - ABZHandle[channel]->prev_ts + ABZHandle[channel]->cur_ts;
         else
@@ -462,7 +536,7 @@ void EQEP_Get_Speed_ABZ(uint8_t channel)
     }
 
 
-    // Update pointers and counters
+    /* Update pointers and counters */
     ABZHandle[channel]->prev_ts = ABZHandle[channel]->cur_ts;
     ABZHandle[channel]->read_ptr = ABZHandle[channel]->write_ptr;
     ABZHandle[channel]->read_ptr_offset = ABZHandle[channel]->write_ptr_offset;
@@ -473,38 +547,38 @@ void create_lut(void)
 {
     void *a_b_transition_base = (void *)((uint32_t)(ABZHandle[0]->baseMemAddr1) + 0xf0);
 
-    // STATE_00_00 (0000)
-    HW_WR_REG8((uint32_t)a_b_transition_base + 0x0, 0);  // No change
-    // STATE_00_01 (0001)
-    HW_WR_REG8((uint32_t)a_b_transition_base + 0x1, 2); // Decrement
-    // STATE_00_10 (0010)
-    HW_WR_REG8((uint32_t)a_b_transition_base + 0x2, 1);  // Increment
-    // STATE_00_11 (0011) - diagonal transition (SPRU790D Fig. 6: 00<->11 is invalid) -> phase error
-    HW_WR_REG8((uint32_t)a_b_transition_base + 0x3, 3);  // Phase error
-    // STATE_01_00 (0100)
-    HW_WR_REG8((uint32_t)a_b_transition_base + 0x4, 1);  // Increment
-    // STATE_01_01 (0101)
-    HW_WR_REG8((uint32_t)a_b_transition_base + 0x5, 3);  // Invalid state (phase error)
-    // STATE_01_10 (0110) - diagonal transition (SPRU790D Fig. 6: 01<->10 is invalid) -> phase error
-    HW_WR_REG8((uint32_t)a_b_transition_base + 0x6, 3);  // Phase error
-    // STATE_01_11 (0111)
-    HW_WR_REG8((uint32_t)a_b_transition_base + 0x7, 2); // Decrement
-    // STATE_10_00 (1000)
-    HW_WR_REG8((uint32_t)a_b_transition_base + 0x8, 2); // Decrement
-    // STATE_10_01 (1001) - diagonal transition (SPRU790D Fig. 6: 10<->01 is invalid) -> phase error
-    HW_WR_REG8((uint32_t)a_b_transition_base + 0x9, 3);  // Phase error
-    // STATE_10_10 (1010)
-    HW_WR_REG8((uint32_t)a_b_transition_base + 0xA, 3);  // Invalid state (phase error)
-    // STATE_10_11 (1011)
-    HW_WR_REG8((uint32_t)a_b_transition_base + 0xB, 1);  // Increment
-    // STATE_11_00 (1100) - diagonal transition (SPRU790D Fig. 6: 11<->00 is invalid) -> phase error
-    HW_WR_REG8((uint32_t)a_b_transition_base + 0xC, 3);  // Phase error
-    // STATE_11_01 (1101)
-    HW_WR_REG8((uint32_t)a_b_transition_base + 0xD, 1);  // Increment
-    // STATE_11_10 (1110)
-    HW_WR_REG8((uint32_t)a_b_transition_base + 0xE, 2); // Decrement
-    // STATE_11_11 (1111)
-    HW_WR_REG8((uint32_t)a_b_transition_base + 0xF, 0);  // No change
+    /* STATE_00_00 (0000) No change*/
+    HW_WR_REG8((uint32_t)a_b_transition_base + 0x0, 0); 
+    /* STATE_00_01 (0001) Decrement*/
+    HW_WR_REG8((uint32_t)a_b_transition_base + 0x1, 2); 
+    /* STATE_00_10 (0010) Increment*/
+    HW_WR_REG8((uint32_t)a_b_transition_base + 0x2, 1);  
+    /* STATE_00_11 (0011) - diagonal transition (00<->11 is invalid) -> phase error */
+    HW_WR_REG8((uint32_t)a_b_transition_base + 0x3, 3);  
+    /* STATE_01_00 (0100) Increment*/
+    HW_WR_REG8((uint32_t)a_b_transition_base + 0x4, 1);  
+    /* STATE_01_01 (0101) Invalid state (phase error)*/
+    HW_WR_REG8((uint32_t)a_b_transition_base + 0x5, 3);  
+    /* STATE_01_10 (0110) - diagonal transition (01<->10 is invalid) -> phase error */
+    HW_WR_REG8((uint32_t)a_b_transition_base + 0x6, 3);  
+    /* STATE_01_11 (0111) Decrement*/
+    HW_WR_REG8((uint32_t)a_b_transition_base + 0x7, 2); 
+    /* STATE_10_00 (1000) Decrement*/
+    HW_WR_REG8((uint32_t)a_b_transition_base + 0x8, 2); 
+    /* STATE_10_01 (1001) - diagonal transition (10<->01 is invalid) -> phase error */
+    HW_WR_REG8((uint32_t)a_b_transition_base + 0x9, 3);  
+    /* STATE_10_10 (1010) Invalid state (phase error)*/
+    HW_WR_REG8((uint32_t)a_b_transition_base + 0xA, 3);  
+    /* STATE_10_11 (1011) Increment*/
+    HW_WR_REG8((uint32_t)a_b_transition_base + 0xB, 1);  
+    /* STATE_11_00 (1100) - diagonal transition (11<->00 is invalid) -> phase error */
+    HW_WR_REG8((uint32_t)a_b_transition_base + 0xC, 3); 
+    /* STATE_11_01 (1101) Increment*/
+    HW_WR_REG8((uint32_t)a_b_transition_base + 0xD, 1);  
+    /* STATE_11_10 (1110) Decrement*/
+    HW_WR_REG8((uint32_t)a_b_transition_base + 0xE, 2); 
+    /* STATE_11_11 (1111) No change*/
+    HW_WR_REG8((uint32_t)a_b_transition_base + 0xF, 0);  
 }
 
 void ABZ_enable_load_share_mode(void *pruCfg, uint32_t pruSlice)
@@ -525,7 +599,7 @@ void ABZ_enable_load_share_mode(void *pruCfg, uint32_t pruSlice)
 }
 void EQEP_Get_position_ABZ(void)
 {
-    // Update position and direction
+    /* Update position and direction */
     for(int channel=0;channel<6;channel++) ABZHandle[channel]->prev_QPOS = ABZHandle[channel]->QPOSCOUNT;
     for(int channel=0;channel<6;channel++)
     {
@@ -535,26 +609,30 @@ void EQEP_Get_position_ABZ(void)
     }
         for(int channel=0;channel<6;channel++)
         {
-            /* See the wraparound-safe signed-diff note in the main polling
-             * loop above (pru_eqep_example_main) — same QPOS free-running
-             * uint32_t wrap issue applies here. */
-            int32_t qpos_diff = (int32_t)(ABZHandle[channel]->QPOSCOUNT - ABZHandle[channel]->prev_QPOS);
-            if      (qpos_diff > 0) ABZHandle[channel]->direction =  1;
-            else if (qpos_diff < 0) ABZHandle[channel]->direction = -1;
-            else                    ABZHandle[channel]->direction =  0;
+            /* See the last-direction note in the main polling loop above
+             * (pru_eqep_example_main) — same firmware-published value,
+             * not a QPOS diff. */
+            uint8_t last_dir = HW_RD_REG8((uint32_t)ABZHandle[channel]->last_dir_base);
+            if      (last_dir == 1) ABZHandle[channel]->direction =  1;
+            else if (last_dir == 2) ABZHandle[channel]->direction = -1;
         }
    if(idx>=950) idx=0;
 }
 void EQEP_PRU_clearPhaseErrorFlag(uint8_t channel)
 {
-    // Only clears the R5F-local flag; never touches PRU/DMEM (single-owner rule)
+    /* Only clears the R5F-local flag; never touches PRU/DMEM (single-owner rule) */
     ABZHandle[channel]->phase_error_flag = 0;
+}
+void EQEP_PRU_clearPulseLossFlag(uint8_t channel)
+{
+    /* Only clears the R5F-local flag; never touches PRU/DMEM (single-owner rule) */
+    ABZHandle[channel]->pulse_loss_flag = 0;
 }
 
 void EQEP_get_speed_RT(uint8_t channel)
 {
 
-    // Calculate speed
+    /* Calculate speed */
     ABZHandle[channel]->write_ptr_offset = HW_RD_REG32(ABZHandle[channel]->baseMemAddr1) & WRITE_PTR_OFFSET_MASK;
     ABZHandle[channel]->write_ptr = (ABZHandle[channel]->baseMemAddr0) + (ABZHandle[channel]->write_ptr_offset) / 4;
     ABZHandle[channel]->delta_t = HW_RD_REG32(ABZHandle[channel]->write_ptr) & TIMESTAMP_MASK;
