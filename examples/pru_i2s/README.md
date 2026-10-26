@@ -42,7 +42,7 @@ This ensures continuous and efficient data transmission/reception with minimal l
 
 | Processor | Hardware | Software |
 |-----------|----------|----------|
-| AM263x | Control Card (TMDSCNCD263) + HSECDOCK | MCU+ SDK AM263x 11.0, CCS 21.0.1, SysConfig 1.28.1, PRU CGT 2.3.3 |
+| AM263x | Control Card (TMDSCNCD263) + HSECDOCK | OpenPRU 2026.02, MCU+ SDK AM263x 11.0, CCS 21.0.1, SysConfig 1.28.1, PRU CGT 2.3.3 |
 | AM261x | LaunchPad LP-AM261 REV A | MCU+ SDK AM261x 11.0, CCS 21.0.1, SysConfig 1.28.1, PRU CGT 2.3.3 |
 
 ---
@@ -162,7 +162,6 @@ pru_i2s/
 ├── README.md                    # This file
 ├── makefile                     # Top-level makefile
 ├── firmware/                    # PRU firmware source code
-│   ├── include/                # Shared firmware headers
 │   ├── I2S/                    # I2S protocol implementation
 │   │   ├── pru_i2s_main.asm   # Main firmware logic
 │   │   ├── fw_regs.asm        # Register definitions
@@ -170,6 +169,7 @@ pru_i2s/
 │   │   ├── icss_pru_i2s_fw.h  # Firmware register map
 │   │   ├── pru_i2s_interface.h # Interface definitions
 │   │   ├── pru_i2s_regs.h     # Hardware registers
+│   │   ├── generated/         # Generated firmware array headers (build output, gitignored)
 │   │   ├── pru0_tx/           # TX firmware builds
 │   │   │   ├── am261x-lp/     # AM261x variant
 │   │   │   └── am263x-cc/     # AM263x variant
@@ -177,12 +177,7 @@ pru_i2s/
 │   │       ├── am261x-lp/
 │   │       └── am263x-cc/
 │   └── TDM4/                   # TDM4 protocol (parallel structure)
-│       └── (same as I2S)
-├── driver/                      # PRU I2S driver implementation
-│   └── pru_i2s_drv.c           # Driver source (~2400 lines)
-├── include/                     # Driver public headers
-│   ├── pru_i2s_drv.h           # Driver API (~1000+ lines)
-│   └── pru_i2s_pruss_intc_mapping.h  # INTC definitions
+│       └── (same structure as I2S, with pru_i2s_tdm4_pru0/1_array.h generated)
 ├── pru_i2s_app/                 # R5F host application
 │   ├── board/                  # Board support files
 │   │   ├── ioexp_tca6416.c    # IO expander driver
@@ -224,8 +219,11 @@ make DEVICE=am261x clean
 
 **What gets built:**
 - 4 PRU firmware binaries per device (I2S PRU0 TX, I2S PRU1 RX, TDM4 PRU0 TX, TDM4 PRU1 RX)
-- Firmware header arrays (`.h` files for embedding in application)
-- R5F application binary (`.out` and `.appimage`)
+- Firmware header arrays (`.h` files) generated into `firmware/I2S/generated/` and `firmware/TDM4/generated/` (gitignored)
+- PRU I2S driver library (`lib/pru_i2s.*.lib`) built from `source/i2s/makefile`
+- R5F application binary (`.out` and `.mcelf`)
+
+**Note:** The PRU firmware makefiles use `pru_rules.mak` (silicon version `-v3`, PRUSS/PRU-ICSS) and place all build artifacts in a `ti-pru-cgt/generated/` subdirectory. The library build is owned by `source/i2s/makefile` and is invoked automatically by the top-level `makefile`.
 
 ### Building with Code Composer Studio
 
@@ -265,7 +263,7 @@ The R5F application initializes PRU-ICSSG, downloads firmware to PRU cores, and 
 │   (pru_i2s_diagnostic.c)    │
 ├─────────────────────────────┤
 │   PRU I2S Driver            │
-│   (pru_i2s_drv.c)           │
+│   (source/i2s/pru_i2s_drv.c)│
 ├─────────────────────────────┤
 │   MCU+ SDK Drivers          │
 │   (PRUICSS, GPIO, etc.)     │
