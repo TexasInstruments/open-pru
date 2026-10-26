@@ -1,90 +1,41 @@
 ################################################################################
-# PRU I2S Firmware Makefile
+# PRU I2S - I2S Protocol - PRU0 TX - AM263x-CC
 ################################################################################
-#   Required input arguments :
-#   Build firmware for PRU I2S   Use this input argument to include files from external paths
 
 export OPEN_PRU_PATH?=$(abspath ../../../../../../../..)
 include $(OPEN_PRU_PATH)/imports.mak
-CG_TOOL_ROOT := $(CGT_TI_PRU_PATH)
 
-# Add inputs and outputs from these tool invocations to the build variables
-CMD_SRCS += \
-	linker.cmd \
+# Define build outputs
+OUTPUT_NAME := pru_i2s_am263x-cc_icssm0-pru0_fw
 
-ASM_SRCS += \
-	pru_i2s_main.asm \
-	fw_regs.asm \
+# MCU+ projects: rename & move hex array output
+MCU_HEX_NAME := pru_i2s_pru0_array.h
+HEX_ARRAY_PREFIX := pru_prupru_i2s0_image_0
+MCU_HEX_PATH := $(OPEN_PRU_PATH)/examples/pru_i2s/firmware/I2S/$(MCU_HEX_NAME)
 
-OBJS += \
-	pru_i2s_main.obj \
-	fw_regs.obj \
+# which directories to search for assembly & C source files?
+FILES_PATH := ../../../../
 
-ASM_DEPS += \
-	pru_i2s_main.d \
-	fw_regs.d \
+# Linker command file
+COMMAND_FILES := linker.cmd
 
-OBJDIR := .
-
-FILES_PATH_common = \
-	.. \
-	../../.. \
-	../../../.. \
-	../../../../.. \
-
-FILES_PATH := $(FILES_PATH_common)
-
-vpath %.asm $(FILES_PATH)
-vpath %.obj $(OBJDIR)
-vpath %.cmd $(FILES_PATH)
+# Silicon version (3: PRUSS, PRU-ICSS; 4: PRU_ICSSG)
+PRU_VERSION := 3
+EXPECTED_DEVICE := am263x
 
 
-# Add inputs and outputs from these tool invocations to the build variables
-EXE_OUTPUTS += \
-pru_i2s_pru0_array_am263x-cc_icssm0-pru0_fw_ti-pru-cgt.out \
+# pru_rules.mak has shared settings for all PRU/RTU/TX_PRU core makefiles
+include $(OPEN_PRU_PATH)/pru_rules.mak
 
-EXE_OUTPUTS__QUOTED += \
-"pru_i2s_pru0_array_am263x-cc_icssm0-pru0_fw_ti-pru-cgt.out" \
+# Additional include paths for I2S firmware headers
+INCLUDE += --include_path=$(OPEN_PRU_PATH)/examples/pru_i2s/firmware/include
+INCLUDE += --include_path=$(OPEN_PRU_PATH)/examples/pru_i2s/firmware/I2S
 
-BIN_OUTPUTS += \
-pru_i2s_pru0_array_am263x-cc_icssm0-pru0_fw_ti-pru-cgt.hex \
-
-BIN_OUTPUTS__QUOTED += \
-"pru_i2s_pru0_array_am263x-cc_icssm0-pru0_fw_ti-pru-cgt.hex" \
-
-# All Target
-all: $(OBJS) $(CMD_SRCS)
-	@$(MAKE) --no-print-directory -Onone "pru_i2s_pru0_array_am263x-cc_icssm0-pru0_fw_ti-pru-cgt.out"
-
-# Each subdirectory must supply rules for building sources it contributes
-$(OBJDIR)/%.obj %.obj: %.asm
-	@echo 'Building file: "$^"'
-	@echo 'Invoking: PRU Compiler'
-	"$(CGT_TI_PRU_PATH)/bin/clpru" -DPRU0 -DSLICE0 -v4 --define=SOC_AM263X --define=PRU0 --define=I2S_TX --define=NUMBER_OF_TX_3 --define=I2S_TX_DETECT_UNDERFLOW --include_path="${CG_TOOL_ROOT}/include" --include_path="${MCU_PLUS_SDK_PATH}/source" --include_path="${OPEN_PRU_PATH}/source" --include_path="${OPEN_PRU_PATH}/examples/pru_i2s/firmware/include" --include_path="${OPEN_PRU_PATH}/examples/pru_i2s/firmware/I2S"  --define=_DEBUG_=1 -g --diag_warning=225 --diag_wrap=off --display_error_number --endian=little --preproc_with_compile --preproc_dependency="$(basename $(<F)).d_raw" $^
-	@echo 'Finished building: "$^"'
-	@echo ' '
-
-# Tool invocations
-pru_i2s_pru0_array_am263x-cc_icssm0-pru0_fw_ti-pru-cgt.out: $(OBJS) $(CMD_SRCS)
-	@echo 'Building target: "$@"'
-	@echo 'Invoking: PRU Linker'
-	"$(CGT_TI_PRU_PATH)/bin/clpru" -DPRU0 -DSLICE0 -v4 --define=SOC_AM263X --define=PRU0 --define=I2S_TX --define=NUMBER_OF_TX_3 --define=I2S_TX_DETECT_UNDERFLOW  --define=_DEBUG_=1 -g --diag_warning=225 --diag_wrap=off --display_error_number --endian=little -z -m"pru_i2s_pru0_array_am263x-cc_icssm0-pru0_fw_ti-pru-cgt.map" --disable_auto_rts   --diag_wrap=off --display_error_number --warn_sections --xml_link_info="pru_i2s_pru0_array_am263x-cc_icssm0-pru0_fw_ti-pru-cgt_linkInfo.xml" --disable_auto_rts --disable_auto_rts --diag_suppress=10063-D --entry_point=main  --rom_model -o "pru_i2s_pru0_array_am263x-cc_icssm0-pru0_fw_ti-pru-cgt.out" $^
-	@echo 'Finished building target: "$@"'
-	@echo ' '
-	@$(MAKE) --no-print-directory post-build
-
-# To clean generated files
-clean:
-	-$(RM) $(BIN_OUTPUTS__QUOTED)$(EXE_OUTPUTS__QUOTED)
-	-$(RM) $(OBJS)
-	-$(RM) $(ASM_DEPS)
-	-@echo 'Finished clean'
-	-@echo ' '
-
-post-build:
-		-$(CG_TOOL_ROOT)/bin/hexpru --diag_wrap=off --array --array:name_prefix=pru_prupru_i2s0_image_0 -o pru_i2s_pru0_array.h  pru_i2s_pru0_array_am263x-cc_icssm0-pru0_fw_ti-pru-cgt.out
-		$(CAT) ${OPEN_PRU_PATH}/source/firmware/pru_load_bin_copyright.h pru_i2s_pru0_array.h > ${OPEN_PRU_PATH}/examples/pru_i2s/firmware/I2S/pru_i2s_pru0_array.h
-		-$(RM) pru_i2s_pru0_array.h
-	-@echo ' '
-
-.PHONY: all clean
+# Defines: PRU0, I2S Tx, 3 Tx channels, underflow detection
+DFLAGS := \
+	-DPRU0 -DSLICE0 \
+	--define=SOC_AM263X \
+	--define=PRU0 \
+	--define=I2S_TX \
+	--define=NUMBER_OF_TX_3 \
+	--define=I2S_TX_DETECT_UNDERFLOW
