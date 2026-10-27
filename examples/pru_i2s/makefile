@@ -74,6 +74,7 @@ pru: MESSAGE = "Building $(PROJECT_NAME) PRU firmware"
 pru: pre_build_message $(DEVICE)
 
 # "make host" builds only host (R5F) code for $(DEVICE) — requires PRU firmware first
+host: pru
 host: ARGUMENTS_MCUPLUS = all
 host: MESSAGE = "Building $(PROJECT_NAME) host code for $(DEVICE)"
 host: pre_build_message $(DEVICE_NON_PRU)
@@ -82,7 +83,7 @@ host: pre_build_message $(DEVICE_NON_PRU)
 clean: ARGUMENTS_PRU = clean
 clean: ARGUMENTS_MCUPLUS = scrub
 clean: MESSAGE = "Cleaning $(PROJECT_NAME) for $(DEVICE)"
-clean: pre_build_message $(DEVICE) $(DEVICE_NON_PRU) clean_lib
+clean: pre_build_message $(DEVICE) clean_lib
 
 clean_lib:
 	$(MAKE) -C ../../source/i2s clean

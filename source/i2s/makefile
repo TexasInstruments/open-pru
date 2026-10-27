@@ -12,6 +12,7 @@ else
   AR=$(CG_TOOL_ROOT)/bin/tiarmar
 endif
 
+# Debug: no optimization (-O0) for faster compile/debug; Release: size-optimized (-Os)
 CFLAGS_OPT_debug := -O0
 CFLAGS_OPT_release := -Os
 CFLAGS_OPT := $(CFLAGS_OPT_$(PROFILE))
@@ -37,7 +38,7 @@ INCLUDES_common := \
 	-I$(MCU_PLUS_SDK_PATH)/source/kernel/freertos/FreeRTOS-Kernel/include \
 	-I$(MCU_PLUS_SDK_PATH)/source/kernel/freertos/portable/TI_ARM_CLANG/ARM_CR5F
 
-# Profile used when naming the built pru_i2s driver library
+# Default library profile is Release (uppercase) so library names match linker refs
 PROFILE?=Release
 GEN_DIR := $(OPEN_PRU_PATH)/examples/pru_i2s/lib
 
