@@ -83,9 +83,9 @@ host: pre_build_message $(DEVICE_NON_PRU)
 clean: ARGUMENTS_PRU = clean
 clean: ARGUMENTS_MCUPLUS = scrub
 clean: MESSAGE = "Cleaning $(PROJECT_NAME) for $(DEVICE)"
-clean: pre_build_message $(DEVICE) clean_lib
+clean: pre_build_message $(DEVICE) $(DEVICE_NON_PRU) clean_lib
 
-clean_lib:
+clean_lib: $(DEVICE) $(DEVICE_NON_PRU)
 	$(MAKE) -C ../../source/i2s clean
 
 else
@@ -104,11 +104,11 @@ pre_build_message:
 # PRU firmware should be built before any RTOS code that includes it
 am261x:
 # am261x-lp - I2S protocol
-	$(MAKE) -C firmware/I2S/pru0_tx/am261x-lp/icssm0-pru0_fw/ti-pru-cgt $(ARGUMENTS_PRU)
-	$(MAKE) -C firmware/I2S/pru1_rx/am261x-lp/icssm0-pru1_fw/ti-pru-cgt $(ARGUMENTS_PRU)
+	$(MAKE) -C firmware/i2s/pru0_tx/am261x-lp/icssm0-pru0_fw/ti-pru-cgt $(ARGUMENTS_PRU)
+	$(MAKE) -C firmware/i2s/pru1_rx/am261x-lp/icssm0-pru1_fw/ti-pru-cgt $(ARGUMENTS_PRU)
 # am261x-lp - TDM4 protocol
-	$(MAKE) -C firmware/TDM4/pru0_tx/am261x-lp/icssm0-pru0_fw/ti-pru-cgt $(ARGUMENTS_PRU)
-	$(MAKE) -C firmware/TDM4/pru1_rx/am261x-lp/icssm0-pru1_fw/ti-pru-cgt $(ARGUMENTS_PRU)
+	$(MAKE) -C firmware/tdm4/pru0_tx/am261x-lp/icssm0-pru0_fw/ti-pru-cgt $(ARGUMENTS_PRU)
+	$(MAKE) -C firmware/tdm4/pru1_rx/am261x-lp/icssm0-pru1_fw/ti-pru-cgt $(ARGUMENTS_PRU)
 
 am261x_mcuplus: build_lib_am261x
 # am261x-lp - R5F application
@@ -120,11 +120,11 @@ build_lib_am261x:
 
 am263x:
 # am263x-cc - I2S protocol
-	$(MAKE) -C firmware/I2S/pru0_tx/am263x-cc/icssm0-pru0_fw/ti-pru-cgt $(ARGUMENTS_PRU)
-	$(MAKE) -C firmware/I2S/pru1_rx/am263x-cc/icssm0-pru1_fw/ti-pru-cgt $(ARGUMENTS_PRU)
+	$(MAKE) -C firmware/i2s/pru0_tx/am263x-cc/icssm0-pru0_fw/ti-pru-cgt $(ARGUMENTS_PRU)
+	$(MAKE) -C firmware/i2s/pru1_rx/am263x-cc/icssm0-pru1_fw/ti-pru-cgt $(ARGUMENTS_PRU)
 # am263x-cc - TDM4 protocol
-	$(MAKE) -C firmware/TDM4/pru0_tx/am263x-cc/icssm0-pru0_fw/ti-pru-cgt $(ARGUMENTS_PRU)
-	$(MAKE) -C firmware/TDM4/pru1_rx/am263x-cc/icssm0-pru1_fw/ti-pru-cgt $(ARGUMENTS_PRU)
+	$(MAKE) -C firmware/tdm4/pru0_tx/am263x-cc/icssm0-pru0_fw/ti-pru-cgt $(ARGUMENTS_PRU)
+	$(MAKE) -C firmware/tdm4/pru1_rx/am263x-cc/icssm0-pru1_fw/ti-pru-cgt $(ARGUMENTS_PRU)
 
 am263x_mcuplus: build_lib_am263x
 # am263x-cc - R5F application

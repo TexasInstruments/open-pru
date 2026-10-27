@@ -59,8 +59,8 @@ INCLUDES_common := \
 	-I${OPEN_PRU_PATH}/source \
 	-I${OPEN_PRU_PATH}/source/i2s \
 	-I${OPEN_PRU_PATH}/examples/pru_i2s/firmware \
-	-I${OPEN_PRU_PATH}/examples/pru_i2s/firmware/I2S \
-	-I${OPEN_PRU_PATH}/examples/pru_i2s/firmware/TDM4 \
+	-I${OPEN_PRU_PATH}/examples/pru_i2s/firmware/i2s \
+	-I${OPEN_PRU_PATH}/examples/pru_i2s/firmware/tdm4 \
 	-I${OPEN_PRU_PATH}/examples/pru_i2s/pru_i2s_app \
 	-I${MCU_PLUS_SDK_PATH}/source/kernel/freertos/FreeRTOS-Kernel/include \
 	-I${MCU_PLUS_SDK_PATH}/source/kernel/freertos/portable/TI_ARM_CLANG/ARM_CR5F \

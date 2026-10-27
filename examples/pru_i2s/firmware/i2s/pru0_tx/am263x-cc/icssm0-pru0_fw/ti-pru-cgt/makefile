@@ -1,0 +1,41 @@
+################################################################################
+# PRU I2S - I2S Protocol - PRU0 TX - AM263x-CC
+################################################################################
+
+export OPEN_PRU_PATH?=$(abspath ../../../../../../../..)
+include $(OPEN_PRU_PATH)/imports.mak
+
+# Define build outputs
+OUTPUT_NAME := pru_i2s_am263x-cc_icssm0-pru0_fw
+
+# MCU+ projects: rename & move hex array output
+MCU_HEX_NAME := pru_i2s_pru0_array.h
+HEX_ARRAY_PREFIX := pru_prupru_i2s0_image_0
+MCU_HEX_PATH := $(OPEN_PRU_PATH)/examples/pru_i2s/firmware/i2s/$(MCU_HEX_NAME)
+
+# which directories to search for assembly & C source files?
+FILES_PATH := ../../../../
+
+# Linker command file
+COMMAND_FILES := linker.cmd
+
+# Silicon version (3: PRUSS, PRU-ICSS; 4: PRU_ICSSG)
+PRU_VERSION := 3
+EXPECTED_DEVICE := am263x
+
+
+# pru_rules.mak has shared settings for all PRU/RTU/TX_PRU core makefiles
+include $(OPEN_PRU_PATH)/pru_rules.mak
+
+# Additional include paths for I2S firmware headers
+INCLUDE += --include_path=$(OPEN_PRU_PATH)/examples/pru_i2s/firmware/include
+INCLUDE += --include_path=$(OPEN_PRU_PATH)/examples/pru_i2s/firmware/i2s
+
+# Defines: PRU0, I2S Tx, 3 Tx channels, underflow detection
+DFLAGS := \
+	-DPRU0 -DSLICE0 \
+	--define=SOC_AM263X \
+	--define=PRU0 \
+	--define=I2S_TX \
+	--define=NUMBER_OF_TX_3 \
+	--define=I2S_TX_DETECT_UNDERFLOW
