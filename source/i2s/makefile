@@ -15,6 +15,8 @@ endif
 # Debug: no optimization (-O0) for faster compile/debug; Release: size-optimized (-Os)
 CFLAGS_OPT_debug := -O0
 CFLAGS_OPT_release := -Os
+CFLAGS_OPT_Release := -Os
+CFLAGS_OPT_Debug := -O0
 CFLAGS_OPT := $(CFLAGS_OPT_$(PROFILE))
 
 CFLAGS_common := \

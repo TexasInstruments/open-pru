@@ -36,7 +36,7 @@
 
 #include <stdint.h>
 #include "pru_i2s_drv.h"
-#include <pru_i2s/firmware/TDM4/icss_pru_i2s_fw.h>
+#include <pru_i2s/firmware/tdm4/icss_pru_i2s_fw.h>
 
 /* Application calls PRUICSS_intcInit() directly (Motor Control SDK pattern) */
 

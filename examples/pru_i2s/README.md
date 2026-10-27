@@ -162,7 +162,7 @@ pru_i2s/
 ├── README.md                    # This file
 ├── makefile                     # Top-level makefile
 ├── firmware/                    # PRU firmware source code
-│   ├── I2S/                    # I2S protocol implementation
+│   ├── i2s/                    # I2S protocol implementation
 │   │   ├── pru_i2s_main.asm   # Main firmware logic
 │   │   ├── fw_regs.asm        # Register definitions
 │   │   ├── linker.cmd         # Linker script
@@ -176,7 +176,7 @@ pru_i2s/
 │   │   └── pru1_rx/           # RX firmware builds
 │   │       ├── am261x-lp/
 │   │       └── am263x-cc/
-│   └── TDM4/                   # TDM4 protocol (parallel structure)
+│   └── tdm4/                   # TDM4 protocol (parallel structure)
 │       └── (same structure as I2S, with pru_i2s_tdm4_pru0/1_array.h generated)
 ├── pru_i2s_app/                 # R5F host application
 │   ├── board/                  # Board support files
@@ -219,7 +219,7 @@ make DEVICE=am261x clean
 
 **What gets built:**
 - 4 PRU firmware binaries per device (I2S PRU0 TX, I2S PRU1 RX, TDM4 PRU0 TX, TDM4 PRU1 RX)
-- Firmware header arrays (`.h` files) generated into `firmware/I2S/generated/` and `firmware/TDM4/generated/` (gitignored)
+- Firmware header arrays (`.h` files) generated into `firmware/i2s/generated/` and `firmware/tdm4/generated/` (gitignored)
 - PRU I2S driver library (`lib/pru_i2s.*.lib`) built from `source/i2s/makefile`
 - R5F application binary (`.out` and `.mcelf`)
 
@@ -230,7 +230,7 @@ make DEVICE=am261x clean
 **Import Firmware Projects:**
 1. Open CCS
 2. Project → Import CCS Projects
-3. Navigate to `examples/pru_i2s/firmware/I2S/pru0_tx/am261x-lp/icssm0-pru0_fw/ti-pru-cgt/`
+3. Navigate to `examples/pru_i2s/firmware/i2s/pru0_tx/am261x-lp/icssm0-pru0_fw/ti-pru-cgt/`
 4. Select `example.projectspec`
 5. Click Finish
 6. Repeat for other firmware variants (pru1_rx, TDM4, etc.)
@@ -359,11 +359,11 @@ Interrupts trigger on:
 - **Clobbers**: `r0`–`r29` (all working registers used); flags modified
 - **Preserved**: none (`main` uses full PRU register context; no registers guaranteed preserved across the loop)
 - **Clock assumption**: PRU at 200 MHz; BCLK/FSYNC derived externally
-- **Notes**: See `firmware/I2S/pru_i2s_regs.h` for register-to-symbol mapping (`tx_buffer_address`, `rx_buffer_address`, `fs_counter`, etc.).
+- **Notes**: See `firmware/i2s/pru_i2s_regs.h` for register-to-symbol mapping (`tx_buffer_address`, `rx_buffer_address`, `fs_counter`, etc.).
 
 ### Firmware Configuration
 
-Configurable parameters in `firmware/I2S/pru_i2s_interface.h` or `firmware/TDM4/pru_i2s_interface.h`:
+Configurable parameters in `firmware/i2s/pru_i2s_interface.h` or `firmware/tdm4/pru_i2s_interface.h`:
 
 ```c
 // Bytes per channel
@@ -380,7 +380,7 @@ Configurable parameters in `firmware/I2S/pru_i2s_interface.h` or `firmware/TDM4/
 
 #### FW Register Map
 
-`fw_regs.asm` (`firmware/I2S/` and `firmware/TDM4/`) lays out a fixed-layout status/config struct at DMEM offset 0 of each PRU core, shared between the firmware and the R5F driver (`icss_pru_i2s_fw.h` defines the same offsets on the C side). This is the entire handshake surface between the R5F and the PRU — the driver reads/writes these fields directly via `HW_RD/WR_REG*`, there is no other channel. `PRUI2S_getPruFwImageInfo()` (during driver init, before the PRU core is even running) only ever reads the capability/interrupt fields (`NUM_TX_I2S`, `NUM_RX_I2S`, `SAMP_FREQ`, the three `*_ICSS_INTC_SYS_EVT` fields) out of the firmware image — it never reads the buffer address/size fields.
+`fw_regs.asm` (`firmware/i2s/` and `firmware/tdm4/`) lays out a fixed-layout status/config struct at DMEM offset 0 of each PRU core, shared between the firmware and the R5F driver (`icss_pru_i2s_fw.h` defines the same offsets on the C side). This is the entire handshake surface between the R5F and the PRU — the driver reads/writes these fields directly via `HW_RD/WR_REG*`, there is no other channel. `PRUI2S_getPruFwImageInfo()` (during driver init, before the PRU core is even running) only ever reads the capability/interrupt fields (`NUM_TX_I2S`, `NUM_RX_I2S`, `SAMP_FREQ`, the three `*_ICSS_INTC_SYS_EVT` fields) out of the firmware image — it never reads the buffer address/size fields.
 
 | Offset | Size | Field | Direction | Description |
 |--------|------|-------|-----------|--------------|
