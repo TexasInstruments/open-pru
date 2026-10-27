@@ -162,7 +162,7 @@ This project was tested on hardware with these software versions:
 
 | Processor | Hardware | Software |
 | --------- | -------- | -------- |
-| am261x | LP-AM261 (AM2612, HS-FS), board revision FIXME | PRU CGT 2.3.3, CCS 21.0, OpenPRU main (75f90c94) + this project |
+| am261x | LP-AM261 (AM2612, HS-FS), board revision E2 | PRU CGT 2.3.3, CCS 21.0, OpenPRU main (75f90c94) + this project |
 
 The firmware is standalone: it has no host code of its own. The ICSSM0 core
 clock comes from the MCU+ SDK clock configuration: SysConfig with the
