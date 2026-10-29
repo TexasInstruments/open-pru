@@ -28,6 +28,13 @@ fft/split_radix_fft_post_processing
 gcc_rpmsg_echo_linux
 * Show how to compile RPMSG firmware using the GNU toolchain for PRU.
 
+jpeg_decoder/jpeg_decoder_single_core
+* Decode baseline JPEG sample blocks on one PRU with an MCU+ R5F host.
+
+jpeg_decoder/jpeg_decoder_dual_core
+* Pipeline baseline JPEG entropy decode and sample reconstruction across two
+  PRUs with an MCU+ R5F host.
+
 LCD_interface
 * Use PRU direct GPOs to output data from frame buffer memory to a parallel
   RGB24 interface. The LCD display is 800x480 pixel with 24 bit color and 60 Hz
@@ -88,6 +95,8 @@ For more information about the PRU features on each processor, refer to app note
 | fft/                                                                                 |
 | split_radix_fft_4k_single_core  | Y      | Y      | Yport   | Yport  | Yport | Yport |
 | split_radix_fft_post_processing | Y      | Yport  | Yport   | Yport  | Yport | Yport |
+| jpeg_decoder/jpeg_decoder_single_core | Y | Y | Yport | Yport | N-sw | Yport |
+| jpeg_decoder/jpeg_decoder_dual_core | Y | Y | Yport | Yport | N-sw | Yport |
 | LCD_interface                   | Y      | Yport  | Yport   | Yport  | N-sw  | Yport |
 | logic_scope                     | Y      | Yport  | Yport   | Yport  | Yport | Yport |
 | pru_emif                        | Y      | Yport  | Yport   | Yport  | N-sw  | Yport |
