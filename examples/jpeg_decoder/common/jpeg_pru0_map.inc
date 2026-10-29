@@ -75,3 +75,49 @@ S_COEF          .set 0x1700
 S_SAVE          .set 0x1800
 S_OUTPTR        .set 0x1870
 S_QTAB          .set 0x1900
+
+; Host-chosen regions the firmware buffers must not overlap (jpeg_host.c
+; writes the descriptors at COMP_BASE and passes 0x1400 as the DC predictor
+; address), the component limit the host accepts, and the end of the 8 KB
+; PRU0 data RAM.
+MAP_COMP_DESC   .set 0x1300  ; 16 B per component
+MAP_DC_PRED     .set 0x1400  ; u32 per component
+MAP_MAX_COMP    .set 3
+MAP_DRAM_END    .set 0x2000
+
+; Assembly-time layout checks: a buffer that grows into its neighbour stops
+; the build instead of corrupting data at run time. S_DEQ deliberately shares
+; 0x1100 with the diagnostic words (see above).
+    .if CTRL_BASE + 0x30 > SEG_INDEX
+    .emsg "Control block overlaps SEG_INDEX"
+    .endif
+    .if SEG_INDEX + 4 > DIAG_CODE
+    .emsg "SEG_INDEX overlaps the diagnostic words"
+    .endif
+    .if MAP_COMP_DESC + 16 * MAP_MAX_COMP > MAP_DC_PRED
+    .emsg "Component descriptors overlap the DC predictors"
+    .endif
+    .if S_DEQ + 256 > MAP_COMP_DESC
+    .emsg "S_DEQ (int32 x 64) overlaps the component descriptors"
+    .endif
+    .if MAP_DC_PRED + 4 * MAP_MAX_COMP > S_WS
+    .emsg "DC predictors overlap S_WS"
+    .endif
+    .if S_WS + 256 > S_IDCT_OUT
+    .emsg "S_WS (int32 x 64) overlaps S_IDCT_OUT"
+    .endif
+    .if S_IDCT_OUT + 128 > S_COEF
+    .emsg "S_IDCT_OUT (int16 x 64) overlaps S_COEF"
+    .endif
+    .if S_COEF + 128 > S_SAVE
+    .emsg "S_COEF (int16 x 64) overlaps S_SAVE"
+    .endif
+    .if S_SAVE + 96 > S_OUTPTR
+    .emsg "S_SAVE (96 B register spill) overlaps S_OUTPTR"
+    .endif
+    .if S_OUTPTR + 4 > S_QTAB
+    .emsg "S_OUTPTR overlaps S_QTAB"
+    .endif
+    .if S_QTAB + 128 * MAP_MAX_COMP > MAP_DRAM_END
+    .emsg "S_QTAB (128 B per component) runs past PRU0 data RAM"
+    .endif

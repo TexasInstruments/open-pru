@@ -70,6 +70,21 @@ IDCT_WS  .set WS
     .retainrefs ; Required for building .out with assembly
     .text
     .global main
+; Register contract of the entry point:
+;   Inputs:    none in registers. The host fills STATE, the qtables and the
+;              scratchpad banks before PRU1 starts.
+;   Outputs:   none in registers. 64 sample bytes per block at the output
+;              pointer, and the STATE words.
+;   Clobbers:  R0..R29. The loop state is reloaded from STATE for every block.
+;   Preserves: none. The only exit is HALT.
+; PEAK per block, local instructions only: IPC_RX service 128 + dequantize
+; 2576 + IDCT 8224 + output stage 528 + loop control and STATE accesses 32
+; = 11488 cycles, independent of the PRU clock. A frame runs at most the host
+; MAX_BLOCKS iterations. Not included: the IPC_RX wait for PRU0, which is
+; INTENTIONALLY_UNBOUNDED_LOOP (PRU1 cannot finish a block before PRU0 has
+; decoded it; the host JPEG_TIMEOUT_US watchdog disables both cores if PRU0
+; stops), and MSRAM write stalls on the output stores. Frame totals in the
+; README are measured on silicon.
 main:
     ; Ready follows scratchpad initialization in the start stub. The host
     ; waits for this word before starting the producer (no timing assumption).

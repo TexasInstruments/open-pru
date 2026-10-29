@@ -71,9 +71,24 @@ _Static_assert(sizeof(PRU1Firmware_0) <= START_STUB,
                "PRU1 firmware overlaps the start stub");
 #endif
 
+/*
+ * Frame limits. MAX_BLOCKS: 8x8 blocks per frame. At 64 output bytes per block
+ * it fits both MSRAM output windows below and the one-byte-per-block component
+ * and restart tables (checked by the assertions after the memory map).
+ * MAX_SEGMENTS: restart segments per scan, 8 B each in the segment table.
+ * JPEG_TIMEOUT_US: host watchdog for one frame, in microseconds. A MAX_BLOCKS
+ * frame needs at most about 4000 * (22016 + 11584) = 134 M local PRU
+ * instruction cycles (the firmware PEAK bounds), 0.6 s at 225 MHz, so 10 s
+ * leaves more than 10x margin for MSRAM stalls before a stuck core is
+ * declared failed.
+ */
 #define MAX_BLOCKS 4000U
 #define MAX_SEGMENTS 256U
 #define JPEG_TIMEOUT_US 10000000ULL
+/* Completion polling interval in microseconds: short against the PRU frame
+ * time (about 20 ms for the bundled 400x400 images), long enough not to load
+ * the R5F. */
+#define POLL_INTERVAL_US 100U
 #define CTRL_BASE 0x1000U
 #define COMP_BASE 0x1300U
 #define P1_BASE 0x2000U
@@ -119,7 +134,8 @@ _Static_assert(sizeof(PRU1Firmware_0) <= START_STUB,
 #define OUT_LIMIT SCAN_MSRAM
 #define TABLE_BASE 0x70171000U
 #define TABLE_END 0x70180000U
-#define BLOCK_COMP (TABLE_BASE + 0x1000U)
+/* The first 8 KB hold the long-code Huffman tables (SEC_ALLOC below). */
+#define BLOCK_COMP (TABLE_BASE + 0x2000U)
 #define BLOCK_RST (TABLE_BASE + 0x3000U)
 #define SEGMENTS (TABLE_BASE + 0x5000U)
 #else
@@ -147,6 +163,21 @@ static uintptr_t gIcssBase;
 #define SEC_ALLOC (TABLE_BASE + 0x10000U)
 #define SEC_END TABLE_END
 #endif
+/* Long-code (9..16 bit) Huffman table size: 4 B header, 4 B per long code
+ * (the parser accepts at most 255), 64 B of per-length limits = 1088 B,
+ * rounded up. Up to four tables (DC/AC x 2) are placed from SEC_ALLOC. */
+#define HUFF_SEC_MAX 1100U
+
+_Static_assert(64U*MAX_BLOCKS <= OUT_LIMIT - OUT_BASE,
+               "MAX_BLOCKS output exceeds the output window");
+_Static_assert(BLOCK_RST - BLOCK_COMP >= MAX_BLOCKS,
+               "block component table overlaps the restart table");
+_Static_assert(SEGMENTS - BLOCK_RST >= MAX_BLOCKS,
+               "block restart table overlaps the segment table");
+_Static_assert(SEGMENTS + 8U*MAX_SEGMENTS <= TABLE_END,
+               "segment table exceeds the metadata window");
+_Static_assert(SEC_END - SEC_ALLOC >= 4U*HUFF_SEC_MAX,
+               "four long-code Huffman tables do not fit");
 
 typedef struct {
     uint8_t id, h, v, tq, td, ta;
@@ -214,6 +245,23 @@ static void put_bytes(uint32_t addr, const uint8_t *data, uint32_t count)
     }
 }
 
+/*
+ * Copy the entropy-coded scan that starts at data[pos] to where PRU0 reads it,
+ * removing byte stuffing, and record the restart segments.
+ *
+ * Algorithm:
+ *   1. Place the scan in ICSS Shared RAM if the remaining file fits there,
+ *      otherwise in the MSRAM scan window; fail if it fits in neither.
+ *   2. For each byte: 0xFF 0x00 is a stuffed 0xFF data byte. 0xFF 0xD0..0xD7
+ *      (RSTn) closes the current segment (only valid with a restart interval).
+ *      0xFF 0xD9 (EOI) closes the last segment and ends the scan. Any other
+ *      marker is unsupported. Data bytes are appended to the scan copy.
+ *   3. Fail if the copy or the segment list would overflow, or if the file
+ *      ends before EOI.
+ *
+ * Returns 0 on success, -1 on failure. Fills f->scan_addr, f->scan_len,
+ * f->segment[] and f->num_segments.
+ */
 static int parse_scan(const uint8_t *data, size_t size, size_t pos)
 {
     JpegFrame *f = &gFrame;
@@ -464,7 +512,7 @@ static const char *prepare_memory(void)
         for (uint32_t id = 0; id < 2; ++id) {
             if (!f->huff[kind][id].present) continue;
             uint32_t primary = (kind ? 0x440U : 0x40U) + id*0x200U;
-            if (alloc + 1100U > SEC_END) return "Huffman tables exceed MSRAM";
+            if (alloc + HUFF_SEC_MAX > SEC_END) return "Huffman tables exceed MSRAM";
             sec[kind][id] = alloc;
             alloc += make_huffman(&f->huff[kind][id], primary, alloc);
             if (alloc > SEC_END) return "Huffman tables exceed MSRAM";
@@ -589,6 +637,13 @@ static void run_image(PRUICSS_Handle handle, const JpegTestImage *image)
      * the single core build: CONTROL read 0x0BC08003 while running and CYCLE
      * froze at 25. With the bit in this value, PRUICSS_enableCore() preserves it.
      */
+    /*
+     * Ordering: every MSRAM buffer the PRUs read was written back by
+     * CacheP_wb() in prepare_memory(), which ends with a DSB. The PRU-ICSS
+     * window is mapped as Device memory (CONFIG_MPU_REGION0 in example.syscfg),
+     * so the control and data RAM writes above reach the ICSS in program order,
+     * before the CONTROL write that starts a core.
+     */
     uint64_t began = ClockP_getTimeUsec();
 #if !defined(JPEG_SINGLE_CORE)
     put32(ICSS_BASE + PRU1_CONTROL, (START_STUB/4U << 16) | 8U);
@@ -623,7 +678,7 @@ static void run_image(PRUICSS_Handle handle, const JpegTestImage *image)
             DebugP_log("%s: timeout\r\n", image->name);
             goto stop;
         }
-        ClockP_usleep(100);
+        ClockP_usleep(POLL_INTERVAL_US);
     }
     uint32_t crc = crc32_memory(OUT_BASE, 64U*gFrame.blocks);
     uint32_t cycles = get32(ICSS_BASE + PRU0_CYCLE);
@@ -645,7 +700,7 @@ static void run_image(PRUICSS_Handle handle, const JpegTestImage *image)
             DebugP_log("%s: timeout\r\n", image->name);
             goto stop;
         }
-        ClockP_usleep(100);
+        ClockP_usleep(POLL_INTERVAL_US);
     }
     if (*(volatile uint8_t *)(uintptr_t)(ICSS_BASE + DECODE_ERROR) != 0) {
         DebugP_log("%s: entropy decode error\r\n", image->name);

@@ -64,6 +64,15 @@ SINGLE_CORE .set 0
 ; scratchpad banks (ipc_xfr.inc), together with its component index.
 DUAL_SAVE  .set 0x1600      ; spill area for R2..R22 live state (84 B)
 DUAL_STAGE .set 0x1700      ; 128 B staging block
+    .if MAP_DC_PRED + 4 * MAP_MAX_COMP > DUAL_SAVE
+    .emsg "DC predictors overlap DUAL_SAVE"
+    .endif
+    .if DUAL_SAVE + 84 > DUAL_STAGE
+    .emsg "DUAL_SAVE (84 B) overlaps DUAL_STAGE"
+    .endif
+    .if DUAL_STAGE + 128 > MAP_DRAM_END
+    .emsg "DUAL_STAGE (128 B) runs past PRU0 data RAM"
+    .endif
     .include "ipc_xfr.inc"
     .endif
 ; Single-core build (SINGLE_CORE=1): this core runs the complete decoder.
@@ -227,6 +236,14 @@ cons?:
 ; Basis: conservative instruction counting with local memory transfers;
 ; MSRAM stalls and peer waiting are additional. Only frame totals are measured
 ; on silicon. JPEG_TIMEOUT_US in the host bounds failed frame recovery.
+; Register contract of the entry point:
+;   Inputs:    none in registers. The host fills the control block at
+;              CTRL_BASE, the tables and the segment list before PRU0 starts.
+;   Outputs:   none in registers. Results are the decoded blocks (sent to PRU1,
+;              or reconstructed here in the single-core build), CTRL_DONE, and
+;              DIAG_CODE/DIAG_BITS on a decode error.
+;   Clobbers:  R0..R29.
+;   Preserves: none. Every exit is HALT, so no caller state exists.
 main:
     ldi r0, 0
     ldi r1, 0
@@ -329,7 +346,12 @@ ac_sym_done:
     and r13, r18, 15
     qbeq ac_eob, r13, 0
     add r23, r23, r12
-    qble ac_done, r23, 64
+    qbgt ac_in_range, r23, 64
+    ; A run past coefficient 63 only occurs in a corrupt scan. Like
+    ; libjpeg-turbo, still consume the extension bits and store at
+    ; coefficient 63, so the bit stream stays aligned for the next block.
+    ldi r23, 63
+ac_in_range:
     mov r12, r13
     EXTVAL
     lbbo &r7.b0, r10, r23, 1

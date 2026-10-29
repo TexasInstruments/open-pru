@@ -57,7 +57,7 @@
 ;   s_seq  sequence number to wait for
 ;   s_dst  register holding the address the 128 B block is copied to
 ;   s_meta register receiving the metadata word
-;   Clobbers R2..R23. The slot is acked BEFORE the macro returns, i.e. before
+;   Clobbers R2..R23. The slot is acked BEFORE the macro returns, that is, before
 ;   the consumer computes, so the producer can refill it meanwhile.
 
 ; Pseudo code: wait for slot, copy payload and metadata, publish sequence.
@@ -68,7 +68,7 @@
 ; Modified registers and parameters are documented above.
 IPC_TX .macro s_seq, s_src, s_meta
     qbbs    txa?, s_seq, 0          ; odd seq -> slot A
-; Intentionally unbounded peer wait: the host JPEG_TIMEOUT_US watchdog
+; INTENTIONALLY_UNBOUNDED_LOOP: peer wait; the host JPEG_TIMEOUT_US watchdog
 ; disables both cores on timeout or producer decode failure.
 txb?:
     xin     12, &r21, 4             ; B_ack
@@ -83,7 +83,7 @@ txb?:
     mov     r19, s_seq
     xout    12, &r19, 4             ; publish: payload and meta first, seq last
     qba     txd?
-; Intentionally unbounded peer wait: the host JPEG_TIMEOUT_US watchdog
+; INTENTIONALLY_UNBOUNDED_LOOP: peer wait; the host JPEG_TIMEOUT_US watchdog
 ; disables both cores on timeout or producer decode failure.
 txa?:
     xin     12, &r20, 4             ; A_ack
@@ -108,7 +108,7 @@ txd?:
 ; Modified registers and parameters are documented above.
 IPC_RX .macro s_seq, s_dst, s_meta
     qbbs    rxa?, s_seq, 0
-; Intentionally unbounded peer wait: the host JPEG_TIMEOUT_US watchdog
+; INTENTIONALLY_UNBOUNDED_LOOP: peer wait; the host JPEG_TIMEOUT_US watchdog
 ; disables both cores on timeout or producer decode failure.
 rxb?:
     xin     12, &r19, 4             ; B_seq
@@ -122,7 +122,7 @@ rxb?:
     xout    12, &r21, 4             ; B_ack: slot B free again
     mov     s_meta, r23
     qba     rxd?
-; Intentionally unbounded peer wait: the host JPEG_TIMEOUT_US watchdog
+; INTENTIONALLY_UNBOUNDED_LOOP: peer wait; the host JPEG_TIMEOUT_US watchdog
 ; disables both cores on timeout or producer decode failure.
 rxa?:
     xin     12, &r18, 4             ; A_seq

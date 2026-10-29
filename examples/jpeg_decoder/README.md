@@ -36,7 +36,7 @@ Source: [host source](host/mcuplus/jpeg_host.c) and the firmware `linker.cmd` fi
 | Output blocks | `0x700c0000`, before `0x70100000` | `0x70080000`, before `0x700cc000` |
 | Large scan | `0x70120000` to `0x701d0000` | `0x700cc000` to `0x70150000` |
 | Metadata base | `0x70100000` | `0x70171000` |
-| Block component and restart tables | metadata + `0x8000`, `0xa000` | metadata + `0x1000`, `0x3000` |
+| Block component and restart tables | metadata + `0x8000`, `0xa000` | metadata + `0x2000`, `0x3000` |
 | Long-code Huffman tables | metadata + `0x10000` | metadata + `0x0000` |
 | Restart segments | metadata + `0xc000` | metadata + `0x5000` |
 
@@ -136,4 +136,11 @@ The synthetic corpus contains smooth, gradient, impulse, sparse coefficient, and
 
 On ICSSM, enabling the PRU cycle counter only in the start stub can race the host driver's read-modify-write of the PRU CONTROL register. The supplied host clears CYCLE while reset and writes CONTROL with COUNTER_ENABLE set before calling `PRUICSS_enableCore()`. Preserve that sequence when adapting the host, or the counter can stop while decoding continues. Source: [host source](host/mcuplus/jpeg_host.c).
 
-Measured on LP-AM243 (rev E1) and LP-AM261 (rev E2), built with TI PRU CGT 2.3.3, TI Arm Clang 4.0.5.LTS, MCU+ SDK 12.01.00.33 with SysConfig 1.28.0 (AM243x) and MCU+ SDK 11.00.00.29 with SysConfig 1.26.0 (AM261x). The 250 MHz (LP-AM243) and 225 MHz (LP-AM261) tables cover the three bundled images on each board with the supplied host. The separate corpus table adds 4:4:4, dense and worst-case Huffman content and scans placed in MSRAM, on LP-AM243 only, using the test host build described above. Its PRU clock was measured at 333.3 MHz for the results above.
+## Validated HW & SW
+
+| Board | Revision | MCU+ SDK | SysConfig | TI PRU CGT | TI Arm Clang |
+|---|---|---|---|---|---|
+| LP-AM243 | E1 | 12.01.00.33 | 1.28.0 | 2.3.3 | 4.0.5.LTS |
+| LP-AM261 | E2 | 11.00.00.29 | 1.26.0 | 2.3.3 | 4.0.5.LTS |
+
+The 250 MHz (LP-AM243) and 225 MHz (LP-AM261) tables cover the three bundled images on each board with the supplied host. The separate corpus table adds 4:4:4, dense and worst-case Huffman content and scans placed in MSRAM, on LP-AM243 only, using the test host build described above. Its PRU clock was measured at 333.3 MHz for the results above.
