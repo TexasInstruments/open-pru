@@ -7,7 +7,7 @@
 
 [Introduction](#introduction)  
 [Features](#features)  
-[Training](#training)  
+[Training and documentation](#training-and-documentation)  
 [Getting started](#getting-started)  
 [OpenPRU organization](#open-pru-organization)  
 [Building the examples](#building-the-examples)  
@@ -54,7 +54,7 @@ configuration for the other processors. For more information, refer to
 [academy/readme.md](./academy/readme.md) and
 [examples/readme.md](./examples/readme.md).
 
-## Training
+## Training and documentation
 
 TI provides additional training for programming the PRU subsystem in
 processor-specific academies. The currently published PRU Academies are:
@@ -63,6 +63,9 @@ processor-specific academies. The currently published PRU Academies are:
 [PRU Academy for AM243x](https://dev.ti.com/tirex/explore/node?isTheia=false&node=A__AB.mSUi9ihL.a5hIt1grfw__AM24X-ACADEMY__ZPSnq-h__LATEST)  
 [PRU Academy for AM62x](https://dev.ti.com/tirex/explore/node?isTheia=false&node=A__AEIJm0rwIeU.2P1OBWwlaA__AM62-ACADEMY__uiYMDcq__LATEST)  
 [PRU Academy for AM64x](https://dev.ti.com/tirex/explore/node?isTheia=false&node=A__AB.mSUi9ihL.a5hIt1grfw__AM64-ACADEMY__WI1KRXP__LATEST)  
+
+For a list of reference documents about the PRU subsystem and the OpenPRU repo,
+refer to [docs_ai/README.md](./docs_ai/README.md).
 
 ## Getting started
 
