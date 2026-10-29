@@ -152,9 +152,16 @@ shorter.
 
 ## Supported Combinations
 
-Refer to open-pru/academy/readme.md > Supported processors per-project
-for the list of processors that support building this project, and information
-about porting this project to other processors.
+| Processor | Support | Projects |
+| --------- | ------- | -------- |
+| am261x | Y: builds and runs (LP-AM261) | `firmware/am261x-lp/icss_m0_pru0_fw`, `firmware/am261x-lp/icss_m0_pru1_fw` |
+| am243x, am263px, am263x, am62x, am64x | Yport: the firmware can be ported, no project is provided | none |
+
+The firmware uses only the PRU core, its MAC and its own CYCLE register, so
+a port needs a project per core with that core's control-module address
+(`OWN_CNTL_BASE` in `firmware/main.asm`). Refer to
+open-pru/academy/readme.md > Supported processors per-project for the
+meaning of these values and for porting projects to other processors.
 
 ## Validated HW & SW
 
@@ -162,13 +169,15 @@ This project was tested on hardware with these software versions:
 
 | Processor | Hardware | Software |
 | --------- | -------- | -------- |
-| am261x | LP-AM261 (AM2612, HS-FS), board revision E2 | PRU CGT 2.3.3, CCS 21.0, OpenPRU main (75f90c94) + this project |
+| am261x | LP-AM261 (AM2612, HS-FS), board revision E2 | PRU CGT 2.3.3, CCS 21.0, OpenPRU main (75f90c94) + this project; R5F clock setup: MCU+ SDK AM261x 11.00.00.29, SysConfig 1.26.0, TI Arm Clang 4.0.5.LTS |
 
 The firmware is standalone: it has no host code of its own. The ICSSM0 core
 clock comes from the MCU+ SDK clock configuration: SysConfig with the
 PRU-ICSS driver for ICSSM0 generates a `ti_power_clock_config.c` that sets
 ICSSM0 core to 225 MHz from DPLL_ETH_HSDIV0_CLKOUT0. The results above were
-measured after such an application ran on the R5F core.
+measured after such an application ran on the R5F core: the MCU+ SDK
+AM261x 11.00.00.29 `empty` example (`r5fss0-0_nortos`) with the PRU-ICSS
+driver added for ICSSM0, built with the SDK makefile.
 
 ## Steps to Run the Example
 
@@ -193,12 +202,17 @@ measured after such an application ran on the R5F core.
    ```
 
    It prints the cycles per product of each timed run and `PASS` when every
-   value matches the model. The first word reads 0x4d414354 ("MACT") once
-   the firmware has finished.
+   value matches the model and every cycle count is possible for its loop.
+   Text dumps may use 0x-prefixed hex or decimal words. The firmware clears
+   the first word when it starts and writes 0x4d414354 ("MACT") there once
+   it has finished, so a record left by an earlier execution is not mistaken
+   for a new one.
 6. Optional: `python utilities/mac_throughput_check.py --selftest` checks the
    model (signed fixup and Q31 extraction against Python integer arithmetic
-   on 100,000 operand pairs, shift/add model against `a * b`) and runs six
-   negative tests that corrupt a good record and confirm the checker rejects
-   each one.
+   on 100,000 operand pairs, shift/add model against `a * b`), runs nine
+   negative tests that corrupt a good record (including its cycle counts)
+   and confirm the checker rejects each one, and feeds the checker malformed
+   dumps (empty, short, truncated binary, bad words) to confirm each gives
+   a failure message rather than an exception.
 
 The record layout is documented at the top of `firmware/main.asm`.

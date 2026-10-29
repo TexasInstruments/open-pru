@@ -47,10 +47,17 @@
 ;
 ;   Timing: each timed run is bracketed by two reads of the core's own
 ;   CYCLE register. The record also holds the cost of an empty bracket
-;   (two back-to-back reads) so the host can subtract it.
+;   (two back-to-back reads) so the host can subtract it. Results are in
+;   PRU cycles, so they do not depend on the PRU clock; only a conversion
+;   to ns does. Every instruction in the timed loops takes one cycle,
+;   including XIN from the MAC and the QBNE back edge (taken or not), so
+;   each run's budget is its instruction count per product times the
+;   iteration count; the budget is given next to each timed loop. There is
+;   no deadline: the lab measures what a loop costs, it does not have to
+;   meet a period.
 ;
 ;   Result record (own data RAM, byte offsets from RECORD_BASE):
-;       0x00  magic 0x4d414354 "MACT", written last
+;       0x00  magic 0x4d414354 "MACT", cleared at start, written last
 ;       0x04  empty bracket cycles
 ;       0x08  run 1: iterations, cycles, product low, product high
 ;       0x18  run 2: iterations, product low, product high
@@ -78,7 +85,17 @@
 ; Defines
     .asg    0,              MULTIPLY_ONLY       ; R25.b0 value: no accumulate
     .asg    3,              COUNTER_ENABLE_BIT  ; PRU CONTROL.COUNTER_ENABLE
+    ; Products per timed run (runs 1, 4, 5). 65536 resolves the cost per
+    ; product to 1/65536 of a cycle, so a single stall cycle anywhere in a
+    ; run shows as a non-integer cycles-per-product. The longest run (5, 16
+    ; cycles per product) is 1,048,576 cycles, far below the 32-bit CYCLE
+    ; limit, and all eight runs finish in about 2.6 million cycles.
     .asg    65536,          TIMED_ITERATIONS
+    ; Products per cross-check, shift/add and latency run (runs 2, 3, 6-8).
+    ; 1024 products step k through every value of its low 10 bits in the
+    ; a ^= k recurrence and give the signed runs all four operand sign
+    ; combinations (the host checker asserts both). The shift/add multiply
+    ; costs 364 cycles per product, so run 3 stays at 372,736 cycles.
     .asg    1024,           XCHECK_ITERATIONS
     .asg    0x13579bdf,     SEED_A              ; first R28 value
     .asg    0x2468ace1,     SEED_B              ; first R29 value
@@ -143,7 +160,10 @@
 ;   Assumptions:
 ;       - r24 holds OWN_CNTL_BASE
 ;
-;   Registers modified: dst
+;   Inputs:    r24
+;   Outputs:   dst
+;   Clobbers:  none
+;   Preserves: every register other than dst
 ;******************************************************************************
 m_cycle_read .macro dst
     lbbo    &dst, r24, PRUx_CNTL_CYCLE_COUNT_OFFSET, 4
@@ -167,7 +187,10 @@ m_cycle_read .macro dst
 ;   Assumptions:
 ;       - R27:R26 holds the product of the current R28 and R29
 ;
-;   Registers modified: r12, r27
+;   Inputs:    r26, r27 (unsigned product), r28, r29 (operands)
+;   Outputs:   r27:r26 (signed product; only r27 is written)
+;   Clobbers:  r12
+;   Preserves: every register other than r12 and r27
 ;******************************************************************************
 m_mac_signed_fixup .macro
     lsr     r12, r28, 31            ; sign of a: 0 or 1
@@ -197,7 +220,10 @@ m_mac_signed_fixup .macro
 ;   Parameters:
 ;       dst - register that receives the Q31 result
 ;
-;   Registers modified: dst, r12
+;   Inputs:    r26, r27 (signed product)
+;   Outputs:   dst
+;   Clobbers:  r12
+;   Preserves: every register other than dst and r12
 ;******************************************************************************
 m_q31_from_product .macro dst
     lsl     dst, r27, 1
@@ -218,7 +244,11 @@ m_q31_from_product .macro dst
 ;       lo_reg     - register holding the product low word (high word in
 ;                    the next register)
 ;
-;   Registers modified: r1, r2
+;   Inputs:    r0 (record base), r22, r23 (CYCLE at start / end), lo_reg
+;              and the register after it
+;   Outputs:   none in registers; the run is written to the record
+;   Clobbers:  r1, r2
+;   Preserves: every register other than r1 and r2
 ;******************************************************************************
 m_store_timed .macro offset, iterations, lo_reg
     ldi32   r1, iterations
@@ -235,6 +265,11 @@ main:
     ; Clear R0 - R29. R30 and R31 are not used.
     zero    &r0, 120
     ldi     r0, RECORD_BASE
+
+    ; Invalidate a record left in data RAM by an earlier execution, so a
+    ; reader cannot take it for this one while the runs are in progress.
+    ; The magic is written again, last, once every field is stored.
+    sbbo    &r1, r0, REC_MAGIC, 4   ; r1 is zero
 
     ; Multiply-only mode
     ldi     r25.b0, MULTIPLY_ONLY
@@ -259,6 +294,7 @@ main:
 
 ;------------------------------------------------------------------------------
 ; Run 1: MAC unsigned, timed. Five instructions per product.
+; Budget: 5 cycles x TIMED_ITERATIONS = 327,680 cycles inside the bracket.
 ;
 ; The MAC samples its operands one instruction late: the last write to R28
 ; or R29 must be at least one instruction before the XIN that reads the
@@ -298,6 +334,8 @@ MAC_XCHECK_LOOP:
 
 ;------------------------------------------------------------------------------
 ; Run 3: shift/add multiply, timed. Same recurrence, no MAC.
+; Budget: 4 loop instructions + 360 for FN_SHIFT_ADD_MUL64 including its JAL
+; = 364 cycles x XCHECK_ITERATIONS = 372,736 cycles inside the bracket.
 ;------------------------------------------------------------------------------
     ldi32   r28, SEED_A
     ldi32   r29, SEED_B
@@ -314,6 +352,8 @@ SHIFT_ADD_LOOP:
 
 ;------------------------------------------------------------------------------
 ; Run 4: MAC + signed fixup, timed. Signed recurrence, operands read as int32.
+; Budget: 5 loop instructions + 8 for the fixup = 13 cycles x
+; TIMED_ITERATIONS = 851,968 cycles inside the bracket.
 ;------------------------------------------------------------------------------
     ldi32   r14, SIGNED_STEP_A
     ldi32   r15, SIGNED_STEP_B
@@ -333,6 +373,8 @@ SIGNED_LOOP:
 
 ;------------------------------------------------------------------------------
 ; Run 5: MAC + signed fixup + Q31 extraction, timed. Signed recurrence.
+; Budget: 13 + 3 for the Q31 extraction = 16 cycles x TIMED_ITERATIONS
+; = 1,048,576 cycles inside the bracket.
 ;------------------------------------------------------------------------------
     ldi32   r28, SEED_A
     ldi32   r29, SEED_B

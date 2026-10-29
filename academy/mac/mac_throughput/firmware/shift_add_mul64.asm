@@ -42,8 +42,10 @@
 ;   Returns:
 ;       r7:r6 - 64-bit product (r6 low word)
 ;
-;   Registers modified: r4, r5, r6, r7, r8, r9, r10, r11
-;   Return address: r3.w2 (JAL / JMP)
+;   Inputs:    r28, r29, r3.w2 (return address, JAL / JMP)
+;   Outputs:   r6, r7
+;   Clobbers:  r4, r5, r8, r9, r10, r11
+;   Preserves: r0 - r3, r12 - r31 (including the operands r28 and r29)
 ;******************************************************************************
 FN_SHIFT_ADD_MUL64:
     .asmfunc
