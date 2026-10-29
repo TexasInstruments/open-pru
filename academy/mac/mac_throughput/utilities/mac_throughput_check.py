@@ -23,8 +23,12 @@
 #       corrupted records
 #   python mac_throughput_check.py --record <file> [--clock-mhz <MHz>]
 #       check a record read from the device. <file> is either the raw
-#       0x78-byte dump or text with 30 32-bit words (hex or decimal),
-#       whitespace or comma separated, record offset 0x00 first.
+#       0x78-byte dump or text with 30 32-bit words, whitespace or comma
+#       separated, record offset 0x00 first. Words with a 0x prefix are
+#       hex, all others decimal (leading zeros allowed).
+#
+# Any record that cannot be read or checked prints FAIL with the reason and
+# exits with status 1; the checker does not raise on malformed input.
 
 import argparse
 import json
@@ -44,6 +48,25 @@ TIMED_ITERATIONS = 65536
 XCHECK_ITERATIONS = 1024
 RECORD_MAGIC = 0x4D414354  # "MACT"
 RECORD_WORDS = 0x78 // 4
+
+# Instructions per product in each timed loop, counted from firmware/main.asm
+# (shift/add: 4 loop instructions + 360 for FN_SHIFT_ADD_MUL64 with its JAL).
+# Every PRU instruction takes at least one cycle, so a run's cycles minus the
+# empty bracket can never be below iterations x this count. On LP-AM261 the
+# measured cost equals the count exactly. The upper bound allows stalls up to
+# MAX_STALL_FACTOR times the count; anything outside the range is a corrupted
+# or stale cycle field, not a measurement.
+INSTRUCTIONS_PER_PRODUCT = {
+    "mac_timed": 5,
+    "shift_add": 364,
+    "signed": 13,
+    "q31": 16,
+}
+MAX_STALL_FACTOR = 2
+# Empty bracket: two back-to-back CYCLE reads, 4 cycles on LP-AM261. Zero is
+# impossible (the second read comes after the first); 64 is a generous limit
+# for a control-module read on any PRU-ICSS.
+BRACKET_MAX_CYCLES = 64
 
 # Record layout: name -> word index (byte offset / 4)
 FIELDS = {
@@ -190,8 +213,8 @@ def expected():
     }
 
 
-def golden_words():
-    """The record a correct device produces (cycle fields left at zero)."""
+def golden_words(bracket=4):
+    """The record a correct device produces, cycles at the hand count."""
     exp = expected()
     words = [0] * RECORD_WORDS
 
@@ -220,6 +243,10 @@ def golden_words():
     put64("late_b", exp["late_b"])
     put("late_a_iterations", XCHECK_ITERATIONS)
     put64("late_a", exp["late_a"])
+    put("bracket_cycles", bracket)
+    for name, count in INSTRUCTIONS_PER_PRODUCT.items():
+        put(name + "_cycles",
+            bracket + field(words, name + "_iterations") * count)
     return words
 
 
@@ -270,8 +297,31 @@ def check_record(words):
                     if got == exp[name + "_if_no_latency"] else "")
             failures.append(f"{name} product 0x{got:016x} != one-instruction"
                             f" latency model 0x{exp[name]:016x}{note}")
+    failures += check_cycles(words)
     if field64(words, "mac_timed") == 0:
         failures.append("timed product is zero: R27:R26 not stored")
+    return failures
+
+
+def check_cycles(words):
+    """Reject cycle fields no run of the firmware can produce."""
+    failures = []
+    bracket = field(words, "bracket_cycles")
+    if not 0 < bracket <= BRACKET_MAX_CYCLES:
+        failures.append(f"empty bracket {bracket} cycles, expected "
+                        f"1..{BRACKET_MAX_CYCLES}")
+    iterations = {"mac_timed": TIMED_ITERATIONS,
+                  "shift_add": XCHECK_ITERATIONS,
+                  "signed": TIMED_ITERATIONS,
+                  "q31": TIMED_ITERATIONS}
+    for name, count in INSTRUCTIONS_PER_PRODUCT.items():
+        cycles = field(words, name + "_cycles") - bracket
+        low = iterations[name] * count
+        high = low * MAX_STALL_FACTOR
+        if not low <= cycles <= high:
+            failures.append(f"{name} cycles {cycles} (bracket subtracted), "
+                            f"expected {low}..{high} for {iterations[name]} "
+                            f"products of {count} instructions")
     return failures
 
 
@@ -295,15 +345,18 @@ def timing(words, clock_mhz=None):
         per = cycles / iterations if iterations else None
         row = {"cycles": cycles, "iterations": iterations,
                "cycles_per_product": per}
-        if clock_mhz and iterations:
-            row["ns_per_product"] = cycles / iterations * 1000.0 / clock_mhz
+        if clock_mhz and per is not None:
+            row["ns_per_product"] = per * 1000.0 / clock_mhz
         out[name] = row
-    mac = out["mac_timed"]["cycles_per_product"]
-    if mac:
-        out["signed_fixup_cycles"] = out["signed"]["cycles_per_product"] - mac
-        out["q31_extra_cycles"] = (out["q31"]["cycles_per_product"]
-                                   - out["signed"]["cycles_per_product"])
-        out["shift_add_vs_mac"] = out["shift_add"]["cycles_per_product"] / mac
+    # Derived costs need every per-product value; a record with a zero
+    # iteration count has already failed check_record.
+    per = {name: out[name]["cycles_per_product"]
+           for name in ("mac_timed", "shift_add", "signed", "q31")}
+    mac = per["mac_timed"]
+    if mac and None not in per.values():
+        out["signed_fixup_cycles"] = per["signed"] - mac
+        out["q31_extra_cycles"] = per["q31"] - per["signed"]
+        out["shift_add_vs_mac"] = per["shift_add"] / mac
     return out
 
 
@@ -349,6 +402,10 @@ def selftest(vectors=100000, seed=0x26122026):
         out[FIELDS[name]] = value & M32
         return out
 
+    zero_cycles = list(good)
+    for name in ["bracket"] + list(INSTRUCTIONS_PER_PRODUCT):
+        zero_cycles = mutate(zero_cycles, name + "_cycles", 0)
+
     negatives = [
         ("product fields zero (R27:R26 not stored)",
          check_record(mutate(mutate(good, "mac_timed_lo", 0),
@@ -366,6 +423,13 @@ def selftest(vectors=100000, seed=0x26122026):
         ("MAC disagrees with shift/add",
          check_cross(mutate(good, "mac_xcheck_lo",
                             field(good, "mac_xcheck_lo") ^ 2))),
+        ("all cycle fields zero",
+         check_record(zero_cycles)),
+        ("timed cycles below the instruction count",
+         check_record(mutate(good, "signed_cycles",
+                             field(good, "signed_cycles") - 1))),
+        ("timed cycles above the stall limit",
+         check_record(mutate(good, "q31_cycles", 0xFFFFFFF0))),
     ]
     silent = [name for name, failures in negatives if not failures]
     if silent:
@@ -373,15 +437,73 @@ def selftest(vectors=100000, seed=0x26122026):
     for name, failures in negatives:
         print(f"PASS negative test rejected: {name} -> {failures[0]}")
 
+    # Malformed input must give FAIL with a reason, never an exception.
+    def text(words, fmt="0x{:08x}"):
+        return "\n".join(fmt.format(w) for w in words).encode("ascii")
 
-def read_record(path):
-    with open(path, "rb") as handle:
-        data = handle.read()
+    if evaluate(text(good))[0] or evaluate(text(good, "{:010d}"))[0]:
+        raise AssertionError("hex or zero-padded decimal golden record fails")
+    print("PASS hex and zero-padded decimal text records accepted")
+    malformed = [
+        ("empty file", b""),
+        ("short text record", b"0x4d414354\n"),
+        ("truncated binary dump", bytes(range(128, 247))),
+        ("non-numeric word", text(good).replace(b"0x", b"zz", 1)),
+        ("word wider than 32 bits", b"0x100000000 " + text(good)[11:]),
+        ("zero iteration count",
+         text(mutate(good, "signed_iterations", 0))),
+    ]
+    for name, data in malformed:
+        try:
+            failures, _ = evaluate(data, clock_mhz=225.0)
+        except Exception as error:  # the checker must not raise
+            raise AssertionError(f"{name}: raised {error!r}")
+        if not failures:
+            raise AssertionError(f"checker accepted {name}")
+        print(f"PASS malformed input rejected: {name} -> {failures[0]}")
+
+
+class RecordError(Exception):
+    """The input is not a record this checker can read."""
+
+
+def parse_word(token):
+    """One text word: 0x-prefixed hex, otherwise decimal."""
+    text = token.lower()
+    try:
+        value = int(text[2:], 16) if text.startswith("0x") else int(text, 10)
+    except ValueError:
+        raise RecordError(f"'{token}' is not a hex (0x...) or decimal word")
+    if not 0 <= value <= M32:
+        raise RecordError(f"'{token}' does not fit in 32 bits")
+    return value
+
+
+def parse_record(data):
+    """Words of a raw 0x78-byte dump or of a text dump. Raises RecordError."""
     if len(data) == RECORD_WORDS * 4:
         return [int.from_bytes(data[i:i + 4], "little")
                 for i in range(0, len(data), 4)]
-    tokens = data.decode("ascii").replace(",", " ").split()
-    return [int(token, 0) & M32 for token in tokens]
+    try:
+        text = data.decode("ascii")
+    except UnicodeDecodeError:
+        raise RecordError(f"{len(data)} bytes: not a {RECORD_WORDS * 4}-byte "
+                          f"binary record and not ASCII text")
+    return [parse_word(token) for token in text.replace(",", " ").split()]
+
+
+def evaluate(data, clock_mhz=None):
+    """Check record bytes. Returns (failures, report); never raises."""
+    try:
+        words = parse_record(data)
+    except RecordError as error:
+        return [str(error)], {"failures": [str(error)]}
+    failures = check_record(words)
+    report = {"failures": failures}
+    if len(words) == RECORD_WORDS:
+        failures += check_cross(words)
+        report["timing"] = timing(words, clock_mhz)
+    return failures, report
 
 
 def main():
@@ -402,11 +524,11 @@ def main():
     if args.selftest:
         selftest()
     if args.record:
-        words = read_record(args.record)
-        failures = check_record(words) + check_cross(words)
-        report = {"failures": failures}
-        if len(words) == RECORD_WORDS:
-            report["timing"] = timing(words, args.clock_mhz)
+        try:
+            with open(args.record, "rb") as handle:
+                failures, report = evaluate(handle.read(), args.clock_mhz)
+        except OSError as error:
+            failures, report = [str(error)], {"failures": [str(error)]}
         print(json.dumps(report, indent=2))
         print("FAIL" if failures else "PASS")
         return 1 if failures else 0
