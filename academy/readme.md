@@ -37,7 +37,10 @@ crc/crc
 * How to use the CRC16/32 module
 
 gpio/gpio_toggle
-* How to toggle the SoC GPIO pins using the PRU GPIO module
+* How to toggle the SoC GPIO pins using the PRU GPIO module (assembly)
+
+gpio/gpio_toggle_c
+* How to toggle the SoC GPIO pins using the PRU GPIO module (C)
 
 intc/intc_mcu
 * How to use the INTC module to send and receive interrupts
@@ -85,7 +88,8 @@ For more information about the PRU features on each processor, refer to app note
 | -------------------- | ------ | ------ | ------- | ------ | ----- | ----- |
 | crc/crc              | Yport  | Y      | Y       | Y      | Yport | Yport |
 | getting_started_labs | Y      | Y      | Y       | Y      | Y     | Y     |
-| gpio/gpio_toggle     | Yport  | Y      | Y       | Y      | N-sw  | Yport |
+| gpio/gpio_toggle     | Yport  | Y      | Y       | Y      | N-sw  | Y     |
+| gpio/gpio_toggle_c   | Yport  | Y      | Y       | Y      | N-sw  | Y     |
 | intc/intc_mcu        | Yport  | Y      | Y       | Y      | N-sw  | Yport |
 | mac/mac              | Yport  | Y      | Y       | Y      | Yport | Yport |
 | mac/mac_c            | Yport  | Yport  | Yport   | Yport  | Y     | Y     |

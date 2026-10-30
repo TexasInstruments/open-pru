@@ -4,6 +4,7 @@ SUBDIRS := \
     crc/crc \
     getting_started_labs \
     gpio/gpio_toggle \
+    gpio/gpio_toggle_c \
     intc/intc_mcu \
     mac/mac mac/mac_multiply mac/mac_c \
     uart/uart_loopback
