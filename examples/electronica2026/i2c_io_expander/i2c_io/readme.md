@@ -29,7 +29,7 @@ porting information.
 
 | Processor | Hardware                           | Software                                  |
 | --------- | ---------------------------------- | ----------------------------------------- |
-| AM243x    | LP-AM243, revision FIXME           | MCU+ SDK 12.01.00.33, CCS 21.0.1, ti-cgt-pru 2.3.3, SysConfig 1.28.1. Bus checked with a PicoScope 3416E MSO, including the 100 ms pause build: decode walks 0x01 ... 0x80, one step per 100 ms |
+| AM243x    | LP-AM243, revision REV A           | MCU+ SDK 12.01.00.33, CCS 21.0.1, ti-cgt-pru 2.3.3, SysConfig 1.28.1. Bus checked with a PicoScope 3416E MSO, including the 100 ms pause build: decode walks 0x01 ... 0x80, one step per 100 ms |
 
 The project builds with MCU+ SDK 12.01.00.33. The open-pru release notes list
 MCU+ SDK 11.1 - 12.0 as validated for AM243x.
@@ -78,6 +78,7 @@ Measured edge to edge in pru-simulator at 200 MHz.
 - **1 Mbit/s exceeds the TCA9538 rating.** The TCA9538 datasheet specifies
   400 kHz maximum (tLOW >= 1.3 us, tHIGH >= 0.6 us). To run inside the
   specification, set `DELAY_COUNT` in `firmware/main.asm` to 130 or higher.
+  TCA9534 supports the 1 Mbit/s data rate but has only 4 outputs. 
 
 ## Steps to Run the Example
 
