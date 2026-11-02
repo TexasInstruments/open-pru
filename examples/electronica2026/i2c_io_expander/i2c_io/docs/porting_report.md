@@ -184,7 +184,7 @@ Environment notes for building on this Linux PC:
 
 - [x] Run on LP-AM243 hardware and capture SCL/SDA (2026-11-02, PicoScope).
 - [ ] FIXME: record the LP-AM243 board revision in `readme.md`.
-- [ ] FIXME: run the 100 ms pause build (section 11) on hardware.
+- [x] Run the 100 ms pause build (section 11) on hardware (2026-11-02).
 - [ ] FIXME: check the BoosterPack J-header positions (J4.8 / J4.9) against
       the board silkscreen. The BP pin numbers 33/32 come from the
       LCD_interface pin-mapping slide.
@@ -235,4 +235,4 @@ itself are unchanged.
 | Lint (`lint_pru.py --openpru`) | 0 errors, 0 warnings |
 | Project makefile build, PRU + R5F | exit 0 |
 | pru-simulator, 40 M cycles | Output reg 0x01, 0x02, 0x04; step period 20,006,000 +/- 2000 cycles = 100.03 ms (pause 20,000,002 cycles + one transaction) |
-| Hardware | FIXME (section 9) |
+| Hardware | 2026-11-02: built from CCS 21.0.1 and run by the user. PicoScope 7 I2C decode (via its MCP server) walks 01 01 ... 01 80, one frame per capture, about 100 ms apart. Used by `../visualizer` |

@@ -11,6 +11,9 @@ mux and the PRU clock, and then loads and starts PRU0 only.
 The porting effort, including what changed between the simulator and silicon,
 is documented in [docs/porting_report.md](docs/porting_report.md).
 
+For the booth demo, [../visualizer](../visualizer/readme.md) shows the 8 LEDs
+on the PC, driven by PicoScope 7's I2C decode of this bus.
+
 ## Supported Combinations
 
 | Processor | Board            | PRU core   | Host            |
@@ -24,7 +27,7 @@ porting information.
 
 | Processor | Hardware                           | Software                                  |
 | --------- | ---------------------------------- | ----------------------------------------- |
-| AM243x    | LP-AM243, revision FIXME           | MCU+ SDK 12.01.00.33, CCS 21.0.1, ti-cgt-pru 2.3.3, SysConfig 1.28.1. Bus checked with a PicoScope 3416E MSO (build without the 100 ms pause; pause build FIXME) |
+| AM243x    | LP-AM243, revision FIXME           | MCU+ SDK 12.01.00.33, CCS 21.0.1, ti-cgt-pru 2.3.3, SysConfig 1.28.1. Bus checked with a PicoScope 3416E MSO, including the 100 ms pause build: decode walks 0x01 ... 0x80, one step per 100 ms |
 
 The project builds with MCU+ SDK 12.01.00.33. The open-pru release notes list
 MCU+ SDK 11.1 - 12.0 as validated for AM243x.
