@@ -87,10 +87,10 @@ Connect a TCA9538 board to the LaunchPad BoosterPack header:
 
 | Signal | PRU signal      | LP BoosterPack pin | TCA9538 pin |
 | ------ | --------------- | ------------------ | ----------- |
-| SCL    | PRG0_PRU0_GPO0  | 33 (J4.8)          | SCL         |
-| SDA    | PRG0_PRU0_GPO1  | 32 (J4.9)          | SDA         |
-| 3V3    | -               | 1 (J1.1)           | VCC         |
-| GND    | -               | 20 (J2.1)          | GND         |
+| SCL    | PRG0_PRU0_GPO0  | BP.33 (J4)         | SCL         |
+| SDA    | PRG0_PRU0_GPO1  | BP.32 (J4)         | SDA         |
+| 3V3    | -               | BP.1 (J1)          | VCC         |
+| GND    | -               | BP.20 (J2)         | GND         |
 
 - Tie TCA9538 A1 and A0 high (address 0x23) and RESET high.
 - Power the TCA9538 from 3.3 V. The PRU pins are 3.3 V push-pull outputs.
@@ -98,11 +98,9 @@ Connect a TCA9538 board to the LaunchPad BoosterPack header:
   both lines push-pull. Pull-ups on the expander board do no harm.
 - Connect LEDs with series resistors to P0 - P7.
 
-The BoosterPack pin numbers come from the LP pin mapping in
-`examples/LCD_interface/documents/PRU IO - LCD Interface.pptx`, which uses the
-same PRU0 GPO0 and GPO1. The J-header positions follow the standard
-BoosterPack numbering used in `examples/spi_loopback/readme.md`. Check them
-against the board silkscreen.
+The LaunchPad headers are labelled with BoosterPack pin numbers. The pin
+numbers for PRU0 GPO0 and GPO1 come from the LP pin mapping in
+`examples/LCD_interface/documents/PRU IO - LCD Interface.pptx` (slide 6).
 
 ### Build and run
 

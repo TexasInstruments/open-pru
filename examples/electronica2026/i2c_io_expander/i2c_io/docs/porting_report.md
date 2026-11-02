@@ -185,9 +185,10 @@ Environment notes for building on this Linux PC:
 - [x] Run on LP-AM243 hardware and capture SCL/SDA (2026-11-02, PicoScope).
 - [ ] FIXME: record the LP-AM243 board revision in `readme.md`.
 - [x] Run the 100 ms pause build (section 11) on hardware (2026-11-02).
-- [ ] FIXME: check the BoosterPack J-header positions (J4.8 / J4.9) against
-      the board silkscreen. The BP pin numbers 33/32 come from the
-      LCD_interface pin-mapping slide.
+- [x] Header positions (2026-11-02): the readme first gave "J4.8 / J4.9".
+      The LaunchPad has no such pins; its headers are labelled with
+      BoosterPack pin numbers. SCL is BP.33 and SDA is BP.32, both on
+      header J4, as in the LCD_interface pin-mapping slide.
 - [ ] FIXME: `examples/readme.md` portability entries for am261x, am263px,
       am263x, am62x and am64x. The firmware uses only direct R30 GPO and c24
       DRAM, so am64x looks like `Yport`. Confirm before filling in.
