@@ -99,15 +99,39 @@ impl Tracker {
         Snapshot { conn: self.conn, value: self.value, address: self.address }
     }
 
-    /// Poll PicoScope 7 once and update the state.
+    /// Poll PicoScope 7 once: LED data, then the address if due.
     pub fn poll_once(&mut self, c: &mut dyn ToolCaller, now: Instant) -> PollResult {
+        let r = self.poll_data(c, now);
+        self.poll_address_if_due(c, now);
+        r
+    }
+
+    /// Get the latest decoded data byte and update the LED state.
+    pub fn poll_data(&mut self, c: &mut dyn ToolCaller, now: Instant) -> PollResult {
         match self.try_poll(c, now) {
             Ok(r) => r,
             Err(_) => {
-                self.conn = Conn::Waiting;
-                self.decoder = None;
+                // Forget everything from before the outage, so nothing stale
+                // is shown after reconnecting.
+                *self = Tracker::new();
                 PollResult::default()
             }
+        }
+    }
+
+    /// Query the address about once per second (best effort: an error
+    /// leaves the address as it was). Call after [`Self::poll_data`] and
+    /// after publishing its result, so it never delays an LED change.
+    pub fn poll_address_if_due(&mut self, c: &mut dyn ToolCaller, now: Instant) {
+        let Some(id) = self.decoder.clone() else { return };
+        if self.conn == Conn::Waiting || self.last_address_query.is_some_and(|t| now.duration_since(t) < ADDRESS_EVERY) {
+            return;
+        }
+        self.last_address_query = Some(now);
+        if let Ok(r) = Self::summary(c, &id, "Address")
+            && let Some(a) = group_keys(&r).iter().find_map(|k| parse_address_key(k))
+        {
+            self.address = Some(a);
         }
     }
 
@@ -157,16 +181,6 @@ impl Tracker {
                 }
             }
         }
-
-        if self.last_address_query.is_none_or(|t| now.duration_since(t) >= ADDRESS_EVERY) {
-            self.last_address_query = Some(now);
-            // Best effort: an address error leaves the address as it was.
-            if let Ok(r) = Self::summary(c, &id, "Address")
-                && let Some(a) = group_keys(&r).iter().find_map(|k| parse_address_key(k))
-            {
-                self.address = Some(a);
-            }
-        }
         Ok(result)
     }
 }
@@ -184,27 +198,11 @@ fn group_keys(reply: &Value) -> Vec<String> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::fake::FakeCaller;
+    use crate::fake::{FakeCaller, addr_reply, data_reply, list_reply};
     use crate::mcp::McpError;
     use serde_json::{Value, json};
     use std::collections::VecDeque;
     use std::time::Duration;
-
-    fn list_reply() -> Value {
-        json!({"result":[{"id":"103","protocol":"I2C","enabled":true,
-            "channels":[{"role":"Data","channel":"D1"},{"role":"Clock","channel":"D0"}]}],
-            "status":"Success"})
-    }
-
-    fn data_reply(keys: &[&str]) -> Value {
-        let groups: Vec<Value> = keys.iter().map(|k| json!({"key":k,"count":1,"errorCount":0})).collect();
-        json!({"result":{"id":"103","groupBy":"Data","groups":groups},"status":"Success"})
-    }
-
-    fn addr_reply(keys: &[&str]) -> Value {
-        let groups: Vec<Value> = keys.iter().map(|k| json!({"key":k,"count":1})).collect();
-        json!({"result":{"id":"103","groupBy":"Address","groups":groups},"status":"Success"})
-    }
 
     /// Fake PicoScope: decoder list always OK; `Data` summaries come from
     /// the queue; `Address` summaries answer `addr`.
@@ -376,6 +374,31 @@ mod tests {
         let mut t = Tracker::new();
         t.poll_once(&mut c, Instant::now());
         assert_eq!(t.snapshot().status_text(), "last frame: addr ? · reg 0x01 · data 0x08");
+    }
+
+    #[test]
+    fn reconnect_does_not_show_stale_value() {
+        let mut c = scope(
+            vec![
+                Ok(data_reply(&["01 08 "])),
+                Err(McpError::Connect("refused".into())),
+                Ok(data_reply(&[])),
+                Ok(data_reply(&["01 40 "])),
+            ],
+            vec!["23 "],
+        );
+        let mut t = Tracker::new();
+        let t0 = Instant::now();
+        t.poll_once(&mut c, t0);
+        t.poll_once(&mut c, at(t0, 0.05));
+        t.poll_once(&mut c, at(t0, 1.1));
+        let s = t.snapshot();
+        assert_eq!(s.conn, Conn::Live);
+        assert_eq!(s.value, None, "value from before the outage must not come back");
+        assert_eq!(s.lit(), [false; 8]);
+        assert_eq!(s.status_text(), "waiting for I2C frames …");
+        let r = t.poll_once(&mut c, at(t0, 1.2));
+        assert!(r.changed && !r.skipped, "first value after reconnect is not a skip");
     }
 
     #[test]

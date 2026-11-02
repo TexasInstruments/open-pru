@@ -60,6 +60,9 @@ impl McpClient {
         let agent = ureq::Agent::config_builder()
             .timeout_global(Some(timeout))
             .http_status_as_error(false)
+            // PicoScope 7 is on localhost: never route through a proxy from
+            // the environment (http_proxy etc. on a corporate PC).
+            .proxy(None)
             .build()
             .into();
         McpClient { url: url.to_string(), agent, session: None, initialized: false, next_id: 0 }
@@ -150,13 +153,23 @@ fn map_err(e: ureq::Error) -> McpError {
 
 impl ToolCaller for McpClient {
     fn call_tool(&mut self, name: &str, args: Value) -> Result<Value, McpError> {
-        if !self.initialized {
-            self.initialize()?;
+        if !self.initialized
+            && let Err(e) = self.initialize()
+        {
+            self.session = None;
+            return Err(e);
         }
         match self.call_once(name, &args) {
             Err(McpError::Http(400 | 404)) => {
                 self.initialize()?;
                 self.call_once(name, &args)
+            }
+            Err(e @ (McpError::Connect(_) | McpError::Timeout)) => {
+                // Lost connection, e.g. PicoScope 7 restarted: whatever the
+                // server answers to the old session, start a new one.
+                self.initialized = false;
+                self.session = None;
+                Err(e)
             }
             r => r,
         }

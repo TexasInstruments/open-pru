@@ -4,7 +4,26 @@
 //! Test-only [`ToolCaller`] that answers from a closure and records calls.
 
 use crate::mcp::{McpError, ToolCaller};
-use serde_json::Value;
+use serde_json::{Value, json};
+
+/// `get_serial_decoder_list` reply with our decoder, id "103".
+pub fn list_reply() -> Value {
+    json!({"result":[{"id":"103","protocol":"I2C","enabled":true,
+        "channels":[{"role":"Data","channel":"D1"},{"role":"Clock","channel":"D0"}]}],
+        "status":"Success"})
+}
+
+/// `groupBy:"Data"` summary with these keys.
+pub fn data_reply(keys: &[&str]) -> Value {
+    let groups: Vec<Value> = keys.iter().map(|k| json!({"key":k,"count":1,"errorCount":0})).collect();
+    json!({"result":{"id":"103","groupBy":"Data","groups":groups},"status":"Success"})
+}
+
+/// `groupBy:"Address"` summary with these keys.
+pub fn addr_reply(keys: &[&str]) -> Value {
+    let groups: Vec<Value> = keys.iter().map(|k| json!({"key":k,"count":1})).collect();
+    json!({"result":{"id":"103","groupBy":"Address","groups":groups},"status":"Success"})
+}
 
 type Handler = Box<dyn FnMut(&str, &Value) -> Result<Value, McpError>>;
 

@@ -199,6 +199,34 @@ fn reply_over_timeout_is_error() {
 }
 
 #[test]
+fn reinitializes_after_timeout() {
+    // PicoScope 7 restarted: the old session may be answered with anything,
+    // so a lost connection must force a fresh initialize on the next call.
+    let (url, log) = fake_server(|r, earlier| {
+        let calls = earlier.iter().filter(|e| e.method == "tools/call").count();
+        match r.method.as_str() {
+            "initialize" => Resp::json(init_reply()).session("s1"),
+            "notifications/initialized" => Resp::status(202),
+            _ if calls == 1 => Resp::json(tool_reply(json!({"status":"Success"}))).delayed(Duration::from_secs(1)),
+            _ => Resp::json(tool_reply(json!({"status":"Success"}))),
+        }
+    });
+    let mut c = McpClient::new(&url, Duration::from_millis(300));
+    assert!(c.call_tool("x", json!({})).is_ok());
+    assert!(matches!(c.call_tool("x", json!({})), Err(McpError::Timeout)));
+    // The fake serves one request at a time: let the stalled reply finish.
+    thread::sleep(Duration::from_millis(900));
+    assert!(c.call_tool("x", json!({})).is_ok());
+    let log = log.lock().unwrap();
+    let methods: Vec<_> = log.iter().map(|r| r.method.as_str()).collect();
+    assert_eq!(
+        methods,
+        ["initialize", "notifications/initialized", "tools/call", "tools/call",
+         "initialize", "notifications/initialized", "tools/call"]
+    );
+}
+
+#[test]
 fn connection_refused_is_connect_error() {
     let port = TcpListener::bind("127.0.0.1:0").unwrap().local_addr().unwrap().port();
     let mut c = McpClient::new(&format!("http://127.0.0.1:{port}/mcp"), T3);
