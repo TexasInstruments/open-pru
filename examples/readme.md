@@ -10,6 +10,11 @@ This directory contains example PRU projects.
 custom_frequency_generator
 * Generate a square wave with a configurable average clock frequency
 
+electronica2026/uart_rx_frame/uart_rx
+* PRU0 bit-bangs a 4 Mbaud 8N1 UART receiver on one direct GPI and stores
+  11-byte frames in a DRAM0 ring buffer. Ported from TI's pru-simulator to
+  AM243x LP
+
 empty
 * The empty project can be used for PRU firmware development in assembly
 
@@ -83,6 +88,8 @@ For more information about the PRU features on each processor, refer to app note
 | Project                         | am243x | am261x | am263px | am263x | am62x | am64x |
 | ------------------------------- | ------ | ------ | ------- | ------ | ----- | ----- |
 | custom_frequency_generator      | Y      | Yport  | Yport   | Yport  | Yport | Yport |
+| electronica2026/                                                                     |
+| uart_rx_frame/uart_rx           | Y      | FIXME  | FIXME   | FIXME  | FIXME | FIXME |
 | empty                           | Y      | Y      | Y       | Y      | Y     | Y     |
 | empty_c                         | Y      | Y      | Y       | Y      | Y     | Y     |
 | fft/                                                                                 |
