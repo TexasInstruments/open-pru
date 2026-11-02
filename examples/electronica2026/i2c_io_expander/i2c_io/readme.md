@@ -14,6 +14,8 @@ is documented in [docs/porting_report.md](docs/porting_report.md).
 For the booth demo, [../visualizer](../visualizer/readme.md) shows the 8 LEDs
 on the PC, driven by PicoScope 7's I2C decode of this bus.
 
+![Development flow: simulate, port to open-pru, run on LP-AM243, trace with PicoScope, visualize in Rust](../docs/development_flow.png)
+
 ## Supported Combinations
 
 | Processor | Board            | PRU core   | Host            |

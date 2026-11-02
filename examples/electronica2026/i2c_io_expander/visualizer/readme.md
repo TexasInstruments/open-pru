@@ -13,6 +13,8 @@ PicoScope 7 keeps ownership of the scope. The app never uses the Pico SDK or
 USB. The design is in [docs/design.md](docs/design.md), the implementation
 plan in [docs/plan.md](docs/plan.md).
 
+![Development flow: simulate, port to open-pru, run on LP-AM243, trace with PicoScope, visualize in Rust](../docs/development_flow.png)
+
 ## Requirements
 
 - Linux desktop (tested on Ubuntu, GNOME, Wayland).
