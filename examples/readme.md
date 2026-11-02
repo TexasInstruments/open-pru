@@ -88,7 +88,7 @@ For more information about the PRU features on each processor, refer to app note
 | ------------------------------- | ------ | ------ | ------- | ------ | ----- | ----- |
 | custom_frequency_generator      | Y      | Yport  | Yport   | Yport  | Yport | Yport |
 | electronica2026/                                                                     |
-| i2c_io_expander/i2c_io          | Y      | FIXME  | FIXME   | FIXME  | FIXME | FIXME |
+| i2c_io_expander/i2c_io          | Y      | Yport  | Yport   | Yport  | Yport | Yport |
 | empty                           | Y      | Y      | Y       | Y      | Y     | Y     |
 | empty_c                         | Y      | Y      | Y       | Y      | Y     | Y     |
 | fft/                                                                                 |
