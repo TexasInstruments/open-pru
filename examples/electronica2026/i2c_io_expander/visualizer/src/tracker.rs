@@ -161,10 +161,10 @@ impl Tracker {
         if self.last_address_query.is_none_or(|t| now.duration_since(t) >= ADDRESS_EVERY) {
             self.last_address_query = Some(now);
             // Best effort: an address error leaves the address as it was.
-            if let Ok(r) = Self::summary(c, &id, "Address") {
-                if let Some(a) = group_keys(&r).iter().find_map(|k| parse_address_key(k)) {
-                    self.address = Some(a);
-                }
+            if let Ok(r) = Self::summary(c, &id, "Address")
+                && let Some(a) = group_keys(&r).iter().find_map(|k| parse_address_key(k))
+            {
+                self.address = Some(a);
             }
         }
         Ok(result)
@@ -187,9 +187,7 @@ mod tests {
     use crate::fake::FakeCaller;
     use crate::mcp::McpError;
     use serde_json::{Value, json};
-    use std::cell::RefCell;
     use std::collections::VecDeque;
-    use std::rc::Rc;
     use std::time::Duration;
 
     fn list_reply() -> Value {
@@ -210,16 +208,14 @@ mod tests {
 
     /// Fake PicoScope: decoder list always OK; `Data` summaries come from
     /// the queue; `Address` summaries answer `addr`.
-    fn scope(data: Vec<Result<Value, McpError>>, addr: Vec<&'static str>) -> (FakeCaller, Rc<RefCell<VecDeque<Result<Value, McpError>>>>) {
-        let q = Rc::new(RefCell::new(VecDeque::from(data)));
-        let q2 = q.clone();
-        let c = FakeCaller::new(move |name, args| match name {
+    fn scope(data: Vec<Result<Value, McpError>>, addr: Vec<&'static str>) -> FakeCaller {
+        let mut q = VecDeque::from(data);
+        FakeCaller::new(move |name, args| match name {
             "get_serial_decoder_list" => Ok(list_reply()),
             "get_serial_decoder_summary" if args["groupBy"] == "Address" => Ok(addr_reply(&addr)),
-            "get_serial_decoder_summary" => q2.borrow_mut().pop_front().expect("no more data replies"),
+            "get_serial_decoder_summary" => q.pop_front().expect("no more data replies"),
             other => panic!("unexpected tool {other}"),
-        });
-        (c, q)
+        })
     }
 
     fn at(t0: Instant, s: f64) -> Instant {
@@ -228,7 +224,7 @@ mod tests {
 
     #[test]
     fn poll_once_goes_live_with_value() {
-        let (mut c, _) = scope(vec![Ok(data_reply(&["01 08 "]))], vec!["23 "]);
+        let mut c = scope(vec![Ok(data_reply(&["01 08 "]))], vec!["23 "]);
         let mut t = Tracker::new();
         let r = t.poll_once(&mut c, Instant::now());
         let s = t.snapshot();
@@ -240,7 +236,7 @@ mod tests {
 
     #[test]
     fn poll_once_same_value_not_changed() {
-        let (mut c, _) = scope(vec![Ok(data_reply(&["01 08 "])), Ok(data_reply(&["01 08 "]))], vec![]);
+        let mut c = scope(vec![Ok(data_reply(&["01 08 "])), Ok(data_reply(&["01 08 "]))], vec![]);
         let mut t = Tracker::new();
         let t0 = Instant::now();
         t.poll_once(&mut c, t0);
@@ -251,7 +247,7 @@ mod tests {
 
     #[test]
     fn poll_once_counts_skip() {
-        let (mut c, _) = scope(vec![Ok(data_reply(&["01 02 "])), Ok(data_reply(&["01 08 "]))], vec![]);
+        let mut c = scope(vec![Ok(data_reply(&["01 02 "])), Ok(data_reply(&["01 08 "]))], vec![]);
         let mut t = Tracker::new();
         let t0 = Instant::now();
         assert!(!t.poll_once(&mut c, t0).skipped);
@@ -261,7 +257,7 @@ mod tests {
 
     #[test]
     fn next_step_is_not_a_skip() {
-        let (mut c, _) = scope(vec![Ok(data_reply(&["01 80 "])), Ok(data_reply(&["01 01 "]))], vec![]);
+        let mut c = scope(vec![Ok(data_reply(&["01 80 "])), Ok(data_reply(&["01 01 "]))], vec![]);
         let mut t = Tracker::new();
         let t0 = Instant::now();
         t.poll_once(&mut c, t0);
@@ -271,7 +267,7 @@ mod tests {
 
     #[test]
     fn no_frames_after_two_seconds() {
-        let (mut c, _) = scope(
+        let mut c = scope(
             vec![Ok(data_reply(&["01 08 "])), Ok(data_reply(&["01 "])), Ok(data_reply(&["01 "]))],
             vec![],
         );
@@ -290,7 +286,7 @@ mod tests {
 
     #[test]
     fn frames_again_after_no_frames_goes_live() {
-        let (mut c, _) = scope(
+        let mut c = scope(
             vec![Ok(data_reply(&["01 08 "])), Ok(data_reply(&[])), Ok(data_reply(&["01 10 "]))],
             vec![],
         );
@@ -306,7 +302,7 @@ mod tests {
 
     #[test]
     fn poll_once_error_goes_waiting() {
-        let (mut c, _) = scope(
+        let mut c = scope(
             vec![Ok(data_reply(&["01 08 "])), Err(McpError::Connect("refused".into()))],
             vec![],
         );
@@ -331,7 +327,7 @@ mod tests {
     fn slow_reply_does_not_change_state() {
         // Stalls are mirrored: the tracker has no notion of reply time, so a
         // poll 1.2 s after the previous one with a valid frame stays Live.
-        let (mut c, _) = scope(vec![Ok(data_reply(&["01 08 "])), Ok(data_reply(&["01 10 "]))], vec![]);
+        let mut c = scope(vec![Ok(data_reply(&["01 08 "])), Ok(data_reply(&["01 10 "]))], vec![]);
         let mut t = Tracker::new();
         let t0 = Instant::now();
         t.poll_once(&mut c, t0);
@@ -342,7 +338,7 @@ mod tests {
 
     #[test]
     fn summary_rejected_reruns_setup() {
-        let (mut c, _) = scope(
+        let mut c = scope(
             vec![
                 Ok(json!({"status":"Rejected","message":"Unknown decoder"})),
                 Ok(data_reply(&["01 08 "])),
@@ -360,7 +356,7 @@ mod tests {
 
     #[test]
     fn address_queried_once_per_second() {
-        let (mut c, _) = scope(
+        let mut c = scope(
             vec![Ok(data_reply(&["01 08 "])), Ok(data_reply(&["01 08 "])), Ok(data_reply(&["01 10 "]))],
             vec!["23 "],
         );
@@ -376,7 +372,7 @@ mod tests {
 
     #[test]
     fn unknown_address_is_question_mark() {
-        let (mut c, _) = scope(vec![Ok(data_reply(&["01 08 "]))], vec![]);
+        let mut c = scope(vec![Ok(data_reply(&["01 08 "]))], vec![]);
         let mut t = Tracker::new();
         t.poll_once(&mut c, Instant::now());
         assert_eq!(t.snapshot().status_text(), "last frame: addr ? · reg 0x01 · data 0x08");
@@ -384,7 +380,7 @@ mod tests {
 
     #[test]
     fn live_without_value_waits_for_frames() {
-        let (mut c, _) = scope(vec![Ok(data_reply(&[]))], vec![]);
+        let mut c = scope(vec![Ok(data_reply(&[]))], vec![]);
         let mut t = Tracker::new();
         t.poll_once(&mut c, Instant::now());
         assert_eq!(t.snapshot().conn, Conn::Live);

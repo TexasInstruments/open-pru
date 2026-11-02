@@ -12,6 +12,7 @@ pub mod poller;
 pub mod setup;
 pub mod stats;
 pub mod tracker;
+pub mod ui;
 
 pub use decode::{Pick, parse_address_key, parse_frame_key, pick, successor};
 pub use mcp::{McpClient, McpError, ToolCaller};

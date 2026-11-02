@@ -44,10 +44,10 @@ pub fn run(args: &Args, shared: &Mutex<Snapshot>, on_change: &dyn Fn(&Snapshot))
             prev = snap;
         }
         stats.record(elapsed, r);
-        if args.stats {
-            if let Some(line) = stats.report_due(Instant::now()) {
-                println!("{line}");
-            }
+        if args.stats
+            && let Some(line) = stats.report_due(Instant::now())
+        {
+            println!("{line}");
         }
         thread::sleep(next_delay(prev.conn, interval, start.elapsed()));
     }

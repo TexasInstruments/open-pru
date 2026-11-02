@@ -130,7 +130,7 @@ impl McpClient {
 
 /// Body is either plain JSON or SSE; for SSE take the last `data:` line.
 fn parse_body(body: &str) -> Result<Option<Value>, McpError> {
-    let json = match body.lines().filter_map(|l| l.strip_prefix("data:")).last() {
+    let json = match body.lines().filter_map(|l| l.strip_prefix("data:")).next_back() {
         Some(data) => data.trim(),
         None => body.trim(),
     };
