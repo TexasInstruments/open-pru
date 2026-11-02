@@ -122,3 +122,27 @@ Measured in pru-simulator on the built `.out`. See the porting report for how.
    and the byte at 0x30000FFE is 0.
 3. Send more frames. Each one appears 11 bytes after the previous one, and
    the count at 0x30000FFC goes up by one per frame.
+
+### Sender: PicoScope arbitrary waveform generator
+
+`test/helloworld_4mbaud_awg.csv` is a PicoScope 7 AWG file that sends
+`HelloWorld!` at 4 Mbaud once per AWG period. `test/make_awg_csv.py`
+regenerates it, optionally with another 11-byte payload. Each period is
+200 bit times: 45 idle bits, the 110-bit frame, then 45 idle bits.
+
+1. In the PicoScope signal generator, select Arbitrary and import the CSV.
+2. Set Frequency to 20 kHz (one 50 us period = 200 bits of 250 ns),
+   amplitude 1 V and offset +1 V, which gives 0 V / 2 V levels.
+3. Start order, because the firmware has no frame sync: set the generator to
+   DC +2 V (line idle high), run the R5F project, then switch to Arbitrary.
+   If the PRU starts in the middle of a frame, every frame comes out shifted
+   by one or more bytes and 0x30000FFE is set. Restart from the DC step.
+4. Every 11-byte slot from 0x30000000 then holds `HelloWorld!`, the count at
+   0x30000FFC increases by 20,000 per second, and 0x30000FFE stays 0.
+
+2 V is the generator's maximum output and is at the bottom of the 3.3 V
+input-high range. If bytes are wrong, add a level shifter (for example an
+SN74LVC1T45 with VCCA = 1.8 V and VCCB = 3.3 V).
+
+The CSV and the start-order effect were checked in pru-simulator by playing
+the CSV into the built `.out` at 20 kHz.
