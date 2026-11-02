@@ -6,8 +6,11 @@
 pub mod decode;
 #[cfg(test)]
 mod fake;
+pub mod cli;
 pub mod mcp;
+pub mod poller;
 pub mod setup;
+pub mod stats;
 pub mod tracker;
 
 pub use decode::{Pick, parse_address_key, parse_frame_key, pick, successor};
