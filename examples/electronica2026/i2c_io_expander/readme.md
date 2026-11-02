@@ -69,6 +69,7 @@ PicoScope 7 then decodes one frame per capture, about every 100 ms:
 
 ```
 cd visualizer
+source ~/.cargo/env    # only if cargo is not on PATH
 cargo run --release
 ```
 

@@ -23,7 +23,9 @@ plan in [docs/plan.md](docs/plan.md).
 - The i2c_io example running on the LP-AM243 (firmware with the 100 ms pause
   per LED step).
 - Rust stable, installed with [rustup](https://rustup.rs):
-  `curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh`
+  `curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh`.
+  rustup installs `cargo` into `~/.cargo/bin`. If `cargo` is not found in a
+  new terminal, run `source ~/.cargo/env` first.
 
 ## PicoScope 7 setup
 
@@ -53,8 +55,12 @@ timebase, channels or other decoders.
 ## Build and run
 
 ```
+source ~/.cargo/env    # only if cargo is not on PATH
 cargo run --release
 ```
+
+After the first build, the binary can also be started directly:
+`./target/release/i2c_led_visualizer`.
 
 Place the window next to PicoScope 7. F11 toggles fullscreen. Hover the
 chip to see the version.
