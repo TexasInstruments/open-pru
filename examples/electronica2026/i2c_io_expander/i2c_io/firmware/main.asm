@@ -15,7 +15,10 @@
 ;             - Configure all 8 TCA9538 ports as outputs (Configuration
 ;               register 0x03 = 0x00).
 ;             - Forever: write one set bit 0x01 -> 0x02 -> ... -> 0x80 ->
-;               0x01 to the Output Port register (0x01).
+;               0x01 to the Output Port register (0x01), then pause
+;               100 ms (PAUSE_COUNT), so the LED steps at about 10 Hz.
+;               Each transaction still runs at 1 Mbit/s; the pause lets
+;               a scope trigger on every frame and an observer follow it.
 ;
 ;   Hardware requirements:
 ;             - PRU core clock 200 MHz (example.syscfg, coreClk).
@@ -69,6 +72,7 @@
 ; r19     DRAM0 error-flag offset           run_nack          main
 ; r20     ACK result: 0 = ACK, 2 = NACK     after write_byte  FN/main
 ;         (silicon port: always 0, see header)
+; r7      100 ms pause counter              advance_pattern   main
 ; r21     running-LED pattern 0x01 .. 0x80  run_loop          main
 ; r30     GPO: SCL = bit 0, SDA = bit 1     everywhere        hardware
 ; r31     GPI: not used on silicon          -                 hardware
@@ -84,6 +88,7 @@
 ; ACK bit,  SCL low          100 cyc     99 cyc       pru-simulator edges
 ; ACK bit,  SCL high         100 cyc     99 cyc       pru-simulator edges
 ; START / STOP setup, hold   100 cyc     98 cyc       pru-simulator edges
+; pause between transactions 20000000    20000002 cyc pru-simulator (step 100.03 ms)
 ; --------------------------------------------------------------------------
 
 SCL_BIT     .set 0
@@ -95,6 +100,8 @@ ADDR_W      .set 0x46        ; TCA9538 addr 0x23, R/W = 0: (0x23 << 1) | 0
 CFG_REG     .set 0x03        ; TCA9538 Configuration register
 OUT_REG     .set 0x01        ; TCA9538 Output Port register
 ERR_ADDR    .set 0x0FFE      ; DRAM0 offset of the soft NACK error flag
+PAUSE_COUNT .set 10000000    ; 2 cycles per sub+qbne iteration: 20000000
+                              ; cycles = 100 ms at 200 MHz
 
 ;********
 ;* MAIN *
@@ -145,6 +152,10 @@ run_nack:
     jal  r1, FN_I2C_STOP            ; release the bus, retry next iteration
 
 advance_pattern:
+    ldi32 r7, PAUSE_COUNT           ; 2
+pause:
+    sub  r7, r7, 1                  ; 1
+    qbne pause, r7, 0               ; 1  100 ms with SCL = 1, SDA = 1 (idle)
     lsl  r21, r21, 1
     qbbc run_loop, r21, 8           ; loop unless bit 8 set (wrapped past P7)
     ldi  r21, 0x01

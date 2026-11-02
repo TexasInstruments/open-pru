@@ -152,7 +152,7 @@ save. The GUI also migrates the device to the new part-number scheme
 | pru-simulator: SCL edges of the port vs the original source | 671 / 671 SCL edges identical in cycle and level (after the 1-cycle `zero` offset) |
 | Phase widths (port, simulated) | SCL high 101 cyc (data) / 99 cyc (ACK); SCL low 100-101 cyc (data) / 99 cyc (ACK); 105-107 cyc between bytes (call overhead) |
 | Transaction period (START to START) | 5841-5845 cycles = 29.2 us |
-| Hardware run on LP-AM243 | **not done** (no board attached to this PC) |
+| Hardware run on LP-AM243 | 2026-11-02, by the user: built and run from CCS 21.0.1, SCL/SDA captured with a PicoScope 3416E MSO, looks correct. This was the build without the 100 ms pause (section 11) |
 
 Tool versions used: CCS 21.0.1 (`ccs2101`), ti-cgt-pru 2.3.3, ti-cgt-armllvm
 5.1.1.LTS, SysConfig 1.28.1, MCU+ SDK AM243x 12.01.00.33. The open-pru
@@ -182,15 +182,16 @@ Environment notes for building on this Linux PC:
 
 ## 9. Open items
 
-- [ ] FIXME: run on LP-AM243 hardware, record the board revision in
-      `readme.md`, and capture SCL/SDA with a logic analyzer.
+- [x] Run on LP-AM243 hardware and capture SCL/SDA (2026-11-02, PicoScope).
+- [ ] FIXME: record the LP-AM243 board revision in `readme.md`.
+- [ ] FIXME: run the 100 ms pause build (section 11) on hardware.
 - [ ] FIXME: check the BoosterPack J-header positions (J4.8 / J4.9) against
       the board silkscreen. The BP pin numbers 33/32 come from the
       LCD_interface pin-mapping slide.
 - [ ] FIXME: `examples/readme.md` portability entries for am261x, am263px,
       am263x, am62x and am64x. The firmware uses only direct R30 GPO and c24
       DRAM, so am64x looks like `Yport`. Confirm before filling in.
-- [ ] Decide whether to slow the run loop down for a visible LED demo.
+- [x] Slow the run loop down for a visible LED demo: 100 ms pause (section 11).
 - [ ] Decide whether to lower the bit rate to 400 kHz (DELAY_COUNT >= 130)
       for TCA9538 datasheet compliance.
 - [ ] Open `example.syscfg` in the SysConfig GUI and save (section 6).
@@ -214,3 +215,24 @@ examples/electronica2026/i2c_io_expander/i2c_io/
 examples/makefile                           project added to SUBDIRS
 examples/readme.md                          project list + portability row
 ```
+
+## 11. Follow-up: 100 ms pause per LED step (2026-11-02)
+
+After the hardware run, the user asked for a PC visualizer that shows the
+8-LED demo from the PicoScope capture, side by side with PicoScope 7. A
+PicoScope capture window holds 3-4 frames and captures arrive about 50 ms
+apart, so with a 29 us step the LED view would jump randomly. Of the two
+options offered (replay each capture slowly, or pause in firmware), the user
+chose: "option 2, add 100 ms pause".
+
+Change in `firmware/main.asm`: after each Output Port write, `advance_pattern`
+counts `PAUSE_COUNT` = 10,000,000 down in r7 (`sub` + `qbne`, 2 cycles per
+iteration) with the bus idle (SCL = 1, SDA = 1). The bit rate and the frame
+itself are unchanged.
+
+| Check | Result |
+| ----- | ------ |
+| Lint (`lint_pru.py --openpru`) | 0 errors, 0 warnings |
+| Project makefile build, PRU + R5F | exit 0 |
+| pru-simulator, 40 M cycles | Output reg 0x01, 0x02, 0x04; step period 20,006,000 +/- 2000 cycles = 100.03 ms (pause 20,000,002 cycles + one transaction) |
+| Hardware | FIXME (section 9) |

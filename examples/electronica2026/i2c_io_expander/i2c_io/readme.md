@@ -24,7 +24,7 @@ porting information.
 
 | Processor | Hardware                           | Software                                  |
 | --------- | ---------------------------------- | ----------------------------------------- |
-| AM243x    | LP-AM243, revision FIXME           | Build only: MCU+ SDK 12.01.00.33, CCS 21.0.1, ti-cgt-pru 2.3.3, SysConfig 1.28.1. Hardware run FIXME |
+| AM243x    | LP-AM243, revision FIXME           | MCU+ SDK 12.01.00.33, CCS 21.0.1, ti-cgt-pru 2.3.3, SysConfig 1.28.1. Bus checked with a PicoScope 3416E MSO (build without the 100 ms pause; pause build FIXME) |
 
 The project builds with MCU+ SDK 12.01.00.33. The open-pru release notes list
 MCU+ SDK 11.1 - 12.0 as validated for AM243x.
@@ -37,8 +37,10 @@ MCU+ SDK 11.1 - 12.0 as validated for AM243x.
 2. Write TCA9538 Configuration register 0x03 = 0x00 (all 8 ports outputs).
 3. Forever: write Output Port register 0x01 with a single set bit that walks
    0x01 -> 0x02 -> ... -> 0x80 -> 0x01. One write takes 5843 PRU cycles
-   (29.2 us at 200 MHz), so the LED moves about every 29 us. To see the LED
-   run by eye, use a logic analyzer, or slow the pattern down in firmware.
+   (29.2 us at 200 MHz) at 1 Mbit/s, followed by a 100 ms pause with the bus
+   idle (`PAUSE_COUNT` in `firmware/main.asm`). The LED steps about every
+   100 ms, so the running light is visible by eye, and a scope can trigger on
+   every frame.
 
 ### PRU resources
 
@@ -108,9 +110,8 @@ against the board silkscreen.
 ### Validate
 
 - On a logic analyzer: SCL period about 1 us, START, address byte 0x46,
-  register 0x01, data byte, STOP, repeating every 29.2 us. The data byte walks
-  0x01 -> 0x80.
+  register 0x01, data byte, STOP, repeating every 100 ms. The data byte walks
+  0x01 -> 0x80. Trigger on the falling edge of SDA while SCL is high (START).
 - During the 9th clock of every byte, SDA is low (driven by the PRU, and also
   by the TCA9538 when it acknowledges).
-- With LEDs on P0 - P7, each LED is on for 1/8 of the time. Because the
-  pattern cycles every 234 us, all LEDs appear dimly lit.
+- With LEDs on P0 - P7, a single LED runs from P0 to P7 in 0.8 s.
