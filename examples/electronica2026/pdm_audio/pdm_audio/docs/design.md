@@ -235,11 +235,13 @@ different clip, so crosstalk and channel swaps are visible in the memory browser
   PdmLink exists only there: let the PdmLink clock drive the SD `CLK_SEL = 0`
   (sd8_clk/GPI16) path, which today gets no clock. It is covered by tests like
   `tests/test_sd_pin_input.py`. No 9-channel expansion.
-- **The simulator and the board run different PRU0 builds:** `N_CH` = 3 with SD map
-  {0,1,2} in the simulator, `N_CH` = 8 with {0,1,2,3,5,6,7,8} on the board. An 8-channel
-  build would spin forever on the SD channels the simulator lacks. The rule for which
-  channel publishes `HALF_SEQ` must also hold for an odd `N_CH`, because of the FIR
-  stagger. Both builds are assembled with clpru.
+- **open-pru ships only the 8-channel firmware (decided by the user).** There is no
+  3-channel version in the open-pru project. The simulator harness assembles the same
+  `pdm_rx.asm` source with its `N_CH` and SD-map build options overridden at load time
+  to 3 channels {0,1,2}, the way audio_pipe's tests set build options. The 8-channel
+  build would otherwise spin forever on the SD channels the simulator lacks. So the
+  firmware keeps `N_CH` and the SD map as plain-literal build options, and the rule for
+  which channel publishes `HALF_SEQ` must hold for both 3 and 8 channels (FIR stagger).
 - In the simulator, the test harness runs RTU1 + PRU1 + PRU0 together in lockstep, with
   PRU1 as the lead. This is the loop with feedback, so run-ahead doesn't apply.
 - Bit-exact checks with the `source/pdm/reference.py` functions:
@@ -248,8 +250,11 @@ different clip, so crosstalk and channel swaps are visible in the memory browser
   - the PRU0 interleaved PCM equals `pcm_chain_for_channel(sampled_bits, ch)`;
   - the ping-pong halves and `HALF_SEQ` are published only when complete;
   - an injected RTU1 delay produces an underrun flag, not a corrupted clock.
-- Where the harness lives: the project's `test/` directory, using pru-simulator through a
-  path, as audio_pipe's tests do. Run instructions go in the readme.
+- **Where the harness lives:** in **pru-simulator**, not in open-pru. It goes in
+  `tests/test_pdm_open_pru_port.py` on the simulator-change branch. It finds the open-pru
+  checkout through an `OPEN_PRU_PATH` environment variable (default `~/GitHub/open-pru`)
+  and skips if the checkout is missing. The open-pru readme links to it under
+  "Verification".
 - This is a validation run, not a demo, so simulator speed doesn't matter. Keep runs to a
   few ms of audio.
 
@@ -314,8 +319,8 @@ int32).
   `dev_tley_electronica2026_pdm_audio` from `origin/main`.
 - PRU1's timed path uses no shared memory: register-only pin mapping, and header stores
   in a padded slot or on RTU1.
-- The simulator change is stacked on PR #106. There are separate PRU0 builds for the
-  simulator (3 ch) and the board (8 ch).
+- The simulator change and the 3-channel simulator harness are both in pru-simulator,
+  stacked on PR #106. open-pru carries only the 8-channel firmware.
 
 ## 15. Left to the builder
 
