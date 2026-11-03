@@ -238,9 +238,9 @@ Environment notes for building on this Linux PC:
       can start before the PRU.
 - [ ] Optional: let the R5F print new frames on the UART console (poll the
       count at 0x0FFC).
-- [ ] FIXME: `examples/readme.md` portability entries for am261x, am263px,
-      am263x, am62x and am64x. The firmware uses only direct R31 GPI and c24
-      DRAM, so am64x looks like `Yport`. Confirm before filling in.
+- [x] `examples/readme.md` portability entries for am261x, am263px, am263x,
+      am62x and am64x: `Yport` for all five (user, 2026-11-03). The firmware
+      uses only direct R31 GPI and c24 DRAM.
 - [ ] Open `example.syscfg` in the SysConfig GUI and save (section 6).
 - [ ] `examples/makefile` and `examples/readme.md` also get an
       `electronica2026/...` entry on the i2c_io branch (PR #188). Whichever
