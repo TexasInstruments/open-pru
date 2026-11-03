@@ -34,12 +34,19 @@
 ;   and RTU1_LOOPS counts clip restarts; both are stored at each fetch.
 ;
 ;   Hand-off (IPC scratchpad, XFR ID 15, see pdm8_shared.inc):
-;             - At start: XOUT zeros to R2..R9.w0 (batch and seq).
+;             - At start: read the stale ack e, XOUT R2..R9.w0 = seq 0
+;               with the start nonce c (NONCE_A, or NONCE_B if e ==
+;               NONCE_A) in R2.b0, the rest 0.
 ;             - Batch n: R2..R8 = 28 period bytes (bit k = channel k),
 ;               R9.w0 = seq = n + 1. RTU1 computes batch n, then spins on
-;               "XIN R9.b3 until ack == n (low byte)" and XOUTs the 30
-;               bytes R2..R9.w0 in one transfer. Batch 0 goes out
-;               against ack 0 (PRU1 clears its ack at start).
+;               "XIN R9.b3 until ack == target" and XOUTs the 30 bytes
+;               R2..R9.w0 in one transfer. The target is c for batch 0
+;               (PRU1 echoes c once it has seen seq 0, so neither core
+;               can run ahead on a stale ack), n (low byte) after that.
+;             - After each XOUT: PRU1's counters to the header (PRU1
+;               touches no memory): UNDERRUN_COUNT += new underruns from
+;               PRU1's 8-bit R9.b2, BATCH_COUNT = seq - 1 = batches PRU1
+;               acked.
 ;             - XOUT -> XIN visibility: PRU1 reads seq/bytes in its own
 ;               XIN; the 30 bytes are written by one XOUT, so a reader
 ;               sees either the old or the new batch. RTU1 does not
@@ -47,7 +54,8 @@
 ;
 ;   Memory use (RTU1 local addresses):
 ;             - Shared RAM 0x10000: header reads (CLIP_ADDR, CLIP_FRAMES)
-;               and stores (RTU1_FRAME_POS, RTU1_LOOPS).
+;               and stores (RTU1_FRAME_POS, RTU1_LOOPS, and PRU1's
+;               UNDERRUN_COUNT, BATCH_COUNT).
 ;             - DRAM1 PDM8_RTU1_SCRATCH (0x1700..0x17FF): batch buffer,
 ;               x - FS copy, clip pointers (layout below). PRU1 shares
 ;               DRAM1 but its timed path never touches it.
@@ -79,7 +87,8 @@
 ;           step s, bit k = channel k
 ; r1        PDM8_RTU1_SCRATCH (DRAM1)             everywhere        main
 ; r2..r9    xm0..xm7 = x_k - FS (32 bit)          group loop        main
-;           batch R2..R8 + seq R9.w0, ack R9.b3   BATCH_END         SPAD
+;           batch R2..R8 + seq R9.w0, ack R9.b3,  BATCH_END         SPAD
+;           R9.b2 ack target / PRU1's underruns
 ;           frame + clip pointers                 FETCH             main
 ; r10..r17  j1_0..j1_7 = i1_k - FS                everywhere        main
 ; r18..r25  i2_0..i2_7                            everywhere        main
@@ -100,6 +109,8 @@
 ; +0x40        next frame address    +0x44  next frame index
 ; +0x48        clip base address     +0x4C  clip frames
 ; +0x50        clip restarts (RTU1_LOOPS)
+; +0x54        ack target of the next batch (byte): nonce, then seq.b0
+; +0x58        underruns in total (u32)   +0x5C  PRU1's R9.b2 last seen
 ; +0x60..0x6F  zero frame (CLIP_FRAMES = 0)
 ;
 ; ---- Cycle budget (333.333 MHz) ------------------------------------------
@@ -112,15 +123,16 @@
 ; group (4 periods)       168 (160 + SBBO 4 B + 4)        simulated
 ; frame fetch, 1 per 48   73, 83 with a clip wrap         simulated
 ;   groups                (MSRAM LBBO 16 B: flat latency in the simulator)
-; batch end               38..43 (tail bits 8..16,        simulated
-;                         ack already there)
-; batch, XOUT to XOUT     min 1221, mean 1234, worst 1307 simulated (*)
+; batch end               38..43 before the counters (tail simulated
+;                         bits 8..16, ack already there),
+;                         + ~20 ack target and counters
+; batch, XOUT to XOUT     min 1241, mean 1254, worst 1327 simulated (*)
 ; (*) pru-simulator tests/test_pdm_open_pru_port.py::
 ;     test_rtu1_budget_checkpoint: 8 channels, PRU1 stand-in acking at
 ;     once, 2-frame clip (fetches and wraps included). Worst case = 7
-;     groups + batch end + fetch with wrap = 57 % of the 2278-cycle limit,
-;     43 % of PRU1's batch time. The 971 spare cycles would absorb a
-;     silicon MSRAM LBBO of up to ~990 cycles (vs. ~24 simulated).
+;     groups + batch end + fetch with wrap = 58 % of the 2278-cycle limit,
+;     44 % of PRU1's batch time. The 951 spare cycles would absorb a
+;     silicon MSRAM LBBO of up to ~970 cycles (vs. ~24 simulated).
 ; --------------------------------------------------------------------------
 
 ; ---- Build options (plain literals, see pdm8_shared.inc) -----------------
@@ -133,6 +145,8 @@ SCR_BATCH_END       .set    0x1F        ; r26 after 7 groups = B[27]
 SCR_XM              .set    0x20        ; xm0..xm7
 SCR_NEXT_ADDR       .set    0x40        ; next addr, next index, base, frames
 SCR_LOOPS           .set    0x50
+SCR_ACK_TARGET      .set    0x54        ; byte
+SCR_UNDER           .set    0x58        ; u32 total, then the last R9.b2
 SCR_ZERO            .set    0x60        ; 16-byte zero frame
 INIT_MARK           .set    0xFF        ; r26 while the first frame is fetched
 
@@ -147,6 +161,9 @@ INIT_MARK           .set    0xFF        ; r26 while the first frame is fetched
     .endif
     .if SCR_BATCH != (SCR_BATCH_M1 + 1)
     .emsg "SCR_BATCH must follow SCR_BATCH_M1"
+    .endif
+    .if (SCR_UNDER + 5) > SCR_ZERO
+    .emsg "SCR_UNDER overlaps SCR_ZERO"
     .endif
     .if (SCR_ZERO + PDM8_CLIP_FRAME_BYTES) > 0x100
     .emsg "RTU1 scratch exceeds 256 bytes"
@@ -276,11 +293,24 @@ lskip:
 ;***************************************************************************
 RTU1_MOD:
     zero    &r0, 120                        ; r0..r29 = 0
-    xout    PDM8_SPAD_XID, &r2, PDM8_SPAD_RTU1_BYTES   ; clear batch + seq
+    xin     PDM8_SPAD_XID, &r9.b3, 1        ; e = stale ack (or PRU1's 0)
+    qbeq    INIT_NONCE_B, r9.b3, PDM8_NONCE_A
+    ldi     r2.b0, PDM8_NONCE_A             ; nonce c != 0, 1, e
+    qba     INIT_NONCE_SET
+INIT_NONCE_B:
+    ldi     r2.b0, PDM8_NONCE_B
+    nop                                     ; both paths 3 cycles
+INIT_NONCE_SET:
+    xout    PDM8_SPAD_XID, &r2, PDM8_SPAD_RTU1_BYTES   ; seq 0, nonce, batch 0
     ldi32   r29, PDM8_SHARED_BASE
     ldi     r1, PDM8_RTU1_SCRATCH
+    sbbo    &r2.b0, r1, SCR_ACK_TARGET, 1   ; batch 0 waits for the echo
+    ldi     r2.b0, 0
+    ldi     r9.b3, 0
     sbbo    &r2, r1, SCR_ZERO, PDM8_CLIP_FRAME_BYTES    ; zero frame
     sbbo    &r2, r1, SCR_LOOPS, 4                       ; restarts = 0
+    sbbo    &r2, r1, SCR_UNDER, 5                       ; underruns, last R9.b2
+    sbbo    &r2, r29, PDM8_HDR_UNDERRUN_COUNT, 8        ; UNDERRUN = BATCH = 0
     sbbo    &r2, r29, PDM8_HDR_RTU1_FRAME_POS, 8        ; FRAME_POS = LOOPS = 0
     lbbo    &r6, r29, PDM8_HDR_CLIP_ADDR, 8 ; r6 = CLIP_ADDR, r7 = CLIP_FRAMES
     mov     r8, r6                          ; clip base
@@ -350,7 +380,8 @@ GROUP_NEXT:
     qbne    GROUP, r26, SCR_BATCH_END
 
 ;---------------------------------------------------------------------------
-; Batch end: R2..R8 = B[0..27], wait for ack == seq, XOUT with seq + 1.
+; Batch end: R2..R8 = B[0..27], wait for ack == target (nonce for batch 0,
+; seq.b0 after that), XOUT with seq + 1, then PRU1's counters.
 ;---------------------------------------------------------------------------
     lbbo    &r2, r1, SCR_BATCH, PDM8_BATCH_PERIODS  ; r8.b3 = stale B[27]
     ldi     r8.b3, 0                        ; B[27] = signs of the last step
@@ -362,12 +393,23 @@ GROUP_NEXT:
     m_tail_bit  r23, 29, T5
     m_tail_bit  r24, 30, T6
     m_tail_bit  r25, 31, T7
+    lbbo    &r9.b2, r1, SCR_ACK_TARGET, 1   ; nonce, or seq.b0 (batches sent)
 WAIT_ACK:
     xin     PDM8_SPAD_XID, &r9.b3, 1        ; PRU1's ack
-    qbne    WAIT_ACK, r9.b3, r28.b0         ; until PRU1 took batch seq - 1
+    qbne    WAIT_ACK, r9.b3, r9.b2          ; until PRU1 took batch seq - 1
     add     r28, r28, 1
     mov     r9.w0, r28.w0
     xout    PDM8_SPAD_XID, &r2, PDM8_SPAD_RTU1_BYTES   ; batch + seq
+    sbbo    &r28.b0, r1, SCR_ACK_TARGET, 1  ; next batch waits for ack seq.b0
+    ; PRU1's counters to the header (r2..r9 are free until the xm reload)
+    xin     PDM8_SPAD_XID, &r9.b2, 1        ; PRU1's underruns, mod 256
+    lbbo    &r2, r1, SCR_UNDER, 5           ; r2 = total, r3.b0 = last R9.b2
+    sub     r3.b1, r9.b2, r3.b0             ; new underruns (mod 256)
+    add     r2, r2, r3.b1
+    mov     r3.b0, r9.b2
+    sbbo    &r2, r1, SCR_UNDER, 5
+    sub     r3, r28, 1                      ; BATCH_COUNT = batches PRU1 acked
+    sbbo    &r2, r29, PDM8_HDR_UNDERRUN_COUNT, 8
     lbbo    &r2, r1, SCR_XM, 32             ; xm0..xm7 back
     ldi     r26, SCR_BATCH_M1
     qba     GROUP

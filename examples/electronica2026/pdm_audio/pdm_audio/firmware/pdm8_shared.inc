@@ -29,23 +29,39 @@
 ;     CLIP_ADDR       global address of the MSRAM clip buffer   R5F
 ;     CLIP_FRAMES     clip length in frames (16 B: 8 x int16)   R5F
 ;     HALF_SEQ        completed halves                          PRU0
-;     UNDERRUN_COUNT  batches PRU1 replaced by silence          PRU1
-;     BATCH_COUNT     batches PRU1 took from the scratchpad     PRU1
+;     UNDERRUN_COUNT  batches PRU1 replaced by silence          RTU1 (*)
+;     BATCH_COUNT     batches PRU1 took from the scratchpad     RTU1 (*)
 ;     RTU1_FRAME_POS  clip frame RTU1 is modulating (0-based)   RTU1
 ;     RTU1_LOOPS      clip restarts (wraps) so far              RTU1
 ;     PCM_COUNT[8]    PCM samples written per channel           PRU0
+;   (*) PRU1 touches no memory at all (its timed path must not stall), so
+;   RTU1 stores PRU1's counters for it at each batch it publishes:
+;   UNDERRUN_COUNT accumulates PRU1's 8-bit SPAD count R9.b2 (mod-256
+;   deltas), BATCH_COUNT = the batches PRU1 has acked. Both lag PRU1 by up
+;   to one batch (~9 us) and are not updated while RTU1 is stalled.
+;   0x2C..0x3F are free.
 ;
 ;   IPC scratchpad (XFR ID 15 = PRU_RTU_SPAD_XID in
 ;   source/firmware/common/icss_xfer_defines.inc), 32 B mapped to R2..R9,
 ;   one copy per slice (PRU1 <-> RTU1), no hardware arbitration:
 ;     R2..R8  28 B  batch: byte j = PDM period j, bit k = channel k   RTU1
 ;     R9.w0   2 B   batch sequence number (batches published)         RTU1
-;     R9.b2   -     unused
+;     R9.b2   1 B   underruns so far, mod 256                         PRU1
 ;     R9.b3   1 B   ack = low byte of the last seq PRU1 took          PRU1
 ;   Each core XOUTs only its own bytes: RTU1 "xout 15, &r2, 30",
-;   PRU1 "xout 15, &r9.b3, 1". RTU1 clears R2..R9.w0 at start, PRU1 clears
-;   R9.b3 at start. RTU1 publishes batch n with seq = n + 1 after it reads
-;   ack == n (low byte); batch 0 goes out against ack 0.
+;   PRU1 "xout 15, &r9.b2/b3, 1..2".
+;
+;   Start (either core first, stale SPAD from an earlier run):
+;     RTU1: reads the stale R9.b3 = e, picks a start nonce
+;           c = (e == NONCE_A) ? NONCE_B : NONCE_A, so c is never 0, 1 or e,
+;           and XOUTs R2..R9.w0 = {c, 0, ..., 0}: seq 0, nonce in R2.b0.
+;           It publishes batch 0 (seq 1) only once R9.b3 == c.
+;     PRU1: XOUTs R9.b2 = R9.b3 = 0, then polls. While seq == 0 it echoes
+;           R2.b0 into R9.b3. It takes seq 1 only after it has seen seq 0,
+;           so a stale seq 1 is never played.
+;   The echo tells RTU1 that this run's PRU1 has seen seq 0; a stale R9.b3
+;   cannot match c. Batch n >= 1 (seq n + 1) goes out once ack == n
+;   (low byte). PRU1 acks batch n with the low byte of seq n + 1.
 ;
 ;   PRU DRAM1 (PRU1 and RTU1 local 0x0000): RTU1 owns local
 ;   0x1700..0x17FF (PDM8_RTU1_SCRATCH). PRU1's timed path must not touch
@@ -82,6 +98,8 @@ PDM8_CLIP_FRAME_BYTES       .set    16          ; one clip frame: 8 ch x int16
 PDM8_SPAD_XID               .set    15          ; PRU_RTU_SPAD_XID
 PDM8_BATCH_PERIODS          .set    28          ; periods per batch (R2..R8)
 PDM8_SPAD_RTU1_BYTES        .set    30          ; RTU1's XOUT: R2..R9.w0
+PDM8_NONCE_A                .set    2           ; RTU1 start nonce, unless the
+PDM8_NONCE_B                .set    3           ;   stale ack is NONCE_A
 
 ; ---- RTU1 scratch in DRAM1 (RTU1 local address) ---------------------------
 PDM8_RTU1_SCRATCH           .set    0x1700      ; 256 B, RTU1 only
@@ -109,6 +127,18 @@ PDM8_PCM_PERIODS            .set    192         ; PDM periods per 16 kHz frame
     .endif
     .if PDM8_SPAD_RTU1_BYTES != (PDM8_BATCH_PERIODS + 2)
     .emsg "PDM8_SPAD_RTU1_BYTES must be the batch plus the 16-bit seq"
+    .endif
+    .if PDM8_HDR_BATCH_COUNT != (PDM8_HDR_UNDERRUN_COUNT + 4)
+    .emsg "PDM8_HDR_BATCH_COUNT must follow PDM8_HDR_UNDERRUN_COUNT"
+    .endif
+    .if (PDM8_NONCE_A < 2) | (PDM8_NONCE_B < 2)
+    .emsg "start nonces: not 0 (cleared ack) or 1 (ack of batch 0)"
+    .endif
+    .if PDM8_NONCE_A == PDM8_NONCE_B
+    .emsg "PDM8_NONCE_A and PDM8_NONCE_B must differ"
+    .endif
+    .if (PDM8_NONCE_A > 255) | (PDM8_NONCE_B > 255)
+    .emsg "the start nonces must be bytes"
     .endif
     .if PDM8_BATCH_PERIODS != 28
     .emsg "the batch must fill R2..R8 exactly (28 periods)"
