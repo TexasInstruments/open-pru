@@ -2,7 +2,7 @@
 
 ## Introduction
 
-This example provides a PRU-based implementation of an eQEP (quadrature encoder) peripheral using the six PRU cores of ICSSG0 to enable six channels. The firmware emulates hardware eQEP functionality for incremental encoders, providing position counting, direction detection, speed calculation, and phase-error detection for up to six independent channels. The design is intended as a software alternative to the hardware eQEP peripheral, with R5F application code for polling or interrupt-driven readout.
+This example provides a PRU-based implementation of an eQEP (quadrature encoder) peripheral using the six PRU cores of ICSSG0 to enable six channels. The firmware emulates hardware eQEP functionality for incremental encoders, providing position counting, direction detection, speed calculation, and phase-error detection for up to six independent channels. The design is intended as a software alternative to the hardware eQEP peripheral, with R5F application code for polling.
 
 ## Overview
 
@@ -27,7 +27,6 @@ The PRU eQEP implementation has been bench-validated against a real hardware eQE
 | Parameter | Range Tested | Result | Comments |
 |---|---|---|---|
 | A/B signal frequency | 1 kHz – 500 kHz | PASS | Position and speed both correct |
-| Edge threshold (`EQEP_EDGE_THRESHOLD` / `READ_POS_SPEED_BUFF`) | Default (4 edges/interrupt) only | PENDING | Not yet swept against `0x10`/`0x40` alternatives — defined as pending test #10 |
 | Channel count | 1, 3, 6 simultaneous | PASS | |
 | Encoder source type | ePWM-simulated (AM263x-LP) and real physical encoder | PASS | Also tested mixed (3+3) |
 
@@ -66,7 +65,7 @@ If only testing a subset of channels (e.g. single-channel sweep tests), wire J4.
 
 ### 3b. Physical Incremental Encoder → AM243x-LP
 
-Used for direction-correctness and mixed-source tests (Ch3-5 in the mixed-source test). Wire the encoder's A/B outputs directly to the target channel's header pins from section 6 — e.g. for Ch3 (RTU_PRU1): encoder A → J2.10, encoder B → J7.7. Z is not wired (see "Z-Signal / Position-Counter-Reset Behavior" — dropped from scope).
+Used for direction-correctness and mixed-source tests (Ch3-5 in the mixed-source test). Wire the encoder's A/B outputs directly to the target channel's header pins from section 6 — e.g. for Ch3 (RTU_PRU1): encoder A → J2.10, encoder B → J7.7.
 
 The photo above shows this pattern for Ch0 (RTU_PRU0): encoder A → AM243x-LP J4.8 (`PRG0_PRU0_GPO0`), encoder B → J4.9 (`PRG0_PRU0_GPO1`) — see section 6 for the full per-channel pin table.
 
@@ -160,34 +159,7 @@ How to change commonly-adjusted parameters in this firmware/application. Each su
 
 Constraint: pin choice is only free *within* the byte a core type already reads (RTU_PRU → GPI0-7, PRU → GPI8-15, TX_PRU → GPI16-23) — that byte split is hardware-fixed, not configurable.
 
-### 8b. Switching from Polling Mode to Interrupt Mode
-
-This example's R5F application (`pru_eqep_example.c`) runs in **polling mode** by default — a single `while(1)` loop round-robins all 6 channels, no ISRs registered. An interrupt-driven variant also exists (`eqep_diagnostic.c`) and was the original design.
-
-| | Polling mode (default, this example) | Interrupt mode (`eqep_diagnostic.c`) |
-|---|---|---|
-| R5F structure | Single loop, checks `edge_delta >= EQEP_EDGE_THRESHOLD` per channel per pass | 6 ISRs (`HwiP_construct` per channel), triggered by PRU→R5F PRUICSS interrupt |
-| PRU firmware | No change either way — PRU does not fire any INTC event in polling mode; `PRUICSS_clearEvent` is called in the polling loop to drain any stale pending bits | Same firmware, INTC event fired via `r31.b0` every `READ_POS_SPEED_BUFF` edges, consumed by ISR |
-| Debugging | Single execution context, no ISR preemption | 6 interrupt contexts, ISR-safe constraints apply |
-
-To switch to interrupt mode, port the ISR registration pattern from `eqep_diagnostic.c` (`HwiP_construct` per channel, `App_ABZIntrISRx` callbacks) into `pru_eqep_example.c`, and remove the polling `while(1)` edge-delta check.
-
-### 8c. Z-Signal / Position-Counter-Reset Behavior
-
-The firmware detects Z-signal transitions but the position-reset-on-Z action is **intentionally commented out**:
-
-```asm
-; Handle Z signal reset
-qbbs    Z_interrupt0, r31, Z_SIGNAL_GPI
-;zero    &QPOS, 4
-Z_interrupt0:
-```
-
-This is disabled because Z-based position reset was raised and then explicitly dropped as a customer requirement — not a bug or an oversight. Real hardware eQEP's `QPOSMAX`/`PCRM` (position-counter-reset-mode) semantics, which this would need to approximate, only make sense with a Z pulse establishing an unambiguous reset point once per revolution; without validating that Z is wired and firing correctly on real hardware, uncommenting this line would silently reset `QPOS` on every Z edge, valid or not.
-
-To re-enable: uncomment the `zero &QPOS, 4` line in **both** duplicated LUT-handling blocks in `main.asm` (the buffer-wrap-reset path and the normal-continuation path use separate copies of this logic), rebuild, and bench-test against a real encoder's Z pulse before trusting it — this path has no existing test coverage 
-
-### 8d. Configuring Position Counter Wraparound (QPOSMAX / Pulses-Per-Revolution)
+### 8b. Configuring Position Counter Wraparound (QPOSMAX / Pulses-Per-Revolution)
 
 `QPOS` (the PRU's free-running position register) is bounded to `[0, QPOSMAX]` instead of wrapping across the full 32-bit range. On increment past `QPOSMAX`, `QPOS` reloads to `0`; on decrement below `0`, `QPOS` reloads to `QPOSMAX`. This mirrors real hardware eQEP's `QPOSMAX` bound (SPRU790D) and needs to match your encoder's pulses-per-revolution (PPR), not the default test value.
 
@@ -203,14 +175,18 @@ QPOSMAX .set 3999
 1. Edit `QPOSMAX` in `firmware/include/macros.inc` to `(your encoder's PPR × 4) − 1`.
 2. Rebuild the firmware project for the target core(s) — `QPOSMAX` is a firmware compile-time constant, so a rebuild+reflash is required. R5F reads the new value from DMEM1 once at boot (firmware publishes it via `QPOSMAX_OFFSET`), so no R5F-side code change is needed.
 
-### 8e. Enabling Pulse Loss test following phase/direction method 
+**Not yet runtime-configurable** — `QPOSMAX` is a per-build constant (`firmware/include/macros.inc`), shared identically across all 6 cores/channels.
 
-Uncomment line 101 in `mcuplus/pru_eqep_example.c` to enable pulse loss detection (disabled by default)
-Set `PULSE_LOSS_DETECTION` to 1 in `firmware/include/macros.inc` line 60 to enable the firmware pulse loss detection (disabled by default) 
+### 8c. Enabling Pulse Loss test following phase/direction method 
+
+Uncomment `TEST_PULSE_LOSS` around line 101-102 in `mcuplus/pru_eqep_example.c` to enable pulse loss detection (disabled by default)
+Set `PULSE_LOSS_DETECTION` to 1 in `firmware/include/macros.inc` line 60 to enable the firmware pulse loss detection via detecting reverse edges (disabled by default) 
+
+So during this test, if either `pulse_loss_flag` or `phase_error_flag` is set and if the A,B signal is valid according to what the PRU EQEP expects, then there is a pulse loss 
 
 `Note`
 1. This test assumes that the fixed direction is forward (+1)
-2. Enabling the test adds 6 cycles to the firmware budget when the Pulse Loss test is enabled 
+2. Enabling the test adds 6 cycles in the worst case when a reverse edge is actually detected to the firmware cycle budget 
 
 Assumming that the direction of the A,B pulses is fixed to forward,
 Quadrature A/B signals can only change in one of two fixed sequences:
@@ -224,15 +200,7 @@ A valid reverse step — looks exactly like the encoder went backward — shows 
 The same state it started from — no transition at all, invisible.
 So: if you know the encoder should only move forward, any phase error or any decrement direction means a pulse was lost.
 
-Use `EQEP_PRU_clearPulseLossFlag(channel)` function defined in `mcuplus/pru_eqep_example.c` (declared line 147, definition line 625) to clear the pulse loss flag for the corresponding channel 
-
-### 8f. Phase error detection 
-
-When a phase error is detected then the phase error flag will set for the corresponding channel which is based on detecting invalid transitions of the A/B signals. 
-
-Use `EQEP_PRU_clearPhaseErrorFlag(channel)` function defined in `mcuplus/pru_eqep_example.c` (declared line 146, definition line 620) to clear the phase error flag for the corresponding channel 
-
-Check create_lut() (line 545) to see which transitions are marked as phase error 
+Use `EQEP_PRU_clearPulseLossFlag(channel)` function defined in `mcuplus/pru_eqep_example.c` to clear the pulse loss flag for the corresponding channel 
 
 #### What it catches, and what it doesn't : 
 
@@ -254,8 +222,13 @@ Check out the below flow chart for more details :
 <figcaption>pulse loss detection flow</figcaption>
 </figure>
 
+### 8d. Phase error detection 
 
-**Not yet runtime-configurable** — this is a per-build constant today, shared identically across all 6 cores/channels.
+When a phase error is detected then the phase error flag will set for the corresponding channel which is based on detecting invalid transitions of the A/B signals.
+
+Use `EQEP_PRU_clearPhaseErrorFlag(channel)` function defined in `mcuplus/pru_eqep_example.c` to clear the phase error flag for the corresponding channel 
+
+Check create_lut() (line 545) to see which transitions are marked as phase error
 
 ## 9. Steps to run the example 
 

@@ -76,12 +76,14 @@ typedef struct ABZ_Config_s {
      * Check PRUICSS_PRU0 and check other available macros
     */
 
-    /* Base memory address for ABZ channel configuration */
-    uint32_t *baseMemAddr0; // icssHandle->hwAttrs->baseAddr + PRUICSS_DATARAM(PRUICSS_PRUx)
+    /* Base memory address for ABZ channel configuration 
+       icssHandle->hwAttrs->baseAddr + PRUICSS_DATARAM(PRUICSS_PRUx) */
+    uint32_t *baseMemAddr0; 
     /**< Base Memory Address for ABZ channel configuration */
 
-    /* Base memory address for ABZ channel configuration */
-    uint32_t *baseMemAddr1; // icssHandle->hwAttrs->baseAddr + PRUICSS_DATARAM(PRUICSS_PRUx)
+    /* Base memory address for ABZ channel configuration 
+       icssHandle->hwAttrs->baseAddr + PRUICSS_DATARAM(PRUICSS_PRUx) */
+    uint32_t *baseMemAddr1; 
     /**< Base Memory Address for ABZ channel configuration */
 
     /* Pointer to ABZ interface structure */
@@ -98,8 +100,10 @@ typedef struct ABZ_Config_s {
 
     /* Edge detection variables */
     uint32_t edges;
-    uint32_t prev_ts; //*Previous time stamp*
-    uint32_t cur_ts;  //*Current time stamp*
+    /* Previous time stamp */
+    uint32_t prev_ts;
+    /* Current time stamp */ 
+    uint32_t cur_ts; 
 
     /* Speed and direction variables */
     uint32_t speed;
@@ -141,10 +145,6 @@ typedef struct ABZ_Config_s {
     uint32_t phase_err_count;
     uint32_t phase_err_count_last_seen;
     uint32_t phase_error_flag;
-
-    /* Counter modulus published once by firmware at boot (PRU-write-once, R5F-read-once) */
-    uint32_t *qposmax_base;
-    uint32_t qposmax;
 
     /* Direction of the last processed edge, published by firmware every edge
        (PRU-write-only, R5F-read-only) - avoids inferring direction from a

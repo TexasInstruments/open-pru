@@ -32,7 +32,7 @@
 ; REGISTER ASSIGNMENT
     .asg   r0,     scratch
     .asg   r1,     scratch2
-    .asg   r2,     qposmax_reg      ; Cached QPOSMAX, loaded once at boot
+    .asg   r25,     qposmax_reg      ; Cached QPOSMAX, loaded once at boot
     .asg   r17.b0, curr_gpi_sample  ; Current GPI state after masking
     .asg   r17.b1, A_B_Z_edge       ; Edge detection for A,B,Z signals
     .asg   r18,    curr_ts          ; Timestamp counter
