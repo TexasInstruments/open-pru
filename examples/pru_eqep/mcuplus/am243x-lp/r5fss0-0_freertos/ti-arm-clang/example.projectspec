@@ -10,7 +10,7 @@
     </applicability>
 
     <project
-        title="Empty Pru"
+        title="PRU EQEP"
         name = "pru_eqep_am243x-lp_r5fss0-0_freertos_ti-arm-clang"
         products="sysconfig;com.ti.OPEN_PRU;com.ti.MCU_PLUS_SDK_AM243X"
         configurations="

@@ -98,8 +98,8 @@
 /* Define the below line to enable mem_limit ring-buffer-wrap debug prints (Ch5 bench test) */
 /* #define TEST_MEM_LIMIT_DEBUG */
 
-/* Define the below line to enable pulse loss detection test, refer readme section 8e for more details */
-// #define TEST_PULSE_LOSS 
+/* Define the below line to enable pulse loss detection test, refer readme section 8e for more details 
+   #define TEST_PULSE_LOSS */ 
 
 /* Define Pulse loss offsets for each channel, used only when the test is enabled */
 #define CH0_PULSE_LOSS_OFFSET 0x7C
@@ -163,9 +163,9 @@ void EQEP_pruss_load_run_fw(void)
 {
     /* PRU0 Cores
        Disable all cores */
-    PRUICSS_disableCore(gPruIcssXHandle, PRUICSS_RTU_PRU0);    // ch0
-    PRUICSS_disableCore(gPruIcssXHandle, PRUICSS_PRU0);        // ch1
-    PRUICSS_disableCore(gPruIcssXHandle, PRUICSS_TX_PRU0);     // ch2
+    PRUICSS_disableCore(gPruIcssXHandle, PRUICSS_RTU_PRU0);    /* ch0 */ 
+    PRUICSS_disableCore(gPruIcssXHandle, PRUICSS_PRU0);        /* ch1 */
+    PRUICSS_disableCore(gPruIcssXHandle, PRUICSS_TX_PRU0);     /* ch2 */
 
     /* Enable Load Share mode */
     gPru_cfg = (void *)(((PRUICSS_HwAttrs *)(gPruIcssXHandle->hwAttrs))->cfgRegBase);
@@ -196,9 +196,9 @@ void EQEP_pruss_load_run_fw(void)
 
    /* PRU1 Cores
       Disable all cores */
-   PRUICSS_disableCore(gPruIcssXHandle, PRUICSS_RTU_PRU1);    // ch0
-   PRUICSS_disableCore(gPruIcssXHandle, PRUICSS_PRU1);        // ch1
-   PRUICSS_disableCore(gPruIcssXHandle, PRUICSS_TX_PRU1);     // ch2
+   PRUICSS_disableCore(gPruIcssXHandle, PRUICSS_RTU_PRU1);    /* ch0 */
+   PRUICSS_disableCore(gPruIcssXHandle, PRUICSS_PRU1);        /* ch1 */
+   PRUICSS_disableCore(gPruIcssXHandle, PRUICSS_TX_PRU1);     /* ch2 */
 
    /* Enable Load Share mode */
    gPru_cfg = (void *)(((PRUICSS_HwAttrs *)(gPruIcssXHandle->hwAttrs))->cfgRegBase);
@@ -300,13 +300,6 @@ void pru_eqep_example_main(void *args)
     ABZHandle[4]->phase_err_base = (uint32_t *)((uint32_t)(ABZHandle[4]->baseMemAddr1) + CH0_PHASE_ERR_OFFSET);
     ABZHandle[5]->phase_err_base = (uint32_t *)((uint32_t)(ABZHandle[5]->baseMemAddr1) + CH0_PHASE_ERR_OFFSET);
 
-    ABZHandle[0]->qposmax_base = (uint32_t *)((uint32_t)(ABZHandle[0]->baseMemAddr1) + CH0_QPOSMAX_OFFSET);
-    ABZHandle[1]->qposmax_base = (uint32_t *)((uint32_t)(ABZHandle[1]->baseMemAddr1) + CH0_QPOSMAX_OFFSET);
-    ABZHandle[2]->qposmax_base = (uint32_t *)((uint32_t)(ABZHandle[2]->baseMemAddr1) + CH0_QPOSMAX_OFFSET);
-    ABZHandle[3]->qposmax_base = (uint32_t *)((uint32_t)(ABZHandle[3]->baseMemAddr1) + CH0_QPOSMAX_OFFSET);
-    ABZHandle[4]->qposmax_base = (uint32_t *)((uint32_t)(ABZHandle[4]->baseMemAddr1) + CH0_QPOSMAX_OFFSET);
-    ABZHandle[5]->qposmax_base = (uint32_t *)((uint32_t)(ABZHandle[5]->baseMemAddr1) + CH0_QPOSMAX_OFFSET);
-
     ABZHandle[0]->last_dir_base = (uint8_t *)((uint32_t)(ABZHandle[0]->baseMemAddr1) + CH0_LAST_DIR_OFFSET);
     ABZHandle[1]->last_dir_base = (uint8_t *)((uint32_t)(ABZHandle[1]->baseMemAddr1) + CH0_LAST_DIR_OFFSET);
     ABZHandle[2]->last_dir_base = (uint8_t *)((uint32_t)(ABZHandle[2]->baseMemAddr1) + CH0_LAST_DIR_OFFSET);
@@ -331,13 +324,13 @@ void pru_eqep_example_main(void *args)
     ABZ_PRU_ICSS_Init(gPruIcssXHandle, ABZHandle[4], PRUICSS_PRU1);
     ABZ_PRU_ICSS_Init(gPruIcssXHandle, ABZHandle[5], PRUICSS_TX_PRU1);
     /* enable cycle counter */
-    HW_WR_REG32((void *)((((PRUICSS_HwAttrs *)(gPruIcssXHandle->hwAttrs))->baseAddr) + CSL_ICSS_G_PR1_RTU0_PR1_RTU0_IRAM_REGS_BASE), CTR_EN);   // RTU_PRU Core
+    HW_WR_REG32((void *)((((PRUICSS_HwAttrs *)(gPruIcssXHandle->hwAttrs))->baseAddr) + CSL_ICSS_G_PR1_RTU0_PR1_RTU0_IRAM_REGS_BASE), CTR_EN);   /* RTU_PRU Core */
     HW_WR_REG32((void *)((((PRUICSS_HwAttrs *)(gPruIcssXHandle->hwAttrs))->baseAddr) + CSL_ICSS_G_PR1_PDSP0_IRAM_REGS_BASE), CTR_EN);
-    HW_WR_REG32((void *)((((PRUICSS_HwAttrs *)(gPruIcssXHandle->hwAttrs))->baseAddr) + CSL_ICSS_G_PR1_PDSP_TX0_IRAM_REGS_BASE), CTR_EN);        // TX_PRU Core
+    HW_WR_REG32((void *)((((PRUICSS_HwAttrs *)(gPruIcssXHandle->hwAttrs))->baseAddr) + CSL_ICSS_G_PR1_PDSP_TX0_IRAM_REGS_BASE), CTR_EN);        /* TX_PRU Core  */
 
-    HW_WR_REG32((void *)((((PRUICSS_HwAttrs *)(gPruIcssXHandle->hwAttrs))->baseAddr) + CSL_ICSS_G_PR1_RTU1_PR1_RTU1_IRAM_REGS_BASE), CTR_EN);   // RTU_PRU Core
+    HW_WR_REG32((void *)((((PRUICSS_HwAttrs *)(gPruIcssXHandle->hwAttrs))->baseAddr) + CSL_ICSS_G_PR1_RTU1_PR1_RTU1_IRAM_REGS_BASE), CTR_EN);   /* RTU_PRU Core */
     HW_WR_REG32((void *)((((PRUICSS_HwAttrs *)(gPruIcssXHandle->hwAttrs))->baseAddr) + CSL_ICSS_G_PR1_PDSP1_IRAM_REGS_BASE), CTR_EN);
-    HW_WR_REG32((void *)((((PRUICSS_HwAttrs *)(gPruIcssXHandle->hwAttrs))->baseAddr) + CSL_ICSS_G_PR1_PDSP_TX1_IRAM_REGS_BASE), CTR_EN);        // TX_PRU Core
+    HW_WR_REG32((void *)((((PRUICSS_HwAttrs *)(gPruIcssXHandle->hwAttrs))->baseAddr) + CSL_ICSS_G_PR1_PDSP_TX1_IRAM_REGS_BASE), CTR_EN);        /* TX_PRU Core  */
 
     create_lut();
 
@@ -348,17 +341,8 @@ void pru_eqep_example_main(void *args)
         ABZHandle[i]->read_ptr_offset  = HW_RD_REG32(ABZHandle[i]->baseMemAddr1) & WRITE_PTR_OFFSET_MASK;
         ABZHandle[i]->write_ptr_offset = ABZHandle[i]->read_ptr_offset;
     }
-    // Load and run firmware
+    /* Load and run firmware */
     EQEP_pruss_load_run_fw();
-
-    /* Read QPOSMAX once, after firmware start: PRU publishes it to DMEM
-     * during its own init block (before the capture loop begins), so it
-     * is guaranteed valid here. Read once, not per-poll, since firmware
-     * never rewrites it again after boot. */
-    for (int i = 0; i < 6; i++)
-    {
-        ABZHandle[i]->qposmax = HW_RD_REG32((uint32_t)ABZHandle[i]->qposmax_base);
-    }
 
     /* Log messages */ 
     DebugP_log("\r\n ABZ setup finished\n");
@@ -426,9 +410,9 @@ void pru_eqep_example_main(void *args)
             else if (last_dir == 2) ABZHandle[ch]->direction = -1;
 
 #ifdef TEST_PULSE_LOSS
-            /* If the current pulse loss count is not equal to the last count when the pulse loss was detected or 0 (from starting)
-               OR if a phase error is detected then a pulse loss is happened and the pulse loss flag for the channel will be set  
-               This method is followed so that both R5F and PRU do not do both read/write from the same memory location */
+            /* Pulse loss is linked to phase error: an invalid A/B transition
+               (e.g. 00->11) is both. Latch sticky flag if either the PRU-owned
+               pulse-loss counter changed OR a phase error is currently flagged. */
             uint32_t curr_pulse_loss_count = HW_RD_REG32((uint32_t)ABZHandle[ch]->pulse_loss_base);
             if ((curr_pulse_loss_count != ABZHandle[ch]->pulse_loss_count_last_seen) || ABZHandle[ch]->phase_error_flag == 1)
             {
@@ -468,7 +452,7 @@ void pru_eqep_example_main(void *args)
 #else
         if ((now_us - last_print_us) >= PRINT_DELAY)
         {
-            DebugP_log("\r\nPulse loss flag for channel (Hz): Ch0=%d Ch1=%d Ch2=%d Ch3=%d Ch4=%d Ch5=%d\n",
+            DebugP_log("\r\nPulse loss flag for channel: Ch0=%d Ch1=%d Ch2=%d Ch3=%d Ch4=%d Ch5=%d\n",
                 ABZHandle[0]->pulse_loss_flag, ABZHandle[1]->pulse_loss_flag, ABZHandle[2]->pulse_loss_flag,
                 ABZHandle[3]->pulse_loss_flag, ABZHandle[4]->pulse_loss_flag, ABZHandle[5]->pulse_loss_flag);
             last_print_us = now_us;
@@ -618,13 +602,44 @@ void EQEP_Get_position_ABZ(void)
         }
    if(idx>=950) idx=0;
 }
+/**
+ *  Clear the host-side phase-error flag for a channel.
+ *
+ *  Pseudocode:
+ *      if channel is not in [0, 5]: log error and return without clearing
+ *      ABZHandle[channel]->phase_error_flag = 0
+ *
+ *  Valid channels: 0 through 5 (one per PRU EQEP channel).
+ *  Only clears the R5F-local flag; never touches PRU/DMEM (single-owner rule).
+ */
 void EQEP_PRU_clearPhaseErrorFlag(uint8_t channel)
 {
+    if (channel >= 6)
+    {
+        DebugP_log("EQEP_PRU_clearPhaseErrorFlag: invalid channel %d (must be 0-5)\n", channel);
+        return;
+    }
     /* Only clears the R5F-local flag; never touches PRU/DMEM (single-owner rule) */
     ABZHandle[channel]->phase_error_flag = 0;
 }
+
+/**
+ *  Clear the host-side pulse-loss flag for a channel.
+ *
+ *  Pseudocode:
+ *      if channel is not in [0, 5]: log error and return without clearing
+ *      ABZHandle[channel]->pulse_loss_flag = 0
+ *
+ *  Valid channels: 0 through 5 (one per PRU EQEP channel).
+ *  Only clears the R5F-local flag; never touches PRU/DMEM (single-owner rule).
+ */
 void EQEP_PRU_clearPulseLossFlag(uint8_t channel)
 {
+    if (channel >= 6)
+    {
+        DebugP_log("EQEP_PRU_clearPulseLossFlag: invalid channel %d (must be 0-5)\n", channel);
+        return;
+    }
     /* Only clears the R5F-local flag; never touches PRU/DMEM (single-owner rule) */
     ABZHandle[channel]->pulse_loss_flag = 0;
 }
