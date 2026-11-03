@@ -181,7 +181,7 @@ which removes the build warning listed in section 7.
 | pru-simulator, baud sweep 3.50-4.50 Mbaud in 50 kbaud steps, 2 frames of 0x55 0xAA 0x00 0xFF 0x01 0x80 0x7F 0xFE 0x0F 0xF0 0x5A | source and port identical: correct from 3.85 to 4.00 Mbaud |
 | pru-simulator, ring wrap: r1 preset to slot 371 (offset 4081), r20 = 371, 3 frames | frames at 4081, 0 and 11, r1 = 22, count at 0x0FFC = 374, 0x0FFE untouched |
 | pru-simulator, per-cycle trace of the `.out` (positions in the 50-cycle bit cell, middle = 25) | first data sample 75-77 cycles after the start edge; data samples at 25-33 (25-41 when frames are back-to-back, because `store_frame` delays the next start detection by 12 cycles); stop samples at 31-43 |
-| Hardware run on LP-AM243 | FIXME: not run yet |
+| Hardware run on LP-AM243, 2026-11-03: PicoScope 3416E AWG, `test/helloworld_4mbaud_awg.csv` at 20 kHz (4 Mbaud), 0 V / 2 V, no level shifter | pass: CCS memory browser shows `HelloWorld!` back-to-back from 0x30000000, frame-aligned (first slot starts with `H`); count at 0x30000FFC climbing; 0x30000FFE = 0 |
 
 The simulator runs used a copy of `memory.cfg` with both PRU clocks set to
 200 MHz. The scripts are not part of this project. They load the built
@@ -218,9 +218,10 @@ Environment notes for building on this Linux PC:
 
 ## 9. Open items
 
-- [ ] FIXME: run on LP-AM243 hardware with a 4 Mbaud sender and check DRAM0
-      in the CCS memory browser.
-- [ ] FIXME: record the LP-AM243 board revision in `readme.md`.
+- [x] Run on LP-AM243 hardware with a 4 Mbaud sender and check DRAM0 in
+      the CCS memory browser (2026-11-03, pass, section 7). The 2 V AWG high
+      level was enough; no level shifter was needed.
+- [x] Record the LP-AM243 board revision in `readme.md`: Rev A (2026-11-03).
 - [x] RX pin location: BP.31 on header J4 (2026-11-02). The first version
       said "J4.10", taken from the J-header numbering in
       `examples/pru_eqep/readme.md`. The user pointed out that the LaunchPad

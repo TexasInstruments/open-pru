@@ -25,7 +25,7 @@ porting information.
 
 | Processor | Hardware                 | Software                                  |
 | --------- | ------------------------ | ----------------------------------------- |
-| AM243x    | LP-AM243, revision FIXME | MCU+ SDK 12.01.00.33, CCS 21.0.1, ti-cgt-pru 2.3.3, SysConfig 1.28.1. FIXME: hardware run pending |
+| AM243x    | LP-AM243, Rev A          | MCU+ SDK 12.01.00.33, CCS 21.0.1, ti-cgt-pru 2.3.3, SysConfig 1.28.1. Hardware run 2026-11-03 with the PicoScope AWG sender (see Validate) |
 
 The project builds with MCU+ SDK 12.01.00.33. The open-pru release notes list
 MCU+ SDK 11.1 - 12.0 as validated for AM243x.
@@ -133,6 +133,12 @@ regenerates it, optionally with another 11-byte payload. Each period is
 1. In the PicoScope signal generator, select Arbitrary and import the CSV.
 2. Set Frequency to 20 kHz (one 50 us period = 200 bits of 250 ns),
    amplitude 1 V and offset +1 V, which gives 0 V / 2 V levels.
+   - Check the unit: at 20 MHz the AWG cannot play the 1600-sample buffer
+     and the output looks like a sine.
+   - Set the amplitude before the offset. The allowed offset range shrinks
+     as the amplitude grows (at 2 V amplitude it is only about +/-0.5 mV).
+   - Import the CSV from a copy outside the repository, so that saving in
+     PicoScope cannot overwrite the committed file.
 3. Start order, because the firmware has no frame sync: set the generator to
    DC +2 V (line idle high), run the R5F project, then switch to Arbitrary.
    If the PRU starts in the middle of a frame, every frame comes out shifted
