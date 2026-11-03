@@ -61,6 +61,15 @@ Curr_A_not_set0:
     SET     a_b_transition, a_b_transition, 0
 Curr_B_not_set0:
 
+    ; Publish QPOSMAX to R5F once at boot, so the host can read the actual
+    ; counter modulus instead of relying on a hand-duplicated constant.
+    ldi32   scratch2, QPOSMAX
+    sbco    &scratch2, DMEM1, QPOSMAX_OFFSET, 4
+
+    ; Cache QPOSMAX in a dedicated register once at boot, so the hot-path
+    ; overflow compares below don't pay for an ldi32 reload on every edge.
+    ldi32   qposmax_reg, QPOSMAX
+
     ; Start high-speed capture routine
     M_RESET_CYCLCNT
 
@@ -108,46 +117,10 @@ Curr_B_not_set:
 write_in_bounds:
     sbbo    &time_stamp, DMEM0, buffer_addr, 4
     sbco    &buffer_addr, DMEM1, WRITE_PTR_OFFSET, 2
-    qbgt    no_buffer_wrap, buffer_addr, buffer_size
-
-    ; Handle Z signal reset
-    qbbs    Z_interrupt0, r31, Z_SIGNAL_GPI
-    ;zero    &QPOS, 4
-Z_interrupt0:
-
-    ; Position counter update logic
-    and     a_b_transition, a_b_transition, 0xf
-    add     a_b_transition, a_b_transition, 0xf0
-    lbco    &qpos_update, DMEM1, a_b_transition, 1
-
-    ; Handle phase error (simultaneous A/B transition)
-    qbne    no_phase_err0, qpos_update, 3
-    lbco    &scratch2, DMEM1, PHASE_ERR_CNT_OFFSET, 4
-    add     scratch2, scratch2, 1
-    sbco    &scratch2, DMEM1, PHASE_ERR_CNT_OFFSET, 4
-    sbco    &QPOS, DMEM1, CH_POS_OFFSET, 4
-    qba     capture_wrap
-no_phase_err0:
-    ; Handle increment/decrement based on direction
-    qbbc    no_increment0, qpos_update, 0
-    add     QPOS, QPOS, 1
-    sbco    &QPOS, DMEM1, CH_POS_OFFSET, 4
-    qba     capture_wrap
-no_increment0:
-    qbbc    no_decrement0, qpos_update, 1
-    sub     QPOS, QPOS, 1
-no_decrement0:
-    sbco    &QPOS, DMEM1, CH_POS_OFFSET, 4
-    qba     capture_wrap
 
 no_buffer_wrap:
     add     buffer_addr, buffer_addr, 4
     add     READ_POS_BUFF, READ_POS_BUFF, 4
-
-    ; Handle Z signal reset
-    qbbs    Z_interrupt1, r31, Z_SIGNAL_GPI
-    ;zero    &QPOS, 4
-Z_interrupt1:
 
     ; Position counter update logic
     and     a_b_transition, a_b_transition, 0xf
@@ -165,13 +138,27 @@ no_phase_err1:
     ; Handle increment/decrement based on direction
     qbbc    no_increment, qpos_update, 0
     add     QPOS, QPOS, 1
+    qbge    no_qpos_overflow, QPOS, qposmax_reg    ; jump if qposmax_reg >= QPOS (i.e. QPOS <= QPOSMAX)
+    ldi     QPOS, 0
+no_qpos_overflow:
     sbco    &QPOS, DMEM1, CH_POS_OFFSET, 4
+    sbco    &qpos_update, DMEM1, LAST_DIR_OFFSET, 1
     qba     capture_wrap
 no_increment:
     qbbc    no_decrement, qpos_update, 1
     sub     QPOS, QPOS, 1
+    .if  PULSE_LOSS_DETECTION
+    lbco    &scratch2, DMEM1, PULSE_LOSS_OFFSET, 4
+    add     scratch2, scratch2, 1
+    sbco    &scratch2, DMEM1, PULSE_LOSS_OFFSET, 4
+    .endif 
+    fill &scratch2, 4
+    qbne    no_qpos_underflow, QPOS, scratch2   ; only reload if result is exactly 0xFFFFFFFF (true underflow)
+    mov QPOS, qposmax_reg
+no_qpos_underflow:
 no_decrement:
     sbco    &QPOS, DMEM1, CH_POS_OFFSET, 4
+    sbco    &qpos_update, DMEM1, LAST_DIR_OFFSET, 1
 
     ; Check for slow mode transition
     qbbc    capture_wrap, r31, 30
