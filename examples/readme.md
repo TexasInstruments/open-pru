@@ -93,7 +93,7 @@ For more information about the PRU features on each processor, refer to app note
 | split_radix_fft_post_processing | Y      | Yport  | Yport   | Yport  | Yport | Yport |
 | LCD_interface                   | Y      | Yport  | Yport   | Yport  | N-sw  | Yport |
 | logic_scope                     | Y      | Yport  | Yport   | Yport  | Yport | Yport |
-| pru_eqep                        | Y      |        |         |        |       |       |
+| pru_eqep                        | Y      | Yport  | Yport   | Yport  |  N-sw | Yport |
 | pru_emif                        | Y      | Yport  | Yport   | Yport  | N-sw  | Yport |
 | pru_i2s                         | Yport  | Y      | Yport   | Y      | N-sw  | Yport |
 | spi_loopback                    | Y      | Yport  | Yport   | Yport  | N-sw  | Yport |
