@@ -51,7 +51,17 @@
 ;   Each core XOUTs only its own bytes: RTU1 "xout 15, &r2, 30",
 ;   PRU1 "xout 15, &r9.b2/b3, 1..2".
 ;
-;   Start (either core first, stale SPAD from an earlier run):
+;   Start: the R5F halts BOTH RTU1 and PRU1, loads both, and starts RTU1
+;   first, then PRU1. (Both orders start cleanly, see below, but only when
+;   both cores restart together. A stale SPAD from an earlier run is fine.)
+;   Restarting one core alone does NOT recover:
+;     - only RTU1: the old PRU1 never sees a matching seq again and plays
+;       silence forever (it may play the nonce batch {c, 0, ...} once, if
+;       its expected seq happens to be 0).
+;     - only PRU1: PRU1 waits for a seq 0 that never comes; RTU1 may
+;       release one extra batch (if it waits for ack 0), and it counts up
+;       to 255 false underruns (PRU1 cleared R9.b2).
+;   Protocol of a joint restart:
 ;     RTU1: reads the stale R9.b3 = e, picks a start nonce
 ;           c = (e == NONCE_A) ? NONCE_B : NONCE_A, so c is never 0, 1 or e,
 ;           and XOUTs R2..R9.w0 = {c, 0, ..., 0}: seq 0, nonce in R2.b0.

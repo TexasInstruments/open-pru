@@ -190,6 +190,25 @@ underruns detected, and PRU1 timing independent of RTU1.
 - The XOUT → XIN visibility delay between cores is a few cycles (logic_scope uses 3 NOPs).
   The builder reads the TRM and the logic_scope example, and documents the assumption.
 
+**Refined in implementation (Task 3).** The authoritative text is in
+`firmware/pdm8_shared.inc`.
+- **Start: nonce and echo.** Each core clears only its own bytes, so a stale ack from an
+  earlier run could release batch 0 too early. So:
+  - RTU1 reads the stale ack e and XOUTs seq 0 with a start nonce c in R2.b0. c is 2,
+    or 3 when e = 2, so it is never 0, 1 or e.
+  - RTU1 publishes batch 0 (seq 1) only once R9.b3 == c.
+  - PRU1 clears R9.b2/b3. While seq == 0 it echoes R2.b0 into R9.b3.
+  - PRU1 takes seq 1 only after it has seen seq 0, so a stale seq 1 is never played.
+
+  The R5F halts and restarts **both** cores, RTU1 first. Restarting one core alone does
+  not recover.
+- **R9.b2 belongs to PRU1:** its underrun count, mod 256. PRU1 touches no memory, so it
+  writes no header field.
+- **RTU1 writes UNDERRUN_COUNT and BATCH_COUNT** after each batch it publishes:
+  - UNDERRUN_COUNT accumulates the deltas of R9.b2;
+  - BATCH_COUNT is the number of batches PRU1 acked;
+  - both lag by up to one batch.
+
 ## 9. Memory map
 
 **ICSS shared RAM (0x10000 locally, 0x3001_0000 globally), 64 KB.**
@@ -210,7 +229,10 @@ Header contents (exact offsets are the builder's, kept in one `.inc` plus a C he
 - MSRAM clip buffer address, clip length in frames;
 - `HALF_SEQ`: a u32 counting completed halves. A half is ready when `HALF_SEQ` increments.
   The ready half is `(HALF_SEQ − 1) & 1`; `HALF_SEQ` is written after the half's last sample;
-- PRU1: underrun count, batch counter, run flag;
+- PRU1 counters (written by RTU1 for PRU1; refined in implementation, Task 3): underrun
+  count and batch counter. There is no run flag: a rising BATCH_COUNT shows the cores are
+  live. BATCH_COUNT frozen with UNDERRUN_COUNT 0 means RTU1 is stalled, because RTU1
+  writes both;
 - RTU1: frame position, loop count;
 - PRU0: per-channel sample counts (diagnostic).
 
@@ -283,7 +305,8 @@ The readme gives step-by-step instructions:
 2. In a half, each channel's column (stride 32 B) shows a clean waveform of its clip.
    Tone channels show the expected period: a 1 kHz tone repeats every 16 frames.
 3. Underrun count stays 0.
-4. Expected level: about ±(2^22) for 0.5 FS clips.
+4. BATCH_COUNT keeps increasing, about 110 000 per second (refined in implementation, Task 3).
+5. Expected level: about ±(2^22) for 0.5 FS clips.
 
 Optionally, a CCS memory-graph setup shows one channel's column as a waveform (stride 32 B,
 int32).
