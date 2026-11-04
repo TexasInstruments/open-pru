@@ -33,13 +33,22 @@
 ;     BATCH_COUNT     batches PRU1 took from the scratchpad     RTU1 (*)
 ;     RTU1_FRAME_POS  clip frame RTU1 is modulating (0-based)   RTU1
 ;     RTU1_LOOPS      clip restarts (wraps) so far              RTU1
+;     VERSION         layout version of this map (1)            R5F
+;     SD_OVF_COUNT    SD shadow overflows seen (sticky count)   PRU0
 ;     PCM_COUNT[8]    PCM samples written per channel           PRU0
 ;   (*) PRU1 touches no memory at all (its timed path must not stall), so
 ;   RTU1 stores PRU1's counters for it at each batch it publishes:
 ;   UNDERRUN_COUNT accumulates PRU1's 8-bit SPAD count R9.b2 (mod-256
 ;   deltas), BATCH_COUNT = the batches PRU1 has acked. Both lag PRU1 by up
 ;   to one batch (~9 us) and are not updated while RTU1 is stalled.
-;   0x2C..0x3F are free.
+;   SD_OVF_COUNT: PRU0 adds 1 whenever a channel's R31[29]
+;   (shadow_update_flag_ovf: a new SINC3 sample latched before PRU0 read
+;   the last one, so one sample was lost) is set at its spin exit, before
+;   it clears the flag. It stays 0 while PRU0 keeps up with 8 channels.
+;   0x34..0x3F are free.
+;   Readers (an Ethernet PRU, a host tool) must check MAGIC and VERSION
+;   before they use any other field: VERSION changes whenever an offset or
+;   a meaning in this map changes.
 ;
 ;   IPC scratchpad (XFR ID 15 = PRU_RTU_SPAD_XID in
 ;   source/firmware/common/icss_xfer_defines.inc), 32 B mapped to R2..R9,
@@ -100,6 +109,7 @@
 ; ---- Shared RAM map -------------------------------------------------------
 PDM8_SHARED_BASE            .set    0x10000     ; ICSS shared RAM, local addr
 PDM8_MAGIC                  .set    0x50444D38  ; 'PDM8'
+PDM8_VERSION                .set    1           ; layout version (HDR_VERSION)
 PDM8_FRAMES_PER_HALF        .set    64          ; PCM frames per ping-pong half
 PDM8_PCM_RATE               .set    16000       ; PCM sample rate, Hz
 
@@ -114,6 +124,8 @@ PDM8_HDR_UNDERRUN_COUNT     .set    0x1C
 PDM8_HDR_BATCH_COUNT        .set    0x20
 PDM8_HDR_RTU1_FRAME_POS     .set    0x24
 PDM8_HDR_RTU1_LOOPS         .set    0x28
+PDM8_HDR_VERSION            .set    0x2C        ; written by the R5F
+PDM8_HDR_SD_OVF_COUNT       .set    0x30        ; written by PRU0
 PDM8_HDR_PCM_COUNT          .set    0x40        ; u32[8], up to 0x5F
 
 PDM8_HALF_A                 .set    0x0100      ; half 0, from SHARED_BASE
@@ -153,6 +165,12 @@ PDM8_PCM_PERIODS            .set    192         ; PDM periods per 16 kHz frame
     .endif
     .if (PDM8_HDR_PCM_COUNT + 32) > PDM8_HALF_A
     .emsg "header overlaps half A"
+    .endif
+    .if (PDM8_HDR_VERSION != (PDM8_HDR_RTU1_LOOPS + 4)) | (PDM8_HDR_SD_OVF_COUNT != (PDM8_HDR_VERSION + 4))
+    .emsg "VERSION and SD_OVF_COUNT follow RTU1_LOOPS"
+    .endif
+    .if (PDM8_HDR_SD_OVF_COUNT + 4) > PDM8_HDR_PCM_COUNT
+    .emsg "SD_OVF_COUNT overlaps PCM_COUNT"
     .endif
     .if PDM8_SPAD_RTU1_BYTES != (PDM8_BATCH_PERIODS + 2)
     .emsg "PDM8_SPAD_RTU1_BYTES must be the batch plus the 16-bit seq"

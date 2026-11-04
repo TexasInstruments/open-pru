@@ -42,7 +42,8 @@
 ; Scheduling: the SD R31 interface shows one channel at a time (ch_sel in
 ;   R30[29:26]), so the main loop round-robins c = 0..N_CH-1 once per SD
 ;   window: select SD channel SD_CH_c, spin on R31[28] (valid), read the
-;   acc3 shadow, clear valid, comb, store state, next channel. All channels
+;   acc3 shadow, count a shadow overflow (R31[29], see SD_OVF_COUNT below),
+;   clear valid + ovf, comb, store state, next channel. All channels
 ;   run on one PDM clock with the same OSR and are reinitialised back to
 ;   back (3 cycles each), so their shadows latch within one PDM period of
 ;   each other. A shadow is overwritten one window after it latched: one
@@ -58,6 +59,13 @@
 ;   goes to half h = (n >> 6) & 1, frame f = n & 63:
 ;     PDM8_HALF_A + h * 0x800 + f * 32 + c * 4 = 0x100 + (n & 127) * 32 + c * 4
 ;   then PCM_COUNT[c] = n + 1 (header, after the sample).
+; SD_OVF_COUNT (header): at each spin exit, before it clears valid and ovf,
+;   PRU0 tests R31[29] = shadow_update_flag_ovf (TRM SPRUIM2H Table 6-419:
+;   the channel's shadow latched again while valid was still set, so one
+;   SINC3 sample was lost) and adds 1 to SD_OVF_COUNT (out of line; the
+;   normal path costs the one QBBS). The count is sticky (cleared only at
+;   the init), so the board check reads it once, at any time: 0 means
+;   PRU0 kept up with all 8 channels.
 ; HALF_SEQ rule: HALF_SEQ is incremented and stored once EVERY channel has
 ;   written frame 63 of the half, after that last sample and PCM_COUNT
 ;   store. A channel that writes frame 63 of half h counts itself in a
@@ -69,7 +77,7 @@
 ;   samples (4 ms); channel 0 writes frame 0 of the other half one window
 ;   (31.25 us) after the publish, and that half holds the half before
 ;   until then. The init clears HALF_SEQ, then PCM_COUNT[0..7] (stale
-;   values of an earlier run).
+;   values of an earlier run) and SD_OVF_COUNT.
 ;
 ;   Cycle budget per SD window (PRU cycles at 333.333 MHz, window 10416.7),
 ;   worst cases measured in pru-simulator at N_CH = 3 over 388 windows by
@@ -77,19 +85,19 @@
 ;   runs from a channel's spin exit to the next spin entry; cycle counts do
 ;   not depend on the clock: pdm_rx.asm gave w_comb 48, w_fir 905):
 ;     path                                   cycles
-;     w_comb  comb + state, next channel         48
+;     w_comb  comb + state, next channel         49   (incl. the R31[29]
+;             test of SD_OVF_COUNT)
 ;     w_fir   FIR + DC + sat + store on top     920   (MAC sign correction
 ;             +1 per negative operand, DC/sat branches, HALF_SEQ path)
 ;     spin    wait of a latched channel           1
 ;     overhead: last channel (round wrap)        +3
-;     N_CH = 3 worst window                    1980
-;     N_CH = 8: 8 w_comb + 4 w_fir + 7 spin + overhead = 4074 (39 %);
+;     N_CH = 3 worst window                    1983
+;     N_CH = 8: 8 w_comb + 4 w_fir + 7 spin + overhead = 4082 (39 %);
 ;             pessimistic (every FIR input negative: +64 per FIR; shadows
-;             one PDM period apart: +109) = 4439 (43 %)
+;             one PDM period apart: +109) = 4447 (43 %)
 ;   The 8-channel figure is a count of the measured paths: the simulator
 ;   models SD channels 0..2 only, so the 8-channel build is assembled but
-;   not run there. On the board, R31[29] (shadow overflow) would show an
-;   overrun.
+;   not run there. On the board, SD_OVF_COUNT shows an overrun.
 ;
 ; PRU0 DRAM0 (c24, local 0x0000; everything stays below 0x2000, so PRU0
 ;   never reaches DRAM1 through its 0x2000 window, where RTU1 keeps its
@@ -140,7 +148,9 @@
 ;     mode with the receiver on.
 ;   - CTBIR0 C24_BLK_INDEX = 0 (c24 = PRU0 DRAM0 at local 0, reset value).
 ;   - The R5F writes the header (MAGIC, N_CH, ...) before the start; PRU0
-;     writes only HALF_SEQ, PCM_COUNT[0..7] and the halves.
+;     writes only HALF_SEQ, SD_OVF_COUNT, PCM_COUNT[0..7] and the halves.
+;   - RTU0, TX_PRU0 and TX_PRU1 halted (the R5F does it): DRAM0
+;     0x1000..0x19FF below is their share.
 ;******************************************************************************
 
     .retain     ; Required for building .out with assembly file
@@ -254,8 +264,8 @@ CH_D_OFS            .set    0x20        ; delay line in a channel block
     .if (PDM8_HALF_BYTES != 0x800) | (PDM8_HALF_B != PDM8_HALF_A + 0x800)
     .emsg "half addressing ((n and 127) lsl 5) assumes contiguous halves"
     .endif
-    .if (PDM8_HDR_HALF_SEQ > 252) | (PDM8_HDR_PCM_COUNT > 224)
-    .emsg "HALF_SEQ / PCM_COUNT must be reachable with an 8-bit SBBO offset"
+    .if (PDM8_HDR_HALF_SEQ > 252) | (PDM8_HDR_PCM_COUNT > 224) | (PDM8_HDR_SD_OVF_COUNT > 252)
+    .emsg "HALF_SEQ / PCM_COUNT / SD_OVF_COUNT must be reachable with an 8-bit SBBO offset"
     .endif
     .if (CH_BASE != FIR_T_BASE + 0x100) | (CH_STRIDE != CH_D_OFS + 0x200)
     .emsg "FIR_T_BASE / CH_BASE / CH_STRIDE overlap"
@@ -342,8 +352,8 @@ m_pdm_ch_reinit .macro sd_ch
     .endm
 
 PRU0_RX:
-    ; --- zero the 8 channel blocks, the publish block, HALF_SEQ and
-    ;     PCM_COUNT[0..7] (stale values of an earlier run) ------------------
+    ; --- zero the 8 channel blocks, the publish block, HALF_SEQ,
+    ;     PCM_COUNT[0..7] and SD_OVF_COUNT (stale values of an earlier run) -
     ldi     r10, 0
     ldi     r11, 0
     ldi     r12, 0
@@ -362,6 +372,7 @@ PDM_ZERO:
     ldi32   r22, PDM8_SHARED_BASE
     sbbo    &r10, r22, PDM8_HDR_HALF_SEQ, 4  ; first: no stale ready half
     sbbo    &r10, r22, PDM8_HDR_PCM_COUNT, 32
+    sbbo    &r10, r22, PDM8_HDR_SD_OVF_COUNT, 4
 
     ; --- coefficient table T to DRAM0 FIR_T_BASE (generated) ---------------
     ldi     r1, FIR_T_BASE
@@ -433,6 +444,8 @@ PDM_CH:
 PDM_WAIT:
     qbbc    PDM_WAIT, r31, 28               ; wait for shadow valid
     and     r2, r31, r23                    ; acc3 shadow
+    qbbs    PDM_OVF, r31, 29                ; a shadow was lost: count it
+PDM_CLEAR:
     mov     r31, r24                        ; one 32-bit write: clear valid + ovf
 
     ; --- comb3: y = x - 3x[-1] + 3x[-2] - x[-3], modulo 2^28 ---------------
@@ -595,3 +608,13 @@ PDM_NEXT:
     ldi     r21, 0
     ldi     r20, CH_BASE
     qba     PDM_CH
+
+    ; --- SD shadow overflow (R31[29] = shadow_update_flag_ovf: the shadow
+    ;     latched again before this channel's last one was read). Out of
+    ;     line, so the normal path costs only the QBBS. PRU0 is the only
+    ;     writer of SD_OVF_COUNT (sticky: never cleared after the init). ----
+PDM_OVF:
+    lbbo    &r0, r22, PDM8_HDR_SD_OVF_COUNT, 4
+    add     r0, r0, 1
+    sbbo    &r0, r22, PDM8_HDR_SD_OVF_COUNT, 4
+    qba     PDM_CLEAR

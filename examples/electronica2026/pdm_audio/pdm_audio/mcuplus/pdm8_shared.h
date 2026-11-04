@@ -18,8 +18,11 @@
  *   +0x0900  half B: same layout, PRU0
  * Sample (frame f, half h, channel c) at 0x0100 + h*0x0800 + f*32 + c*4.
  * HALF_SEQ counts completed halves; the ready half is (HALF_SEQ - 1) & 1.
- * The R5F writes MAGIC, N_CH, FRAMES_PER_HALF, PCM_RATE, CLIP_ADDR and
- * CLIP_FRAMES before it starts the cores; the cores write the rest.
+ * The R5F writes MAGIC, N_CH, FRAMES_PER_HALF, PCM_RATE, CLIP_ADDR,
+ * CLIP_FRAMES and VERSION before it starts the cores; the cores write the
+ * rest. A reader must check MAGIC == PDM8_MAGIC and VERSION == PDM8_VERSION
+ * before it uses any other field: VERSION changes whenever an offset or a
+ * meaning in this map changes.
  */
 
 #ifndef PDM8_SHARED_H_
@@ -28,6 +31,7 @@
 /* ---- Shared RAM map ---------------------------------------------------- */
 #define PDM8_SHARED_BASE            (0x10000U)      /* ICSS shared RAM, PRU local addr */
 #define PDM8_MAGIC                  (0x50444D38U)   /* 'PDM8' */
+#define PDM8_VERSION                (1U)            /* layout version (HDR_VERSION) */
 #define PDM8_FRAMES_PER_HALF        (64U)           /* PCM frames per ping-pong half */
 #define PDM8_PCM_RATE               (16000U)        /* PCM sample rate, Hz */
 
@@ -42,6 +46,8 @@
 #define PDM8_HDR_BATCH_COUNT        (0x20U)
 #define PDM8_HDR_RTU1_FRAME_POS     (0x24U)
 #define PDM8_HDR_RTU1_LOOPS         (0x28U)
+#define PDM8_HDR_VERSION            (0x2CU)         /* written by the R5F */
+#define PDM8_HDR_SD_OVF_COUNT       (0x30U)         /* written by PRU0 */
 #define PDM8_HDR_PCM_COUNT          (0x40U)         /* u32[8], up to 0x5F */
 
 #define PDM8_HALF_A                 (0x0100U)       /* half 0, from SHARED_BASE */
@@ -77,5 +83,7 @@ _Static_assert(PDM8_HDR_CLIP_FRAMES == (PDM8_HDR_CLIP_ADDR + 4U),
                "PDM8_HDR_CLIP_FRAMES must follow PDM8_HDR_CLIP_ADDR");
 _Static_assert((PDM8_HDR_PCM_COUNT + 32U) <= PDM8_HALF_A,
                "header overlaps half A");
+_Static_assert((PDM8_HDR_SD_OVF_COUNT + 4U) <= PDM8_HDR_PCM_COUNT,
+               "SD_OVF_COUNT overlaps PCM_COUNT");
 
 #endif /* PDM8_SHARED_H_ */

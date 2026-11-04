@@ -79,7 +79,8 @@
  *       shared RAM) and the DRAMs; the IPC scratchpad state is cleared by
  *       the cores' first instructions (RTU1 start nonce, PRU1 ack clear);
  *    4. write the header: MAGIC, N_CH, FRAMES_PER_HALF, PCM_RATE,
- *       CLIP_ADDR (global address of pdm_clip_buffer) and CLIP_FRAMES;
+ *       CLIP_ADDR (global address of pdm_clip_buffer), CLIP_FRAMES and
+ *       VERSION;
  *    5. load the three firmware arrays into IRAM, cores still halted;
  *    6. set each core's reset PC (CTRL PCTR_RST_VAL) to 0, the entry of
  *       every firmware, pulse the soft reset and start RTU1, then PRU1,
@@ -95,14 +96,16 @@
  *
  *  Board check (CCS memory browser, docs/design.md section 12): header at
  *  0x30010000: HALF_SEQ (+0x18) rises ~250/s, BATCH_COUNT (+0x20) ~110 000/s,
- *  UNDERRUN_COUNT (+0x1C) stays 0; half A at 0x30010100, half B at
- *  0x30010900, int32 with a 32 B stride per channel column.
+ *  UNDERRUN_COUNT (+0x1C) and SD_OVF_COUNT (+0x30) stay 0; half A at
+ *  0x30010100, half B at 0x30010900, int32 with a 32 B stride per channel
+ *  column.
  */
 
 /** \brief Channels of the demo (header N_CH); one per clip buffer column */
 #define PDM_AUDIO_N_CH          (8U)
 
-/** \brief Header words the R5F writes: MAGIC .. CLIP_FRAMES (6 x u32) */
+/** \brief Header words the R5F writes from MAGIC: MAGIC .. CLIP_FRAMES (6 x u32);
+ *  VERSION is written on its own */
 #define PDM_AUDIO_HDR_WORDS     (6U)
 
 _Static_assert(PDM_AUDIO_N_CH == PDM_CLIP_CHANNELS,
@@ -196,6 +199,7 @@ void pdm_audio_example_main(void *args)
     int32_t  status;
     uint32_t words;
     uint32_t header[PDM_AUDIO_HDR_WORDS];
+    const uint32_t version = PDM8_VERSION;
     uint32_t reg;
     const PRUICSS_HwAttrs *hwAttrs;
 
@@ -278,6 +282,10 @@ void pdm_audio_example_main(void *args)
     words = PRUICSS_writeMemory(gPruIcss0Handle, PRUICSS_SHARED_RAM,
                                 PDM8_HDR_MAGIC, header, sizeof(header));
     DebugP_assert(words == PDM_AUDIO_HDR_WORDS);
+    /* VERSION (layout of pdm8_shared.inc): readers check MAGIC and VERSION */
+    words = PRUICSS_writeMemory(gPruIcss0Handle, PRUICSS_SHARED_RAM,
+                                PDM8_HDR_VERSION, &version, sizeof(version));
+    DebugP_assert(words == 1U);
 
     /* 5. Load the firmware, cores still halted */
     pdm_audio_load(gPruIcss0Handle, PRUICSS_IRAM_RTU_PRU(1),
