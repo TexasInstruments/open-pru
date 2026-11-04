@@ -56,6 +56,54 @@ enum Cmd {
         #[arg(long)]
         out: PathBuf,
     },
+    /// Live window: spectrograms and numbers (layout C)
+    Gui {
+        #[command(flatten)]
+        target: Target,
+        /// Save a PNG of the window after 5 s and exit (documentation;
+        /// implies --no-vsync; under Wayland run it with WAYLAND_DISPLAY unset)
+        #[arg(long)]
+        screenshot: Option<PathBuf>,
+        /// Draw without waiting for vsync (a hidden window is otherwise
+        /// throttled by the compositor)
+        #[arg(long)]
+        no_vsync: bool,
+    },
+}
+
+fn gui(target: &Target, screenshot: Option<PathBuf>, no_vsync: bool) -> Result<(), String> {
+    let no_vsync = no_vsync || screenshot.is_some();
+    let (link, _) = open(target)?;
+    let source = if target.emulator { "emulator".to_string() } else { target.iface.clone() };
+    let (tx, rx) = std::sync::mpsc::channel();
+    let options = eframe::NativeOptions {
+        viewport: eframe::egui::ViewportBuilder::default()
+            .with_title("pdm_audio_eth")
+            .with_inner_size([1400.0, 820.0]),
+        wgpu_options: {
+            let mut w = eframe::egui_wgpu::WgpuConfiguration::default();
+            if no_vsync {
+                w.surface.present_mode = eframe::wgpu::PresentMode::AutoNoVsync;
+            }
+            w
+        },
+        ..Default::default()
+    };
+    eframe::run_native(
+        "pdm_audio_eth",
+        options,
+        Box::new(move |cc| {
+            let ctx = cc.egui_ctx.clone();
+            let repaint: std::sync::Arc<dyn Fn() + Send + Sync> = std::sync::Arc::new(move || ctx.request_repaint());
+            std::thread::spawn(move || pdm_eth::ui::run_net(link, tx, repaint));
+            let app = pdm_eth::ui::App::new(rx, source);
+            Ok(Box::new(match screenshot {
+                Some(p) => app.with_screenshot(p, Duration::from_secs(5)),
+                None => app,
+            }))
+        }),
+    )
+    .map_err(|e| e.to_string())
 }
 
 fn capture(link: &mut dyn Link, seconds: f64, out: &std::path::Path) -> std::io::Result<()> {
@@ -119,6 +167,13 @@ fn main() -> ExitCode {
             }
             if all { ExitCode::SUCCESS } else { ExitCode::FAILURE }
         }
+        Cmd::Gui { target, screenshot, no_vsync } => match gui(&target, screenshot, no_vsync) {
+            Ok(()) => ExitCode::SUCCESS,
+            Err(e) => {
+                eprintln!("error: {e}");
+                ExitCode::from(2)
+            }
+        },
         Cmd::Capture { target, seconds, out } => {
             let (mut link, _) = match open(&target) {
                 Ok(x) => x,

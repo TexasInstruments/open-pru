@@ -8,3 +8,5 @@ pub mod ethtest;
 pub mod link;
 pub mod proto;
 pub mod rx;
+pub mod spectro;
+pub mod ui;
