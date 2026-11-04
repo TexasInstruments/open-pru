@@ -1,0 +1,85 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- This example.projectspec file is for PRU projects written in assembly -->
+<projectSpec>
+    <applicability>
+        <when>
+            <context
+                deviceFamily="PRU"
+                deviceId="AM243x_LAUNCHPAD"
+            />
+        </when>
+    </applicability>
+
+    <project
+        title="PDM Audio Eth ICSSG1 PRU1 Ethernet receiver"
+        name = "pdm_audio_eth_am243x-lp_icss_g1_pru1_fw_ti-pru-cgt"
+        products="com.ti.OPEN_PRU"
+        configurations="
+                Debug,
+                Release,
+        "
+        connection="TIXDS110_Connection.xml"
+        toolChain="TI"
+        cgtVersion="2.3.3"
+        device="AM243x_LAUNCHPAD"
+        deviceCore="ICSS_G1_PRU_1"
+        ignoreDefaultDeviceSettings="true"
+        ignoreDefaultCCSSettings="true"
+        endianness="little"
+        outputFormat="ELF"
+        outputType="executable"
+
+        compilerBuildOptions="
+            -I${CG_TOOL_ROOT}/include
+            -I${OPEN_PRU_PATH}/source
+            -I${OPEN_PRU_PATH}/source/firmware/common
+            -I${OPEN_PRU_PATH}/source/include
+            -I${OPEN_PRU_PATH}/source/include/am243x
+            -I${PROJECT_LOC}
+            -DPRU1
+            -DSLICE1
+            -v4
+            -DSOC_AM243X
+            -O2
+        "
+        linkerBuildOptions="
+            -m=pdm_audio_eth_icssg1_pru1.${ConfigName}.map
+            --disable_auto_rts
+            --entry_point=ETH_RX
+            --diag_suppress=10063-D
+            --warn_sections
+            --reread_libs
+            --diag_warning=225
+            --ram_model
+        "
+
+        postBuildStep="
+            $(CG_TOOL_ROOT)/bin/hexpru --diag_wrap=off --array --array:name_prefix=PR1_PRU1Firmware -o ../pr1_pru1_load_bin.h ${BuildArtifactFileBaseName}.out;
+        "
+
+        description="ICSSG1 PRU1: Gigabit Ethernet RX on port 1 (RGMII2): frame filter, pings, throughput counters, PC audio into the clip buffer">
+
+        <configuration name="Debug"
+            compilerBuildOptions="
+                -D_DEBUG_=1
+            "
+            linkerBuildOptions="
+            "
+        ></configuration>
+        <configuration name="Release"
+            compilerBuildOptions="
+            "
+            linkerBuildOptions="
+            "
+        ></configuration>
+        <pathVariable name="OPEN_PRU_PATH" path="${COM_TI_OPEN_PRU_INSTALL_DIR}" scope="project" />
+        <file path="../../../eth_rx.asm" openOnCreation="false" excludeFromBuild="false" action="copy">
+        </file>
+        <file path="../../../eth_proto.inc" openOnCreation="false" excludeFromBuild="false" action="copy">
+        </file>
+        <file path="../../../pdm8_shared.inc" openOnCreation="false" excludeFromBuild="false" action="copy">
+        </file>
+        <file path="./linker.cmd" openOnCreation="false" excludeFromBuild="false" action="copy">
+        </file>
+    </project>
+</projectSpec>

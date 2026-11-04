@@ -48,6 +48,10 @@
 #include <rtupru1_load_bin.h>
 #include <pru1_load_bin.h>
 #include <pru0_load_bin.h>
+#include <pr1_pru1_load_bin.h>
+#include <pr1_pru0_load_bin.h>
+#include "eth_proto.h"
+#include "eth_init.h"
 
 /*
  *  R5F host of the 8-channel PDM audio demo (ICSSG0, 333.33 MHz).
@@ -170,6 +174,8 @@ _Static_assert((CSL_ICSSCFG_GPCFG0_PRU0_GPI_SB_MASK == CSL_ICSSCFG_GPCFG1_PRU1_G
 
 /** \brief Handle to the ICSSG0 instance (CONFIG_PRU_ICSS0 in SysConfig) */
 PRUICSS_Handle gPruIcss0Handle;
+/** \brief Handle to the ICSSG1 instance (CONFIG_PRU_ICSS1 in SysConfig) */
+PRUICSS_Handle gPruIcss1Handle;
 
 /*
  * Set a halted core's reset PC: CTRL[31-16] PCTR_RST_VAL (CSL
@@ -192,6 +198,93 @@ static void pdm_audio_eth_load(PRUICSS_Handle handle, uint32_t iram,
 
     words = PRUICSS_writeMemory(handle, iram, 0, fw, bytes);
     DebugP_assert((words * 4U) == bytes);
+}
+
+/*
+ * ICSSG1: halt all six cores, clear its memories, write the ETH1 block of
+ * eth_proto.h, bring up Ethernet port 1 (eth_init.c), then load and start
+ * PRU1 (receiver) and PRU0 (transmitter). Runs before the ICSSG0 cores start
+ * so that the transmitter sees the first PCM half.
+ */
+static void pdm_audio_eth_icssg1_start(void)
+{
+    const PRUICSS_HwAttrs *hw1;
+    uint32_t eth1[ETH1_SIZE / 4U] = {0U};
+    uint32_t words;
+    int32_t  status;
+    int32_t  link;
+
+    gPruIcss1Handle = PRUICSS_open(CONFIG_PRU_ICSS1);
+    DebugP_assert(gPruIcss1Handle != NULL);
+    hw1 = (const PRUICSS_HwAttrs *)gPruIcss1Handle->hwAttrs;
+    DebugP_assert(hw1 != NULL);
+
+    status = PRUICSS_disableCore(gPruIcss1Handle, PRUICSS_PRU0);
+    DebugP_assert(SystemP_SUCCESS == status);
+    status = PRUICSS_disableCore(gPruIcss1Handle, PRUICSS_PRU1);
+    DebugP_assert(SystemP_SUCCESS == status);
+    status = PRUICSS_disableCore(gPruIcss1Handle, PRUICSS_RTU_PRU0);
+    DebugP_assert(SystemP_SUCCESS == status);
+    status = PRUICSS_disableCore(gPruIcss1Handle, PRUICSS_RTU_PRU1);
+    DebugP_assert(SystemP_SUCCESS == status);
+    status = PRUICSS_disableCore(gPruIcss1Handle, PRUICSS_TX_PRU0);
+    DebugP_assert(SystemP_SUCCESS == status);
+    status = PRUICSS_disableCore(gPruIcss1Handle, PRUICSS_TX_PRU1);
+    DebugP_assert(SystemP_SUCCESS == status);
+
+    words = PRUICSS_initMemory(gPruIcss1Handle, PRUICSS_SHARED_RAM);
+    DebugP_assert(words != 0U);
+    words = PRUICSS_initMemory(gPruIcss1Handle, PRUICSS_DATARAM(PRUICSS_PRU0));
+    DebugP_assert(words != 0U);
+    words = PRUICSS_initMemory(gPruIcss1Handle, PRUICSS_DATARAM(PRUICSS_PRU1));
+    DebugP_assert(words != 0U);
+
+    eth1[ETH1_MAGIC / 4U]       = ETH1_MAGIC_VALUE;
+    eth1[ETH1_VERSION / 4U]     = ETH1_VERSION_VALUE;
+    eth1[ETH1_CLIP_ADDR / 4U]   = (uint32_t)(uintptr_t)&pdm_clip_buffer[0];
+    eth1[ETH1_CLIP_FRAMES / 4U] = PDM_CLIP_FRAMES;
+    words = PRUICSS_writeMemory(gPruIcss1Handle, PRUICSS_SHARED_RAM, 0U, eth1, sizeof(eth1));
+    DebugP_assert(words == (sizeof(eth1) / 4U));
+
+    /* C28 = shared RAM (local 0x10000) for both cores (HIL step 1) */
+    status = PRUICSS_setConstantTblEntry(gPruIcss1Handle, PRUICSS_PRU0,
+                                         PRUICSS_CONST_TBL_ENTRY_C28, 0x0100U);
+    DebugP_assert(SystemP_SUCCESS == status);
+    status = PRUICSS_setConstantTblEntry(gPruIcss1Handle, PRUICSS_PRU1,
+                                         PRUICSS_CONST_TBL_ENTRY_C28, 0x0100U);
+    DebugP_assert(SystemP_SUCCESS == status);
+
+    status = eth_init();
+    if (status != ETH_INIT_OK)
+    {
+        DebugP_log("PDM audio eth: eth_init failed (%d), Ethernet not started\r\n",
+                   (int)status);
+        return;
+    }
+    link = eth_wait_for_link(5000U);
+    DebugP_log("PDM audio eth: link %s on ICSSG1 port 1, board MAC "
+               "%02x:%02x:%02x:%02x:%02x:%02x\r\n",
+               (link == 0) ? "1000 FD" : "DOWN",
+               (unsigned int)ETH_BOARD_MAC_0, (unsigned int)ETH_BOARD_MAC_1,
+               (unsigned int)ETH_BOARD_MAC_2, (unsigned int)ETH_BOARD_MAC_3,
+               (unsigned int)ETH_BOARD_MAC_4, (unsigned int)ETH_BOARD_MAC_5);
+
+    pdm_audio_eth_load(gPruIcss1Handle, PRUICSS_IRAM_PRU(1),
+                       PR1_PRU1Firmware_0, sizeof(PR1_PRU1Firmware_0));
+    pdm_audio_eth_load(gPruIcss1Handle, PRUICSS_IRAM_PRU(0),
+                       PR1_PRU0Firmware_0, sizeof(PR1_PRU0Firmware_0));
+    pdm_audio_eth_reset_pc0(hw1->pru1CtrlRegBase + CSL_ICSS_G_PR1_PDSP1_IRAM_CONTROL,
+                            CSL_ICSS_G_PR1_PDSP1_IRAM_CONTROL_PCOUNTER_RST_VAL_MASK);
+    pdm_audio_eth_reset_pc0(hw1->pru0CtrlRegBase + CSL_ICSS_G_PR1_PDSP0_IRAM_CONTROL,
+                            CSL_ICSS_G_PR1_PDSP0_IRAM_CONTROL_PCOUNTER_RST_VAL_MASK);
+    status = PRUICSS_resetCore(gPruIcss1Handle, PRUICSS_PRU1);
+    DebugP_assert(SystemP_SUCCESS == status);
+    status = PRUICSS_resetCore(gPruIcss1Handle, PRUICSS_PRU0);
+    DebugP_assert(SystemP_SUCCESS == status);
+    status = PRUICSS_enableCore(gPruIcss1Handle, PRUICSS_PRU1);
+    DebugP_assert(SystemP_SUCCESS == status);
+    status = PRUICSS_enableCore(gPruIcss1Handle, PRUICSS_PRU0);
+    DebugP_assert(SystemP_SUCCESS == status);
 }
 
 void pdm_audio_eth_example_main(void *args)
@@ -286,6 +379,9 @@ void pdm_audio_eth_example_main(void *args)
     words = PRUICSS_writeMemory(gPruIcss0Handle, PRUICSS_SHARED_RAM,
                                 PDM8_HDR_VERSION, &version, sizeof(version));
     DebugP_assert(words == 1U);
+
+    /* 4b. ICSSG1 Ethernet first, so its transmitter sees the first PCM half */
+    pdm_audio_eth_icssg1_start();
 
     /* 5. Load the firmware, cores still halted */
     pdm_audio_eth_load(gPruIcss0Handle, PRUICSS_IRAM_RTU_PRU(1),

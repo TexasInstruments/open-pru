@@ -98,6 +98,8 @@ am243x:
 	$(MAKE) -C firmware/am243x-lp/icss_g0_rtu_pru1_fw/ti-pru-cgt $(ARGUMENTS_PRU)
 	$(MAKE) -C firmware/am243x-lp/icss_g0_pru1_fw/ti-pru-cgt $(ARGUMENTS_PRU)
 	$(MAKE) -C firmware/am243x-lp/icss_g0_pru0_fw/ti-pru-cgt $(ARGUMENTS_PRU)
+	$(MAKE) -C firmware/am243x-lp/icss_g1_pru1_fw/ti-pru-cgt $(ARGUMENTS_PRU)
+	$(MAKE) -C firmware/am243x-lp/icss_g1_pru0_fw/ti-pru-cgt $(ARGUMENTS_PRU)
 
 am243x_mcuplus:
 # am243x-lp

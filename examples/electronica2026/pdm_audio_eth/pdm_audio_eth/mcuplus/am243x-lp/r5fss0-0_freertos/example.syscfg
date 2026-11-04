@@ -10,6 +10,7 @@
  */
 const pruicss         = scripting.addModule("/drivers/pruicss/pruicss", {}, false);
 const pruicss1        = pruicss.addInstance();
+const pruicss2        = pruicss.addInstance();
 const default_linker  = scripting.addModule("/memory_configurator/default_linker", {}, false);
 const default_linker1 = default_linker.addInstance();
 const general         = scripting.addModule("/memory_configurator/general", {}, false);
@@ -45,6 +46,13 @@ const mpu_armv76 = mpu_armv7.addInstance();
 pruicss1.$name                           = "CONFIG_PRU_ICSS0";
 pruicss1.instance                        = "ICSSG0";
 pruicss1.coreClk                         = 333333333;
+/* ICSSG1: Gigabit Ethernet on port 1 (RGMII2). Its RGMII2 / MDIO pads are
+ * set by eth_init.c (Pinmux_config); the SysConfig PRU module has no RGMII
+ * pin group. */
+pruicss2.$name                           = "CONFIG_PRU_ICSS1";
+pruicss2.instance                        = "ICSSG1";
+pruicss2.coreClk                         = 333333333;
+pruicss2.iepSyncMode                     = true;   /* IEP at the core clock: 333 MHz, increment 3 = ns */
 pruicss1.AdditionalICSSSettings[0].$name = "CONFIG_PRU_ICSS_IO0";
 pruicss1.AdditionalICSSSettings[0].PruGPIO.create(2);
 /* PRU0: SD inputs, pad mux mode 1 (GPI), receiver on (rx = true is the
