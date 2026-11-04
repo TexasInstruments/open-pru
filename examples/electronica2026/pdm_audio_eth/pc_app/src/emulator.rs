@@ -29,6 +29,8 @@ pub struct EmuConfig {
     pub pc_drop_every_nth_tput: Option<u32>,
     /// Board time from PING receive to PONG send.
     pub turnaround_ns: u64,
+    /// Reset the board once, this long after start (reset tests).
+    pub reset_after_ms: Option<u64>,
 }
 
 impl Default for EmuConfig {
@@ -41,6 +43,7 @@ impl Default for EmuConfig {
             drop_every_nth_pong: None,
             pc_drop_every_nth_tput: None,
             turnaround_ns: 1500,
+            reset_after_ms: None,
         }
     }
 }
@@ -81,6 +84,7 @@ pub struct Emulator {
     tput_start: u64,
     c: Counters,
     stats: LinkStats,
+    created: u64,
 }
 
 impl Emulator {
@@ -112,6 +116,7 @@ impl Emulator {
             tput_start: 0,
             c: Counters::default(),
             stats: LinkStats::default(),
+            created: now_ns(),
         }
     }
 
@@ -169,6 +174,12 @@ impl Emulator {
 
     /// Queue everything that is due at `now`.
     fn produce(&mut self, now: u64) {
+        if let Some(ms) = self.cfg.reset_after_ms {
+            if now >= self.created + ms * 1_000_000 {
+                self.cfg.reset_after_ms = None;
+                self.reset_board();
+            }
+        }
         let bns = self.board_ns(now);
         if self.cfg.audio_out {
             let total = self.rtu1_total(bns);

@@ -24,6 +24,7 @@ pub struct OutStream {
     out: Vec<(u64, [i32; 8])>,
     clock: VecDeque<(u64, u64)>,
     last: Option<Status>,
+    last_ts: Option<u64>,
     /// AUDIO_OUT frames (32 PCM frames each) that never arrived.
     pub lost_frames: u64,
     /// AUDIO_OUT frames received twice.
@@ -46,6 +47,7 @@ impl OutStream {
             out: Vec::new(),
             clock: VecDeque::new(),
             last: None,
+            last_ts: None,
             lost_frames: 0,
             duplicates: 0,
             resyncs: 0,
@@ -63,7 +65,16 @@ impl OutStream {
     pub fn push(&mut self, status: &Status, pcm: &[[i32; 8]; 32], tx_iep: u64, pc_rx_ns: u64) {
         let i = status.first_index as u64;
         self.last = Some(*status);
+        // the board IEP restarts at every reset or reload (eth_init): a
+        // header time more than 100 ms back is a new board run
+        let back = self.last_ts.is_some_and(|t| tx_iep + 100_000_000 < t);
+        self.last_ts = Some(tx_iep);
+        if back {
+            self.resyncs += 1;
+            self.restart(i);
+        }
         match self.next {
+            _ if back => {}
             None => self.restart(i),
             Some(n) if i + (AUDIO_OUT_FRAMES as u64) <= n => {
                 if n - i > RESYNC_FRAMES {
@@ -277,6 +288,29 @@ mod tests {
         assert_eq!(indices(&v), (0..64).collect::<Vec<u64>>());
         assert_eq!(o.resyncs, 1);
         assert_eq!(o.lost_frames, 0);
+    }
+
+    #[test]
+    fn rx_resync_when_board_time_goes_back() {
+        // a board reset restarts the IEP: the header ts goes back, while the
+        // first index after the PC's hello may well be ahead (< 1 s)
+        let mut o = OutStream::new();
+        let st = |i: u32| Status { first_index: i, clip_frames: 16000, ..Status::default() };
+        o.push(&st(4736), &block(4736), 296_000_000, 0);
+        o.push(&st(4768), &block(4768), 298_000_000, 0);
+        assert_eq!(o.take_new().len(), 64);
+        o.push(&st(16_000), &block(16_000), 1_000_000_000, 0); // ts forward: a gap, not a reset
+        let lost_gap = o.lost_frames;
+        let mut o = OutStream::new();
+        o.push(&st(4736), &block(4736), 296_000_000, 0);
+        o.push(&st(4768), &block(4768), 298_000_000, 0);
+        o.take_new();
+        o.push(&st(16_000), &block(16_000), 50_000_000, 0); // ts back: reset
+        o.push(&st(16_032), &block(16_032), 52_000_000, 0);
+        assert_eq!(o.resyncs, 1);
+        assert_eq!(o.lost_frames, 0);
+        assert_eq!(o.take_new().iter().map(|(i, _)| *i).collect::<Vec<_>>(), (16_000..16_064).collect::<Vec<u64>>());
+        assert!(lost_gap == 0, "a gap is only declared once later frames arrive");
     }
 
     #[test]

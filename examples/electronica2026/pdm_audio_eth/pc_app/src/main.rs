@@ -9,11 +9,9 @@ use clap::{Args, Parser, Subcommand};
 
 use pdm_eth::emulator::{EmuConfig, Emulator};
 use pdm_eth::ethtest::{self, TestConfig};
-use pdm_eth::link::{link_info, now_ns, AfPacketLink, Link};
-use pdm_eth::pacing::Pacer;
-use pdm_eth::proto::{decode, encode, Body, FrameType, Header, BOARD_MAC, VERSION};
+use pdm_eth::link::{link_info, AfPacketLink, Link};
 use pdm_eth::wavin::{load_channel, InputSet};
-use pdm_eth::rx::{OutStream, WavCapture};
+use pdm_eth::rx::WavCapture;
 
 /// PC application of the pdm_audio_eth demo (LP-AM243 PDM audio over Gigabit Ethernet).
 #[derive(Parser)]
@@ -69,76 +67,6 @@ impl Inputs {
         }
         Ok(Some(set))
     }
-}
-
-/// Send the input block of stream frames `pos..pos + 64` with board index `first`.
-pub fn send_block(link: &mut dyn Link, set: &InputSet, pos: usize, first: u32, seq: u32) -> std::io::Result<[[i16; 8]; 64]> {
-    let mut pcm = Box::new([[0i16; 8]; 64]);
-    for (k, row) in pcm.iter_mut().enumerate() {
-        *row = set.frame(pos + k);
-    }
-    let h = Header { version: VERSION, ftype: FrameType::AudioIn, length: 0, seq, ts: now_ns() };
-    let mac = link.mac();
-    let block = *pcm;
-    link.send(&encode(BOARD_MAC, mac, &h, &Body::AudioIn { first_index: first, pcm }, 0))?;
-    Ok(block)
-}
-
-fn stream(link: &mut dyn Link, set: &InputSet, capture: Option<&std::path::Path>, lead: u32) -> std::io::Result<()> {
-    ethtest::hello(link)?;
-    let mut out = OutStream::new();
-    let mut pacer = Pacer::new(lead, 16384);
-    let mut caps = match capture {
-        Some(d) => Some((WavCapture::create_bits(d, "in", 16)?, WavCapture::create(d, "out")?)),
-        None => None,
-    };
-    let (mut pos, mut seq, mut done_at) = (0usize, 0u32, None::<u64>);
-    let total = set.frames();
-    let tail_ns = (lead as u64 + 4000) * 1_000_000_000 / 16_000; // drain the lead and the pipeline
-    loop {
-        let now = now_ns();
-        if done_at.is_some_and(|t| now > t + tail_ns) {
-            break;
-        }
-        if let Some(f) = link.recv(Duration::from_millis(1))?
-            && let Ok((h, Body::AudioOut { status, pcm }, _)) = decode(&f.data) {
-                out.push(&status, &pcm, h.ts, f.t_ns);
-                pacer.on_status(&status, f.t_ns);
-                let v = out.take_new();
-                if let Some((_, o)) = &mut caps {
-                    o.write(&v)?;
-                }
-            }
-        while done_at.is_none() {
-            let Some(first) = pacer.next_due(now_ns()) else { break };
-            let block = send_block(link, set, pos, first, seq)?;
-            if let Some((i, _)) = &mut caps {
-                let v: Vec<(u64, [i32; 8])> = block
-                    .iter()
-                    .enumerate()
-                    .map(|(k, f)| ((pos + k) as u64, f.map(|x| x as i32)))
-                    .collect();
-                i.write(&v)?;
-            }
-            seq += 1;
-            pos += 64;
-            if pos >= total {
-                done_at = Some(now_ns());
-                pacer.finish();
-            }
-        }
-    }
-    if let Some((i, o)) = caps {
-        i.finish()?;
-        o.finish()?;
-    }
-    let st = out.last_status().copied().unwrap_or_default();
-    println!("sent {} blocks ({} frames of {total}); underruns {} overwrite_blocked {} restarts {}",
-             seq, pos, pacer.underruns, pacer.overwrite_blocked, pacer.restarts);
-    println!("output lost {} duplicates {} resyncs {}; board: rx_audio {} last_in_end {} underrun {} sd_ovf {} tx_late {}",
-             out.lost_frames, out.duplicates, out.resyncs, st.rx_audio, st.last_in_end, st.underrun_count,
-             st.sd_ovf_count, st.tx_late);
-    Ok(())
 }
 
 #[derive(Subcommand)]
@@ -245,32 +173,6 @@ fn gui(target: &Target, inputs: &Inputs, lead: u32, export_shm: Option<String>, 
     .map_err(|e| e.to_string())
 }
 
-fn capture(link: &mut dyn Link, seconds: f64, out: &std::path::Path) -> std::io::Result<()> {
-    ethtest::hello(link)?;
-    let mut s = OutStream::new();
-    let mut wav = WavCapture::create(out, "out")?;
-    let (mut written, end) = (0u64, now_ns() + (seconds * 1e9) as u64);
-    while now_ns() < end {
-        let Some(f) = link.recv(Duration::from_millis(100))? else { continue };
-        if let Ok((h, Body::AudioOut { status, pcm }, _)) = decode(&f.data) {
-            s.push(&status, &pcm, h.ts, f.t_ns);
-            let v = s.take_new();
-            written += v.len() as u64;
-            wav.write(&v)?;
-        }
-    }
-    wav.finish()?;
-    let st = s.last_status().copied().unwrap_or_default();
-    println!("{written} frames per channel written to {}", out.display());
-    println!("lost {} duplicates {} resyncs {}; board: underrun {} sd_ovf {} tx_late {} rx_foreign {} rx_bad {}",
-             s.lost_frames, s.duplicates, s.resyncs, st.underrun_count, st.sd_ovf_count, st.tx_late,
-             st.rx_foreign, st.rx_bad);
-    if let Some(ppm) = s.board_clock_ppm() {
-        println!("board clock {ppm:+.1} ppm against the PC");
-    }
-    Ok(())
-}
-
 /// The link and its (Mbit/s, full duplex, carrier).
 type Opened = (Box<dyn Link>, (u32, bool, bool));
 
@@ -335,8 +237,16 @@ fn main() -> ExitCode {
                     return ExitCode::from(2);
                 }
             };
-            match stream(link.as_mut(), &set, capture.as_deref(), lead) {
-                Ok(()) => ExitCode::SUCCESS,
+            match pdm_eth::session::stream(link.as_mut(), &set, capture.as_deref(), lead) {
+                Ok(r) => {
+                    println!("sent {} blocks ({} frames of {}); underruns {} overwrite_blocked {} restarts {}",
+                             r.sent_blocks, r.sent_frames, set.frames(), r.underruns, r.overwrite_blocked, r.restarts);
+                    let st = r.status;
+                    println!("output lost {} duplicates {} resyncs {}; board: rx_audio {} last_in_end {} underrun {} sd_ovf {} tx_late {}",
+                             r.lost, r.duplicates, r.resyncs, st.rx_audio, st.last_in_end, st.underrun_count,
+                             st.sd_ovf_count, st.tx_late);
+                    ExitCode::SUCCESS
+                }
                 Err(e) => {
                     eprintln!("error: {e}");
                     ExitCode::from(2)
@@ -351,7 +261,21 @@ fn main() -> ExitCode {
                     return ExitCode::from(2);
                 }
             };
-            match capture(link.as_mut(), seconds, &out) {
+            let mut run = || -> std::io::Result<()> {
+                let mut wav = WavCapture::create(&out, "out")?;
+                let r = pdm_eth::session::capture(link.as_mut(), seconds, Some(&mut wav))?;
+                wav.finish()?;
+                let st = r.status;
+                println!("{} frames per channel written to {}", r.written, out.display());
+                println!("lost {} duplicates {} resyncs {}; board: underrun {} sd_ovf {} tx_late {} rx_foreign {} rx_bad {}",
+                         r.lost, r.duplicates, r.resyncs, st.underrun_count, st.sd_ovf_count, st.tx_late,
+                         st.rx_foreign, st.rx_bad);
+                if let Some(ppm) = r.clock_ppm {
+                    println!("board clock {ppm:+.1} ppm against the PC");
+                }
+                Ok(())
+            };
+            match run() {
                 Ok(()) => ExitCode::SUCCESS,
                 Err(e) => {
                     eprintln!("error: {e}");

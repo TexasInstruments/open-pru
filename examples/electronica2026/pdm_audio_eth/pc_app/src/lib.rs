@@ -11,6 +11,7 @@ pub mod pacing;
 pub mod proto;
 pub mod rx;
 pub mod seam;
+pub mod session;
 pub mod spectro;
 pub mod ui;
 pub mod wavin;
