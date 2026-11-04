@@ -7,10 +7,26 @@
 ; Nothing is sent until PRU1 has seen a valid frame from the PC (mac_valid);
 ; every frame goes to that PC MAC. The main loop polls the ICSSG1 shared RAM
 ; in this order:
+;   HALF_SEQ (ICSSG0) changed -> two AUDIO_OUT frames of the half it
+;                     announced (Task 10, below), TX_AUDIO += 2
 ;   PING_REQ       -> PONG (ping seq, echoed pc_ns, PRU1's RX IEP time; the
 ;                     header ts is the TX IEP time), TX_PONGS++
 ;   REPORT_REQ     -> TPUT_REPORT (copy of the TPUT_RX block)
-;   TPUT_TX_COUNT  -> that many TPUT_DATA frames back to back, seq 0..n-1
+;   TPUT_TX_COUNT  -> that many TPUT_DATA frames back to back, seq 0..n-1;
+;                     the burst checks HALF_SEQ before every frame, so audio
+;                     still goes out on time
+;
+; Audio: HALF_SEQ is polled at its global address (0x30010018). When it
+; changes, PRU0 takes the IEP time (detect_iep), reads the ICSSG0 header
+; words CLIP_FRAMES .. SD_OVF_COUNT (reading RTU1_FRAME_POS/LOOPS again until
+; both reads agree, so a clip wrap between the two words is not torn), and
+; builds the status block. Each 1 KB part of the half (global 0x30010100 +
+; ((HALF_SEQ - 1) & 1) x 0x800 + part x 0x400) is copied in 64-byte bursts
+; into TX_BUF + 94 and sent with the status block; first_index =
+; (HALF_SEQ - 1) x 64 + part x 32. If HALF_SEQ moved on by more than one
+; since the last send, TX_LATE++ and only the newest half is sent. Copy
+; (16 cross-ICSSG bursts) plus two frames at wire rate (2 x 9 us) is far
+; inside the 4 ms of one half.
 ;
 ; Frames are built in DRAM0 at TX_BUF (local 0x0000) and sent through the
 ; TX_L2 FIFO as in the HIL example: per 64-byte chunk LBBO, wait until the
@@ -30,11 +46,13 @@
 ;   R23       TPUT_DATA seq;  R24 TPUT_DATA frames left
 ;   R25       64-byte chunks left; R26 chunk pointer
 ;   R27       TX_PONGS
-;   R28.w0    return address (jal)
+;   R28.w0    return address (jal, build_header / send_frame)
+;   R28.w2    return address (jal, audio)
 ;   R29       IEP0 base (local)
 ;   C28       ICSSG1 shared RAM (local 0x10000, set by the R5F)
 
     .include "eth_proto.inc"
+    .include "pdm8_shared.inc"
 
 TX_BUF              .set    0x0000      ; DRAM0, 1536 B frame buffer
 SRC_MAC_01          .set    0x0002      ; frame bytes 6, 7  = 02 00
@@ -45,6 +63,18 @@ REPORT_LEN          .set    34          ; 64 - 14 - 16 (32 B body + pad)
 TPUT_LEN            .set    1484        ; 1514 - 14 - 16
 TPUT_CHUNKS         .set    23          ; 1514 = 23 x 64 + 42
 TPUT_TAIL           .set    42
+AUDIO_LEN           .set    1088        ; 1118 - 14 - 16 (status + PCM)
+AUDIO_CHUNKS        .set    17          ; 1118 = 17 x 64 + 30
+AUDIO_TAIL          .set    30
+OFF_BODY            .set    30          ; frame offset of the body
+OFF_PCM             .set    94          ; 30 + 64-byte status block
+PART_BYTES          .set    1024        ; 32 frames x 8 ch x int32
+ST_BASE             .set    0x0700      ; DRAM0 state (after TX_BUF)
+ST_LAST_HALF        .set    0           ; last HALF_SEQ sent
+ST_AUDIO_SEQ        .set    4           ; AUDIO_OUT header seq
+ST_TX_LATE          .set    8
+ST_TX_AUDIO         .set    12
+ST_DETECT           .set    16          ; u64 detect_iep
 
     .retain
     .retainrefs
@@ -60,10 +90,14 @@ ETH_TX:
     ldi     r18, TX_BUF
     zero    &r23, 20                    ; R23..R27
     sbco    &r27, c28, ETH1_TX_PONGS, 4
+    ldi     r26, ST_BASE
+    zero    &r2, 24
+    sbbo    &r2, r26, 0, 24
 
 idle:
     lbco    &r22.w0, c28, ETH1_MAC_VALID, 2
     qbeq    idle, r22.w0, 0
+    jal     r28.w2, audio
     lbco    &r22, c28, ETH1_PING_REQ, 4
     qbne    do_pong, r22, 0
     lbco    &r22, c28, ETH1_REPORT_REQ, 4
@@ -119,6 +153,7 @@ do_tput:
     mov     r24, r22
     ldi     r23, 0
 tput_loop:
+    jal     r28.w2, audio               ; a new half goes out first
     ldi     r20.b0, ETH_T_TPUT_DATA
     ldi     r20.w2, TPUT_LEN
     mov     r21, r23
@@ -132,6 +167,93 @@ tput_loop:
     ldi     r22, 0
     sbco    &r22, c28, ETH1_TPUT_TX_COUNT, 4
     qba     idle
+
+; ---- audio: send the newest PCM half if HALF_SEQ changed ----------------
+; Returns through R28.w2. Uses R0..R22, R25, R26 (not R23, R24, R27).
+audio:
+    ldi32   r22, PDM0_SHARED_GLOBAL
+    lbbo    &r20, r22, PDM8_HDR_HALF_SEQ, 4
+    ldi     r26, ST_BASE
+    lbbo    &r21, r26, ST_LAST_HALF, 4
+    qbne    audio_new, r20, r21
+    jmp     r28.w2
+audio_new:
+    lbbo    &r0, r29, ICSS_IEP_COUNT_LO, 8      ; detect_iep
+    sbbo    &r0, r26, ST_DETECT, 8
+    sbbo    &r20, r26, ST_LAST_HALF, 4
+    qbeq    audio_hdr, r21, 0                   ; first half after start
+    sub     r21, r20, r21
+    qbeq    audio_hdr, r21, 1
+    qbeq    audio_hdr, r20, 0                   ; ICSSG0 restarted
+    lbbo    &r21, r26, ST_TX_LATE, 4
+    add     r21, r21, 1
+    sbbo    &r21, r26, ST_TX_LATE, 4
+    sbco    &r21, c28, ETH1_TX_LATE, 4
+audio_hdr:
+    qbne    audio_rd, r20, 0
+    jmp     r28.w2
+audio_rd:
+    ; R10 CLIP_FRAMES, R11 HALF_SEQ, R12 UNDERRUN, R13 BATCH, R14 FRAME_POS,
+    ; R15 LOOPS, R16 VERSION, R17 SD_OVF (header 0x14..0x33)
+    lbbo    &r10, r22, PDM8_HDR_CLIP_FRAMES, 32
+    lbbo    &r2, r22, PDM8_HDR_RTU1_FRAME_POS, 8
+    qbne    audio_rd, r2, r14
+    qbne    audio_rd, r3, r15
+    sub     r2, r20, 1
+    lsl     r2, r2, 6                           ; first_index of part 0
+    mov     r3, r20                             ; half_seq
+    mov     r4, r15                             ; rtu1_loops
+    mov     r5, r14                             ; rtu1_frame_pos
+    mov     r6, r10                             ; clip_frames
+    mov     r7, r12                             ; underrun_count
+    mov     r8, r17                             ; sd_ovf_count
+    mov     r9, r13                             ; batch_count
+    lbco    &r10, c28, ETH1_RX_FRAMES, 20       ; rx_frames .. last_in_end
+    lbbo    &r15, r26, ST_TX_LATE, 4
+    lbbo    &r16, r26, ST_DETECT, 8
+    sbbo    &r2, r18, OFF_BODY, ETH_ST_SIZE
+    ; source of part 0: half (HALF_SEQ - 1) & 1
+    sub     r22, r20, 1
+    and     r22, r22, 1
+    lsl     r22, r22, 11                        ; x 0x800
+    ldi32   r0, PDM0_HALF_A_GLOBAL
+    add     r22, r22, r0
+audio_part:
+    ; copy 1024 B: R22 source (global), R25 destination, R21 bursts left
+    ldi     r25, OFF_PCM
+    add     r25, r25, r18
+    ldi     r21, PART_BYTES / 64
+audio_copy:
+    lbbo    &r2, r22, 0, 64
+    sbbo    &r2, r25, 0, 64
+    add     r22, r22, 64
+    add     r25, r25, 64
+    sub     r21, r21, 1
+    qbne    audio_copy, r21, 0
+    ; header: seq from the state
+    lbbo    &r21, r26, ST_AUDIO_SEQ, 4
+    ldi     r20.b0, ETH_T_AUDIO_OUT
+    ldi     r20.w2, AUDIO_LEN
+    jal     r28.w0, build_header
+    add     r21, r21, 1
+    sbbo    &r21, r26, ST_AUDIO_SEQ, 4
+    ldi     r25, AUDIO_CHUNKS
+    ldi     r20.b1, AUDIO_TAIL
+    jal     r28.w0, send_frame
+    ldi     r26, ST_BASE
+    lbbo    &r21, r26, ST_TX_AUDIO, 4
+    add     r21, r21, 1
+    sbbo    &r21, r26, ST_TX_AUDIO, 4
+    sbco    &r21, c28, ETH1_TX_AUDIO, 4
+    ; part 0 or 1? first_index (status word 0) has bit 5 set for part 1
+    lbbo    &r2, r18, OFF_BODY, 4
+    qbbs    audio_done, r2, 5
+    ; part 1: first_index + 32, next 1 KB of the half (R22 already there)
+    add     r2, r2, ETH_AO_FRAMES
+    sbbo    &r2, r18, OFF_BODY, 4
+    qba     audio_part
+audio_done:
+    jmp     r28.w2
 
 ; ---- build_header: frame bytes 0..29 at TX_BUF --------------------------
 ; In: R20.b0 type, R20.w2 length, R21 seq. Uses R0, R1, R2..R9.
