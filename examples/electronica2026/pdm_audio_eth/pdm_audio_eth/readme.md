@@ -116,7 +116,11 @@ FIXME: none yet. The checks to run (docs/plan.md, deferred board checks):
 2. Console link line; `ethtool enp129s0`: 1000 Mb/s, full duplex, link.
 3. `pdm-eth test --iface enp129s0`: every line PASS (link 1000/full, 0 lost
    pings, at least 500 Mbit/s each way with less than 0.1 % loss); record the
-   RTT and the board turnaround.
+   RTT and the board turnaround. Then save the clip buffer (CCS memory
+   browser, 0x700C0000, 0x40000 bytes) and compare it with `mcuplus/pdm_clips.h`:
+   pings and throughput frames must not touch it. Watch RX_BAD against
+   RX_FRAMES (ICSSG1 shared RAM 0x30090010): RX_BAD rising with every frame
+   would mean the EOF flag is still set when the next frame starts.
 4. `pdm-eth capture --seconds 600`: lost 0, resyncs 0, tx_late 0; tones of
    channels 3 to 7 at 1000, 3000, 500, 2000, 5000 Hz at the pdm_audio levels;
    one CCS read of half A against the capture.
@@ -127,6 +131,12 @@ FIXME: none yet. The checks to run (docs/plan.md, deferred board checks):
    output spectrograms alike, the board audio latency stable within 1 ms;
    record it. Back-to-back AUDIO_IN frames must both land (compare
    `in_ch*.wav` and `out_ch*.wav`).
+
+First board run, in this order, because these TX paths were never exercised
+by the HIL example (it sent one 64-byte frame and halted): a single PONG
+(`pdm-eth test --pings 1 --seconds 0.1`), then the pings, then the throughput
+bursts (multi-chunk frames with the 42-byte tail, back-to-back frames after
+CRC/EOF), then audio (the 30-byte tail).
 
 ## Known limits
 
