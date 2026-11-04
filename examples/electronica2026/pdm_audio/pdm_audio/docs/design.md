@@ -251,6 +251,13 @@ RTU1 wraps at the end. The buffer goes in an uncached MSRAM region defined in th
 SysConfig. The R5F writes it before starting the cores, so cache coherence is not an issue
 after start. The builder confirms the region's MPU attributes.
 
+*Refined in implementation (Task 6):* the region is `PDM_CLIPS`, 0x700C_0000..0x700D_FFFF
+(128 KB, right after the R5F's `MSRAM` region, clear of `NON_CACHE_MEM`, the shared regions at
+0x701D_0000 and the SBL's MSRAM). `pdm_clip_buffer` (section `.pdm_clips`, 128 000 B) is
+linked there and loaded with the ELF, so the R5F writes no clip data at run time. MPU region
+`CONFIG_MPU_REGION5`: 128 KB, Normal non-cacheable (TEX 001, C 0, B 0), shareable, no execute,
+supervisor RW / user RO; it overrides the cached 2 MB MSRAM region.
+
 **Clips:** the 5 shipped clips (`speech_librivox`, two chirps, 1 kHz and 3 kHz tones), plus
 3 extra tones (e.g. 500 Hz, 2 kHz, 5 kHz) generated with `make_clips.py`. Normalised to
 0.5 FS like the simulator loader. They are converted at build time to a C array, or
@@ -297,6 +304,13 @@ Copy the uart_rx/uart_print project structure (mcuplus, FreeRTOS, SysConfig):
 - start RTU1, then PRU1, then PRU0, in an order that guarantees PRU1 sees batch 0 and
   PRU0 sees a running clock;
 - idle.
+
+*Refined in implementation (Task 6),* `mcuplus/pdm_audio_example.c`: halt RTU1, PRU1 and PRU0;
+GPCFG0 PRU0 mux SD, GPCFG1 PRU1 mux GP, PRU0 CTBIR0 C24 = 0; zero the 64 KB shared RAM and
+both DRAMs; write MAGIC .. CLIP_FRAMES; load the three IRAMs with the cores halted; reset and
+enable RTU1, PRU1, PRU0 in that order; idle. Both RTU1 and PRU1 always restart together.
+`mcuplus/pdm8_shared.h` mirrors `pdm8_shared.inc`; the pru-simulator test
+`test_c_header_matches_inc` checks it.
 
 Follow the existing ports for the R5F loader of PRU firmware arrays (`*_load_bin.h`), and
 the open-pru make and CCS projectspec conventions (examples/makefile and readme entries).
