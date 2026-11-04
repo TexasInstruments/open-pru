@@ -109,7 +109,9 @@ apply; CLIP_FRAMES now reads 0x4000.
 
 ## Hardware results
 
-FIXME: none yet. The checks to run (docs/plan.md, deferred board checks):
+FIXME: none yet. The off-board results and the board-results table to fill
+are in [docs/test_report.md](docs/test_report.md). The checks to run
+(docs/plan.md, deferred board checks):
 
 1. Header check as in pdm_audio, CLIP_FRAMES = 0x4000, UNDERRUN_COUNT and
    SD_OVF_COUNT 0.
@@ -162,7 +164,7 @@ CRC/EOF), then audio (the 30-byte tail).
 examples/electronica2026/pdm_audio_eth/
   pdm_audio_eth/              board project (this directory)
     makefile                  5 PRU firmwares + R5F
-    docs/                     design.md, plan.md, screen_mockup.html, GUI screenshots
+    docs/                     design.md, plan.md, test_report.md, screen_mockup.html, GUI screenshots
     firmware/
       rtu1_mod.asm pru1_pdm.asm pru0_rx.asm pdm8_shared.inc fir_coefs.inc decimation_fir.h   from pdm_audio, unchanged
       eth_proto.inc           frame protocol + ICSSG1 shared-RAM map
