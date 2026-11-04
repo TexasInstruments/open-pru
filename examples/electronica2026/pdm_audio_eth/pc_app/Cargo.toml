@@ -1,0 +1,17 @@
+[package]
+name = "pdm_eth"
+version = "0.1.0"
+edition = "2024"
+description = "PC side of the electronica 2026 pdm_audio_eth demo: Ethernet test, audio stream in and out, live spectrograms"
+license = "BSD-3-Clause"
+
+[lib]
+name = "pdm_eth"
+path = "src/lib.rs"
+
+[[bin]]
+name = "pdm-eth"
+path = "src/main.rs"
+
+[dependencies]
+clap = { version = "4.6.7", features = ["derive"] }
