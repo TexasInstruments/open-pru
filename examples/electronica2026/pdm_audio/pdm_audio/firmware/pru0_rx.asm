@@ -109,7 +109,8 @@
 ;     +0x20  128 x int32 mirrored delay line: sample at index w in D[w],
 ;            D[w + 64]
 ;   The 0x1000..0x1A00 part is the RTU0 / TX_PRU0 share of DRAM0 in the
-;   open-pru linker split; this demo runs neither core (linker.cmd).
+;   open-pru linker split; this demo runs neither core (linker.cmd), and
+;   the R5F halts both before it starts PRU0.
 ;
 ; ---- Register map --------------------------------------------
 ; Reg       Use                                   Live in

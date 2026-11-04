@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2024-2026 Texas Instruments Incorporated
+ *  Copyright (C) 2026 Texas Instruments Incorporated
  *
  *  Redistribution and use in source and binary forms, with or without
  *  modification, are permitted provided that the following conditions
@@ -66,8 +66,10 @@
  *  PRU0 GPI jumpers) is in docs/design.md section 6.
  *
  *  Start-up order (pdm8_shared.inc, "Start"):
- *    1. halt all three cores (a rerun without power cycle finds them
- *       running);
+ *    1. halt all six ICSSG0 cores: the three of this demo (a rerun without
+ *       power cycle finds them running) and RTU0, TX_PRU0 and TX_PRU1, which
+ *       an earlier demo may have left running (logic_scope uses RTU0):
+ *       PRU0's state in DRAM0 0x1000..0x19FF is their share of DRAM0;
  *    2. write GPCFG0 (PRU0 mux = SD, 3), GPCFG1 (all 0: PRU1 GP mux,
  *       parallel GPO) and PRU0_SD_CFG (no load share, no Manchester) as
  *       whole registers, so that a demo run before this one (without a
@@ -82,8 +84,9 @@
  *    6. set each core's reset PC (CTRL PCTR_RST_VAL) to 0, the entry of
  *       every firmware, pulse the soft reset and start RTU1, then PRU1,
  *       then PRU0. BOTH RTU1 and PRU1 must restart together, RTU1 first:
- *       restarting only one of them leaves the pair stuck. PRU1 holds the clock low until batch 0, so PRU0 started
- *       last sees a running clock;
+ *       restarting only one of them leaves the pair stuck. PRU1 holds
+ *       the clock low until batch 0, so PRU0 started last sees a running
+ *       clock;
  *    7. the R5F loops idle.
  *
  *  The clip buffer is in the ELF and loaded with it (CCS or SBL), so the
@@ -209,12 +212,21 @@ void pdm_audio_example_main(void *args)
     hwAttrs = (const PRUICSS_HwAttrs *)gPruIcss0Handle->hwAttrs;
     DebugP_assert(hwAttrs != NULL);
 
-    /* 1. Halt all three cores (RTU1, PRU1, PRU0) */
+    /* 1. Halt the demo's cores (RTU1, PRU1, PRU0), and RTU0, TX_PRU0 and
+     *    TX_PRU1, which this demo does not load: an earlier demo may have
+     *    left one running (logic_scope uses RTU0), and DRAM0 0x1000..0x19FF,
+     *    where PRU0 keeps its receiver state, is their share of DRAM0. */
     status = PRUICSS_disableCore(gPruIcss0Handle, PRUICSS_RTU_PRU1);
     DebugP_assert(SystemP_SUCCESS == status);
     status = PRUICSS_disableCore(gPruIcss0Handle, PRUICSS_PRU1);
     DebugP_assert(SystemP_SUCCESS == status);
     status = PRUICSS_disableCore(gPruIcss0Handle, PRUICSS_PRU0);
+    DebugP_assert(SystemP_SUCCESS == status);
+    status = PRUICSS_disableCore(gPruIcss0Handle, PRUICSS_RTU_PRU0);
+    DebugP_assert(SystemP_SUCCESS == status);
+    status = PRUICSS_disableCore(gPruIcss0Handle, PRUICSS_TX_PRU0);
+    DebugP_assert(SystemP_SUCCESS == status);
+    status = PRUICSS_disableCore(gPruIcss0Handle, PRUICSS_TX_PRU1);
     DebugP_assert(SystemP_SUCCESS == status);
 
     /* 2. GPCFG0: PRU0 GPI pins feed the sigma-delta interface (SD mode),
