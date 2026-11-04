@@ -13,7 +13,11 @@ use std::time::{Duration, Instant};
 
 use eframe::egui::{self, Color32, ColorImage, Rect, Sense, TextureHandle, TextureOptions, pos2, vec2};
 
+use crate::latency::LatencyMeter;
 use crate::link::{now_ns, Link};
+use crate::pacing::Pacer;
+use crate::wavin::InputSet;
+use std::sync::atomic::{AtomicUsize, Ordering};
 use crate::proto::{decode, encode, Body, FrameType, Header, Status, BOARD_MAC, CMD_RESET_COUNTERS, VERSION};
 use crate::rx::OutStream;
 use crate::spectro::{diff_column, Spectrogram, COLUMNS};
@@ -33,12 +37,37 @@ pub struct NetStats {
     pub clock_ppm: Option<f64>,
     pub out_frames_per_s: f64,
     pub kernel_drops: u64,
+    /// Input stream (None without input files).
+    pub input: Option<InStats>,
+}
+
+/// Input-side numbers.
+#[derive(Clone, Debug, Default)]
+pub struct InStats {
+    pub latency_ms: Option<f64>,
+    /// Output index k carries input index k + lag.
+    pub lag: Option<i64>,
+    pub ahead_frames: Option<i64>,
+    pub in_frames_per_s: f64,
+    pub underruns: u64,
+    pub overwrite_blocked: u64,
+    pub restarts: u64,
+}
+
+/// What the network thread streams into the board: the files loop.
+pub struct NetInput {
+    pub set: InputSet,
+    pub lead: u32,
+    /// Channel of the latency measurement (the UI's selection).
+    pub sel: Arc<AtomicUsize>,
 }
 
 /// Network thread -> UI.
 pub enum NetMsg {
     /// Contiguous output PCM frames.
     Out(Vec<(u64, [i32; 8])>),
+    /// Input frames as sent (board index).
+    In(Vec<(u64, [i16; 8])>),
     Stats(NetStats),
     Error(String),
 }
@@ -53,8 +82,15 @@ fn hello(link: &mut dyn Link) -> std::io::Result<()> {
 /// Run the receive side until the UI goes away: say hello (again after
 /// 1 s without audio, so a reset board learns the PC MAC again), rebuild
 /// the stream, send PCM and stats to the UI about every 20 ms.
-pub fn run_net(mut link: Box<dyn Link>, tx: Sender<NetMsg>, repaint: Arc<dyn Fn() + Send + Sync>) {
+pub fn run_net(mut link: Box<dyn Link>, input: Option<NetInput>, tx: Sender<NetMsg>,
+               repaint: Arc<dyn Fn() + Send + Sync>) {
     let mut out = OutStream::new();
+    let mut pacer = input.as_ref().map(|i| Pacer::new(i.lead, 16384));
+    let mut meter = LatencyMeter::new();
+    let mut meter_ch = usize::MAX;
+    let (mut pos, mut seq) = (0usize, 0u32);
+    let mut win_in: VecDeque<u64> = VecDeque::new();
+    let mut sent_in: Vec<(u64, [i16; 8])> = Vec::new();
     let mut last_audio = 0u64;
     let mut last_hello = 0u64;
     let mut last_flush = now_ns();
@@ -74,6 +110,17 @@ pub fn run_net(mut link: Box<dyn Link>, tx: Sender<NetMsg>, repaint: Arc<dyn Fn(
                     out.push(&status, &pcm, h.ts, f.t_ns);
                     last_audio = f.t_ns;
                     win.push_back(f.t_ns);
+                    if let (Some(p), Some(inp)) = (pacer.as_mut(), input.as_ref()) {
+                        p.on_status(&status, f.t_ns);
+                        let ch = inp.sel.load(Ordering::Relaxed).min(7);
+                        if ch != meter_ch {
+                            meter = LatencyMeter::new();
+                            meter_ch = ch;
+                        }
+                        meter.push_status(&status);
+                        let y: Vec<i32> = pcm.iter().map(|r| r[ch]).collect();
+                        meter.push_out(status.first_index as u64, &y, h.ts);
+                    }
                 }
             }
             Ok(None) => {}
@@ -82,14 +129,41 @@ pub fn run_net(mut link: Box<dyn Link>, tx: Sender<NetMsg>, repaint: Arc<dyn Fn(
                 return;
             }
         }
+        if let (Some(p), Some(inp)) = (pacer.as_mut(), input.as_ref()) {
+            let n = inp.set.frames().max(1);
+            while let Some(first) = p.next_due(now_ns()) {
+                let mut pcm = Box::new([[0i16; 8]; 64]);
+                for (k, row) in pcm.iter_mut().enumerate() {
+                    *row = inp.set.frame((pos + k) % n);
+                    sent_in.push((first as u64 + k as u64, *row));
+                }
+                let x: Vec<i16> = pcm.iter().map(|r| r[meter_ch.min(7)]).collect();
+                meter.push_in(first as u64, &x);
+                let h = Header { version: VERSION, ftype: FrameType::AudioIn, length: 0, seq, ts: now_ns() };
+                let mac = link.mac();
+                if let Err(e) = link.send(&encode(BOARD_MAC, mac, &h, &Body::AudioIn { first_index: first, pcm }, 0)) {
+                    let _ = tx.send(NetMsg::Error(e.to_string()));
+                    return;
+                }
+                win_in.push_back(now_ns());
+                seq += 1;
+                pos = (pos + 64) % n;
+            }
+        }
         let now = now_ns();
         while win.front().is_some_and(|t| now - t > 1_000_000_000) {
             win.pop_front();
+        }
+        while win_in.front().is_some_and(|t| now - t > 1_000_000_000) {
+            win_in.pop_front();
         }
         if now - last_flush > 20_000_000 {
             last_flush = now;
             let frames = out.take_new();
             if !frames.is_empty() && tx.send(NetMsg::Out(frames)).is_err() {
+                return;
+            }
+            if !sent_in.is_empty() && tx.send(NetMsg::In(std::mem::take(&mut sent_in))).is_err() {
                 return;
             }
             let st = NetStats {
@@ -100,6 +174,15 @@ pub fn run_net(mut link: Box<dyn Link>, tx: Sender<NetMsg>, repaint: Arc<dyn Fn(
                 clock_ppm: out.board_clock_ppm(),
                 out_frames_per_s: win.len() as f64,
                 kernel_drops: link.stats().rx_kernel_drops,
+                input: pacer.as_ref().map(|p| InStats {
+                    latency_ms: meter.board_latency_ms(),
+                    lag: meter.lag(),
+                    ahead_frames: p.ahead_frames(now),
+                    in_frames_per_s: win_in.len() as f64,
+                    underruns: p.underruns,
+                    overwrite_blocked: p.overwrite_blocked,
+                    restarts: p.restarts,
+                }),
             };
             if tx.send(NetMsg::Stats(st)).is_err() {
                 return;
@@ -164,8 +247,13 @@ pub struct App {
     pub(crate) stats: NetStats,
     error: Option<String>,
     source: String,
-    /// Extra side-panel lines (Task 14: input stream).
+    /// Extra side-panel lines.
     pub(crate) extra: Vec<(String, String)>,
+    sel_shared: Option<Arc<AtomicUsize>>,
+    /// Input frames waiting until the board plays them, so that the IN and
+    /// OUT panes (and the difference) line up on one timeline.
+    pending_in: VecDeque<(u64, [i16; 8])>,
+    out_newest: Option<u64>,
     shot: Option<(std::path::PathBuf, Instant, bool)>,
     shot_done: Arc<std::sync::atomic::AtomicBool>,
     shot_focused: bool,
@@ -186,10 +274,19 @@ impl App {
             error: None,
             source,
             extra: Vec::new(),
+            sel_shared: None,
+            pending_in: VecDeque::new(),
+            out_newest: None,
             shot: None,
             shot_done: Arc::new(std::sync::atomic::AtomicBool::new(false)),
             shot_focused: false,
         }
+    }
+
+    /// Share the channel selection with the network thread (latency).
+    pub fn with_selection(mut self, sel: Arc<AtomicUsize>) -> Self {
+        self.sel_shared = Some(sel);
+        self
     }
 
     /// Save one PNG of the window `after` the start, then close it.
@@ -223,16 +320,56 @@ impl App {
         while let Ok(m) = self.rx.try_recv() {
             match m {
                 NetMsg::Out(v) => {
+                    if let Some((k, _)) = v.last() {
+                        self.out_newest = Some(*k);
+                    }
                     for (c, sp) in self.out.iter_mut().enumerate() {
                         let x: Vec<f32> = v.iter().map(|(_, f)| f[c] as f32).collect();
                         sp.push(&x);
                     }
                     self.dirty = true;
                 }
-                NetMsg::Stats(s) => self.stats = s,
+                NetMsg::In(v) => {
+                    self.inp.get_or_insert_with(|| {
+                        (0..8).map(|_| Spectrogram::new(256, 128, -90.0, 0.0, 32768.0)).collect()
+                    });
+                    self.pending_in.extend(v);
+                }
+                NetMsg::Stats(s) => {
+                    self.extra = match &s.input {
+                        Some(i) => vec![
+                            ("board audio latency".into(), i.latency_ms.map_or("-".into(), |m| format!("{m:.2} ms"))),
+                            ("buffered ahead (PC)".into(),
+                             i.ahead_frames.map_or("-".into(), |a| format!("{:.2} s", a as f64 / 16000.0))),
+                            ("frames/s in".into(), format!("{:.0}", i.in_frames_per_s)),
+                            ("input underrun / blocked / restart".into(),
+                             format!("{} / {} / {}", i.underruns, i.overwrite_blocked, i.restarts)),
+                        ],
+                        None => Vec::new(),
+                    };
+                    self.stats = s;
+                }
                 NetMsg::Error(e) => self.error = Some(e),
             }
         }
+    }
+
+    /// Move input frames the board has played (index <= newest output
+    /// index + lag) into the input spectrograms.
+    fn release_input(&mut self) {
+        let (Some(inp), Some(k)) = (self.inp.as_mut(), self.out_newest) else { return };
+        let lag = self.stats.input.as_ref().and_then(|i| i.lag).unwrap_or(0);
+        let limit = k as i64 + lag;
+        let n = self.pending_in.iter().take_while(|(i, _)| (*i as i64) <= limit).count();
+        if n == 0 {
+            return;
+        }
+        let v: Vec<(u64, [i16; 8])> = self.pending_in.drain(..n).collect();
+        for (c, sp) in inp.iter_mut().enumerate() {
+            let x: Vec<f32> = v.iter().map(|(_, f)| f[c] as f32).collect();
+            sp.push(&x);
+        }
+        self.dirty = true;
     }
 
     fn fps(&mut self) -> f64 {
@@ -326,6 +463,7 @@ impl eframe::App for App {
     fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
         let ctx = ui.ctx().clone();
         self.drain();
+        self.release_input();
         let fps = self.fps();
         self.update_textures(&ctx);
         egui::Panel::top("toolbar").show(ui, |ui| {
@@ -337,6 +475,9 @@ impl eframe::App for App {
                     if ui.selectable_label(self.sel == c, format!("ch{c}")).clicked() && self.sel != c {
                         self.sel = c;
                         self.dirty = true;
+                        if let Some(s) = &self.sel_shared {
+                            s.store(c, Ordering::Relaxed);
+                        }
                     }
                 }
                 ui.separator();
@@ -391,12 +532,36 @@ mod tests {
         use crate::emulator::{EmuConfig, Emulator};
         let (tx, rx) = std::sync::mpsc::channel();
         let link: Box<dyn Link> = Box::new(Emulator::new(EmuConfig::default()));
-        std::thread::spawn(move || run_net(link, tx, Arc::new(|| {})));
+        std::thread::spawn(move || run_net(link, None, tx, Arc::new(|| {})));
         let mut app = App::new(rx, "emulator".into());
         std::thread::sleep(Duration::from_millis(400));
         app.drain();
         assert!(app.out[3].columns().len() > 20, "{}", app.out[3].columns().len());
         assert!(app.stats.out_frames_per_s > 100.0, "{}", app.stats.out_frames_per_s);
         assert!(app.side_lines(60.0).iter().any(|(k, v)| k == "simulator" && v == SIM_TEXT));
+        assert!(app.inp.is_none());
+    }
+
+    #[test]
+    fn net_thread_with_input_shows_latency() {
+        use crate::emulator::{EmuConfig, Emulator};
+        let (tx, rx) = std::sync::mpsc::channel();
+        let link: Box<dyn Link> = Box::new(Emulator::new(EmuConfig::default()));
+        let mut set = InputSet::default();
+        let mut s = 7u32;
+        set.ch[0] = (0..32000).map(|_| { s = s.wrapping_mul(1_664_525).wrapping_add(1_013_904_223); (s >> 17) as i16 }).collect();
+        let sel = Arc::new(AtomicUsize::new(0));
+        let input = NetInput { set, lead: 8000, sel: sel.clone() };
+        std::thread::spawn(move || run_net(link, Some(input), tx, Arc::new(|| {})));
+        let mut app = App::new(rx, "emulator".into()).with_selection(sel);
+        std::thread::sleep(Duration::from_millis(1800));
+        app.drain();
+        app.release_input();
+        let i = app.stats.input.clone().expect("input stats");
+        let ms = i.latency_ms.expect("latency");
+        assert!((ms - 2.5).abs() < 0.3, "{ms} ms");
+        assert!(app.inp.as_ref().unwrap()[0].columns().len() > 50);
+        assert_eq!(i.underruns, 0);
+        assert!(app.side_lines(60.0).iter().any(|(k, _)| k == "board audio latency"));
     }
 }
