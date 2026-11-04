@@ -27,8 +27,9 @@ LaunchPad as the full 8-channel design. The design is in
 
 **Board run: 2026-11-04 on an LP-AM243 Rev A, all 8 channels passed** (see
 "Hardware results" below). The other hardware statements in this readme are
-from the TRM and the schematic, or from a simulator or build result. Items
-that the board run did not settle are still marked `FIXME`.
+from the TRM and the schematic, or from a simulator or build result. What
+the board run did not cover is listed under "Not verified" at the end of the
+verification section.
 
 ## Supported Combinations
 
@@ -166,10 +167,8 @@ you probe a signal with a scope or logic analyser.
   eQEP, CAN, LEDs). The pin table above avoids them.
 
 The PRU1 pads are driven push-pull (GPO mode, pull disabled in SysConfig). They
-are expected to be 3.3 V pads, as on the other electronica2026 demos.
-FIXME: confirm the I/O voltage of these pads against the LP-AM243 schematic
-(PROC109A); it is not stated in this repo or in the SDK docs. Keep the jumpers
-short; the clock is 3.072 MHz.
+are 3.3 V pads, as on the other electronica2026 demos (confirmed by the
+user for the LP-AM243). Keep the jumpers short; the clock is 3.072 MHz.
 
 ### Before you start
 
@@ -203,13 +202,10 @@ describe each step, so they are linked instead of repeated.
    - power: 5 V / 3 A on the USB Type-C connector J10 (LD9 red means a power
      error);
    - JTAG: the USB cable to the on-board XDS110;
-   - boot mode: set the boot switches to **DEV BOOT** as shown in that
-     page, and run the "SOC Initialization" step it describes. The page
-     says that step is needed every time the LP is power-cycled.
-
-   FIXME: the exact switch positions, and whether the SOC initialization
-   script is needed for this demo, are not written here because they are not
-   stated in this repo and were not recorded at the first board run.
+   - boot mode: set the boot switches to **NO BOOT** as shown in that page.
+     No separate SOC initialization script is needed: the R5F application
+     initializes the SoC from its SysConfig settings (clocks, pin mux).
+     This is how the 2026-11-04 board run was done.
 5. **Connect, load, run.** Launch the target configuration, connect to
    `MAIN_Cortex_R5_0_0` (the SDK docs call it R5F0-0, r5fss0-0 here), load
    `pdm_audio_am243x-lp_r5fss0-0_freertos_ti-arm-clang` and run.
@@ -218,8 +214,8 @@ describe each step, so they are linked instead of repeated.
    used for the console; open it in a terminal at 115200 baud, 8 data bits, no
    parity, 1 stop bit (SDK "EVM Setup", "UART Terminal"). The demo uses the SDK
    default UART console (`CONFIG_UART_CONSOLE` on USART0, SDK default 115200
-   baud, see `example.syscfg`). FIXME: not checked on this board. The demo
-   works without the console.
+   baud, see `example.syscfg`). Checked on the board: the start-up line
+   appears. The demo works without the console.
 
 ### Build and run
 
@@ -268,29 +264,31 @@ again). Do not restart a single PRU core from the CCS register view.
 The R5F writes the whole GPCFG0, GPCFG1 and SD_CFG registers and the PRU
 program counter reset value, and halts all six ICSSG0 cores (RTU0, TX_PRU0 and
 TX_PRU1 too) before it starts its three. So the demo also runs after another
-ICSSG0 demo (uart_print, i2c_io, uart_rx) was loaded from CCS without a System
-Reset (by design; FIXME: not tried on a board).
+ICSSG0 demo (uart_print, i2c_io, uart_rx) was loaded from CCS without a
+reset (by design; not tried on the board, where every demo change went through
+the reset below).
 
-**Before running another demo: do a System Reset (or halt PRU1) and remove
-the jumpers; i2c_io drives BP.32.** The jumpers connect PRU1 outputs to PRU0
+**Before running another demo: reset the board and remove the jumpers;
+i2c_io drives BP.32.** The jumpers connect PRU1 outputs to PRU0
 pins, and PRU1 keeps driving its GPO pins (push-pull) as long as it runs, which
 it does until something resets or halts it: loading another demo's R5F image
 does not. The i2c_io demo drives SDA push-pull on PRG0_PRU0_GPO1, which is
 BP.32, and BP.32 is jumpered to PRU1_GPO1 (BP.67), channel 0's data pin here.
 Two push-pull outputs would then fight on one wire. The other pins of the table
-can clash the same way with any demo that drives them. So do a System Reset
-from the CCS debug view (or halt ICSSG0 PRU1 there), then pull all nine jumpers.
-FIXME: the exact CCS 21.0.1 menu path was not checked.
+can clash the same way with any demo that drives them. So press **SW1 (MCU
+PORZ)** on the LP, which resets the SoC and stops PRU1, then reconnect CCS to
+the target (the JTAG connection does not survive the reset) and pull all nine
+jumpers. This is the reset used for the 2026-11-04 board run.
 
 ### Check in the CCS memory browser
 
 The R5F runs in its idle loop, and the PRU cores run on their own. Connect to
 the r5fss0-0 core, open View > Memory Browser, and enable continuous refresh.
 On the 2026-11-04 board run the memory browser (format "32-Bit Hex - TI
-Style") showed live values, with the changed ones in red. FIXME: whether the
-R5F was running or halted at that time was not recorded. If CCS refuses or
-shows stale values, halt the R5F core: the PRU cores run on their own and keep
-going, and refresh the view by hand.
+Style") refreshed automatically while the R5F was running, and showed the
+changed values in red. If CCS refuses or shows stale values, halt the R5F
+core: the PRU cores run on their own and keep going, and refresh the view by
+hand.
 The ICSS shared RAM is at 0x30010000. All addresses below are global
 addresses.
 
@@ -375,20 +373,9 @@ Steps:
 8. **Which half is ready.** The half that `HALF_SEQ` just completed is
    `(HALF_SEQ - 1) & 1`. Read that half (0 = A, 1 = B). PRU0 is writing the
    other half, so read the ready half, not the other one.
-9. **Optional: memory graph of one channel.** FIXME: the dialog and field names
-   below are written from memory of the CCS Graph Properties dialog and were
-   not checked against CCS 21.0.1 or a board; the values are what is meant.
-   Tools > Graph > Single Time, then set:
-   - start address: `0x30010100 + 4 * channel` (for example 0x3001010C for
-     channel 3);
-   - acquisition buffer size: 64;
-   - display data size: 64;
-   - DSP data type: 32-bit signed integer;
-   - index increment: 8 (8 words = 32 bytes, the channel stride);
-   - sampling rate: 16000 Hz.
-
-   A graph of half A and a second graph of half B (start address 0x30010900 +
-   4 * channel) show both halves.
+9. **No memory graph.** The CCS memory graph is not reliable while the cores
+   run, so this readme does not use it. Read the columns in the memory
+   browser (step 7), or save the memory and plot it on the PC.
 
 ### Hardware results
 
@@ -503,16 +490,16 @@ the next project reads.
   write costs at most one silence batch, counted in UNDERRUN_COUNT. Whether
   such collisions happen on silicon is not known. On the board UNDERRUN_COUNT
   stayed 0 for 20 minutes, so none cost a batch in that run.
-- **`firmware/decimation_fir.h`: provenance and licence to be confirmed by
-  the author before merge.** It is a copy of the pru-simulator file (itself
-  from the audio_pipe demo) and has no licence header; where it came from is
-  not recorded, so no TI copyright was added. `fir_coefs.inc` is generated
-  from it and carries only the SPDX line.
+- **`firmware/decimation_fir.h`** is a copy of the pru-simulator file (itself
+  from the audio_pipe demo). It was written in a Claude Code session from the
+  author's description of the need: a flat audio input channel up to 8 kHz.
+  It has no licence header. `fir_coefs.inc` is generated from it and carries
+  only the SPDX line.
 - **iepClk** stays at its default (200 MHz). The demo does not use the IEP.
   Ethernet-reader work may want to set it.
-- **SysConfig GUI.** `example.syscfg` was edited by hand and validated with
-  the SysConfig command line and both builds. Open it once in the SysConfig GUI
-  and save (FIXME, open item).
+- **SysConfig.** `example.syscfg` was edited by hand and validated with the
+  SysConfig command line and both builds. It was not re-saved in the
+  SysConfig GUI, and the board run passed with it as is.
 - **Eight channels is the hard maximum**, because only 9 PRU1 GPO pins reach
   the headers (clock plus 8 data).
 - **Do not enable PRU0 SD_CLKOUT or shift-out.** The TRM routes the PRU0 SD
@@ -607,13 +594,16 @@ Final-verification numbers for the full pru-simulator suite (3 known failures, a
   SD5 to SD8 and the jumpers work.
 - The SD routing with GPCFG0 mux 3, sd8_clk as the shared clock, and the
   start-up order (RTU1, PRU1, PRU0) through the R5F.
-- The PDM clock on a scope: 3.072 MHz.
+- The PDM clock and channel 0's data on a scope (PicoScope 3416E); the
+  clock measures 3.072 MHz.
+- Boot in NO BOOT mode with the SoC set up by the R5F SysConfig, the console
+  line, live memory-browser refresh while the R5F runs, and the SW1 (MCU
+  PORZ) reset between runs.
 
-**Not yet verified (FIXME):**
+**Not verified:**
 
 - The RTU1 MSRAM latency as a number (only "it fits").
-- The PDM data pins on a scope (only the clock frequency was measured).
-- Start-up after another ICSSG0 demo without a System Reset.
+- Start-up after another ICSSG0 demo without a reset.
 
 ## Project layout
 

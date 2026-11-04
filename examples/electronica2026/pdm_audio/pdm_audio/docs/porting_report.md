@@ -334,14 +334,15 @@ the repo root (a root build dirties `pru_i2s`).
       falls by the zero-order hold of RTU1 (x0.85 at 5 kHz), as predicted;
       the readme now says so. Tone columns repeat exactly within a half, so
       the readme's "frozen column" check now applies to channels 0 to 2 only.
-- [ ] **decimation_fir.h: provenance and licence to be confirmed by the
-      author before merge.** It is a byte-identical copy of the pru-simulator
-      file (from the audio_pipe demo) and has no licence header; its origin is
-      not recorded, so no TI copyright was added (ruling R7). Once confirmed,
-      add the header here and in pru-simulator together (the harness checks
-      the identity), and decide whether `gen_fir_coefs.py` should then emit a
-      copyright line too. `fir_coefs.inc` now carries the SPDX line from the
-      generator.
+- [x] **decimation_fir.h provenance:** a byte-identical copy of the
+      pru-simulator file (from the audio_pipe demo), written in a Claude Code
+      session from the author's description of the need, a flat audio input
+      channel up to 8 kHz (user, 2026-11-04).
+- [ ] **decimation_fir.h licence header.** The file still has none, so no TI
+      copyright was added (ruling R7). If one is added, add it here and in
+      pru-simulator together (the harness checks the identity), and decide
+      whether `gen_fir_coefs.py` should then emit a copyright line too.
+      `fir_coefs.inc` carries the SPDX line from the generator.
 - [ ] **pru-simulator: `SDChannel.ovf` semantics.** The simulator sets R31[29]
       on a 28-bit accumulator overflow; the TRM defines it as the shadow
       update flag overflow (section 8). The harness patches it for this demo;
@@ -359,8 +360,8 @@ the repo root (a root build dirties `pru_i2s`).
       the other five (user, 2026-11-04: they can be ported with limitations,
       for example the lower PRU clock on AM261x). The agent had proposed
       `Npru` for am261x, am263px, am263x and am62x.
-- [ ] **SysConfig GUI re-save.** `example.syscfg` was edited by hand (section
-      6). Open it once in the GUI, check the clock and the pins, and save.
+- [x] **SysConfig GUI re-save:** not done; the hand-edited `example.syscfg`
+      (section 6) works on the board as is (user, 2026-11-04).
 - [ ] **`iepClk`** stays at its default of 200 MHz. The Ethernet-reader project
       may want to set it.
 - [ ] **DRAM0 0x1000..0x1A00** is the open-pru default share of RTU0 and
@@ -390,13 +391,14 @@ the repo root (a root build dirties `pru_i2s`).
     `*_example.c` (copied from the SDK template), while their new firmware
     files say 2026. This port now uses 2026 in `pdm_audio_example.c`
     (final review M6); `main.c` keeps the template's 2024-2025.
-- [ ] **Readme FIXMEs left after the board run:** the LP boot-switch
-      positions and SOC initialization need, the XDS110 console line, whether
-      the R5F was running while the memory browser refreshed, the I/O voltage
-      of the pads (schematic), the CCS memory-graph field names, the CCS menu
-      path of System Reset, start-up after another ICSSG0 demo without a
-      System Reset, and the PDM data pins on a scope. The PCM_COUNT spread
-      is now filled in (within 2).
+- [x] **Readme FIXMEs after the board run** (user, 2026-11-04): boot mode
+      NO BOOT, the SoC is set up by the R5F SysConfig (no separate SOC
+      initialization); console line correct; the memory browser refreshes
+      automatically while the R5F runs; pads are 3.3 V; reset between demos
+      is SW1 (MCU PORZ) plus a CCS JTAG reconnect; the memory graph is not
+      used because it is not reliable while the cores run (step 9 removed);
+      clock and data seen on the PicoScope. Not tried: start-up after another
+      ICSSG0 demo without a reset.
 - [ ] **PR.** The branch and the pru-simulator branch
       `feat/pdm-open-pru-check` (stacked on PR #106) were pushed on
       2026-11-04 at the user's request, before the board run; no PR is
