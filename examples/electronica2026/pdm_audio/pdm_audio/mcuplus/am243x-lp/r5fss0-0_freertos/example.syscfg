@@ -28,7 +28,6 @@ const section8        = section.addInstance();
 const section9        = section.addInstance();
 const section10       = section.addInstance();
 const section11       = section.addInstance();
-const section12       = section.addInstance();
 
 const debug_log  = scripting.addModule("/kernel/dpl/debug_log");
 const dpl_cfg = scripting.addModule("/kernel/dpl/dpl_cfg");
@@ -99,7 +98,7 @@ general1.$name        = "CONFIG_GENERAL0";
 general1.linker.$name = "TIARMCLANG0";
 
 region1.$name                               = "MEMORY_REGION_CONFIGURATION0";
-region1.memory_region.create(10);
+region1.memory_region.create(9);
 region1.memory_region[0].type               = "TCMA_R5F";
 region1.memory_region[0].$name              = "R5F_VECS";
 region1.memory_region[0].size               = 0x40;
@@ -110,45 +109,42 @@ region1.memory_region[1].size               = 0x7FC0;
 region1.memory_region[2].type               = "TCMB_R5F";
 region1.memory_region[2].$name              = "R5F_TCMB0";
 region1.memory_region[2].size               = 0x8000;
-region1.memory_region[3].$name              = "NON_CACHE_MEM";
+region1.memory_region[3].$name              = "MSRAM";
 region1.memory_region[3].auto               = false;
-region1.memory_region[3].manualStartAddress = 0x70060000;
-region1.memory_region[3].size               = 0x8000;
-region1.memory_region[4].$name              = "MSRAM";
+region1.memory_region[3].manualStartAddress = 0x70080000;
+region1.memory_region[3].size               = 0x40000;
+region1.memory_region[4].type               = "FLASH";
+region1.memory_region[4].$name              = "FLASH";
 region1.memory_region[4].auto               = false;
-region1.memory_region[4].manualStartAddress = 0x70080000;
-region1.memory_region[4].size               = 0x40000;
-region1.memory_region[5].type               = "FLASH";
-region1.memory_region[5].$name              = "FLASH";
+region1.memory_region[4].manualStartAddress = 0x60100000;
+region1.memory_region[4].size               = 0x80000;
+region1.memory_region[5].$name              = "USER_SHM_MEM";
 region1.memory_region[5].auto               = false;
-region1.memory_region[5].manualStartAddress = 0x60100000;
-region1.memory_region[5].size               = 0x80000;
-region1.memory_region[6].$name              = "USER_SHM_MEM";
+region1.memory_region[5].manualStartAddress = 0x701D0000;
+region1.memory_region[5].size               = 0x180;
+region1.memory_region[5].isShared           = true;
+region1.memory_region[5].shared_cores       = ["m4fss0-0","r5fss0-1","r5fss1-0","r5fss1-1"];
 region1.memory_region[6].auto               = false;
-region1.memory_region[6].manualStartAddress = 0x701D0000;
-region1.memory_region[6].size               = 0x180;
+region1.memory_region[6].manualStartAddress = 0x701D0180;
+region1.memory_region[6].size               = 0x3E80;
+region1.memory_region[6].$name              = "LOG_SHM_MEM";
 region1.memory_region[6].isShared           = true;
 region1.memory_region[6].shared_cores       = ["m4fss0-0","r5fss0-1","r5fss1-0","r5fss1-1"];
 region1.memory_region[7].auto               = false;
-region1.memory_region[7].manualStartAddress = 0x701D0180;
-region1.memory_region[7].size               = 0x3E80;
-region1.memory_region[7].$name              = "LOG_SHM_MEM";
+region1.memory_region[7].manualStartAddress = 0x701D4000;
+region1.memory_region[7].size               = 0xC000;
+region1.memory_region[7].$name              = "RTOS_NORTOS_IPC_SHM_MEM";
 region1.memory_region[7].isShared           = true;
 region1.memory_region[7].shared_cores       = ["m4fss0-0","r5fss0-1","r5fss1-0","r5fss1-1"];
-region1.memory_region[8].auto               = false;
-region1.memory_region[8].manualStartAddress = 0x701D4000;
-region1.memory_region[8].size               = 0xC000;
-region1.memory_region[8].$name              = "RTOS_NORTOS_IPC_SHM_MEM";
-region1.memory_region[8].isShared           = true;
-region1.memory_region[8].shared_cores       = ["m4fss0-0","r5fss0-1","r5fss1-0","r5fss1-1"];
 /* 128 KB clip buffer read by RTU1, right after MSRAM; uncached through
- * CONFIG_MPU_REGION5. Clear of MSRAM 0x70080000..0x700BFFFF, NON_CACHE_MEM,
- * the shared regions at 0x701D0000.. and the SBL (0x70000000..0x7007FFFF,
- * 0x70180000..0x701BFFFF). */
-region1.memory_region[9].$name              = "PDM_CLIPS";
-region1.memory_region[9].auto               = false;
-region1.memory_region[9].manualStartAddress = 0x700C0000;
-region1.memory_region[9].size               = 0x20000;
+ * CONFIG_MPU_REGION5. Clear of MSRAM 0x70080000..0x700BFFFF, the shared
+ * regions at 0x701D0000.. and the SBL (0x70000000..0x7007FFFF,
+ * 0x70180000..0x701BFFFF). The NON_CACHE_MEM region of the template is
+ * dropped: it had no MPU entry (so it was cached) and nothing used it. */
+region1.memory_region[8].$name              = "PDM_CLIPS";
+region1.memory_region[8].auto               = false;
+region1.memory_region[8].manualStartAddress = 0x700C0000;
+region1.memory_region[8].size               = 0x20000;
 
 section1.$name                        = "Vector Table";
 section1.load_memory                  = "R5F_VECS";
@@ -260,20 +256,12 @@ section10.output_section.create(1);
 section10.output_section[0].$name     = ".bss.ipc_vring_mem";
 section10.output_section[0].alignment = 0;
 
-section11.$name                       = "Non Cacheable Memory";
-section11.load_memory                 = "NON_CACHE_MEM";
+section11.$name                       = "PDM Clips";
+section11.load_memory                 = "PDM_CLIPS";
 section11.group                       = false;
-section11.type                        = "NOLOAD";
 section11.output_section.create(1);
-section11.output_section[0].$name     = ".bss.nocache";
-section11.output_section[0].alignment = 0;
-
-section12.$name                       = "PDM Clips";
-section12.load_memory                 = "PDM_CLIPS";
-section12.group                       = false;
-section12.output_section.create(1);
-section12.output_section[0].$name     = ".pdm_clips";
-section12.output_section[0].alignment = 16;
+section11.output_section[0].$name     = ".pdm_clips";
+section11.output_section[0].alignment = 16;
 
 debug_log.enableUartLog        = true;
 debug_log.uartLog.$name        = "CONFIG_UART_CONSOLE";

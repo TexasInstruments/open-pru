@@ -37,6 +37,7 @@
 #include "ti_drivers_open_close.h"
 #include "ti_board_open_close.h"
 #include <drivers/pruicss.h>
+#include <drivers/hw_include/hw_types.h>
 
 #include "pdm8_shared.h"
 /* Defines pdm_clip_buffer (section .pdm_clips, linked into the uncached
@@ -67,17 +68,21 @@
  *  Start-up order (pdm8_shared.inc, "Start"):
  *    1. halt all three cores (a rerun without power cycle finds them
  *       running);
- *    2. GPCFG0 PRU0 mux = SD (3), GPCFG1 PRU1 mux = GP (0); PRU0's c24 =
- *       its DRAM0 (CTBIR0 C24_BLK_INDEX = 0);
+ *    2. write GPCFG0 (PRU0 mux = SD, 3), GPCFG1 (all 0: PRU1 GP mux,
+ *       parallel GPO) and PRU0_SD_CFG (no load share, no Manchester) as
+ *       whole registers, so that a demo run before this one (without a
+ *       System Reset) leaves nothing behind; PRU0's c24 = its DRAM0 (CTBIR0
+ *       C24_BLK_INDEX = 0);
  *    3. clear the shared-RAM header and both PCM halves (the whole 64 KB
  *       shared RAM) and the DRAMs; the IPC scratchpad state is cleared by
  *       the cores' first instructions (RTU1 start nonce, PRU1 ack clear);
  *    4. write the header: MAGIC, N_CH, FRAMES_PER_HALF, PCM_RATE,
  *       CLIP_ADDR (global address of pdm_clip_buffer) and CLIP_FRAMES;
  *    5. load the three firmware arrays into IRAM, cores still halted;
- *    6. start RTU1, then PRU1, then PRU0. BOTH RTU1 and PRU1 must restart
- *       together, RTU1 first: restarting only one of them leaves the pair
- *       stuck. PRU1 holds the clock low until batch 0, so PRU0 started
+ *    6. set each core's reset PC (CTRL PCTR_RST_VAL) to 0, the entry of
+ *       every firmware, pulse the soft reset and start RTU1, then PRU1,
+ *       then PRU0. BOTH RTU1 and PRU1 must restart together, RTU1 first:
+ *       restarting only one of them leaves the pair stuck. PRU1 holds the clock low until batch 0, so PRU0 started
  *       last sees a running clock;
  *    7. the R5F loops idle.
  *
@@ -106,8 +111,72 @@ _Static_assert((PDM8_HDR_MAGIC == 0x00U) && (PDM8_HDR_N_CH == 0x04U) &&
                (PDM8_HDR_CLIP_ADDR == 0x10U) && (PDM8_HDR_CLIP_FRAMES == 0x14U),
                "the R5F header words must be contiguous from PDM8_HDR_MAGIC");
 
+/*
+ * ICSSG CFG register values (AM64x/AM243x TRM SPRUIM2H, Tables 6-573, 6-575,
+ * 6-595; field macros from cslr_icss_g.h). Bits 31-30 of GPCFGn are
+ * reserved (R/W, reset X): written back as read. Every other GPCFGn field
+ * is written with its value after reset (0h), except PRU0's mux:
+ *   [29-26] PR1_PRUn_GP_MUX_SEL  PRU0: 3h = SD mode; PRU1: 0h = GP
+ *   [25]    PRUn_GPO_SH1_SEL     read only
+ *   [24-20] PRUn_GPO_DIV1        0h (div 1.0, shift mode only)
+ *   [19-15] PRUn_GPO_DIV0        0h (div 1.0, shift mode only)
+ *   [14]    PRUn_GPO_MODE        0h = parallel (direct R30 -> GPO)
+ *   [13]    PRUn_GPI_SB          R/W1C: 1 is written, which clears a
+ *                                stale start-bit flag (and the shift
+ *                                register) left by a shift-mode demo; it
+ *                                reads 0h afterwards, as after reset
+ *   [12-8]  PRUn_GPI_DIV1        0h (div 1.0, shift mode only)
+ *   [7-3]   PRUn_GPI_DIV0        0h (div 1.0, shift mode only)
+ *   [2]     PRUn_GPI_CLK_MODE    0h (positive edge, 16-bit capture only)
+ *   [1-0]   PRUn_GPI_MODE        0h = direct connect of r31_status[29:0]
+ * so GPCFG0 reads 0x0C000000 and GPCFG1 reads 0 (plus the reserved bits).
+ * PRU0_SD_CFG (+0x44, CSL name SDPRU0CLKDIV): bits [14-8] are cleared, the
+ * read-only/reserved rest is written back as read:
+ *   [14-11] CH_SEL         0h (selects which SD channel the Manchester
+ *                              status fields show)
+ *   [10]    MAN_DATA_NV_EN 0h
+ *   [9]     MAN_SD_EN      0h = Manchester decode off (CSL ..._SD_MAN_EN)
+ *   [8]     SHARE_EN       0h = PRU0 owns SD0..SD8 (no RTU0/TX_PRU0 share)
+ */
+#define PDM_AUDIO_GPCFG_RESERVED    (0xC0000000U)
+/* GPI_SB (W1C) and GPO_SH1_SEL (RO) are at bits 13 and 25 in both registers */
+#define PDM_AUDIO_GPCFG_SB_CLEAR    (CSL_ICSSCFG_GPCFG0_PRU0_GPI_SB_MASK)
+#define PDM_AUDIO_GPCFG_NOCHECK     (PDM_AUDIO_GPCFG_RESERVED | \
+                                     CSL_ICSSCFG_GPCFG0_PRU0_GPO_SH1_SEL_MASK)
+#define PDM_AUDIO_GPCFG0_VALUE \
+    ((uint32_t)PRUICSS_GP_MUX_SEL_MODE_SD << CSL_ICSSCFG_GPCFG0_PR1_PRU0_GP_MUX_SEL_SHIFT)
+#define PDM_AUDIO_GPCFG1_VALUE \
+    ((uint32_t)PRUICSS_GP_MUX_SEL_MODE_GP << CSL_ICSSCFG_GPCFG1_PR1_PRU1_GP_MUX_SEL_SHIFT)
+#define PDM_AUDIO_SD_CFG_CLEAR \
+    (CSL_ICSSCFG_SDPRU0CLKDIV_PRU0_SD_CH_SEL_MASK | \
+     CSL_ICSSCFG_SDPRU0CLKDIV_PRU0_SD_MAN_NV_DATA_EN_MASK | \
+     CSL_ICSSCFG_SDPRU0CLKDIV_PRU0_SD_MAN_EN_MASK | \
+     CSL_ICSSCFG_SDPRU0CLKDIV_PRU0_SD_SHARE_EN_MASK)
+
+_Static_assert((PDM_AUDIO_GPCFG0_VALUE & ~CSL_ICSSCFG_GPCFG0_PR1_PRU0_GP_MUX_SEL_MASK) == 0U,
+               "GPCFG0: only the mux field is non-zero");
+_Static_assert(PDM_AUDIO_GPCFG0_VALUE == 0x0C000000U, "GPCFG0 = SD mux, rest reset value");
+_Static_assert(PDM_AUDIO_GPCFG1_VALUE == 0U, "GPCFG1 = reset value");
+_Static_assert(PDM_AUDIO_SD_CFG_CLEAR == 0x00007F00U, "SD_CFG bits 14-8");
+_Static_assert((CSL_ICSSCFG_GPCFG0_PRU0_GPI_SB_MASK == CSL_ICSSCFG_GPCFG1_PRU1_GPI_SB_MASK) &&
+               (CSL_ICSSCFG_GPCFG0_PRU0_GPO_SH1_SEL_MASK == CSL_ICSSCFG_GPCFG1_PRU1_GPO_SH1_SEL_MASK),
+               "GPCFG0 and GPCFG1 share the field layout");
+
 /** \brief Handle to the ICSSG0 instance (CONFIG_PRU_ICSS0 in SysConfig) */
 PRUICSS_Handle gPruIcss0Handle;
+
+/*
+ * Set a halted core's reset PC: CTRL[31-16] PCTR_RST_VAL (CSL
+ * PCOUNTER_RST_VAL) = 0, read-modify-write. The soft reset loads the PC
+ * from this field; PRUICSS_resetCore() only pulses SOFT_RST_N and leaves
+ * the field as an earlier program set it. The field is at the same bits in
+ * the PRU0, PRU1 and RTU1 CTRL registers, each at its own base.
+ */
+static void pdm_audio_reset_pc0(uintptr_t ctrl, uint32_t rstValMask)
+{
+    HW_WR_REG32(ctrl, HW_RD_REG32(ctrl) & ~rstValMask);
+    DebugP_assert((HW_RD_REG32(ctrl) & rstValMask) == 0U);
+}
 
 /* Write a firmware array to a core's IRAM; the core must be halted. */
 static void pdm_audio_load(PRUICSS_Handle handle, uint32_t iram,
@@ -124,6 +193,8 @@ void pdm_audio_example_main(void *args)
     int32_t  status;
     uint32_t words;
     uint32_t header[PDM_AUDIO_HDR_WORDS];
+    uint32_t reg;
+    const PRUICSS_HwAttrs *hwAttrs;
 
     Drivers_open();
 
@@ -132,6 +203,11 @@ void pdm_audio_example_main(void *args)
 
     gPruIcss0Handle = PRUICSS_open(CONFIG_PRU_ICSS0);
     DebugP_assert(gPruIcss0Handle != NULL);
+    /* Register bases for what the driver has no API for (GPCFG reserved
+     * bits, SD_CFG, PCTR_RST_VAL); the motor control SDK SDFM driver uses
+     * the same hwAttrs bases. */
+    hwAttrs = (const PRUICSS_HwAttrs *)gPruIcss0Handle->hwAttrs;
+    DebugP_assert(hwAttrs != NULL);
 
     /* 1. Halt all three cores (RTU1, PRU1, PRU0) */
     status = PRUICSS_disableCore(gPruIcss0Handle, PRUICSS_RTU_PRU1);
@@ -141,16 +217,30 @@ void pdm_audio_example_main(void *args)
     status = PRUICSS_disableCore(gPruIcss0Handle, PRUICSS_PRU0);
     DebugP_assert(SystemP_SUCCESS == status);
 
-    /* 2. GPCFG0: PRU0 GPI pins feed the sigma-delta interface (SD mode);
-     *    without it PRU0 waits forever for SD data (PCM_COUNT stays 0).
-     *    GPCFG1: PRU1 R30 drives its GPO pins directly (GP mode).
+    /* 2. GPCFG0: PRU0 GPI pins feed the sigma-delta interface (SD mode),
+     *    every other field at its reset value; without SD mode PRU0 waits
+     *    forever for SD data (PCM_COUNT stays 0).
+     *    GPCFG1: all fields at reset: GP mux, PRU1 R30 drives its GPO pins
+     *    directly (parallel GPO mode), direct GPI.
+     *    PRU0_SD_CFG: no load share, Manchester decode off.
      *    PRU0 addresses its DRAM0 through c24 at local 0. */
-    status = PRUICSS_setGpMuxSelect(gPruIcss0Handle, PRUICSS_PRU0,
-                                    PRUICSS_GP_MUX_SEL_MODE_SD);
-    DebugP_assert(SystemP_SUCCESS == status);
-    status = PRUICSS_setGpMuxSelect(gPruIcss0Handle, PRUICSS_PRU1,
-                                    PRUICSS_GP_MUX_SEL_MODE_GP);
-    DebugP_assert(SystemP_SUCCESS == status);
+    reg = HW_RD_REG32(hwAttrs->cfgRegBase + CSL_ICSSCFG_GPCFG0);
+    HW_WR_REG32(hwAttrs->cfgRegBase + CSL_ICSSCFG_GPCFG0,
+                (reg & PDM_AUDIO_GPCFG_RESERVED) | PDM_AUDIO_GPCFG_SB_CLEAR |
+                PDM_AUDIO_GPCFG0_VALUE);
+    reg = HW_RD_REG32(hwAttrs->cfgRegBase + CSL_ICSSCFG_GPCFG1);
+    HW_WR_REG32(hwAttrs->cfgRegBase + CSL_ICSSCFG_GPCFG1,
+                (reg & PDM_AUDIO_GPCFG_RESERVED) | PDM_AUDIO_GPCFG_SB_CLEAR |
+                PDM_AUDIO_GPCFG1_VALUE);
+    reg = HW_RD_REG32(hwAttrs->cfgRegBase + CSL_ICSSCFG_SDPRU0CLKDIV);
+    HW_WR_REG32(hwAttrs->cfgRegBase + CSL_ICSSCFG_SDPRU0CLKDIV,
+                reg & ~PDM_AUDIO_SD_CFG_CLEAR);
+    DebugP_assert((HW_RD_REG32(hwAttrs->cfgRegBase + CSL_ICSSCFG_GPCFG0) &
+                   ~PDM_AUDIO_GPCFG_NOCHECK) == PDM_AUDIO_GPCFG0_VALUE);
+    DebugP_assert((HW_RD_REG32(hwAttrs->cfgRegBase + CSL_ICSSCFG_GPCFG1) &
+                   ~PDM_AUDIO_GPCFG_NOCHECK) == PDM_AUDIO_GPCFG1_VALUE);
+    DebugP_assert((HW_RD_REG32(hwAttrs->cfgRegBase + CSL_ICSSCFG_SDPRU0CLKDIV) &
+                   PDM_AUDIO_SD_CFG_CLEAR) == 0U);
     status = PRUICSS_setConstantTblEntry(gPruIcss0Handle, PRUICSS_PRU0,
                                          PRUICSS_CONST_TBL_ENTRY_C24, 0U);
     DebugP_assert(SystemP_SUCCESS == status);
@@ -185,8 +275,14 @@ void pdm_audio_example_main(void *args)
     pdm_audio_load(gPruIcss0Handle, PRUICSS_IRAM_PRU(0),
                    PRU0Firmware_0, sizeof(PRU0Firmware_0));
 
-    /* 6. Reset (PC = 0, the entry of each firmware) and start: RTU1, then
-     *    PRU1, then PRU0 */
+    /* 6. Reset PC = 0 (every firmware's entry point is at IRAM 0), pulse
+     *    the soft reset, then start: RTU1, then PRU1, then PRU0 */
+    pdm_audio_reset_pc0(hwAttrs->rtu1CtrlRegBase + CSL_ICSS_G_PR1_RTU1_PR1_RTU1_IRAM_CONTROL,
+                        CSL_ICSS_G_PR1_RTU1_PR1_RTU1_IRAM_CONTROL_PCOUNTER_RST_VAL_MASK);
+    pdm_audio_reset_pc0(hwAttrs->pru1CtrlRegBase + CSL_ICSS_G_PR1_PDSP1_IRAM_CONTROL,
+                        CSL_ICSS_G_PR1_PDSP1_IRAM_CONTROL_PCOUNTER_RST_VAL_MASK);
+    pdm_audio_reset_pc0(hwAttrs->pru0CtrlRegBase + CSL_ICSS_G_PR1_PDSP0_IRAM_CONTROL,
+                        CSL_ICSS_G_PR1_PDSP0_IRAM_CONTROL_PCOUNTER_RST_VAL_MASK);
     status = PRUICSS_resetCore(gPruIcss0Handle, PRUICSS_RTU_PRU1);
     DebugP_assert(SystemP_SUCCESS == status);
     status = PRUICSS_resetCore(gPruIcss0Handle, PRUICSS_PRU1);
