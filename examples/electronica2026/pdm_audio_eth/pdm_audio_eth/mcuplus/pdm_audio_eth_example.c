@@ -174,6 +174,9 @@ _Static_assert((CSL_ICSSCFG_GPCFG0_PRU0_GPI_SB_MASK == CSL_ICSSCFG_GPCFG1_PRU1_G
 
 /** \brief Handle to the ICSSG0 instance (CONFIG_PRU_ICSS0 in SysConfig) */
 PRUICSS_Handle gPruIcss0Handle;
+_Static_assert((PDM_CLIP_FRAMES & (PDM_CLIP_FRAMES - 1U)) == 0U,
+               "ICSSG1 PRU1 wraps the PC input index with CLIP_FRAMES - 1: power of two");
+
 /** \brief Handle to the ICSSG1 instance (CONFIG_PRU_ICSS1 in SysConfig) */
 PRUICSS_Handle gPruIcss1Handle;
 

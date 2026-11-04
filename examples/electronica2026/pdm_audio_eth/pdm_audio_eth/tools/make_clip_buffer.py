@@ -8,8 +8,8 @@ the R5F application needs one frame-interleaved buffer: sample (frame f,
 channel c) is element f*8 + c. This tool loads the 8 WAV files in clips/
 and writes mcuplus/pdm_clips.h with
 
-    const int16_t pdm_clip_buffer[16000*8];     /* section ".pdm_clips" */
-    #define PDM_CLIP_FRAMES 16000
+    const int16_t pdm_clip_buffer[16384*8];     /* section ".pdm_clips" */
+    #define PDM_CLIP_FRAMES 16384
 
 Channel order (the order of CLIP_FILES below, also in clips/SOURCES.md):
     ch0 speech_librivox   ch1 chirp_lin_100_7000   ch2 chirp_log_100_7000
@@ -21,8 +21,9 @@ that repo compares the header to it): 16 kHz, 16-bit, mono or the first
 channel of a multi-channel file, at most 8192 frames, normalised so that
 max |x| == 16384 (0.5 FS), and a silent clip stays all zero.
 
-Looping: every channel has exactly PDM_CLIP_FRAMES (16000 = 1 s) frames. In
-pdm_audio_eth the buffer is also the PC input ring (docs/design.md 5.1).
+Looping: every channel has exactly PDM_CLIP_FRAMES (16384 = 1.024 s) frames.
+In pdm_audio_eth the buffer is also the PC input ring (docs/design.md 5.1);
+its size is a power of two so ICSSG1 PRU1 can wrap an index with an AND.
 A clip shorter than that repeats from its first frame until the buffer is
 full (the 4000-frame tones and chirps play twice, the wrap is at frame 4000,
 not at the end of the buffer). A clip longer than that is truncated, so the
@@ -52,7 +53,7 @@ HEADER = PROJECT / "mcuplus" / "pdm_clips.h"
 PCM_RATE = 16000
 CLIP_MAX_FRAMES = 8192        # same limit as pdm_layout.load_clip
 NORM_PEAK = 16384             # 0.5 FS
-FRAMES = 16000                # frames in the buffer: 1 s, 256 KB (PC input ring)
+FRAMES = 16384                # 1.024 s, 256 KB, power of two (PC input ring)
 CHANNELS = 8
 SECTION = ".pdm_clips"
 PER_LINE = 16                 # int16 values per line of the header

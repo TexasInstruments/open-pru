@@ -22,7 +22,13 @@
 ;                 is not last seq + 1, first / last IEP time
 ;       CONTROL   from bank B: 1 = zero the counters, 2 = TPUT_TX_LEN = arg1
 ;                 then TPUT_TX_COUNT = arg0, 3 = REPORT_REQ = 1, else RX_BAD++
-;       AUDIO_IN  RX_AUDIO++ (stored into the clip buffer in Task 12)
+;       AUDIO_IN  first_index must be a multiple of 64 (else RX_BAD++);
+;                 RX_AUDIO++, and the 1024 PCM bytes (frame bytes 38..1061)
+;                 are stored while they arrive, bank by bank, to the clip
+;                 buffer in MSRAM at CLIP_ADDR + (first_index & (CLIP_FRAMES
+;                 - 1)) x 16 (CLIP_FRAMES is a power of two, ETH1_CLIP_*
+;                 written by the R5F; 64 frames never wrap inside a frame);
+;                 LAST_IN_END = first_index + 64
 ; The rest of the frame is drained until EOF. The counters RX_FRAMES ..
 ; LAST_IN_END live in R24..R28 and are written to the shared RAM after every
 ; frame.
@@ -30,14 +36,17 @@
 ; Timing: a 32-byte bank fills every 256 ns = 85 cycles at 333 MHz, and a
 ; bank is overwritten 512 ns after it was full. The longest bank-A path
 ; (TPUT_DATA: 32-byte LBCO + SBCO of the TPUT block, IEP read) is about 45
-; cycles; the longest bank-B path (CONTROL reset) about 20.
+; cycles; the longest bank-B path (CONTROL reset) about 20. AUDIO_IN stores
+; each 32-byte bank with one SBBO to MSRAM (a posted write, as the HIL
+; example's RX path to ICSSG0 DMEM).
 ;
 ; Registers:
 ;   R0, R1   scratch; R1.w0 keeps body bytes 0..1 from bank A for bank B
 ;   R2..R18  XIN target (R18.b0 = RX_L2 write position)
 ;   R19.b0   action for bank B (ACT_*)
 ;   R20      seq of the current frame
-;   R21, R22 scratch (IEP time, MAC, CONTROL fields)
+;   R21, R22 scratch (IEP time, MAC, CONTROL fields); AUDIO_IN: R21 PCM
+;            bytes left, R22 MSRAM destination
 ;   R23      seq of the last TPUT_DATA frame
 ;   R24..R28 RX_FRAMES, RX_AUDIO, RX_FOREIGN, RX_BAD, LAST_IN_END
 ;   R29      IEP0 base (local)
@@ -48,6 +57,9 @@
 ACT_NONE            .set    0
 ACT_PING            .set    1
 ACT_CTL             .set    2
+ACT_AIN             .set    3
+PCM_IN_BYTES        .set    1024        ; 64 frames x 8 ch x int16
+PCM_IN_BANK1        .set    26          ; frame bytes 38..63 in bank B
 BOARD_MAC_LO        .set    0x4D5D0002  ; dst bytes 0..3: 02 00 5D 4D
 BOARD_MAC_HI        .set    0x0100      ; dst bytes 4..5: 00 01
 ETHERTYPE_LE        .set    0xB588      ; bytes 12, 13 = 88 B5 read as LE w0
@@ -111,7 +123,10 @@ a_ctl:
     qba     wait_b
 
 a_audio:
+    and     r0.b0, r9.b2, 0x3F          ; first_index (bytes 30..33) % 64
+    qbne    bad, r0.b0, 0
     add     r25, r25, 1                 ; RX_AUDIO
+    ldi     r19.b0, ACT_AIN
     qba     wait_b
 
 a_tput:
@@ -151,6 +166,7 @@ wait_b:
 b_ready:
     qbeq    drain_a, r19.b0, ACT_NONE
     qbeq    b_ping, r19.b0, ACT_PING
+    qbeq    b_ain, r19.b0, ACT_AIN
 
     ; CONTROL: cmd = frame bytes 30..33, arg0 = 34..37, arg1 = 38..41
     mov     r21.w0, r1.w0
@@ -190,6 +206,58 @@ b_ping:
     sbco    &r21, c28, ETH1_PING_PC_NS, 8
     add     r0, r20, 1
     sbco    &r0, c28, ETH1_PING_REQ, 4          ; last: PRU0 answers
+
+; ---- AUDIO_IN: store the PCM to the clip buffer as it arrives -----------
+b_ain:
+    mov     r21.w0, r1.w0               ; first_index = frame bytes 30..33
+    mov     r21.w2, r2.w0
+    add     r28, r21, ETH_AI_FRAMES     ; LAST_IN_END
+    lbco    &r0, c28, ETH1_CLIP_ADDR, 8 ; R0 CLIP_ADDR, R1 CLIP_FRAMES
+    sub     r1, r1, 1
+    and     r22, r21, r1
+    lsl     r22, r22, 4                 ; x 16 B per frame
+    add     r22, r22, r0
+    sbbo    &r3.b2, r22, 0, PCM_IN_BANK1        ; frame bytes 38..63
+    add     r22, r22, PCM_IN_BANK1
+    ldi     r21, PCM_IN_BYTES - PCM_IN_BANK1
+ain_a:
+    xin     ICSS_RXL2_SIDEA, &r2, 65
+    qbbs    ain_eof_a, r31, ICSS_RX_EOF_BIT
+    qbgt    ain_a, r18.b0, 33
+    qbgt    ain_part_a, r21, 32         ; fewer than 32 bytes left
+    sbbo    &r2, r22, 0, 32
+    add     r22, r22, 32
+    sub     r21, r21, 32
+ain_b:
+    xin     ICSS_RXL2_SIDEB, &r2, 65
+    qbbs    ain_eof_b, r31, ICSS_RX_EOF_BIT
+    qblt    ain_b, r18.b0, 32
+    qbgt    ain_part_b, r21, 32
+    sbbo    &r2, r22, 0, 32
+    add     r22, r22, 32
+    sub     r21, r21, 32
+    qba     ain_a
+ain_part_a:
+    mov     r0.b0, r21.b0
+    sbbo    &r2, r22, 0, b0
+    ldi     r21, 0
+    qba     ain_b
+ain_part_b:
+    mov     r0.b0, r21.b0
+    sbbo    &r2, r22, 0, b0
+    ldi     r21, 0
+    qba     ain_a
+ain_eof_a:
+    xin     ICSS_RXL2_SIDEA, &r2, 65    ; last bank, partly filled
+    qba     ain_tail
+ain_eof_b:
+    xin     ICSS_RXL2_SIDEB, &r2, 65
+ain_tail:
+    qbeq    end_frame, r21, 0
+    qblt    end_frame, r21, 32          ; frame shorter than an AUDIO_IN
+    mov     r0.b0, r21.b0
+    sbbo    &r2, r22, 0, b0             ; frame bytes 1056..1061
+    qba     end_frame
 
 ; ---- drain the rest of the frame until EOF ------------------------------
 drain_a:

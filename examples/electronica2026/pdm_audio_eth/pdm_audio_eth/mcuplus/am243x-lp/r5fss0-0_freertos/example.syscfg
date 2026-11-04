@@ -144,7 +144,7 @@ region1.memory_region[7].size               = 0xC000;
 region1.memory_region[7].$name              = "RTOS_NORTOS_IPC_SHM_MEM";
 region1.memory_region[7].isShared           = true;
 region1.memory_region[7].shared_cores       = ["m4fss0-0","r5fss0-1","r5fss1-0","r5fss1-1"];
-/* 256 KB clip buffer read by RTU1 (1 s, 16000 frames; also the PC input
+/* 256 KB clip buffer read by RTU1 (1.024 s, 16384 frames; also the PC input
  * ring that ICSSG1 PRU1 writes), right after MSRAM, 0x700C0000..0x700FFFFF;
  * uncached through CONFIG_MPU_REGION5. Clear of MSRAM 0x70080000..0x700BFFFF, the shared
  * regions at 0x701D0000.. and the SBL (0x70000000..0x7007FFFF,

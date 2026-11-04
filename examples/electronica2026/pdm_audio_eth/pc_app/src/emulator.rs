@@ -35,7 +35,7 @@ impl Default for EmuConfig {
     fn default() -> Self {
         EmuConfig {
             audio_out: true,
-            clip_frames: 16000,
+            clip_frames: 16384,
             pipeline_frames: 40,
             drop_every_nth_out: None,
             drop_every_nth_pong: None,
