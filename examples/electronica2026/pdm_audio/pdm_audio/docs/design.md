@@ -153,6 +153,12 @@ SINC3 window is 96 SD clocks = **10 416.7 cycles**.
   mic-array project.
 - Budget: ~4 300 of 10 417 cycles worst-case window (~42 %), extrapolated from the 2-ch
   measurement. Re-measure it in the simulator at 3 channels.
+  *Refined in implementation (Task 4):* measured at 3 channels, w_comb 48, w_fir 920,
+  spin 1, wrap 3 cycles, so 8 channels = 8·48 + 4·920 + 7·1 + 3 = **4 074 cycles (39 %)**;
+  pessimistic (every FIR input negative, shadows one PDM period apart) 4 439 (43 %).
+  `HALF_SEQ` is published by whichever channel is the N_CH-th to write frame 63 of the
+  half (a per-half done counter in PRU0 DRAM0 0x7F8), so the rule holds for 3 and 8
+  channels: with the stagger the last one is the last odd channel, not channel N_CH−1.
 
 **Budget checkpoint and fallback (decided by the user).** Before the PRU0, R5F and board
 work starts, the builder measures RTU1's cycles per 28-period batch at 8 channels in the
