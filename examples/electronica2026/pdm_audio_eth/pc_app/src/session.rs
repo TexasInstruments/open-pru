@@ -142,8 +142,8 @@ pub fn stream(link: &mut dyn Link, set: &InputSet, capture: Option<&Path>, lead:
             ));
         }
         k.tick(link)?;
-        if let Some(f) = link.recv(Duration::from_millis(1))? {
-            if let Ok((h, Body::AudioOut { status, pcm }, _)) = decode(&f.data) {
+        if let Some(f) = link.recv(Duration::from_millis(1))?
+            && let Ok((h, Body::AudioOut { status, pcm }, _)) = decode(&f.data) {
                 k.audio();
                 out.push(&status, &pcm, h.ts, f.t_ns);
                 pacer.on_status(&status, f.t_ns);
@@ -152,7 +152,6 @@ pub fn stream(link: &mut dyn Link, set: &InputSet, capture: Option<&Path>, lead:
                     o.write(&v)?;
                 }
             }
-        }
         while done_at.is_none() {
             let Some(first) = pacer.next_due(now_ns()) else { break };
             let block = send_block(link, set, pos, first, seq)?;

@@ -174,12 +174,11 @@ impl Emulator {
 
     /// Queue everything that is due at `now`.
     fn produce(&mut self, now: u64) {
-        if let Some(ms) = self.cfg.reset_after_ms {
-            if now >= self.created + ms * 1_000_000 {
+        if let Some(ms) = self.cfg.reset_after_ms
+            && now >= self.created + ms * 1_000_000 {
                 self.cfg.reset_after_ms = None;
                 self.reset_board();
             }
-        }
         let bns = self.board_ns(now);
         if self.cfg.audio_out {
             let total = self.rtu1_total(bns);

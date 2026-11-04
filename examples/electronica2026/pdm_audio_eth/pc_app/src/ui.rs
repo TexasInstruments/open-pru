@@ -26,6 +26,8 @@ use crate::spectro::{diff_column, Spectrogram, COLUMNS};
 /// 0.09 s of audio per minute of simulation).
 pub const SIM_TEXT: &str = "about 11 min of simulation per second of audio";
 const BINS: usize = 129;
+/// Clip buffer / PC input ring size (frames).
+const RING_FRAMES: u64 = 16384;
 
 /// Numbers from the network thread.
 #[derive(Clone, Debug, Default)]
@@ -335,6 +337,10 @@ impl App {
         while let Ok(m) = self.rx.try_recv() {
             match m {
                 NetMsg::Out(v) => {
+                    if let (Some((k0, _)), Some(old)) = (v.first(), self.out_newest)
+                        && k0 + RING_FRAMES < old {
+                            self.pending_in.clear(); // board reset: drop the old run's input
+                        }
                     if let Some((k, _)) = v.last() {
                         self.out_newest = Some(*k);
                     }
@@ -375,6 +381,11 @@ impl App {
         let (Some(inp), Some(k)) = (self.inp.as_mut(), self.out_newest) else { return };
         let lag = self.stats.input.as_ref().and_then(|i| i.lag).unwrap_or(0);
         let limit = k as i64 + lag;
+        // input more than two rings ahead of the output can never play (stale
+        // after a pacer restart): drop it from the head
+        while self.pending_in.front().is_some_and(|(i, _)| *i as i64 > limit + 2 * RING_FRAMES as i64) {
+            self.pending_in.pop_front();
+        }
         let n = self.pending_in.iter().take_while(|(i, _)| (*i as i64) <= limit).count();
         if n == 0 {
             return;
@@ -555,6 +566,28 @@ mod tests {
         assert!(app.stats.out_frames_per_s > 100.0, "{}", app.stats.out_frames_per_s);
         assert!(app.side_lines(60.0).iter().any(|(k, v)| k == "simulator" && v == SIM_TEXT));
         assert!(app.inp.is_none());
+    }
+
+    #[test]
+    fn input_pane_resumes_after_board_reset() {
+        let (tx, rx) = std::sync::mpsc::channel();
+        let mut app = App::new(rx, "test".into());
+        let out = |i0: u64| NetMsg::Out((i0..i0 + 640).map(|i| (i, [0; 8])).collect());
+        let inp = |i0: u64| NetMsg::In((i0..i0 + 640).map(|i| (i, [1000; 8])).collect());
+        // before the reset: input runs 8000 ahead of the output, as always
+        tx.send(inp(108_000)).unwrap();
+        tx.send(out(100_000)).unwrap();
+        app.drain();
+        app.release_input();
+        let n0 = app.inp.as_ref().unwrap()[0].columns().len();
+        // board reset: output restarts near 0, the pacer restarts the input there
+        tx.send(out(0)).unwrap();
+        tx.send(inp(0)).unwrap();
+        app.drain();
+        app.release_input();
+        let n1 = app.inp.as_ref().unwrap()[0].columns().len();
+        assert!(n1 > n0, "input pane frozen after the reset ({n0} -> {n1} columns)");
+        assert!(app.pending_in.len() < 1000, "{} stale frames kept", app.pending_in.len());
     }
 
     #[test]
