@@ -206,6 +206,7 @@ b_ping:
     sbco    &r21, c28, ETH1_PING_PC_NS, 8
     add     r0, r20, 1
     sbco    &r0, c28, ETH1_PING_REQ, 4          ; last: PRU0 answers
+    qba     drain_a
 
 ; ---- AUDIO_IN: store the PCM to the clip buffer as it arrives -----------
 b_ain:
