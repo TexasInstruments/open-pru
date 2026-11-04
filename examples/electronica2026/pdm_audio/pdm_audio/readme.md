@@ -25,9 +25,10 @@ LaunchPad as the full 8-channel design. The design is in
 [docs/design.md](docs/design.md); the porting effort and the decisions are in
 [docs/porting_report.md](docs/porting_report.md).
 
-**Nothing has run on a board yet.** Every hardware statement in this readme is
-either from the TRM and the schematic, or from a simulator or build result.
-Items that need the board are marked `FIXME`.
+**Board run: 2026-11-04 on an LP-AM243 Rev A, all 8 channels passed** (see
+"Hardware results" below). The other hardware statements in this readme are
+from the TRM and the schematic, or from a simulator or build result. Items
+that the board run did not settle are still marked `FIXME`.
 
 ## Supported Combinations
 
@@ -43,7 +44,7 @@ clock and the MSRAM clip region are specific to the LP-AM243.
 
 | Processor | Hardware        | Software |
 | --------- | --------------- | -------- |
-| AM243x    | LP-AM243 Rev A (FIXME: not run yet) | Builds with MCU+ SDK 12.01.00.33, CCS 21.0.1, ti-cgt-pru 2.3.3, ti-cgt-armllvm 5.1.1.LTS, SysConfig 1.28.1 (build and simulator only; FIXME: hardware validation) |
+| AM243x    | LP-AM243 Rev A (2026-11-04: 8 channels, CCS memory-browser check, PDM clock on a PicoScope 3416E) | MCU+ SDK 12.01.00.33, CCS 21.0.1 (GUI import, Debug build), ti-cgt-pru 2.3.3, ti-cgt-armllvm 5.1.1.LTS, SysConfig 1.28.1 |
 
 The open-pru release notes list MCU+ SDK 11.1 - 12.0 as validated for AM243x,
 so 12.01 is one minor version newer than validated.
@@ -122,6 +123,8 @@ RTU1's MSRAM read latency on silicon is not measured. The simulator reads
 MSRAM in about 24 cycles. The spare per batch is 2278 - 1329 = 949 cycles; with
 the 24 simulated cycles of the fetch that are already in the 1329, a fetch of
 up to about 973 cycles per frame would still fit in the RTU1 budget.
+On the board UNDERRUN_COUNT stayed 0 for a 20-minute run (2026-11-04), so the
+real latency fits the budget; its value is still not measured.
 
 ## Steps to Run the Example
 
@@ -204,7 +207,7 @@ describe each step, so they are linked instead of repeated.
 
    FIXME: the exact switch positions, and whether the SOC initialization
    script is needed for this demo, are not written here because they are not
-   stated in this repo and nothing has run on a board yet.
+   stated in this repo and were not recorded at the first board run.
 5. **Connect, load, run.** Launch the target configuration, connect to
    `MAIN_Cortex_R5_0_0` (the SDK docs call it R5F0-0, r5fss0-0 here), load
    `pdm_audio_am243x-lp_r5fss0-0_freertos_ti-arm-clang` and run.
@@ -281,10 +284,11 @@ FIXME: the exact CCS 21.0.1 menu path was not checked.
 
 The R5F runs in its idle loop, and the PRU cores run on their own. Connect to
 the r5fss0-0 core, open View > Memory Browser, and enable continuous refresh.
-FIXME: reading the shared RAM while the R5F is running (continuous refresh) has
-not been tried on this board. If CCS refuses or shows stale values, halt the
-R5F core: the PRU cores run on their own and keep going (also not tried), and
-refresh the view by hand.
+On the 2026-11-04 board run the memory browser (format "32-Bit Hex - TI
+Style") showed live values, with the changed ones in red. FIXME: whether the
+R5F was running or halted at that time was not recorded. If CCS refuses or
+shows stale values, halt the R5F core: the PRU cores run on their own and keep
+going, and refresh the view by hand.
 The ICSS shared RAM is at 0x30010000. All addresses below are global
 addresses.
 
@@ -329,14 +333,15 @@ Steps:
    sticky: one read at any time covers the whole run. A value above 0 means
    PRU0 cannot keep up with 8 channels on this board.
 6. **PCM_COUNT[0..7]** (0x30010040 + 4 * channel): read all eight and check
-   that every one rises. Channels 3 to 7 could only be verified statically
-   before the board run (the simulator has 3 SD channels), so this step is the
-   first check of them. The counts should be close to each other: the odd
+   that every one rises. Channels 3 to 7 can only be verified statically in
+   the simulator (it has 3 SD channels), so this step and step 7 are the
+   check of them. The counts should be close to each other: the odd
    channels run one SD window (31.25 us, half a PCM frame) behind the even ones
    because of the FIR stagger, and PCM_COUNT[c] is 64 * HALF_SEQ when a half is
    published (this is what the simulator test checks), so the eight counts
    differ by one or two, plus the skew of reading them one after another.
-   FIXME: not seen on a board yet; a count that is far from the others is
+   On the board the eight counts were within 2 of each other (between
+   64 * HALF_SEQ + 55 and + 57); a count that is far from the others is
    the sign of a problem. All channels share sd8_clk and PRU0 serves them in
    turn, so a count does not stop on its own: if one stops, all stop (a
    missing data jumper shows in the waveform, step 7, not here).
@@ -353,10 +358,18 @@ Steps:
    | 6       | 2 kHz   | 8                         | 8 periods       |
    | 7       | 5 kHz   | 3.2                       | 20 periods      |
 
-   The level is about +-2^22 (+-4 194 304, 0x00400000) for the 0.5 FS clips.
+   The level is about +-2^22 (+-4 194 304, 0x00400000) for the 0.5 FS clips
+   at low frequencies, and falls at higher ones: RTU1 holds each clip sample
+   for a whole 16 kHz frame (zero-order hold), which scales a tone of
+   frequency f by sin(pi f / 16 kHz) / (pi f / 16 kHz), relative to 1 kHz
+   x0.98 at 2 kHz, x0.95 at 3 kHz and x0.85 at 5 kHz. The SINC3 and FIR
+   together are flat within 1 % up to 5 kHz. This is by design, not a fault.
    Channel 0 is speech, and channels 1 and 2 are chirps, so they change over
    time. A frozen column that never moves between reads of a changing
-   HALF_SEQ means that channel's data is not arriving.
+   HALF_SEQ means that channel's data is not arriving. This holds for
+   channels 0 to 2 only: a tone of a whole number of Hz repeats exactly
+   within a half (the 1 kHz tone 4 times), so the tone columns can show
+   the same values at every read. Check them by their period and level.
 8. **Which half is ready.** The half that `HALF_SEQ` just completed is
    `(HALF_SEQ - 1) & 1`. Read that half (0 = A, 1 = B). PRU0 is writing the
    other half, so read the ready half, not the other one.
@@ -375,9 +388,26 @@ Steps:
    A graph of half A and a second graph of half B (start address 0x30010900 +
    4 * channel) show both halves.
 
-FIXME: record the hardware results here after the first board run (HALF_SEQ
-rate, BATCH_COUNT rate, SD_OVF_COUNT, PCM_COUNT[0..7], per-channel periods and
-the level).
+### Hardware results
+
+LP-AM243 Rev A, 2026-11-04, all nine jumpers fitted, read in the CCS memory
+browser after about 20.5 minutes of running (one read of 0x30010000 to
+0x300103BF):
+
+| Check | Board result |
+| ----- | ------------ |
+| Header (step 1) | MAGIC 0x50444D38, N_CH 8, FRAMES_PER_HALF 64, PCM_RATE 16000, CLIP_ADDR 0x700C0000, CLIP_FRAMES 8000, VERSION 1: all as expected |
+| UNDERRUN_COUNT (step 4) | 0 |
+| SD_OVF_COUNT (step 5) | 0: PRU0 keeps up with 8 channels |
+| Counters agree (steps 2, 3) | HALF_SEQ 307 558, BATCH_COUNT 134 974 410, RTU1_LOOPS 2460 with RTU1_FRAME_POS 3768. Each gives a run time of 1230.23 s (within 4 ms of the others); in frames: 19 683 768 from the batches, 19 683 768 from RTU1, 19 683 768 from PCM_COUNT |
+| Rates (steps 2, 3) | PDM clock 3.072 MHz on the scope (PicoScope 3416E digital input, mean of 36 000 measurements, min 3.071 MHz, max 3.072 MHz). With the counters locked to it, HALF_SEQ rises 250 per second and BATCH_COUNT 109 714 per second |
+| PCM_COUNT[0..7] (step 6) | within 2 of each other: 64 * HALF_SEQ + 55 to + 57 |
+| Tones, channels 3 to 7 (step 7) | sine fit over 22 frames of half A: 1000.0, 3000.0, 500.0, 2000.0 and 5000.0 Hz. Amplitude relative to 2^22: 1.000, 0.942, 0.999, 0.981, 0.850 (zero-order-hold droop, hold alone predicts 0.994, 0.943, 0.998, 0.975, 0.847). Fit residual about -90 dB of the tone. Frame 16 equals frame 0 bit for bit for the 1, 2, 3 and 5 kHz channels |
+| Speech and chirps, channels 0 to 2 (step 7) | values change at every refresh; peaks 0.33, 0.75, 0.84 x 2^22 in the frames read |
+
+The scope shows a spread of about 13 kHz in the per-period frequency. It
+comes from PRU1's 108 and 109 cycle periods (324 ns and 327 ns, mean
+325.5 ns), which give a per-period spread of about 14 kHz.
 
 Do not look for the SD shadow-overflow flag R31[29] in the CCS register view:
 PRU0 clears it in every window, so a halted PRU0 shows at most the current
@@ -469,7 +499,8 @@ the next project reads.
   land. The firmware repeats every write until it is there (RTU1 reads its
   bytes back, PRU1 rewrites both of its bytes at each batch slot), so a lost
   write costs at most one silence batch, counted in UNDERRUN_COUNT. Whether
-  such collisions happen on silicon is not known (FIXME: board).
+  such collisions happen on silicon is not known. On the board UNDERRUN_COUNT
+  stayed 0 for 20 minutes, so none cost a batch in that run.
 - **`firmware/decimation_fir.h`: provenance and licence to be confirmed by
   the author before merge.** It is a copy of the pru-simulator file (itself
   from the audio_pipe demo) and has no licence header; where it came from is
@@ -487,7 +518,8 @@ the next project reads.
 - **Silicon-only unknowns:** the RTU1 MSRAM latency, the XOUT to XIN visibility
   between RTU1 and PRU1 (assumed one cycle each, as in the simulator), and pad
   delays. The PDM clock needs no check if the counters behave. If you want to
-  measure it: the average period is 325.5 ns with a 54/54 cycle duty.
+  measure it: the average period is 325.5 ns with a 54/54 cycle duty
+  (3.072 MHz, measured on the board 2026-11-04).
 - Build outputs (`*_load_bin.h`, `generated/`, `.out`, `.appimage`) are not
   committed.
 
@@ -565,13 +597,21 @@ Build results (2026-11-04, this PC):
 Final-verification numbers for the full pru-simulator suite (3 known failures, as on the base branch) are in
 [docs/porting_report.md](docs/porting_report.md), section 7.
 
-**Not yet verified (FIXME, needs the board):**
+**Verified on the board (2026-11-04, LP-AM243 Rev A, see "Hardware results"):**
 
-- Hardware run of the whole chain, with the memory-browser check above.
-- RTU1 MSRAM latency, `UNDERRUN_COUNT` on silicon.
-- Channels 3 to 7 (only verified statically, with the simulator at 3 channels).
-- The SD routing with GPCFG0 mux 3 and the start-up order on silicon.
-- PDM clock and data on a scope or logic analyser (optional).
+- The whole chain with the memory-browser check above, for 20 minutes.
+- `UNDERRUN_COUNT` 0 on silicon, so the RTU1 MSRAM fetch fits the budget.
+- Channels 3 to 7: correct tone frequency and level, so the SD routing of
+  SD5 to SD8 and the jumpers work.
+- The SD routing with GPCFG0 mux 3, sd8_clk as the shared clock, and the
+  start-up order (RTU1, PRU1, PRU0) through the R5F.
+- The PDM clock on a scope: 3.072 MHz.
+
+**Not yet verified (FIXME):**
+
+- The RTU1 MSRAM latency as a number (only "it fits").
+- The PDM data pins on a scope (only the clock frequency was measured).
+- Start-up after another ICSSG0 demo without a System Reset.
 
 ## Project layout
 

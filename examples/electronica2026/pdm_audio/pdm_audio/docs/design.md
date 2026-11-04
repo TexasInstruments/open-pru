@@ -1,6 +1,6 @@
 # Design: 8-channel PDM audio on AM243x LP (open-pru port of the pru-simulator PDM demo)
 
-Date: 2026-11-03 · Status: implemented (board run pending) · Target: open-pru `examples/electronica2026/pdm_audio/pdm_audio`, LP-AM243 Rev A (PROC109A), ICSSG0
+Date: 2026-11-03 · Status: implemented, board run passed 2026-11-04 (LP-AM243 Rev A) · Target: open-pru `examples/electronica2026/pdm_audio/pdm_audio`, LP-AM243 Rev A (PROC109A), ICSSG0
 
 ## 1. Intent
 

@@ -265,7 +265,8 @@ Results on the final tree (2026-11-04):
 | clpru image sizes | RTU1 .text 0x69C, PRU1 0x9F4, PRU0 0x794 bytes |
 | `examples/makefile` dry run (`make -n`) | enters `electronica2026/pdm_audio/pdm_audio` |
 | pru-assembly linter `--openpru` (run in Tasks 2 to 4, not repeated) | 0 errors; PRU0 has one soft warning, "79-column", on lines copied verbatim from `pdm_rx.asm` |
-| Hardware run on LP-AM243 Rev A, CCS memory browser | **FIXME: not run yet** |
+| Hardware run on LP-AM243 Rev A, CCS memory browser (2026-11-04, user) | **Passed**, all 8 channels, after 1230 s: header as expected, UNDERRUN_COUNT 0, SD_OVF_COUNT 0, HALF_SEQ / BATCH_COUNT / RTU1 frames / PCM_COUNT all give the same run time, PCM_COUNT[0..7] within 2, tones 500 Hz to 5 kHz at the right frequency, about -90 dB fit residual. Details in `readme.md`, "Hardware results" |
+| PDM clock on a PicoScope 3416E (D0) | 3.072 MHz (min 3.071, max 3.072 MHz) |
 
 The three known failing tests in pru-simulator (2 in
 `test_clock_speed_endpoint.py`, 1 `test_server.py::test_am263x_state_advertises_only_supported_cores`)
@@ -284,7 +285,8 @@ the repo root (a root build dirties `pru_i2s`).
 
 - **RTU1 MSRAM latency.** The simulator reads MSRAM in a flat ~24 cycles. The
   margin covers a fetch of about 975 cycles (951 spare plus the 24 simulated), but the real value is unmeasured. A slow
-  fetch shows as `UNDERRUN_COUNT` > 0.
+  fetch shows as `UNDERRUN_COUNT` > 0. On the board it stayed 0 for 20 minutes
+  (2026-11-04), so the fetch fits; its length is still not measured.
 - **XOUT to XIN visibility between RTU1 and PRU1.** Assumed one cycle each
   (as in the simulator and the skill's timing reference). The protocol does not
   depend on the exact delay: a late batch costs one underrun, and a read-back
@@ -296,8 +298,9 @@ the repo root (a root build dirties `pru_i2s`).
   harness drops single writes to test this.
 - **Channels 3 to 7.** The simulator has 3 SD channels, so the PCM of channels
   3 to 7 and the SD routing of SD5 to SD8 are verified only statically (pin
-  table, the assembly with the 8-channel options, clpru). The first board run
-  must read `PCM_COUNT[3..7]` and compare them with the other channels, and
+  table, the assembly with the 8-channel options, clpru). The board run
+  (2026-11-04) showed all of them working. The first board run had to read
+  `PCM_COUNT[3..7]` and compare them with the other channels, and
   `SD_OVF_COUNT`, which counts every SD sample PRU0 was too late for (R31[29],
   tested at each spin exit). The flag itself is not a check from the CCS
   register view: PRU0 clears it for every channel in each window.
@@ -325,10 +328,12 @@ the repo root (a root build dirties `pru_i2s`).
 
 ## 9. Open items
 
-- [ ] **Run on LP-AM243 hardware** and do the memory-browser check in
-      `readme.md` (HALF_SEQ, BATCH_COUNT, UNDERRUN_COUNT, PCM_COUNT[0..7],
-      per-channel periods, levels). Nothing has run on a board yet.
-      Fill in the FIXMEs in `readme.md` and in section 7.
+- [x] **Run on LP-AM243 hardware** and do the memory-browser check in
+      `readme.md`. Done 2026-11-04 on Rev A: passed, results in section 7
+      and in `readme.md`, "Hardware results". The level of the higher tones
+      falls by the zero-order hold of RTU1 (x0.85 at 5 kHz), as predicted;
+      the readme now says so. Tone columns repeat exactly within a half, so
+      the readme's "frozen column" check now applies to channels 0 to 2 only.
 - [ ] **decimation_fir.h: provenance and licence to be confirmed by the
       author before merge.** It is a byte-identical copy of the pru-simulator
       file (from the audio_pipe demo) and has no licence header; its origin is
@@ -385,14 +390,17 @@ the repo root (a root build dirties `pru_i2s`).
     `*_example.c` (copied from the SDK template), while their new firmware
     files say 2026. This port now uses 2026 in `pdm_audio_example.c`
     (final review M6); `main.c` keeps the template's 2024-2025.
-- [ ] **Readme FIXMEs for the first board run:** the LP boot-switch positions
-      and SOC initialization need, the XDS110 console port, continuous refresh
-      of the memory browser while the R5F runs, the I/O voltage of the pads
-      (schematic), the CCS memory-graph field names, and the PCM_COUNT spread.
-      These could not be sourced from this repo or the SDK docs.
-- [ ] **Push and PR.** The branch and the pru-simulator branch
-      `feat/pdm-open-pru-check` (stacked on PR #106) are not pushed.
-      Nothing was pushed by the agent.
+- [ ] **Readme FIXMEs left after the board run:** the LP boot-switch
+      positions and SOC initialization need, the XDS110 console line, whether
+      the R5F was running while the memory browser refreshed, the I/O voltage
+      of the pads (schematic), the CCS memory-graph field names, the CCS menu
+      path of System Reset, start-up after another ICSSG0 demo without a
+      System Reset, and the PDM data pins on a scope. The PCM_COUNT spread
+      is now filled in (within 2).
+- [ ] **PR.** The branch and the pru-simulator branch
+      `feat/pdm-open-pru-check` (stacked on PR #106) were pushed on
+      2026-11-04 at the user's request, before the board run; no PR is
+      open yet.
 - [ ] The i2c_io, uart_rx and uart_print directories in the working tree are
       untracked copies from other branches and are not part of this branch.
 
