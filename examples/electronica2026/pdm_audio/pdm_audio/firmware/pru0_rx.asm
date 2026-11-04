@@ -571,7 +571,7 @@ PDM_SAT_OK:
     qbne    PDM_NEXT, r0, 0
     ldi     r0, PUB_BASE
     lbco    &r2, c24, r0, 8                 ; HALF_SEQ, r3.b0/b1 done counts
-    qbbc    PDM_PUB_H1, r13, 6              ; (n + 1) bit 6 = 0: m odd: half 1
+    qbbc    PDM_PUB_H1, r13, 6              ; (n + 1) bit 6 = 0: m even: half 1
     add     r3.b0, r3.b0, 1
     qbne    PDM_PUB_ST, r3.b0, N_CH
     ldi     r3.b0, 0
