@@ -61,7 +61,9 @@ pub struct TputResult {
     pub mbit_s: f64,
     pub sent: u64,
     pub seq_gaps: u64,
+    /// PC-side loss: socket buffer (kernel) and NIC overruns during the run.
     pub pc_kernel_drops: u64,
+    pub pc_nic_drops: u64,
 }
 
 impl TputResult {
@@ -87,8 +89,15 @@ fn tput_verdict(t: &TputResult) -> (bool, String) {
         t.frames, t.sent, t.mbit_s, t.seq_gaps
     );
     if lost > 0 {
-        if t.pc_kernel_drops > 0 {
-            text += &format!(", PC dropped {} frames in the kernel (socket buffer), not the board", t.pc_kernel_drops);
+        let pc = t.pc_kernel_drops + t.pc_nic_drops;
+        if pc > 0 {
+            text += &format!(", PC dropped {} in the kernel and {} in the NIC", t.pc_kernel_drops, t.pc_nic_drops);
+            let rest = lost.saturating_sub(pc);
+            if rest == 0 {
+                text += ", not the board";
+            } else {
+                text += &format!(", {rest} unexplained (board or wire)");
+            }
         } else {
             match t.dir {
                 Dir::ToBoard => text += &format!(", board lost {lost} frames"),
@@ -208,14 +217,14 @@ pub fn tput_to_board(link: &mut dyn Link, cfg: &TestConfig) -> io::Result<TputRe
     let dt = last.saturating_sub(first) as f64;
     let mbit_s = if frames > 1 && dt > 0.0 { (frames - 1) as f64 * TPUT_FRAME as f64 * 8.0 / dt * 1e3 } else { 0.0 };
     Ok(TputResult { dir: Dir::ToBoard, frames, bytes: frames * TPUT_FRAME as u64, mbit_s,
-                    sent: sent as u64, seq_gaps: gaps, pc_kernel_drops: 0 })
+                    sent: sent as u64, seq_gaps: gaps, pc_kernel_drops: 0, pc_nic_drops: 0 })
 }
 
 /// Board -> PC: the board sends `seconds` worth of 1514-byte frames back to
 /// back; the PC counts them. The rate is the PC's (first to last receive).
 pub fn tput_from_board(link: &mut dyn Link, cfg: &TestConfig) -> io::Result<TputResult> {
     let count = (cfg.seconds * TPUT_FRAMES_PER_S).round() as u32;
-    let drops0 = link.stats().rx_kernel_drops;
+    let st0 = link.stats();
     send_frame(link, FrameType::Control, 0, now_ns(),
                &Body::Control { cmd: CMD_TPUT_TX, arg0: count, arg1: 1500 }, 60)?;
     let (mut frames, mut gaps, mut last_seq) = (0u64, 0u64, None::<u32>);
@@ -242,7 +251,8 @@ pub fn tput_from_board(link: &mut dyn Link, cfg: &TestConfig) -> io::Result<Tput
     let mbit_s = if frames > 1 && dt > 0.0 { (frames - 1) as f64 * TPUT_FRAME as f64 * 8.0 / dt * 1e3 } else { 0.0 };
     Ok(TputResult { dir: Dir::FromBoard, frames, bytes: frames * TPUT_FRAME as u64, mbit_s,
                     sent: count as u64, seq_gaps: gaps,
-                    pc_kernel_drops: link.stats().rx_kernel_drops - drops0 })
+                    pc_kernel_drops: link.stats().rx_kernel_drops - st0.rx_kernel_drops,
+                    pc_nic_drops: link.stats().rx_nic_drops - st0.rx_nic_drops })
 }
 
 /// The whole test: ping, then throughput both ways.
@@ -280,7 +290,25 @@ mod tests {
     }
 
     fn tput(dir: Dir, mbit_s: f64, frames: u64, lost: u64, pc_drops: u64) -> TputResult {
-        TputResult { dir, frames, bytes: frames * 1514, mbit_s, sent: frames + lost, seq_gaps: lost.min(1), pc_kernel_drops: pc_drops }
+        TputResult { dir, frames, bytes: frames * 1514, mbit_s, sent: frames + lost, seq_gaps: lost.min(1),
+                     pc_kernel_drops: pc_drops, pc_nic_drops: 0 }
+    }
+
+    #[test]
+    fn tput_verdict_splits_kernel_nic_and_unexplained_loss() {
+        let mut from = tput(Dir::FromBoard, 900.0, 9_980, 20, 10);
+        from.pc_nic_drops = 5;
+        let s = summary(tput(Dir::ToBoard, 900.0, 10_000, 0, 0), from);
+        let (ok, text) = pass(&s, "from board");
+        assert!(!ok);
+        assert!(text.contains("PC dropped 10 in the kernel and 5 in the NIC"), "{text}");
+        assert!(text.contains("5 unexplained"), "{text}");
+        let mut all_pc = tput(Dir::FromBoard, 900.0, 9_985, 15, 10);
+        all_pc.pc_nic_drops = 5;
+        let s = summary(tput(Dir::ToBoard, 900.0, 10_000, 0, 0), all_pc);
+        let (_, text) = pass(&s, "from board");
+        assert!(text.contains("not the board"), "{text}");
+        assert!(!text.contains("unexplained"), "{text}");
     }
 
     fn summary(to: TputResult, from: TputResult) -> Summary {

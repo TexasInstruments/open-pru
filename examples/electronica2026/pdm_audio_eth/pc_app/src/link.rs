@@ -24,6 +24,8 @@ pub struct LinkStats {
     /// Frames the kernel dropped because the socket buffer was full
     /// (PACKET_STATISTICS tp_drops, accumulated).
     pub rx_kernel_drops: u64,
+    /// Frames the NIC dropped (ring/FIFO overruns), since the link opened.
+    pub rx_nic_drops: u64,
 }
 
 /// A raw-Ethernet link to the board (real NIC or the emulator).
@@ -64,6 +66,22 @@ pub fn link_info_at(root: &Path, iface: &str) -> io::Result<(u32, bool, bool)> {
     Ok((speed as u32, full, carrier))
 }
 
+/// NIC receive overruns of `iface`: rx_missed_errors + rx_fifo_errors +
+/// rx_over_errors from sysfs (0 if unreadable). rx_dropped is left out: it
+/// also counts frames the stack dropped for other reasons.
+pub fn nic_drops(iface: &str) -> u64 {
+    nic_drops_at(Path::new("/sys/class/net"), iface)
+}
+
+/// [`nic_drops`] with an injectable sysfs root (tests).
+pub fn nic_drops_at(root: &Path, iface: &str) -> u64 {
+    ["rx_missed_errors", "rx_fifo_errors", "rx_over_errors"]
+        .iter()
+        .filter_map(|f| std::fs::read_to_string(root.join(iface).join("statistics").join(f)).ok())
+        .filter_map(|s| s.trim().parse::<u64>().ok())
+        .sum()
+}
+
 /// True if this process has CAP_NET_RAW in its effective set.
 pub fn has_net_raw() -> bool {
     const CAP_NET_RAW: u32 = 13;
@@ -92,6 +110,8 @@ pub struct AfPacketLink {
     ifindex: libc::c_int,
     mac: [u8; 6],
     drops: u64,
+    iface: String,
+    nic0: u64,
 }
 
 const PACKET_IGNORE_OUTGOING: libc::c_int = 23;
@@ -114,7 +134,8 @@ impl AfPacketLink {
                 _ => e,
             });
         }
-        let mut link = AfPacketLink { fd, ifindex: 0, mac: [0; 6], drops: 0 };
+        let mut link = AfPacketLink { fd, ifindex: 0, mac: [0; 6], drops: 0, iface: iface.to_string(),
+                                      nic0: nic_drops(iface) };
         let name = std::ffi::CString::new(iface)
             .map_err(|_| io::Error::new(io::ErrorKind::InvalidInput, "bad interface name"))?;
         link.ifindex = unsafe { libc::if_nametoindex(name.as_ptr()) } as libc::c_int;
@@ -225,7 +246,10 @@ impl Link for AfPacketLink {
         if r == 0 {
             self.drops += st.tp_drops as u64; // the kernel resets them on read
         }
-        LinkStats { rx_kernel_drops: self.drops }
+        LinkStats {
+            rx_kernel_drops: self.drops,
+            rx_nic_drops: nic_drops(&self.iface).saturating_sub(self.nic0),
+        }
     }
 }
 
@@ -255,6 +279,19 @@ mod tests {
         std::fs::create_dir_all(&d).unwrap();
         std::fs::write(d.join("carrier"), "0\n").unwrap();
         assert_eq!(link_info_at(root.path(), "enpY").unwrap(), (0, false, false));
+    }
+
+    #[test]
+    fn nic_drops_sum_the_nic_counters() {
+        let root = tempfile::tempdir().unwrap();
+        let s = root.path().join("enpZ/statistics");
+        std::fs::create_dir_all(&s).unwrap();
+        std::fs::write(s.join("rx_missed_errors"), "3\n").unwrap();
+        std::fs::write(s.join("rx_fifo_errors"), "4\n").unwrap();
+        std::fs::write(s.join("rx_over_errors"), "5\n").unwrap();
+        std::fs::write(s.join("rx_dropped"), "100\n").unwrap(); // not a NIC overrun
+        assert_eq!(nic_drops_at(root.path(), "enpZ"), 12);
+        assert_eq!(nic_drops_at(root.path(), "missing"), 0);
     }
 
     #[test]
