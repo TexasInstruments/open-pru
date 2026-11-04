@@ -49,7 +49,7 @@
 ;     R9.b2   1 B   underruns so far, mod 256                         PRU1
 ;     R9.b3   1 B   ack = low byte of the last seq PRU1 took          PRU1
 ;   Each core XOUTs only its own bytes: RTU1 "xout 15, &r2, 30",
-;   PRU1 "xout 15, &r9.b2/b3, 1..2".
+;   PRU1 "xout 15, &r9.b2, 2" (both of its bytes in every write).
 ;
 ;   Start: the R5F halts BOTH RTU1 and PRU1, loads both, and starts RTU1
 ;   first, then PRU1. (Both orders start cleanly, see below, but only when
@@ -72,6 +72,25 @@
 ;   The echo tells RTU1 that this run's PRU1 has seen seq 0; a stale R9.b3
 ;   cannot match c. Batch n >= 1 (seq n + 1) goes out once ack == n
 ;   (low byte). PRU1 acks batch n with the low byte of seq n + 1.
+;
+;   Lost writes. The SPAD has no hardware arbitration, and whether two
+;   same-cycle XOUTs (RTU1's bytes 0..29, PRU1's bytes 30..31) are merged
+;   is not established, so either write may be lost. Each write is
+;   repeated until it is there:
+;     RTU1: after every XOUT (the start nonce and each batch) it XINs its
+;           seq (at the start also the nonce) back and XOUTs again while
+;           it differs. The retry is unbounded: RTU1 alone writes bytes
+;           0..29, so the first XOUT that no PRU1 XOUT hits ends it.
+;     PRU1: in the start loop it XINs all 32 bytes and XOUTs R9.b2/b3 only
+;           when they are not (0, nonce): once per new nonce, and again if
+;           that write was lost. In the batch loop each slot XOUTs both
+;           R9.b2 (underruns) and R9.b3 (last ack), so the next slot
+;           repeats a lost one. A lost ack makes RTU1 wait: that next slot
+;           is a silence batch (counted), and its XOUT re-sends the ack.
+;   PRU1 writes at its start and at slot t4 (ack) or t11 (underrun); a
+;   publish by RTU1 can meet only t11 (a late batch), and RTU1 repeats it.
+;   Verified in pru-simulator by dropping single XOUTs
+;   (test_lost_spad_write_at_start_recovers / _on_underrun_recovers).
 ;
 ;   PRU DRAM1 (PRU1 and RTU1 local 0x0000): RTU1 owns local
 ;   0x1700..0x17FF (PDM8_RTU1_SCRATCH). PRU1's timed path must not touch

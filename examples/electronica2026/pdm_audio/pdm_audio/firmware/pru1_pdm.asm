@@ -40,16 +40,21 @@
 ;     W.b2 = d >> 7                                  ch7 -> 16
 ;
 ;   Hand-off (IPC scratchpad, XFR ID 15, protocol in pdm8_shared.inc):
-;     - Start: XOUT R9.b2 = R9.b3 = 0. Poll R2..R9.w0 every 6 cycles; while
-;       seq == 0 echo RTU1's nonce (R2.b0) into R9.b3. Take seq 1 only
-;       after seq 0 was seen (a stale seq 1 is never played). The clock
-;       stays low until then.
+;     - Start: XOUT R9.b2 = R9.b3 = 0. Poll all 32 SPAD bytes every 9
+;       cycles; while seq == 0, XOUT R9.b2 = 0, R9.b3 = RTU1's nonce
+;       (R2.b0) when the SPAD does not hold that already: once per new
+;       nonce, again if the write was lost (no SPAD arbitration). Take
+;       seq 1 only after seq 0 was seen (a stale seq 1 is never played).
+;       The clock stays low until then.
 ;     - Batch slot, high half of period 27 (fixed 11 cycles): XIN
 ;       R2..R9.w0 straight into the play registers. seq == expected: ack
-;       R9.b3 = seq.b0 (XOUT), expected + 1. Otherwise (RTU1 late):
-;       R2..R8 = silence (alternating 0/1 on every channel), R9.b2 + 1
-;       (XOUT), no ack; the same batch is expected at the next slot. Both
-;       paths 9 cycles after the compare.
+;       R9.b3 = seq.b0, expected + 1. Otherwise (RTU1 late): R2..R8 =
+;       silence (alternating 0/1 on every channel), R9.b2 + 1, no new ack;
+;       the same batch is expected at the next slot. Both paths 9 cycles
+;       after the compare, and both XOUT R9.b2 and R9.b3 together, so a
+;       slot repeats a write of the slot before that a collision with
+;       RTU1's XOUT lost (a lost ack: RTU1 waits, the next slot is
+;       silence and re-sends it).
 ;     - XOUT -> XIN visibility: one XOUT/XIN moves the 30 bytes at once
 ;       (no torn batch). A batch that becomes visible after the slot's XIN
 ;       is simply taken one slot later (one underrun); no timing depends
@@ -88,8 +93,10 @@
 ; r2..r8    play batch: byte j = period j,        everywhere        SPAD XIN
 ;           bit k = channel k
 ; r9.w0     seq of the last XIN                   start, slot       SPAD XIN
-; r9.b2     underruns so far (mod 256)            everywhere        main
-; r9.b3     ack / nonce echo                      everywhere        main
+; r9.b2     underruns so far (mod 256); in the    everywhere        main
+;           start loop the SPAD's R9.b2                             (SPAD XIN)
+; r9.b3     ack / nonce echo; in the start loop   everywhere        main
+;           the SPAD's R9.b3                                        (SPAD XIN)
 ; r10       pin word W of the current period      period loop       main
 ;           (clock bit 0 = 0, W.b3 = 0)
 ; r11       mapping scratch                       period loop       main
@@ -112,8 +119,8 @@
 ; instruction included), collapsed by the pru-simulator idle skip.
 ; Per period: busy 14..27 of 108/109 cycles; per batch 404 + longs (~14).
 ; Batch slot detail: xin 1, qbne 1, then 9 on both paths:
-;   ok:       mov 1, xout 1, add 1, loop+nop 5, qba 1
-;   underrun: 7 x mov 7, add 1, xout 1
+;   ok:       mov 1, xout 1 (R9.b2 + R9.b3), add 1, loop+nop 5, qba 1
+;   underrun: 7 x mov 7, add 1, xout 1 (R9.b2 + R9.b3)
 ; Verified: pru-simulator tests/test_pdm_open_pru_port.py (edge times vs.
 ; the 108 + 73/144 reference, setup/hold, one R30 write per half, bits).
 ; --------------------------------------------------------------------------
@@ -292,27 +299,47 @@ PRU1_PDM:
     ldi32   r14, PDM1_SILENCE
 
 ;---------------------------------------------------------------------------
-; Start hand-off: every pass is 6 cycles, whatever the scratchpad holds.
+; Start hand-off. PRU1 XINs all 32 bytes, its own R9.b2/b3 included, and
+; XOUTs only when the scratchpad differs from what it must hold: while
+; seq == 0, R9.b3 = RTU1's nonce R2.b0 and R9.b2 = 0. So it writes once
+; per new nonce (not every pass, where it could hit RTU1's XOUTs: the SPAD
+; has no arbitration), and a write of its own that was lost is written
+; again on a later pass. The clock is idle here, so nothing is timed, but
+; every pass is 9 cycles whatever the scratchpad holds, so the first edge
+; comes at the same time after a clean or a stale start.
 ;---------------------------------------------------------------------------
 WAIT_START:
-    xin     PDM8_SPAD_XID, &r2, PDM8_SPAD_RTU1_BYTES   ; 1  batch + seq
+    xin     PDM8_SPAD_XID, &r2, 32      ; 1  batch + seq + PRU1's two bytes
     qbeq    WS_ZERO, r9.w0, 0           ; 2  RTU1 cleared (or never sent)
     qbne    WS_SKIP, r9.w0, 1           ; 3  not batch 0
     qbne    WS_GO, r15, 0               ; 4  seq 1 after seq 0: batch 0
-    nop                                 ; 5  stale seq 1: not played
-    qba     WAIT_START                  ; 6
-WS_ZERO:
-    mov     r9.b3, r2.b0                ; 3  echo RTU1's start nonce
-    xout    PDM8_SPAD_XID, &r9.b3, 1    ; 4
-    ldi     r15, 1                      ; 5  seq 0 seen
-    qba     WAIT_START                  ; 6
+    qba     WS_PAD                      ; 5  stale seq 1: not played
 WS_SKIP:
     nop                                 ; 4
     nop                                 ; 5
-    qba     WAIT_START                  ; 6
+WS_PAD:
+    nop                                 ; 6
+    nop                                 ; 7
+    nop                                 ; 8
+    qba     WAIT_START                  ; 9
+WS_ZERO:
+    ldi     r15, 1                      ; 3  seq 0 seen
+    qbne    WS_ECHO, r9.b3, r2.b0       ; 4  echo missing (new nonce, or lost)
+    qbne    WS_WRITE, r9.b2, 0          ; 5  underrun byte not 0 (lost clear)
+    nop                                 ; 6  both bytes hold their values
+    nop                                 ; 7
+    nop                                 ; 8
+    qba     WAIT_START                  ; 9
+WS_ECHO:
+    nop                                 ; 5
+WS_WRITE:
+    mov     r9.b3, r2.b0                ; 6  echo RTU1's start nonce
+    ldi     r9.b2, 0                    ; 7  underruns = 0
+    xout    PDM8_SPAD_XID, &r9.b2, 2    ; 8
+    qba     WAIT_START                  ; 9
 WS_GO:
-    ldi     r9.b3, 1                    ; ack batch 0 (seq 1)
-    xout    PDM8_SPAD_XID, &r9.b3, 1
+    ldi     r9.w2, 0x0100               ; underruns 0, ack batch 0 (seq 1)
+    xout    PDM8_SPAD_XID, &r9.b2, 2
     ldi     r13, 2                      ; next expected seq
     ldi     r12, 0                      ; b: period 0 is short
     m_map   r2.b0                       ; W of period 0
@@ -360,7 +387,7 @@ P27_LD:
     xin     PDM8_SPAD_XID, &r2, PDM8_SPAD_RTU1_BYTES   ; H t1  next batch
     qbne    SLOT_UNDER, r9.w0, r13.w0   ; H t2      RTU1 late?
     mov     r9.b3, r9.b0                ; H t3      ack = seq.b0
-    xout    PDM8_SPAD_XID, &r9.b3, 1    ; H t4
+    xout    PDM8_SPAD_XID, &r9.b2, 2    ; H t4      ack + underruns (again)
     add     r13.w0, r13.w0, 1           ; H t5      16-bit, wraps like seq
     loop    SLOT_OK_DLY, 4              ; H t6
     nop                                 ; H t7..t10
@@ -375,7 +402,7 @@ SLOT_UNDER:
     mov     r7, r14                     ; H t8
     mov     r8, r14                     ; H t9
     add     r9.b2, r9.b2, 1             ; H t10     underruns + 1
-    xout    PDM8_SPAD_XID, &r9.b2, 1    ; H t11     RTU1 puts it in the header
+    xout    PDM8_SPAD_XID, &r9.b2, 2    ; H t11     + last ack (again)
 SLOT_JOIN:
     m_map   r2.b0                       ; H t12..t20  W of period 0
     m_frac  P27_FL, P27_FJ              ; H t21..t23 (t24)

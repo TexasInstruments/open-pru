@@ -36,13 +36,21 @@
 ;   Hand-off (IPC scratchpad, XFR ID 15, see pdm8_shared.inc):
 ;             - At start: read the stale ack e, XOUT R2..R9.w0 = seq 0
 ;               with the start nonce c (NONCE_A, or NONCE_B if e ==
-;               NONCE_A) in R2.b0, the rest 0.
+;               NONCE_A) in R2.b0, the rest 0. Read the nonce and seq
+;               back, XOUT again until they are there.
 ;             - Batch n: R2..R8 = 28 period bytes (bit k = channel k),
 ;               R9.w0 = seq = n + 1. RTU1 computes batch n, then spins on
 ;               "XIN R9.b3 until ack == target" and XOUTs the 30 bytes
-;               R2..R9.w0 in one transfer. The target is c for batch 0
+;               R2..R9.w0 in one transfer, then XINs seq back and XOUTs
+;               again until it is there. The target is c for batch 0
 ;               (PRU1 echoes c once it has seen seq 0, so neither core
 ;               can run ahead on a stale ack), n (low byte) after that.
+;             - Read-back retry: the SPAD has no arbitration, so an XOUT
+;               can be lost to a PRU1 XOUT in the same cycle (a late
+;               batch meets PRU1's underrun XOUT at slot t11). A lost batch
+;               would hang the pair (PRU1 plays silence, RTU1 waits for an
+;               ack that never comes). The retry is unbounded: RTU1 alone
+;               writes bytes 0..29, so the first XOUT not hit ends it.
 ;             - After each XOUT: PRU1's counters to the header (PRU1
 ;               touches no memory): UNDERRUN_COUNT += new underruns from
 ;               PRU1's 8-bit R9.b2, BATCH_COUNT = seq - 1 = batches PRU1
@@ -85,6 +93,7 @@
 ; Reg       Use                                   Live in           Owner
 ; r0        packed bits of the group: byte s =    group loop        main
 ;           step s, bit k = channel k
+;           r0.b0: start nonce c                  init              main
 ; r1        PDM8_RTU1_SCRATCH (DRAM1)             everywhere        main
 ; r2..r9    xm0..xm7 = x_k - FS (32 bit)          group loop        main
 ;           batch R2..R8 + seq R9.w0, ack R9.b3,  BATCH_END         SPAD
@@ -125,13 +134,13 @@
 ;   groups                (MSRAM LBBO 16 B: flat latency in the simulator)
 ; batch end               38..43 before the counters (tail simulated
 ;                         bits 8..16, ack already there),
-;                         + ~20 ack target and counters
-; batch, XOUT to XOUT     min 1241, mean 1254, worst 1327 simulated (*)
+;                         + 2 seq read-back, + ~20 ack target and counters
+; batch, XOUT to XOUT     min 1243, mean 1256, worst 1329 simulated (*)
 ; (*) pru-simulator tests/test_pdm_open_pru_port.py::
 ;     test_rtu1_budget_checkpoint: 8 channels, PRU1 stand-in acking at
 ;     once, 2-frame clip (fetches and wraps included). Worst case = 7
 ;     groups + batch end + fetch with wrap = 58 % of the 2278-cycle limit,
-;     44 % of PRU1's batch time. The 951 spare cycles would absorb a
+;     44 % of PRU1's batch time. The 949 spare cycles would absorb a
 ;     silicon MSRAM LBBO of up to ~970 cycles (vs. ~24 simulated).
 ; --------------------------------------------------------------------------
 
@@ -295,13 +304,26 @@ RTU1_MOD:
     zero    &r0, 120                        ; r0..r29 = 0
     xin     PDM8_SPAD_XID, &r9.b3, 1        ; e = stale ack (or PRU1's 0)
     qbeq    INIT_NONCE_B, r9.b3, PDM8_NONCE_A
-    ldi     r2.b0, PDM8_NONCE_A             ; nonce c != 0, 1, e
+    ldi     r0.b0, PDM8_NONCE_A             ; nonce c != 0, 1, e
     qba     INIT_NONCE_SET
 INIT_NONCE_B:
-    ldi     r2.b0, PDM8_NONCE_B
+    ldi     r0.b0, PDM8_NONCE_B
     nop                                     ; both paths 3 cycles
 INIT_NONCE_SET:
+    ; R2..R9.w0 = {c, 0, ..., 0}: seq 0, nonce in R2.b0. Read the nonce and
+    ; seq back and write again until they are there: the SPAD has no
+    ; arbitration, so this write can be lost to a PRU1 XOUT in the same
+    ; cycle. Unbounded retry: RTU1 alone writes bytes 0..29, so the first
+    ; write that is not hit by a collision ends it (PRU1 XOUTs at most once
+    ; per new nonce here). R3..R8 stay 0 in the registers; their SPAD bytes
+    ; are not played (seq 0).
+    mov     r2.b0, r0.b0
+    ldi     r9.w0, 0
     xout    PDM8_SPAD_XID, &r2, PDM8_SPAD_RTU1_BYTES   ; seq 0, nonce, batch 0
+    xin     PDM8_SPAD_XID, &r2.b0, 1        ; read back the nonce ...
+    xin     PDM8_SPAD_XID, &r9.w0, 2        ; ... and seq
+    qbne    INIT_NONCE_SET, r2.b0, r0.b0    ; lost: write again
+    qbne    INIT_NONCE_SET, r9.w0, 0
     ldi32   r29, PDM8_SHARED_BASE
     ldi     r1, PDM8_RTU1_SCRATCH
     sbbo    &r2.b0, r1, SCR_ACK_TARGET, 1   ; batch 0 waits for the echo
@@ -398,8 +420,16 @@ WAIT_ACK:
     xin     PDM8_SPAD_XID, &r9.b3, 1        ; PRU1's ack
     qbne    WAIT_ACK, r9.b3, r9.b2          ; until PRU1 took batch seq - 1
     add     r28, r28, 1
+PUBLISH:
     mov     r9.w0, r28.w0
     xout    PDM8_SPAD_XID, &r2, PDM8_SPAD_RTU1_BYTES   ; batch + seq
+    ; Read seq back and write again until it is there (unbounded retry, as
+    ; at the init): a late publish can land in the same cycle as PRU1's
+    ; underrun XOUT of R9.b2/b3 (slot t11), and a lost batch would leave
+    ; PRU1 playing silence while RTU1 waits for an ack that never comes.
+    ; seq is new in every batch, so it shows whether this XOUT landed.
+    xin     PDM8_SPAD_XID, &r9.w0, 2
+    qbne    PUBLISH, r9.w0, r28.w0
     sbbo    &r28.b0, r1, SCR_ACK_TARGET, 1  ; next batch waits for ack seq.b0
     ; PRU1's counters to the header (r2..r9 are free until the xm reload)
     xin     PDM8_SPAD_XID, &r9.b2, 1        ; PRU1's underruns, mod 256
