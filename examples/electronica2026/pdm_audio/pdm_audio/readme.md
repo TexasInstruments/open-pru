@@ -43,7 +43,7 @@ clock and the MSRAM clip region are specific to the LP-AM243.
 
 | Processor | Hardware        | Software |
 | --------- | --------------- | -------- |
-| AM243x    | LP-AM243 Rev A  | Built with MCU+ SDK 12.01.00.33, CCS 21.0.1, ti-cgt-pru 2.3.3, ti-cgt-armllvm 5.1.1.LTS, SysConfig 1.28.1. Hardware run: FIXME (not run yet) |
+| AM243x    | LP-AM243 Rev A (FIXME: not run yet) | Builds with MCU+ SDK 12.01.00.33, CCS 21.0.1, ti-cgt-pru 2.3.3, ti-cgt-armllvm 5.1.1.LTS, SysConfig 1.28.1 (build and simulator only; FIXME: hardware validation) |
 
 The open-pru release notes list MCU+ SDK 11.1 - 12.0 as validated for AM243x,
 so 12.01 is one minor version newer than validated.
@@ -55,7 +55,7 @@ so 12.01 is one minor version newer than validated.
 ```
  MSRAM 0x700C0000          IPC scratchpad            ICSSG0 pins (jumpers)          ICSS shared RAM
  8 clips, int16     RTU1 ----------------> PRU1 ----> clock + 8 data ----> PRU0 ----> 0x30010000
- (128 KB, loops)    8 x sigma-delta         28 periods   BP.11 + 8 pins    8 x SD      header + 2 halves
+ (128 000 B, loops) 8 x sigma-delta         28 periods   BP.11 + 8 pins    8 x SD      header + 2 halves
                                             per batch                      chain       (64 frames x 8 ch)
 ```
 
@@ -104,9 +104,9 @@ Provenance and how the tones were generated: [clips/SOURCES.md](clips/SOURCES.md
 | SD channels     | `CLK_SEL` = 0 (sd8_clk = GPI16), `CLK_INV` = 0, ACC3, `SD_SAMPLE_SIZE` = 95 (OSR 96) |
 | IPC scratchpad  | XFR ID 15 (R2..R9), RTU1 to PRU1 |
 | PRU1 DRAM1      | RTU1 scratch at 0x1700..0x17FF (PRU1's timed path touches no memory) |
-| PRU0 DRAM0      | Receiver state 0x07F8..0x19FF |
+| PRU0 DRAM0      | Receiver state 0x07F8..0x19FF (publish block at 0x07F8) |
 | Shared RAM      | 64 KB at 0x10000 (local) = 0x30010000 (R5F / CCS global address) |
-| MSRAM           | Clip buffer `.pdm_clips` at 0x700C0000, 128 KB, non-cacheable (MPU region 5) |
+| MSRAM           | Clip buffer `.pdm_clips` at 0x700C0000: 128 000 B (in a 128 KB region), non-cacheable (MPU region 5) |
 
 ### Cycle budgets (pru-simulator, 333.33 MHz)
 
@@ -119,8 +119,9 @@ Provenance and how the tones were generated: [clips/SOURCES.md](clips/SOURCES.md
 | PRU0, pessimistic bound | 4439 cycles | 10 417 | 43 % |
 
 RTU1's MSRAM read latency on silicon is not measured. The simulator reads
-MSRAM in about 24 cycles. A fetch of up to about 990 cycles per frame would
-still fit in the RTU1 budget.
+MSRAM in about 24 cycles. The spare per batch is 2278 - 1327 = 951 cycles; with
+the 24 simulated cycles of the fetch that are already in the 1327, a fetch of
+up to about 975 cycles per frame would still fit in the RTU1 budget.
 
 ## Steps to Run the Example
 
@@ -159,7 +160,61 @@ you probe a signal with a scope or logic analyser.
 - Do not use a pin from the "not usable" list in the design (Ethernet PHY,
   eQEP, CAN, LEDs). The pin table above avoids them.
 
-The outputs are 3.3 V push-pull. Keep the jumpers short; the clock is 3.072 MHz.
+The PRU1 pads are driven push-pull (GPO mode, pull disabled in SysConfig). They
+are expected to be 3.3 V pads, as on the other electronica2026 demos.
+FIXME: confirm the I/O voltage of these pads against the LP-AM243 schematic
+(PROC109A); it is not stated in this repo or in the SDK docs. Keep the jumpers
+short; the clock is 3.072 MHz.
+
+### Before you start
+
+This is the one-time setup for a new PC and board. The repo and SDK docs
+describe each step, so they are linked instead of repeated.
+
+1. **Tools.** Install MCU+ SDK for AM243x (this project was built with
+   12.01.00.33) and CCS (built with 21.0.1), as described in
+   [docs/getting_started_mcuplus.md](../../../../docs/getting_started_mcuplus.md)
+   ("Install the SDK", "Install the tools"). The ti-cgt-pru 2.3.3,
+   ti-cgt-armllvm 5.1.1.LTS and SysConfig 1.28.1 used here came with that CCS
+   and SDK. On a Linux PC follow the SDK's "CCS Linux Host Support" steps that
+   page points to. (`docs/getting_started_linux.md` is about the Linux SDK for
+   A53 cores and is not needed here.)
+2. **imports.mak.** Copy `imports.mak.default` to `imports.mak` in the open-pru
+   root and edit it as the `UPDATE` comments say
+   ([same page](../../../../docs/getting_started_mcuplus.md), "Set up
+   imports.mak"). Or leave it and pass the `make` overrides shown under "Build
+   and run".
+3. **CCS target configuration for the LP.** Create it as in the MCU+ SDK docs
+   (MCU+ SDK docs > Getting Started > Download, Install, and Setup CCS,
+   section "Create Target Configuration"). Do **not**
+   bypass the ICSS / ICSS_G cores: the repo says the CCS debugger cannot
+   connect to a PRU core that has been bypassed
+   ([docs/getting_started_mcuplus.md](../../../../docs/getting_started_mcuplus.md),
+   "Install the tools"). This demo is loaded by the R5F, but you will want to
+   look at the PRU cores in CCS.
+4. **Board connections, power and boot mode.** Follow the MCU+ SDK docs page
+   "EVM Setup" (`docs/api_guide_am243x/EVM_SETUP_PAGE.html` in the SDK), section
+   AM243X-LP:
+   - power: 5 V / 3 A on the USB Type-C connector J10 (LD9 red means a power
+     error);
+   - JTAG: the USB cable to the on-board XDS110;
+   - boot mode: set the boot switches to **DEV BOOT** as shown in that
+     page, and run the "SOC Initialization" step it describes. The page
+     says that step is needed every time the LP is power-cycled.
+
+   FIXME: the exact switch positions, and whether the SOC initialization
+   script is needed for this demo, are not written here because they are not
+   stated in this repo and nothing has run on a board yet.
+5. **Connect, load, run.** Launch the target configuration, connect to
+   `MAIN_Cortex_R5_0_0` (the SDK docs call it R5F0-0, r5fss0-0 here), load
+   `pdm_audio_am243x-lp_r5fss0-0_freertos_ti-arm-clang` and run.
+6. **Console (optional).** The R5F prints one `DebugP_log` line at start-up
+   (see "Build and run"). The AM243X-LP has a single UART port from the XDS110,
+   used for the console; open it in a terminal at 115200 baud, 8 data bits, no
+   parity, 1 stop bit (SDK "EVM Setup", "UART Terminal"). The demo uses the SDK
+   default UART console (`CONFIG_UART_CONSOLE` on USART0, SDK default 115200
+   baud, see `example.syscfg`). FIXME: not checked on this board. The demo
+   works without the console.
 
 ### Build and run
 
@@ -208,12 +263,16 @@ again). Do not restart a single PRU core from the CCS register view.
 The R5F writes the whole GPCFG0, GPCFG1 and SD_CFG registers and the PRU
 program counter reset value before it starts the cores. So the demo also runs
 after another ICSSG0 demo (uart_print, i2c_io, uart_rx) was loaded from CCS
-without a System Reset.
+without a System Reset (by design; FIXME: not tried on a board).
 
 ### Check in the CCS memory browser
 
 The R5F runs in its idle loop, and the PRU cores run on their own. Connect to
 the r5fss0-0 core, open View > Memory Browser, and enable continuous refresh.
+FIXME: reading the shared RAM while the R5F is running (continuous refresh) has
+not been tried on this board. If CCS refuses or shows stale values, halt the
+R5F core: the PRU cores run on their own and keep going (also not tried), and
+refresh the view by hand.
 The ICSS shared RAM is at 0x30010000. All addresses below are global
 addresses.
 
@@ -249,8 +308,13 @@ Steps:
 5. **PCM_COUNT[0..7]** (0x30010040 + 4 * channel): read all eight and check
    that every one rises. Channels 3 to 7 could only be verified statically
    before the board run (the simulator has 3 SD channels), so this step is the
-   first check of them. After the first second they should differ by at most
-   one 64-frame half.
+   first check of them. The counts should be close to each other: the odd
+   channels run one SD window (31.25 us, half a PCM frame) behind the even ones
+   because of the FIR stagger, and PCM_COUNT[c] is 64 * HALF_SEQ when a half is
+   published (this is what the simulator test checks), so the eight counts
+   differ by one or two, plus the skew of reading them one after another.
+   FIXME: not seen on a board yet; a count that is far from the others (or
+   stuck) is the sign of a problem.
 6. **Waveforms.** Read half A (0x30010100) and half B (0x30010900) and look at
    one channel's column: sample (frame f, channel c) is at `half + f * 32 + c * 4`,
    so a channel's samples are 32 bytes apart. Read the memory as 32-bit signed
@@ -271,8 +335,10 @@ Steps:
 7. **Which half is ready.** The half that `HALF_SEQ` just completed is
    `(HALF_SEQ - 1) & 1`. Read that half (0 = A, 1 = B). PRU0 is writing the
    other half, so read the ready half, not the other one.
-8. **Optional: memory graph of one channel.** Tools > Graph > Single Time,
-   then set (the field names differ slightly between CCS versions):
+8. **Optional: memory graph of one channel.** FIXME: the dialog and field names
+   below are written from memory of the CCS Graph Properties dialog and were
+   not checked against CCS 21.0.1 or a board; the values are what is meant.
+   Tools > Graph > Single Time, then set:
    - start address: `0x30010100 + 4 * channel` (for example 0x3001010C for
      channel 3);
    - acquisition buffer size: 64;
@@ -283,16 +349,14 @@ Steps:
 
    A graph of half A and a second graph of half B (start address 0x30010900 +
    4 * channel) show both halves.
-9. **Optional: SD shadow overflow.** Halt PRU0 in the CCS register view and
-   read R31. Bit 29 is the SD shadow-overflow flag: if it is set, PRU0 did not
-   read a channel's SD result before the next one arrived (the 8-channel
-   chain overran its 10 417-cycle window). Resume or restart afterwards. A
-   halted PRU0 stops the PCM, and the other cores keep running, so restart all
-   cores through the R5F (see "Restart rule") when you are done.
 
 FIXME: record the hardware results here after the first board run (HALF_SEQ
-rate, BATCH_COUNT rate, PCM_COUNT[0..7], per-channel periods, the level, and
-R31[29]).
+rate, BATCH_COUNT rate, PCM_COUNT[0..7], per-channel periods and the level).
+
+There is no reliable single-point check of the SD shadow-overflow flag
+(R31[29]) from the CCS register view: PRU0 clears the valid and overflow bits
+of every channel in each window, so a halted PRU0 shows at most the current
+window's flag. Use PCM_COUNT, HALF_SEQ and the waveforms instead.
 
 ### If something looks wrong
 
@@ -303,7 +367,7 @@ R31[29]).
 | Channels 4 to 7 flat, 0 to 3 fine | SW6 or LD17: the SD5, SD6 and SD7 data paths and PRU1_GPO16 go through the TMUX1574 switches. Also check that no BoosterPack is plugged in. |
 | UNDERRUN_COUNT rises | RTU1 is late. The likely cause is MSRAM latency on silicon: the simulator reads in about 24 cycles and cannot show the real value. The clock stays correct, and the affected batches are silence. |
 | BATCH_COUNT frozen, UNDERRUN_COUNT 0 | RTU1 has stalled. Restart all cores through the R5F. |
-| HALF_SEQ frozen, BATCH_COUNT rising | PRU0 stopped, or an SD channel does not deliver. Check R31[29] (step 9), and PCM_COUNT per channel. |
+| HALF_SEQ frozen, BATCH_COUNT rising | PRU0 stopped, or an SD channel does not deliver. Check PCM_COUNT per channel (step 5). |
 | Everything frozen after a CCS reload | A core was restarted alone. Restart all cores through the R5F. |
 | Waveform shape wrong but counters fine | Check the clock for glitches. Look at the half-period of the PDM clock in period 27 of each 28-period batch: that is where PRU1 does its IPC scratchpad XIN and XOUT, so contention there would show as one stretched half period. The simulator keeps all half periods at 54/55 cycles. |
 
@@ -362,7 +426,7 @@ the next project reads.
   Clips with a peak of 0.5 FS are safe (the clips are normalised to that).
   Sustained input near full scale wraps the integrators. Keep the input well
   below FS if you replace the clips.
-- **DRAM0 overlap.** PRU0's receiver state uses DRAM0 0x0800..0x19FF. The
+- **DRAM0 overlap.** PRU0's receiver state uses DRAM0 0x07F8..0x19FF (publish block at 0x07F8). The
   range 0x1000..0x1A00 is the open-pru default share of RTU0 and TX_PRU0. This
   demo does not run those cores. A later demo that adds RTU0 or TX_PRU0 would
   collide.

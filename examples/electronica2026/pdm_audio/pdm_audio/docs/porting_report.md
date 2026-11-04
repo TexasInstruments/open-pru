@@ -112,7 +112,7 @@ that needed a decision are in section 4.
 
 RTU1 runs all 8 modulators and PRU1 only drives pins; the 28-period batch
 protocol with seq and ack bytes; sample-interleaved halves with a `HALF_SEQ`
-counter; one frame-interleaved 128 KB clip buffer that loops, with 8 different
+counter; one frame-interleaved clip buffer (128 000 B in a 128 KB region) that loops, with 8 different
 clips; logical channels 4..7 on SD5..SD8 (SD4 is skipped because its GPI9 goes
 to the RGMII PHY); `CLK_SEL` = 0 driven by the PdmLink clock in the simulator;
 PRU1's timed path uses no shared memory.
@@ -155,7 +155,7 @@ Compared with the uart_print project (the copied structure), in
   (mode 0, no pull) and PRU0 GPI1, 3, 5, 7, 11, 13, 15, 16, 17 (mode 1,
   receiver on, no pull). Each pad was checked against the SysConfig device data,
   the generated `ti_pinmux_config.c` and the schematic ball table (all 18 match).
-- Memory region `PDM_CLIPS` at 0x700C0000, 128 KB, section `.pdm_clips`, and
+- Memory region `PDM_CLIPS` at 0x700C0000 (128 KB region, the buffer is 128 000 B), section `.pdm_clips`, and
   an MPU entry `CONFIG_MPU_REGION5` (Normal non-cacheable, no execute). The
   inherited `NON_CACHE_MEM` region (no MPU entry of its own, so it was cached
   in fact) was removed (ruling R5).
@@ -187,7 +187,7 @@ the SysConfig GUI, check the clock and the pins, and save (open item).
 | PRU0, 3 channels, measured | w_comb 48, w_fir 920, spin 1, wrap 3, worst window 1980 |
 | PRU0, 8 channels, extrapolated | 8 x 48 + 4 x 920 + 7 + 3 = 4074 of 10 417 cycles (39 %) |
 | PRU0, pessimistic bound | 4439 cycles (43 %): every FIR input negative (+64 per FIR) and one PDM period of shadow skew |
-| RTU1 MSRAM latency tolerated | about 990 cycles per frame fetch (the simulator reads in about 24) |
+| RTU1 MSRAM latency tolerated | about 975 cycles per frame fetch: spare 2278 - 1327 = 951, plus the 24 cycles of the simulated fetch already inside the 1327 (the Task 2 figure of about 990 was before the counters moved to RTU1) |
 
 The design's fallback (move modulator work to PRU1, then reduce the channel
 count) was not needed: 8 channels at 333.33 MHz fit all three cores.
@@ -249,7 +249,7 @@ the repo root (a root build dirties `pru_i2s`).
 ## 8. Things the simulator could not show
 
 - **RTU1 MSRAM latency.** The simulator reads MSRAM in a flat ~24 cycles. The
-  margin covers about 990 cycles, but the real value is unmeasured. A slow
+  margin covers a fetch of about 975 cycles (951 spare plus the 24 simulated), but the real value is unmeasured. A slow
   fetch shows as `UNDERRUN_COUNT` > 0.
 - **XOUT to XIN visibility between RTU1 and PRU1.** Assumed one cycle each
   (as in the simulator and the skill's timing reference). The protocol does not
@@ -259,7 +259,7 @@ the repo root (a root build dirties `pru_i2s`).
 - **Channels 3 to 7.** The simulator has 3 SD channels, so the PCM of channels
   3 to 7 and the SD routing of SD5 to SD8 are verified only statically (pin
   table, the assembly with the 8-channel options, clpru). The first board run
-  must read `PCM_COUNT[3..7]` and check the SD shadow-overflow flag R31[29].
+  must read `PCM_COUNT[3..7]` and compare them with the other channels. The SD shadow-overflow flag R31[29] is not a reliable check from the CCS register view: PRU0 clears valid and overflow for every channel in each window, so a halted PRU0 shows at most the current window's flag.
 - **Shadow skew on the board.** In the simulator PRU0 reinitialises before the
   first PDM edge, so all SD shadows latch together. On the board the clock is
   already running when PRU0 starts, so the 8 back-to-back reinits can straddle
@@ -277,7 +277,7 @@ the repo root (a root build dirties `pru_i2s`).
 
 - [ ] **Run on LP-AM243 hardware** and do the memory-browser check in
       `readme.md` (HALF_SEQ, BATCH_COUNT, UNDERRUN_COUNT, PCM_COUNT[0..7],
-      per-channel periods, levels, R31[29]). Nothing has run on a board yet.
+      per-channel periods, levels). Nothing has run on a board yet.
       Fill in the FIXMEs in `readme.md` and in section 7.
 - [ ] **SPDX headers on `firmware/fir_coefs.inc` and
       `firmware/decimation_fir.h`.** They are byte-identical copies of the
@@ -324,6 +324,11 @@ the repo root (a root build dirties `pru_i2s`).
   - `UNDERRUN_COUNT` aliases if more than 255 underruns happen between two RTU1
     publishes; GPCFG read-back asserts include the GPI_SB bit (safe in direct
     mode); two over-long comment lines in `pdm_clips.h` and the R5F.
+- [ ] **Readme FIXMEs for the first board run:** the LP boot-switch positions
+      and SOC initialization need, the XDS110 console port, continuous refresh
+      of the memory browser while the R5F runs, the I/O voltage of the pads
+      (schematic), the CCS memory-graph field names, and the PCM_COUNT spread.
+      These could not be sourced from this repo or the SDK docs.
 - [ ] **Push and PR.** The branch and the pru-simulator branch
       `feat/pdm-open-pru-check` (stacked on PR #106) are not pushed.
       Nothing was pushed by the agent.
