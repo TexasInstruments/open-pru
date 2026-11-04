@@ -151,8 +151,8 @@ impl AfPacketLink {
             return Err(last_err());
         }
         let hw = unsafe { ifr.ifr_ifru.ifru_hwaddr.sa_data };
-        for i in 0..6 {
-            link.mac[i] = hw[i] as u8;
+        for (d, s) in link.mac.iter_mut().zip(hw.iter()) {
+            *d = *s as u8;
         }
         Ok(link)
     }
@@ -200,7 +200,7 @@ impl Link for AfPacketLink {
             if n < 0 {
                 return Err(last_err());
             }
-            if sll.sll_pkttype == libc::PACKET_OUTGOING as u8 {
+            if sll.sll_pkttype == libc::PACKET_OUTGOING {
                 if now_ns() >= deadline {
                     return Ok(None);
                 }

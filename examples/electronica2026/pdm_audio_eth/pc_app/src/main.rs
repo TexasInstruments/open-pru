@@ -100,8 +100,8 @@ fn stream(link: &mut dyn Link, set: &InputSet, capture: Option<&std::path::Path>
         if done_at.is_some_and(|t| now > t + tail_ns) {
             break;
         }
-        if let Some(f) = link.recv(Duration::from_millis(1))? {
-            if let Ok((h, Body::AudioOut { status, pcm }, _)) = decode(&f.data) {
+        if let Some(f) = link.recv(Duration::from_millis(1))?
+            && let Ok((h, Body::AudioOut { status, pcm }, _)) = decode(&f.data) {
                 out.push(&status, &pcm, h.ts, f.t_ns);
                 pacer.on_status(&status, f.t_ns);
                 let v = out.take_new();
@@ -109,7 +109,6 @@ fn stream(link: &mut dyn Link, set: &InputSet, capture: Option<&std::path::Path>
                     o.write(&v)?;
                 }
             }
-        }
         while done_at.is_none() {
             let Some(first) = pacer.next_due(now_ns()) else { break };
             let block = send_block(link, set, pos, first, seq)?;
@@ -272,7 +271,10 @@ fn capture(link: &mut dyn Link, seconds: f64, out: &std::path::Path) -> std::io:
     Ok(())
 }
 
-fn open(t: &Target) -> Result<(Box<dyn Link>, (u32, bool, bool)), String> {
+/// The link and its (Mbit/s, full duplex, carrier).
+type Opened = (Box<dyn Link>, (u32, bool, bool));
+
+fn open(t: &Target) -> Result<Opened, String> {
     if t.emulator {
         return Ok((Box::new(Emulator::new(EmuConfig::default())), (1000, true, true)));
     }

@@ -164,8 +164,8 @@ pub fn run_net(mut link: Box<dyn Link>, input: Option<NetInput>, tx: Sender<NetM
         if now - last_flush > 20_000_000 {
             last_flush = now;
             let frames = out.take_new();
-            if let Some(x) = input.as_mut().and_then(|i| i.export.as_mut()) {
-                if let Some(l) = meter.lag() {
+            if let Some(x) = input.as_mut().and_then(|i| i.export.as_mut())
+                && let Some(l) = meter.lag() {
                     aligner.set_lag(l);
                     aligner.push_in(&sent_in);
                     aligner.push_out(&frames);
@@ -175,7 +175,6 @@ pub fn run_net(mut link: Box<dyn Link>, input: Option<NetInput>, tx: Sender<NetM
                         }
                     }
                 }
-            }
             if !frames.is_empty() && tx.send(NetMsg::Out(frames)).is_err() {
                 return;
             }

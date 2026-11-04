@@ -190,7 +190,7 @@ impl Emulator {
                         }
                     }
                     self.out_seq += 1;
-                    let drop = self.cfg.drop_every_nth_out.is_some_and(|n| self.out_seq % n == 0);
+                    let drop = self.cfg.drop_every_nth_out.is_some_and(|n| self.out_seq.is_multiple_of(n));
                     if !drop {
                         let ts = st.detect_iep + 1000 + part as u64 * 9000;
                         let f = self.frame(FrameType::AudioOut, self.out_seq - 1, ts,
@@ -209,7 +209,7 @@ impl Emulator {
             let seq = self.tput_seq;
             self.tput_seq += 1;
             self.tput_left -= 1;
-            if self.cfg.pc_drop_every_nth_tput.is_some_and(|n| (seq + 1) % n == 0) {
+            if self.cfg.pc_drop_every_nth_tput.is_some_and(|n| (seq + 1).is_multiple_of(n)) {
                 self.stats.rx_kernel_drops += 1;
                 continue;
             }
@@ -250,7 +250,7 @@ impl Emulator {
         match body {
             Body::Ping { pc_ns } => {
                 self.pongs += 1;
-                if self.cfg.drop_every_nth_pong.is_some_and(|n| self.pongs % n == 0) {
+                if self.cfg.drop_every_nth_pong.is_some_and(|n| self.pongs.is_multiple_of(n)) {
                     return;
                 }
                 let b = Body::Pong { ping_seq: h.seq, pc_ns, rx_iep: bns };
@@ -436,11 +436,10 @@ mod tests {
         let start = Instant::now();
         let mut idx = vec![];
         while start.elapsed() < Duration::from_secs(1) {
-            if let Some(f) = e.recv(T).unwrap() {
-                if let (_, Body::AudioOut { status, .. }, _) = decode(&f.data).unwrap() {
+            if let Some(f) = e.recv(T).unwrap()
+                && let (_, Body::AudioOut { status, .. }, _) = decode(&f.data).unwrap() {
                     idx.push(status.first_index);
                 }
-            }
         }
         assert!((495..=505).contains(&idx.len()), "{} AUDIO_OUT frames", idx.len());
         assert!(idx.windows(2).all(|w| w[1] == w[0] + 32), "{idx:?}");

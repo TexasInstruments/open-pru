@@ -40,13 +40,12 @@ impl Pacer {
             self.clip = s.clip_frames;
         }
         let total = s.rtu1_total();
-        if let Some((last, _)) = self.obs {
-            if total + 1000 < last {
+        if let Some((last, _)) = self.obs
+            && total + 1000 < last {
                 self.restarts += 1;
                 self.next = None;
                 self.in_underrun = false;
             }
-        }
         self.obs = Some((total, pc_ns));
         if self.finished {
             return;

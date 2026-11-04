@@ -143,11 +143,10 @@ where
             return Ok(None);
         }
         let Some(f) = link.recv(Duration::from_nanos(left))? else { return Ok(None) };
-        if let Ok((h, b, _)) = decode(&f.data) {
-            if accept(&h, &b) {
+        if let Ok((h, b, _)) = decode(&f.data)
+            && accept(&h, &b) {
                 return Ok(Some((h, b, f.t_ns)));
             }
-        }
     }
 }
 

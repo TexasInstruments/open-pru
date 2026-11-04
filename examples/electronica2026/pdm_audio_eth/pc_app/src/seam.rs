@@ -94,8 +94,7 @@ impl Aligner {
     /// three later blocks could is skipped.
     pub fn take_blocks(&mut self) -> Vec<Block> {
         let mut v = Vec::new();
-        loop {
-            let (Some(&i_lo), Some(&o_lo)) = (self.inp.keys().next(), self.out.keys().next()) else { break };
+        while let (Some(&i_lo), Some(&o_lo)) = (self.inp.keys().next(), self.out.keys().next()) {
             let lo = i_lo.max(o_lo).div_ceil(64) * 64; // first block both may complete
             let start = self.next.map_or(lo, |n| n.max(lo));
             let complete = (start..start + 64).all(|i| self.inp.contains_key(&i) && self.out.contains_key(&i));

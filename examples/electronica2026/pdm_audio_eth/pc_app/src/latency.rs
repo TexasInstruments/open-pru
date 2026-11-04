@@ -163,8 +163,8 @@ mod tests {
         e.send(&encode(BOARD_MAC, e.mac(), &h, &Body::Control { cmd: CMD_RESET_COUNTERS, arg0: 0, arg1: 0 }, 60)).unwrap();
         let (end, mut pos) = (now_ns() + (secs * 1e9) as u64, 0usize);
         while now_ns() < end {
-            if let Some(f) = e.recv(std::time::Duration::from_millis(1)).unwrap() {
-                if let Ok((h, Body::AudioOut { status, pcm }, _)) = decode(&f.data) {
+            if let Some(f) = e.recv(std::time::Duration::from_millis(1)).unwrap()
+                && let Ok((h, Body::AudioOut { status, pcm }, _)) = decode(&f.data) {
                     p.on_status(&status, f.t_ns);
                     m.push_status(&status);
                     let mut y: Vec<i32> = pcm.iter().map(|r| r[0]).collect();
@@ -174,7 +174,6 @@ mod tests {
                     }
                     m.push_out(status.first_index as u64, &y, h.ts);
                 }
-            }
             while let Some(first) = p.next_due(now_ns()) {
                 let mut pcm = Box::new([[0i16; 8]; 64]);
                 let mut x = [0i16; 64];
