@@ -4,5 +4,6 @@
 //! PC side of the pdm_audio_eth demo (see ../pdm_audio_eth/docs/design.md).
 
 pub mod emulator;
+pub mod ethtest;
 pub mod link;
 pub mod proto;
