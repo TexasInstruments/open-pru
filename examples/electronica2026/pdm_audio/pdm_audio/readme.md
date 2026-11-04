@@ -112,16 +112,16 @@ Provenance and how the tones were generated: [clips/SOURCES.md](clips/SOURCES.md
 
 | Core | Measured | Limit | Share |
 | ---- | -------- | ----- | ----- |
-| RTU1, worst case per 28-period batch | 1327 cycles | 2278 | 58 % |
+| RTU1, worst case per 28-period batch | 1329 cycles | 2278 | 58 % |
 | PRU1, busy per batch | about 418 of 3038 cycles | fixed | about 14 % busy, the rest is padding |
 | PRU1, setup before the sampling edge | 54 cycles | at least 26 | |
-| PRU0, 8-channel worst window (extrapolated) | 4074 cycles | 10 417 | 39 % |
-| PRU0, pessimistic bound | 4439 cycles | 10 417 | 43 % |
+| PRU0, 8-channel worst window (extrapolated) | 4082 cycles | 10 417 | 39 % |
+| PRU0, pessimistic bound | 4447 cycles | 10 417 | 43 % |
 
 RTU1's MSRAM read latency on silicon is not measured. The simulator reads
-MSRAM in about 24 cycles. The spare per batch is 2278 - 1327 = 951 cycles; with
-the 24 simulated cycles of the fetch that are already in the 1327, a fetch of
-up to about 975 cycles per frame would still fit in the RTU1 budget.
+MSRAM in about 24 cycles. The spare per batch is 2278 - 1329 = 949 cycles; with
+the 24 simulated cycles of the fetch that are already in the 1329, a fetch of
+up to about 973 cycles per frame would still fit in the RTU1 budget.
 
 ## Steps to Run the Example
 
@@ -261,9 +261,21 @@ change a PRU firmware, restart all cores through the R5F** (run the R5F project
 again). Do not restart a single PRU core from the CCS register view.
 
 The R5F writes the whole GPCFG0, GPCFG1 and SD_CFG registers and the PRU
-program counter reset value before it starts the cores. So the demo also runs
-after another ICSSG0 demo (uart_print, i2c_io, uart_rx) was loaded from CCS
-without a System Reset (by design; FIXME: not tried on a board).
+program counter reset value, and halts all six ICSSG0 cores (RTU0, TX_PRU0 and
+TX_PRU1 too) before it starts its three. So the demo also runs after another
+ICSSG0 demo (uart_print, i2c_io, uart_rx) was loaded from CCS without a System
+Reset (by design; FIXME: not tried on a board).
+
+**Before running another demo: do a System Reset (or halt PRU1) and remove
+the jumpers; i2c_io drives BP.32.** The jumpers connect PRU1 outputs to PRU0
+pins, and PRU1 keeps driving its GPO pins (push-pull) as long as it runs, which
+it does until something resets or halts it: loading another demo's R5F image
+does not. The i2c_io demo drives SDA push-pull on PRG0_PRU0_GPO1, which is
+BP.32, and BP.32 is jumpered to PRU1_GPO1 (BP.67), channel 0's data pin here.
+Two push-pull outputs would then fight on one wire. The other pins of the table
+can clash the same way with any demo that drives them. So do a System Reset
+from the CCS debug view (or halt ICSSG0 PRU1 there), then pull all nine jumpers.
+FIXME: the exact CCS 21.0.1 menu path was not checked.
 
 ### Check in the CCS memory browser
 
@@ -289,23 +301,34 @@ addresses.
 | 0x30010020   | BATCH_COUNT      | rising, about 110 000 per second |
 | 0x30010024   | RTU1_FRAME_POS   | clip frame being modulated (0 to 7999) |
 | 0x30010028   | RTU1_LOOPS       | rises once per 0.5 s clip loop |
+| 0x3001002C   | VERSION          | 1 (layout of `pdm8_shared.inc`) |
+| 0x30010030   | SD_OVF_COUNT     | stays 0 |
 | 0x30010040 ..5F | PCM_COUNT[0..7] | all rising |
 | 0x30010100   | half A           | 64 frames x 8 ch x int32 |
 | 0x30010900   | half B           | same |
 
 Steps:
 
-1. **Header.** Read MAGIC, N_CH, FRAMES_PER_HALF, PCM_RATE, CLIP_ADDR and
-   CLIP_FRAMES. They are written by the R5F before the cores start.
+1. **Header.** Read MAGIC, N_CH, FRAMES_PER_HALF, PCM_RATE, CLIP_ADDR,
+   CLIP_FRAMES and VERSION. They are written by the R5F before the cores
+   start.
 2. **HALF_SEQ** rises about 250 times per second (16 000 / 64). Read it twice a
    second apart.
 3. **BATCH_COUNT** rises about 110 000 times per second (3.072 MHz / 28). This
-   is the liveness check of the whole chain: a frozen BATCH_COUNT with
-   UNDERRUN_COUNT 0 means RTU1 has stalled, because RTU1 writes both counters.
+   is the liveness check of RTU1 and PRU1: RTU1 writes it each time it
+   publishes a batch, and it publishes only after PRU1 acked the batch before.
+   So a frozen BATCH_COUNT means that RTU1 has stalled, or that PRU1 is halted
+   or never started, or that the start handshake between them did not finish
+   (UNDERRUN_COUNT does not tell these apart: RTU1 writes it too).
 4. **UNDERRUN_COUNT** stays 0. Each underrun is one batch that PRU1 replaced
    by silence because RTU1 was late. The clock does not change when that
    happens.
-5. **PCM_COUNT[0..7]** (0x30010040 + 4 * channel): read all eight and check
+5. **SD_OVF_COUNT** (0x30010030) stays 0. PRU0 adds 1 each time one of its SD
+   channels latched a new SINC3 sample before PRU0 had read the previous one
+   (R31[29], the shadow overflow flag), so a sample was lost. The count is
+   sticky: one read at any time covers the whole run. A value above 0 means
+   PRU0 cannot keep up with 8 channels on this board.
+6. **PCM_COUNT[0..7]** (0x30010040 + 4 * channel): read all eight and check
    that every one rises. Channels 3 to 7 could only be verified statically
    before the board run (the simulator has 3 SD channels), so this step is the
    first check of them. The counts should be close to each other: the odd
@@ -313,9 +336,11 @@ Steps:
    because of the FIR stagger, and PCM_COUNT[c] is 64 * HALF_SEQ when a half is
    published (this is what the simulator test checks), so the eight counts
    differ by one or two, plus the skew of reading them one after another.
-   FIXME: not seen on a board yet; a count that is far from the others (or
-   stuck) is the sign of a problem.
-6. **Waveforms.** Read half A (0x30010100) and half B (0x30010900) and look at
+   FIXME: not seen on a board yet; a count that is far from the others is
+   the sign of a problem. All channels share sd8_clk and PRU0 serves them in
+   turn, so a count does not stop on its own: if one stops, all stop (a
+   missing data jumper shows in the waveform, step 7, not here).
+7. **Waveforms.** Read half A (0x30010100) and half B (0x30010900) and look at
    one channel's column: sample (frame f, channel c) is at `half + f * 32 + c * 4`,
    so a channel's samples are 32 bytes apart. Read the memory as 32-bit signed
    integers. The tone channels show a clean sine with these periods:
@@ -332,10 +357,10 @@ Steps:
    Channel 0 is speech, and channels 1 and 2 are chirps, so they change over
    time. A frozen column that never moves between reads of a changing
    HALF_SEQ means that channel's data is not arriving.
-7. **Which half is ready.** The half that `HALF_SEQ` just completed is
+8. **Which half is ready.** The half that `HALF_SEQ` just completed is
    `(HALF_SEQ - 1) & 1`. Read that half (0 = A, 1 = B). PRU0 is writing the
    other half, so read the ready half, not the other one.
-8. **Optional: memory graph of one channel.** FIXME: the dialog and field names
+9. **Optional: memory graph of one channel.** FIXME: the dialog and field names
    below are written from memory of the CCS Graph Properties dialog and were
    not checked against CCS 21.0.1 or a board; the values are what is meant.
    Tools > Graph > Single Time, then set:
@@ -351,24 +376,27 @@ Steps:
    4 * channel) show both halves.
 
 FIXME: record the hardware results here after the first board run (HALF_SEQ
-rate, BATCH_COUNT rate, PCM_COUNT[0..7], per-channel periods and the level).
+rate, BATCH_COUNT rate, SD_OVF_COUNT, PCM_COUNT[0..7], per-channel periods and
+the level).
 
-There is no reliable single-point check of the SD shadow-overflow flag
-(R31[29]) from the CCS register view: PRU0 clears the valid and overflow bits
-of every channel in each window, so a halted PRU0 shows at most the current
-window's flag. Use PCM_COUNT, HALF_SEQ and the waveforms instead.
+Do not look for the SD shadow-overflow flag R31[29] in the CCS register view:
+PRU0 clears it in every window, so a halted PRU0 shows at most the current
+window's flag. SD_OVF_COUNT (step 5) keeps the count for you.
 
 ### If something looks wrong
 
 | Symptom | Likely cause |
 | ------- | ------------ |
 | All PCM_COUNT stay 0 | PRU0 gets no clock or no SD routing. Check GPCFG0 mux = 3 (SD), the pin mux of GPI16 (BP.7) and the clock jumper BP.11 to BP.7, and that SW6 is in the default position. |
-| One channel's PCM_COUNT is 0, or its column is flat | That channel's jumper (PRU1 GPO to PRU0 GPI pin). |
+| One channel's column is flat or noise, the counts fine | That channel's data jumper (PRU1 GPO to PRU0 GPI pin). Its PCM_COUNT still rises with the others: all channels share sd8_clk and PRU0 serves them in turn, so a missing data wire gives a flat or noisy column, not a stuck count. |
+| All PCM_COUNT stop together (after they rose) | PRU0 has stopped, or it lost the clock (BP.11 to BP.7). If one count stops, all stop. |
 | Channels 4 to 7 flat, 0 to 3 fine | SW6 or LD17: the SD5, SD6 and SD7 data paths and PRU1_GPO16 go through the TMUX1574 switches. Also check that no BoosterPack is plugged in. |
 | UNDERRUN_COUNT rises | RTU1 is late. The likely cause is MSRAM latency on silicon: the simulator reads in about 24 cycles and cannot show the real value. The clock stays correct, and the affected batches are silence. |
-| BATCH_COUNT frozen, UNDERRUN_COUNT 0 | RTU1 has stalled. Restart all cores through the R5F. |
-| HALF_SEQ frozen, BATCH_COUNT rising | PRU0 stopped, or an SD channel does not deliver. Check PCM_COUNT per channel (step 5). |
+| BATCH_COUNT frozen | RTU1 has stalled, or PRU1 is halted (or never started), or the start handshake between them did not finish (for example after a single core was restarted). RTU1 writes BATCH_COUNT only after PRU1 acked a batch, so all three look the same. Restart all cores through the R5F. |
+| SD_OVF_COUNT above 0 | PRU0 did not read an SD channel within one SINC3 window, so a sample was lost: PRU0 cannot keep up with 8 channels on this board. See the fallback in the design (section 7): rebalance, then fewer channels. |
+| HALF_SEQ frozen, BATCH_COUNT rising | PRU0 stopped, or an SD channel does not deliver. Check PCM_COUNT per channel (step 6). |
 | Everything frozen after a CCS reload | A core was restarted alone. Restart all cores through the R5F. |
+| The next demo (for example i2c_io) misbehaves on a pin of the jumper table | PRU1 of this demo still drives its GPO pins through the jumpers (i2c_io drives SDA on BP.32, jumpered to PRU1_GPO1 on BP.67). Do a System Reset (or halt PRU1) and remove the jumpers before running another demo. |
 | Waveform shape wrong but counters fine | Check the clock for glitches. Look at the half-period of the PDM clock in period 27 of each 28-period batch: that is where PRU1 does its IPC scratchpad XIN and XOUT, so contention there would show as one stretched half period. The simulator keeps all half periods at 54/55 cycles. |
 
 ## Reader interface (for the Ethernet PRU)
@@ -392,6 +420,9 @@ the next project reads.
   last sample of every channel of a half. **The ready half is
   `(HALF_SEQ - 1) & 1`.** PRU0 fills the other half. The ready half does not
   change for 4 ms, until PRU0 has written the next half.
+- **A reader must check MAGIC (`PDM8` = 0x50444D38) and VERSION (1) first**
+  and use nothing else in the buffer if either differs. VERSION changes
+  whenever an offset or a meaning in the map changes.
 - A reader should poll `HALF_SEQ`, and when it changed, copy the half
   `(HALF_SEQ - 1) & 1`, then read `HALF_SEQ` again. If it advanced by 2 or
   more, a half was missed (the reader was slower than 4 ms).
@@ -411,6 +442,8 @@ the next project reads.
   | 0x20        | BATCH_COUNT      |
   | 0x24        | RTU1_FRAME_POS   |
   | 0x28        | RTU1_LOOPS       |
+  | 0x2C        | VERSION = 1 (layout version, written by the R5F) |
+  | 0x30        | SD_OVF_COUNT (SD samples PRU0 lost, sticky) |
   | 0x40 - 0x5F | PCM_COUNT[0..7]  |
 
 - There is no R31 event per half. The reader polls `HALF_SEQ`.
@@ -428,8 +461,20 @@ the next project reads.
   below FS if you replace the clips.
 - **DRAM0 overlap.** PRU0's receiver state uses DRAM0 0x07F8..0x19FF (publish block at 0x07F8). The
   range 0x1000..0x1A00 is the open-pru default share of RTU0 and TX_PRU0. This
-  demo does not run those cores. A later demo that adds RTU0 or TX_PRU0 would
-  collide.
+  demo does not run those cores, and the R5F halts them (and TX_PRU1) at start,
+  in case an earlier demo left one running. A later demo that adds RTU0 or
+  TX_PRU0 would collide.
+- **IPC scratchpad without arbitration.** RTU1 and PRU1 may XOUT to the
+  scratchpad in the same cycle, and the TRM does not say that both writes
+  land. The firmware repeats every write until it is there (RTU1 reads its
+  bytes back, PRU1 rewrites both of its bytes at each batch slot), so a lost
+  write costs at most one silence batch, counted in UNDERRUN_COUNT. Whether
+  such collisions happen on silicon is not known (FIXME: board).
+- **`firmware/decimation_fir.h`: provenance and licence to be confirmed by
+  the author before merge.** It is a copy of the pru-simulator file (itself
+  from the audio_pipe demo) and has no licence header; where it came from is
+  not recorded, so no TI copyright was added. `fir_coefs.inc` is generated
+  from it and carries only the SPDX line.
 - **iepClk** stays at its default (200 MHz). The demo does not use the IEP.
   Ethernet-reader work may want to set it.
 - **SysConfig GUI.** `example.syscfg` was edited by hand and validated with
@@ -466,7 +511,7 @@ git checkout feat/pdm-open-pru-check
 OPEN_PRU_PATH=/path/to/open-pru env -u PYTHONPATH .venv/bin/python -m pytest tests/test_pdm_open_pru_port.py -q
 ```
 
-(`env -u PYTHONPATH` is only needed on a PC with a ROS environment.) 44 tests,
+(`env -u PYTHONPATH` is only needed on a PC with a ROS environment.) 53 tests,
 about 80 s. The tests, by core:
 
 - **RTU1 alone** (a Python stand-in acks the batches): `test_shared_inc_names`,
@@ -483,12 +528,18 @@ about 80 s. The tests, by core:
   `test_stale_spad_does_not_deadlock` (5 stale states),
   `test_underrun_keeps_clock_and_flags`, `test_rerun_clears_handshake`,
   `test_pru1_timed_path_has_no_shared_memory_access`,
-  `test_pru1_leaves_rtu1_scratch_alone`, `test_seq_wraps_at_16_bits`.
+  `test_pru1_leaves_rtu1_scratch_alone`, `test_seq_wraps_at_16_bits`,
+  `test_pru1_start_writes_once_per_nonce`,
+  `test_lost_spad_write_at_start_recovers` (4 cases) and
+  `test_lost_spad_write_on_underrun_recovers` (3 cases): one scratchpad XOUT
+  of RTU1 or PRU1 is dropped, as a same-cycle collision could, and the pair
+  must recover.
 - **All three cores in lockstep:** `test_fir_coefs_regenerate_identically`,
   `test_interleaved_pcm_matches_reference` (PCM bit-exact against
   `reference.pcm_chain_for_channel`), `test_half_published_only_when_complete`,
   `test_half_seq_rate`, `test_rx_writes_only_its_memory`,
-  `test_rx_idles_without_clock`, `test_worst_window_budget_8ch`,
+  `test_rx_idles_without_clock`, `test_sd_overflow_is_counted` (PRU0
+  stalled for 2 SD windows: SD_OVF_COUNT = 3), `test_worst_window_budget_8ch`,
   `test_8ch_build_assembles`, `test_rx_build_options_guarded`.
 - **Project files:** `test_clip_buffer_header_matches_loader` (the clip header
   equals `pdm_layout.load_clip`), `test_c_header_matches_inc` (`pdm8_shared.h`
@@ -498,9 +549,9 @@ Measured budgets (333.33 MHz):
 
 | Core | Result |
 | ---- | ------ |
-| RTU1 | worst 1327 of 2278 cycles per 28-period batch (mean 1254, min 1241) |
+| RTU1 | worst 1329 of 2278 cycles per 28-period batch (mean 1256, min 1243) |
 | PRU1 | about 418 of 3038 cycles busy per batch (about 14 %); setup before the sampling edge 54 cycles (needs at least 26), hold 54/55 cycles; one R30 write per half period |
-| PRU0 | 3-channel measurement: w_comb 48, w_fir 920, spin 1, wrap 3. 8-channel extrapolation: 8 x 48 + 4 x 920 + 7 + 3 = 4074 of 10 417 cycles (39 %). Pessimistic bound 4439 (43 %) |
+| PRU0 | 3-channel measurement: w_comb 49, w_fir 920, spin 1, wrap 3. 8-channel extrapolation: 8 x 49 + 4 x 920 + 7 + 3 = 4082 of 10 417 cycles (39 %). Pessimistic bound 4447 (43 %) |
 
 Build results (2026-11-04, this PC):
 
@@ -509,7 +560,7 @@ Build results (2026-11-04, this PC):
 | `make DEVICE=am243x ...` in this directory | exit 0, 0 errors; the only warning is the inherited SysConfig part-number notice |
 | CCS 21.0.1 headless import and Release build, 4 projects | RTU1, PRU1, PRU0: 0 errors, 0 warnings; R5F: 0 errors, 1 warning (the same SysConfig notice) |
 | `clpru -v4` on `rtu1_mod.asm`, `pru1_pdm.asm`, `pru0_rx.asm` | 0 errors, no diagnostics |
-| clpru image size | RTU1 0x69C B (8 KB IRAM), PRU1 0x9F4 B (12 KB IRAM), PRU0 0x794 B (12 KB IRAM) |
+| clpru image size | RTU1 0x710 B (8 KB IRAM), PRU1 0xA1C B (12 KB IRAM), PRU0 0x7AC B (12 KB IRAM) |
 
 Final-verification numbers for the full pru-simulator suite (3 known failures, as on the base branch) are in
 [docs/porting_report.md](docs/porting_report.md), section 7.

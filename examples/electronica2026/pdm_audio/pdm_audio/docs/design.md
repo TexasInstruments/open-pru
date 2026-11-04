@@ -1,6 +1,6 @@
 # Design: 8-channel PDM audio on AM243x LP (open-pru port of the pru-simulator PDM demo)
 
-Date: 2026-11-03 · Status: for approval · Target: open-pru `examples/electronica2026/pdm_audio/pdm_audio`, LP-AM243 Rev A (PROC109A), ICSSG0
+Date: 2026-11-03 · Status: implemented (board run pending) · Target: open-pru `examples/electronica2026/pdm_audio/pdm_audio`, LP-AM243 Rev A (PROC109A), ICSSG0
 
 ## 1. Intent
 
@@ -153,9 +153,10 @@ SINC3 window is 96 SD clocks = **10 416.7 cycles**.
   mic-array project.
 - Budget: ~4 300 of 10 417 cycles worst-case window (~42 %), extrapolated from the 2-ch
   measurement. Re-measure it in the simulator at 3 channels.
-  *Refined in implementation (Task 4):* measured at 3 channels, w_comb 48, w_fir 920,
-  spin 1, wrap 3 cycles, so 8 channels = 8·48 + 4·920 + 7·1 + 3 = **4 074 cycles (39 %)**;
-  pessimistic (every FIR input negative, shadows one PDM period apart) 4 439 (43 %).
+  *Refined in implementation (Task 4, final review fix M4):* measured at 3 channels,
+  w_comb 49 (48 + the R31[29] test of `SD_OVF_COUNT`), w_fir 920, spin 1, wrap 3 cycles,
+  so 8 channels = 8·49 + 4·920 + 7·1 + 3 = **4 082 cycles (39 %)**; pessimistic (every FIR
+  input negative, shadows one PDM period apart) 4 447 (43 %).
   `HALF_SEQ` is published by whichever channel is the N_CH-th to write frame 63 of the
   half (a per-half done counter in PRU0 DRAM0 0x7F8), so the rule holds for 3 and 8
   channels: with the stagger the last one is the last odd channel, not channel N_CH−1.
@@ -169,8 +170,11 @@ of at least 25 %.
   with RTU1 only fetching frames. PRU1's added modulators must have fixed cycle counts.
 - **Only if that still doesn't fit**, make the channel count a build option and ship the
   largest count that fits.
-- The same order applies if PRU0 overflows on the board at 8 channels (the R31[29]
-  shadow-overflow flag shows it): first rebalance, then reduce the channel count.
+- The same order applies if PRU0 overflows on the board at 8 channels: first rebalance,
+  then reduce the channel count. *Refined in implementation (final review fix M4):* the
+  header counter `SD_OVF_COUNT` (+0x30) shows it. PRU0 tests R31[29]
+  (shadow_update_flag_ovf) at every spin exit, before it clears the flag, and counts each
+  lost SD sample; the count is sticky, so one read on the board covers the whole run.
 - Record the result and the choice in the porting report.
 
 ## 8. IPC scratchpad hand-off (RTU1 → PRU1)
@@ -215,6 +219,23 @@ underruns detected, and PRU1 timing independent of RTU1.
   - BATCH_COUNT is the number of batches PRU1 acked;
   - both lag by up to one batch.
 
+**Refined in implementation (final review fix I1): lost scratchpad writes.** With no
+hardware arbitration, a same-cycle XOUT by RTU1 and PRU1 may lose one of the two writes
+(the TRM does not say they are merged). At the start, PRU1 used to echo every 6 cycles, so
+about one start in six could lose RTU1's nonce and hang; in the batch loop a late RTU1
+publish can meet PRU1's underrun XOUT. Now every write is repeated until it is there:
+- RTU1 XINs its seq (at the start also the nonce) back after each XOUT and writes again
+  while it differs. The retry is unbounded: RTU1 alone writes bytes 0..29, so the first
+  XOUT that no PRU1 XOUT hits ends it.
+- PRU1's start loop XINs all 32 bytes and XOUTs R9.b2/b3 only when they are not
+  (0, nonce): once per new nonce, again if lost. The loop is not timed (clock idle), but
+  every pass is 9 cycles, so the first edge comes at the same time after a clean or a
+  stale start.
+- Each batch slot XOUTs both R9.b2 and R9.b3 (same cycle count as before), so the next
+  slot repeats a lost one; a lost ack costs one silence batch, counted.
+pru-simulator drops single XOUTs to check it (`test_lost_spad_write_at_start_recovers`,
+`test_lost_spad_write_on_underrun_recovers`). RTU1's worst batch grew by 2 cycles (1329).
+
 ## 9. Memory map
 
 **ICSS shared RAM (0x10000 locally, 0x3001_0000 globally), 64 KB.**
@@ -231,16 +252,20 @@ interleaved order the reader consumes: s0·ch0..ch7, s1·ch0..ch7, …
 The PCM is signed 24-bit in int32 (±(2^23−1)), 16 kHz.
 
 Header contents (exact offsets are the builder's, kept in one `.inc` plus a C header):
-- magic/version, N_CH = 8, frames per half = 64, PCM rate = 16000;
+- magic/version, N_CH = 8, frames per half = 64, PCM rate = 16000 (refined in
+  implementation, final review fix I3: `VERSION` = 1 at +0x2C, written by the R5F; a reader
+  checks MAGIC and VERSION before it uses anything else);
 - MSRAM clip buffer address, clip length in frames;
 - `HALF_SEQ`: a u32 counting completed halves. A half is ready when `HALF_SEQ` increments.
   The ready half is `(HALF_SEQ − 1) & 1`; `HALF_SEQ` is written after the half's last sample;
 - PRU1 counters (written by RTU1 for PRU1; refined in implementation, Task 3): underrun
-  count and batch counter. There is no run flag: a rising BATCH_COUNT shows the cores are
-  live. BATCH_COUNT frozen with UNDERRUN_COUNT 0 means RTU1 is stalled, because RTU1
-  writes both;
+  count and batch counter. There is no run flag: a rising BATCH_COUNT shows that RTU1 and
+  PRU1 are live. A frozen BATCH_COUNT means RTU1 has stalled, or PRU1 is halted or never
+  started, or their start handshake did not finish: RTU1 writes BATCH_COUNT only after
+  PRU1 acked a batch, so these look the same (UNDERRUN_COUNT does not tell them apart);
 - RTU1: frame position, loop count;
-- PRU0: per-channel sample counts (diagnostic).
+- PRU0: per-channel sample counts (diagnostic), and `SD_OVF_COUNT` at +0x30 (final
+  review fix M4: SD samples lost because PRU0 was late, sticky; §7).
 
 An R31 event per completed half (to the R5F) is optional, and the builder may add it. The
 Ethernet PRU will poll `HALF_SEQ`.
@@ -306,10 +331,11 @@ Copy the uart_rx/uart_print project structure (mcuplus, FreeRTOS, SysConfig):
   PRU0 sees a running clock;
 - idle.
 
-*Refined in implementation (Task 6),* `mcuplus/pdm_audio_example.c`: halt RTU1, PRU1 and PRU0;
+*Refined in implementation (Task 6),* `mcuplus/pdm_audio_example.c`: halt RTU1, PRU1 and PRU0
+(final review fix M3: also RTU0, TX_PRU0 and TX_PRU1, whose DRAM0 share PRU0 uses);
 write GPCFG0 (PRU0 mux SD, every other field at reset), GPCFG1 (all reset: GP mux, parallel
 GPO) and PRU0_SD_CFG (SHARE_EN, MAN_SD_EN, MAN_DATA_NV_EN, CH_SEL = 0) as whole registers, PRU0
-CTBIR0 C24 = 0; zero the 64 KB shared RAM and both DRAMs; write MAGIC .. CLIP_FRAMES; load the
+CTBIR0 C24 = 0; zero the 64 KB shared RAM and both DRAMs; write MAGIC .. CLIP_FRAMES and VERSION; load the
 three IRAMs with the cores halted; set CTRL PCTR_RST_VAL = 0 on all three, reset and enable
 RTU1, PRU1, PRU0 in that order; idle. Nothing depends on what an earlier demo left in these
 registers (a CCS reload without System Reset). Both RTU1 and PRU1 always restart together.
@@ -330,7 +356,8 @@ The readme gives step-by-step instructions:
    Tone channels show the expected period: a 1 kHz tone repeats every 16 frames.
 3. Underrun count stays 0.
 4. BATCH_COUNT keeps increasing, about 110 000 per second (refined in implementation, Task 3).
-5. Expected level: about ±(2^22) for 0.5 FS clips.
+5. SD_OVF_COUNT stays 0 (refined in implementation, final review fix M4).
+6. Expected level: about ±(2^22) for 0.5 FS clips.
 
 Optionally, a CCS memory-graph setup shows one channel's column as a waveform (stride 32 B,
 int32).

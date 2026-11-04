@@ -86,6 +86,14 @@ after the prompt was submitted.
    the complete ICSSG configuration registers (ruling R5).
 9. **Task 7:** readme, this report, the entry in `examples/makefile` and
    `examples/readme.md`, final verification.
+10. **Final review and fix wave** (ruling R7): a whole-branch review found
+    four important points and six minor ones, all fixed in one pass
+    (section 4, "Final review fixes"): lost IPC scratchpad writes could hang
+    RTU1 and PRU1 (I1), a booth hazard when the jumpers stay on for the next
+    demo (I2), no version field in the public header (I3), licence headers of
+    the two FIR files (I4), plus a comment, troubleshooting rows, halting the
+    unused ICSSG0 cores, a sticky SD-overflow counter, the design status and
+    the copyright year.
 
 Each task had a reviewer; the reviews approved every task, and the findings
 that needed a decision are in section 4.
@@ -124,19 +132,39 @@ PRU1's timed path uses no shared memory.
 - **Ruling R3:** accept the implementer's nonce/echo start handshake replacing R2's seq0-first rule. The reviewer verified it deadlock-free and stale-safe for both start orders and for reruns. Cost if wrong: a hang on silicon start.
 - **Ruling R4:** fold the design section 8/9 update (nonce handshake, counters written by RTU1, no PRU1 run flag; `BATCH_COUNT` is the liveness indicator) into Task 3's fix round, so the spec stays truthful. Cost: doc churn.
 - **Ruling R5:** fold the reviewer's minors 1 (write the full GPCFG0 and GPCFG1 and clear SD SHARE_EN/MAN_SD_EN), 2 (set PCTR_RST_VAL = 0 explicitly) and 4 (drop or MPU-cover the inherited NON_CACHE_MEM) into a Task 6 fix round. The booth runs several ICSSG0 demos (uart_print, i2c_io, uart_rx) back-to-back from CCS, often without a System Reset, so leftover GPO/SD mode bits are a realistic failure. Cost if wrong: a few lines of extra init.
+- **Ruling R6:** fold the Task 7 reviewer's minors (Validated-HW table FIXME, DRAM0 0x07F8 vs 0x0800, unsourced statements, 128 000 B in a 128 KB region) into the Task 7 fix round: these are public-repo docs for a first board bring-up. Cost: small edits.
+- **Ruling R7:** one final fix wave covers the final review's I1 to I4 and M1 to M4, M6 and the design status (M5 in part: `plan.md` is kept as it was, as a record). For I4, no TI copyright is invented for `decimation_fir.h`, whose origin is not recorded: the generator emits an SPDX line for `fir_coefs.inc`, and the provenance of `decimation_fir.h` stays an open decision for the author (section 9). Cost if wrong: a licence follow-up before merge.
+- **Ruling R8:** the merge to open-pru `main` waits for the user's LP-AM243 board run (FIXMEs filled), as for the earlier ports. Cost: none.
+
+### Final review fixes
+
+| Finding | Fix | Check |
+| ------- | --- | ----- |
+| I1: same-cycle IPC scratchpad XOUTs (no arbitration) could lose RTU1's start nonce (PRU1 echoed every 6 cycles, about 1 start in 6 coincided) or a late batch (PRU1's underrun XOUT at slot t11); either hangs the pair | RTU1 reads its seq (at the start also the nonce) back after every XOUT and writes again (unbounded retry: RTU1 alone writes bytes 0..29). PRU1's start loop XINs all 32 bytes and XOUTs R9.b2/b3 only when the SPAD does not hold (0, nonce): once per nonce, again if lost; every pass 9 cycles. Each batch slot XOUTs both R9.b2 and R9.b3, so the next slot repeats a lost underrun count or ack. PRU1's timed path keeps its cycle counts and stays memory-free | `test_lost_spad_write_at_start_recovers` (4 cases) and `test_lost_spad_write_on_underrun_recovers` (3 cases) drop one XOUT of RTU1 or PRU1; `test_pru1_start_writes_once_per_nonce` counts PRU1's start XOUTs (3 before the first edge; the old loop made 3333 in 20 000 cycles alone). On the old firmware 7 of these 8 fail (4 hang, 1 counts 9 false underruns, 1 loses an underrun for good, 1 counts 3333 writes); all pass now. RTU1 worst 1329 cycles per batch (was 1327) |
+| I2: with the jumpers on, i2c_io's push-pull SDA on BP.32 fights PRU1_GPO1 (BP.67), which keeps running | readme: "Before running another demo: do a System Reset (or halt PRU1) and remove the jumpers; i2c_io drives BP.32", and a troubleshooting row. No other demo changed | docs |
+| I3: no version field in the public header | `PDM8_HDR_VERSION` (+0x2C) = `PDM8_VERSION` = 1, written by the R5F; readers must check MAGIC and VERSION (`.inc`, `.h`, readme) | `test_c_header_matches_inc`; the harness writes it as the R5F does |
+| I4: no SPDX line in `fir_coefs.inc` and `decimation_fir.h` | `gen_fir_coefs.py` emits `; SPDX-License-Identifier: BSD-3-Clause` as the first line (no copyright line: the data come from `decimation_fir.h`); regenerated. `decimation_fir.h` unchanged: provenance open (section 9, readme) | `test_fir_coefs_regenerate_identically` compares the tool output with the shipped file byte for byte, and the shipped file with the pru-simulator copy after removing exactly that SPDX line |
+| M1: PRU0 comment "m odd: half 1" | "m even: half 1" (comment only) | - |
+| M2: troubleshooting "one channel's PCM_COUNT is 0" and "BATCH_COUNT frozen means RTU1 stalled" | a missing data jumper gives a flat or noisy column, not a stuck count (if one count stops, all stop); a frozen BATCH_COUNT is RTU1 stalled, PRU1 halted, or a failed start handshake (readme, design section 9) | docs |
+| M3: a leftover RTU0 / TX_PRU0 / TX_PRU1 from an earlier demo would corrupt PRU0's DRAM0 0x1000..0x19FF | the R5F also halts `PRUICSS_RTU_PRU0`, `PRUICSS_TX_PRU0`, `PRUICSS_TX_PRU1` (SDK `pruicss.h` IDs 2, 4, 5) | make, CCS build |
+| M4: no board-readable SD overflow indicator | PRU0 tests R31[29] at each spin exit before the clear and adds 1 to `SD_OVF_COUNT` (+0x30), sticky; readme step "SD_OVF_COUNT stays 0"; design section 7 fallback points at it. w_comb 48 -> 49 | `test_sd_overflow_is_counted` (PRU0 stalled 2 SD windows: count = 3, then stays); `test_rx_writes_only_its_memory` checks the count stays 0 in the normal run |
+| M5: design status | "implemented (board run pending)"; `plan.md` kept | - |
+| M6: copyright years 2024-2026 in the new R5F file | 2026 | - |
 
 ## 5. Firmware changes (simulator source -> open-pru)
 
 | Change | Why | Impact |
 | ------ | --- | ------ |
-| `pdm_rx.asm` -> `pru0_rx.asm`: `N_CH` = 8, SD map `SD_CH_0..7` = {0,1,2,3,5,6,7,8} as plain-literal build options with `.if/.emsg` guards; every channel `CLK_SEL` = 0, `CLK_INV` = 0, `SD_SAMPLE_SIZE` = 95 | 8 channels on one shared clock (GPI16); SD4 is skipped | none on the DSP: the block from `PDM_CH:` to `PDM_SAT_OK:` (120 lines) is byte-identical to the source |
+| `pdm_rx.asm` -> `pru0_rx.asm`: `N_CH` = 8, SD map `SD_CH_0..7` = {0,1,2,3,5,6,7,8} as plain-literal build options with `.if/.emsg` guards; every channel `CLK_SEL` = 0, `CLK_INV` = 0, `SD_SAMPLE_SIZE` = 95 | 8 channels on one shared clock (GPI16); SD4 is skipped | none on the DSP: the block from `PDM_CH:` to `PDM_SAT_OK:` (120 lines) is byte-identical to the source, apart from one `QBBS` at the spin exit that counts SD overflows (`SD_OVF_COUNT`, final review fix M4) |
 | PRU0 output: interleaved ping-pong halves in shared RAM, `PCM_COUNT[c]`, `HALF_SEQ` published by the N_CH-th channel to finish a half (per-half done counter in DRAM0 0x7F8); the BLOCK_EVENT and ring code is removed | the Ethernet-reader interface | with the FIR stagger the last channel to finish is the last odd channel, so the rule works for 3 and 8 channels |
-| `pdm_gen.asm` -> two cores: RTU1 `rtu1_mod.asm` (modulators) and PRU1 `pru1_pdm.asm` (clock, pins) | at 333 MHz one period is 108.5 cycles; one core cannot do 8 modulators and the clock | RTU1 1327 of 2278 cycles per batch, PRU1 about 14 % busy |
+| `pdm_gen.asm` -> two cores: RTU1 `rtu1_mod.asm` (modulators) and PRU1 `pru1_pdm.asm` (clock, pins) | at 333 MHz one period is 108.5 cycles; one core cannot do 8 modulators and the clock | RTU1 1329 of 2278 cycles per batch, PRU1 about 14 % busy |
 | Clock 108 + 73/144 cycles per period (integer fractional adder, long period in the high half) | 3.072 MHz from 333.33 MHz | edges equal `pdm_clock_edges` exactly |
 | Pin mapping in registers (fixed 9 cycles, `m_map`), one R30 write per half period; data changes with the falling edge | PRU1's timed path must not touch memory | setup 54 cycles (needs 26), hold 54/55 |
 | IPC scratchpad XFR ID 15, 28-period batches, seq/ack, nonce/echo start, silence batch and underrun count on a late RTU1 | no torn reads, underruns visible, PRU1 timing independent of RTU1 | counters are stored by RTU1 for PRU1, and lag by up to one batch |
-| `fir_coefs.inc`, `decimation_fir.h` copied unchanged | the reference reads the same include | byte-identical, no SPDX header (open item) |
-| `gen_fir_coefs.py`: default paths changed | regenerates `fir_coefs.inc` byte for byte | a test checks it |
+| Lost-write handling: RTU1 reads back and repeats, PRU1 writes only when the SPAD differs at the start and both of its bytes at every slot | the SPAD has no arbitration (final review fix I1) | RTU1 +2 cycles per batch; PRU1 slot timing unchanged |
+| `VERSION` (+0x2C) and `SD_OVF_COUNT` (+0x30) in the header | readers check the layout; the board shows a PRU0 overrun | PRU0 w_comb +1 cycle |
+| `decimation_fir.h` copied unchanged; `fir_coefs.inc` regenerated with an SPDX first line | open-pru convention; the reference reads the same include | `fir_coefs.inc` equals the pru-simulator copy apart from the SPDX line; `decimation_fir.h` byte-identical, no licence header (provenance open, section 9) |
+| `gen_fir_coefs.py`: default paths changed, SPDX first line | regenerates `fir_coefs.inc` byte for byte | a test checks it |
 | SPDX/TI header, entry labels, `.retain`, `.if/.emsg` guards in all three cores | open-pru conventions, `clpru` | none |
 
 The simulator assembler has no `.emsg` and does not expand a `.set` that refers
@@ -160,10 +188,11 @@ Compared with the uart_print project (the copied structure), in
   inherited `NON_CACHE_MEM` region (no MPU entry of its own, so it was cached
   in fact) was removed (ruling R5).
 
-The R5F (`mcuplus/pdm_audio_example.c`): halts RTU1, PRU1 and PRU0; writes
+The R5F (`mcuplus/pdm_audio_example.c`): halts RTU1, PRU1 and PRU0, and RTU0,
+TX_PRU0 and TX_PRU1 (final review fix M3: their DRAM0 share holds PRU0's state); writes
 GPCFG0 (PRU0 mux = SD, everything else at its reset value), GPCFG1 (all reset)
 and PRU0_SD_CFG as whole registers; sets CTBIR0 C24 = 0; zeroes shared RAM and
-both DRAMs; writes the header; loads the three IRAMs; sets PCTR_RST_VAL = 0;
+both DRAMs; writes the header (with VERSION); loads the three IRAMs; sets PCTR_RST_VAL = 0;
 resets and enables RTU1, PRU1, PRU0 in that order; idles. The registers the SDK
 has no API for are written through the `hwAttrs` bases, as the motor-control
 SDK SDFM driver does.
@@ -180,14 +209,14 @@ the SysConfig GUI, check the clock and the pins, and save (open item).
 
 | Check | Result |
 | ----- | ------ |
-| RTU1 cycles per 28-period batch | worst 1327, mean 1254, min 1241, limit 2278 (58 %). Task 2 (before the counters moved to RTU1): 1307 |
-| RTU1 path costs | group of 4 periods 168 cycles, batch end 38..43, frame fetch 73 (83 with a wrap) |
+| RTU1 cycles per 28-period batch | worst 1329, mean 1256, min 1243, limit 2278 (58 %). Task 2 (before the counters moved to RTU1): 1307; before the final fix wave (seq read-back): 1327 |
+| RTU1 path costs | group of 4 periods 168 cycles, batch end 38..43 (+2 seq read-back), frame fetch 73 (83 with a wrap) |
 | PRU1 per batch | about 418 of 3038 cycles busy (13.8 %); the rest is LOOP/NOP padding. Per period 14 busy of 108 (15 of 109), the slot period 26/27 |
 | PRU1 setup / hold | setup 54 cycles (162 ns, needs at least 26), hold 54/55 |
-| PRU0, 3 channels, measured | w_comb 48, w_fir 920, spin 1, wrap 3, worst window 1980 |
-| PRU0, 8 channels, extrapolated | 8 x 48 + 4 x 920 + 7 + 3 = 4074 of 10 417 cycles (39 %) |
-| PRU0, pessimistic bound | 4439 cycles (43 %): every FIR input negative (+64 per FIR) and one PDM period of shadow skew |
-| RTU1 MSRAM latency tolerated | about 975 cycles per frame fetch: spare 2278 - 1327 = 951, plus the 24 cycles of the simulated fetch already inside the 1327 (the Task 2 figure of about 990 was before the counters moved to RTU1) |
+| PRU0, 3 channels, measured | w_comb 49 (48 before the SD_OVF_COUNT test), w_fir 920, spin 1, wrap 3, worst window 1983 |
+| PRU0, 8 channels, extrapolated | 8 x 49 + 4 x 920 + 7 + 3 = 4082 of 10 417 cycles (39 %) |
+| PRU0, pessimistic bound | 4447 cycles (43 %): every FIR input negative (+64 per FIR) and one PDM period of shadow skew |
+| RTU1 MSRAM latency tolerated | about 973 cycles per frame fetch: spare 2278 - 1329 = 949, plus the 24 cycles of the simulated fetch already inside the 1329 (the Task 2 figure of about 990 was before the counters moved to RTU1) |
 
 The design's fallback (move modulator work to PRU1, then reduce the channel
 count) was not needed: 8 channels at 333.33 MHz fit all three cores.
@@ -196,7 +225,7 @@ count) was not needed: 8 channels at 333.33 MHz fit all three cores.
 
 `tests/test_pdm_open_pru_port.py` in pru-simulator, branch
 `feat/pdm-open-pru-check`, finds the project through `OPEN_PRU_PATH` (default
-`~/GitHub/open-pru`) and skips if the project is missing. It has 44 tests (34
+`~/GitHub/open-pru`) and skips if the project is missing. It has 53 tests (38
 test functions, some parametrised), grouped by core in `readme.md`, section
 "Verification". The checks that matter most:
 
@@ -210,6 +239,11 @@ test functions, some parametrised), grouped by core in `readme.md`, section
 - An injected RTU1 stall gives `UNDERRUN_COUNT` > 0 and silence bits, while the
   PRU1 clock edge times are unchanged.
 - PRU1's timed path has no memory access (static check and a run-time recorder).
+- One lost scratchpad XOUT of either core, at the start or around an underrun,
+  does not hang the pair; the stream stays bit-exact and every silence batch is
+  counted.
+- PRU0 counts a lost SD sample in `SD_OVF_COUNT` (2-window stall: 3, one per
+  channel) and the normal run leaves it at 0.
 - `HALF_SEQ` is published only when all channels have written the half (checked
   at each store), 4.0000 ms apart.
 - PRU0 reads and writes only its own DRAM0 range and the shared RAM.
@@ -253,13 +287,29 @@ the repo root (a root build dirties `pru_i2s`).
   fetch shows as `UNDERRUN_COUNT` > 0.
 - **XOUT to XIN visibility between RTU1 and PRU1.** Assumed one cycle each
   (as in the simulator and the skill's timing reference). The protocol does not
-  depend on the exact delay: a late batch costs one underrun. There is also
+  depend on the exact delay: a late batch costs one underrun, and a read-back
+  that runs ahead of its own write only repeats the write. There is also
   no hardware arbitration of the scratchpad, so the byte ownership rules
-  (each core XOUTs only its own bytes) are essential.
+  (each core XOUTs only its own bytes) are essential, and whether two
+  same-cycle XOUTs are merged is not known: the firmware repeats any write
+  that did not land (final review fix I1). The simulator merges them, so the
+  harness drops single writes to test this.
 - **Channels 3 to 7.** The simulator has 3 SD channels, so the PCM of channels
   3 to 7 and the SD routing of SD5 to SD8 are verified only statically (pin
   table, the assembly with the 8-channel options, clpru). The first board run
-  must read `PCM_COUNT[3..7]` and compare them with the other channels. The SD shadow-overflow flag R31[29] is not a reliable check from the CCS register view: PRU0 clears valid and overflow for every channel in each window, so a halted PRU0 shows at most the current window's flag.
+  must read `PCM_COUNT[3..7]` and compare them with the other channels, and
+  `SD_OVF_COUNT`, which counts every SD sample PRU0 was too late for (R31[29],
+  tested at each spin exit). The flag itself is not a check from the CCS
+  register view: PRU0 clears it for every channel in each window.
+- **SD shadow overflow semantics.** The TRM (SPRUIM2H Table 6-419) defines
+  R31[29] as shadow_update_flag_ovf: a shadow latched while valid was still
+  set. The pru-simulator models `SDChannel.ovf` as a 28-bit accumulator
+  overflow instead, which is set in every normal run (acc3 passes 2^28; the
+  comb works mod 2^28): unpatched, the shared 3-channel run counts 1122
+  "overflows" without a lost sample. The harness therefore replaces the flag
+  with the TRM behaviour for PRU0's channels (`trm_shadow_ovf`); the
+  accumulators and shadows stay the simulator's. A simulator fix is a separate
+  pru-simulator item (section 9).
 - **Shadow skew on the board.** In the simulator PRU0 reinitialises before the
   first PDM edge, so all SD shadows latch together. On the board the clock is
   already running when PRU0 starts, so the 8 back-to-back reinits can straddle
@@ -279,13 +329,19 @@ the repo root (a root build dirties `pru_i2s`).
       `readme.md` (HALF_SEQ, BATCH_COUNT, UNDERRUN_COUNT, PCM_COUNT[0..7],
       per-channel periods, levels). Nothing has run on a board yet.
       Fill in the FIXMEs in `readme.md` and in section 7.
-- [ ] **SPDX headers on `firmware/fir_coefs.inc` and
-      `firmware/decimation_fir.h`.** They are byte-identical copies of the
-      pru-simulator files, which have no SPDX header; the harness checks the
-      identity because the Python reference reads the same include. Adding a
-      header breaks that identity. Decide: add the header in both repos, or
-      exempt these two files in open-pru. (`tools/gen_fir_coefs.py` has a
-      header.)
+- [ ] **decimation_fir.h: provenance and licence to be confirmed by the
+      author before merge.** It is a byte-identical copy of the pru-simulator
+      file (from the audio_pipe demo) and has no licence header; its origin is
+      not recorded, so no TI copyright was added (ruling R7). Once confirmed,
+      add the header here and in pru-simulator together (the harness checks
+      the identity), and decide whether `gen_fir_coefs.py` should then emit a
+      copyright line too. `fir_coefs.inc` now carries the SPDX line from the
+      generator.
+- [ ] **pru-simulator: `SDChannel.ovf` semantics.** The simulator sets R31[29]
+      on a 28-bit accumulator overflow; the TRM defines it as the shadow
+      update flag overflow (section 8). The harness patches it for this demo;
+      the simulator itself should follow the TRM (its own SD tests assert the
+      current behaviour, so that is a separate change).
 - [ ] **Conflict with PRs #188 / #189 / #190.** `examples/makefile` and
       `examples/readme.md` each get one line for `electronica2026/...` in every
       one of these four branches (i2c_io, uart_rx, uart_print and this one).
@@ -323,7 +379,12 @@ the repo root (a root build dirties `pru_i2s`).
     bounds it).
   - `UNDERRUN_COUNT` aliases if more than 255 underruns happen between two RTU1
     publishes; GPCFG read-back asserts include the GPI_SB bit (safe in direct
-    mode); two over-long comment lines in `pdm_clips.h` and the R5F.
+    mode); an over-long comment line in `pdm_clips.h` (the R5F one was fixed
+    in the final fix wave).
+  - The other electronica2026 ports keep "2024-2026" in their
+    `*_example.c` (copied from the SDK template), while their new firmware
+    files say 2026. This port now uses 2026 in `pdm_audio_example.c`
+    (final review M6); `main.c` keeps the template's 2024-2025.
 - [ ] **Readme FIXMEs for the first board run:** the LP boot-switch positions
       and SOC initialization need, the XDS110 console port, continuous refresh
       of the memory browser while the R5F runs, the I/O voltage of the pads
@@ -369,5 +430,5 @@ examples/readme.md                          project list + portability row
 pru_simulator (branch feat/pdm-open-pru-check, stacked on PR #106):
   pru_io/sd_filter.py, simulator.py         CLK_SEL 0 follows the PdmLink clock
   tests/test_sd_pin_input.py                two new tests
-  tests/test_pdm_open_pru_port.py           the harness (44 tests)
+  tests/test_pdm_open_pru_port.py           the harness (53 tests)
 ```
