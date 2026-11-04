@@ -7,3 +7,4 @@ pub mod emulator;
 pub mod ethtest;
 pub mod link;
 pub mod proto;
+pub mod rx;

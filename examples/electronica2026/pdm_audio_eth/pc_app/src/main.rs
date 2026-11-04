@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: BSD-3-Clause
 // Copyright (C) 2026 Texas Instruments Incorporated - http://www.ti.com/
 
+use std::path::PathBuf;
 use std::process::ExitCode;
 use std::time::Duration;
 
@@ -8,7 +9,9 @@ use clap::{Args, Parser, Subcommand};
 
 use pdm_eth::emulator::{EmuConfig, Emulator};
 use pdm_eth::ethtest::{self, TestConfig};
-use pdm_eth::link::{link_info, AfPacketLink, Link};
+use pdm_eth::link::{link_info, now_ns, AfPacketLink, Link};
+use pdm_eth::proto::{decode, Body};
+use pdm_eth::rx::{OutStream, WavCapture};
 
 /// PC application of the pdm_audio_eth demo (LP-AM243 PDM audio over Gigabit Ethernet).
 #[derive(Parser)]
@@ -42,6 +45,43 @@ enum Cmd {
         #[arg(long, default_value_t = 3.0)]
         seconds: f64,
     },
+    /// Capture the board output to out_ch0..7.wav (16 kHz, 24-bit)
+    Capture {
+        #[command(flatten)]
+        target: Target,
+        /// Seconds to capture
+        #[arg(long, default_value_t = 10.0)]
+        seconds: f64,
+        /// Output directory
+        #[arg(long)]
+        out: PathBuf,
+    },
+}
+
+fn capture(link: &mut dyn Link, seconds: f64, out: &std::path::Path) -> std::io::Result<()> {
+    ethtest::hello(link)?;
+    let mut s = OutStream::new();
+    let mut wav = WavCapture::create(out, "out")?;
+    let (mut written, end) = (0u64, now_ns() + (seconds * 1e9) as u64);
+    while now_ns() < end {
+        let Some(f) = link.recv(Duration::from_millis(100))? else { continue };
+        if let Ok((h, Body::AudioOut { status, pcm }, _)) = decode(&f.data) {
+            s.push(&status, &pcm, h.ts, f.t_ns);
+            let v = s.take_new();
+            written += v.len() as u64;
+            wav.write(&v)?;
+        }
+    }
+    wav.finish()?;
+    let st = s.last_status().copied().unwrap_or_default();
+    println!("{written} frames per channel written to {}", out.display());
+    println!("lost {} duplicates {} resyncs {}; board: underrun {} sd_ovf {} tx_late {} rx_foreign {} rx_bad {}",
+             s.lost_frames, s.duplicates, s.resyncs, st.underrun_count, st.sd_ovf_count, st.tx_late,
+             st.rx_foreign, st.rx_bad);
+    if let Some(ppm) = s.board_clock_ppm() {
+        println!("board clock {ppm:+.1} ppm against the PC");
+    }
+    Ok(())
 }
 
 fn open(t: &Target) -> Result<(Box<dyn Link>, (u32, bool, bool)), String> {
@@ -78,6 +118,22 @@ fn main() -> ExitCode {
                 all &= ok;
             }
             if all { ExitCode::SUCCESS } else { ExitCode::FAILURE }
+        }
+        Cmd::Capture { target, seconds, out } => {
+            let (mut link, _) = match open(&target) {
+                Ok(x) => x,
+                Err(e) => {
+                    eprintln!("error: {e}");
+                    return ExitCode::from(2);
+                }
+            };
+            match capture(link.as_mut(), seconds, &out) {
+                Ok(()) => ExitCode::SUCCESS,
+                Err(e) => {
+                    eprintln!("error: {e}");
+                    ExitCode::from(2)
+                }
+            }
         }
     }
 }
