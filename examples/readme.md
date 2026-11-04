@@ -90,7 +90,7 @@ For more information about the PRU features on each processor, refer to app note
 | ------------------------------- | ------ | ------ | ------- | ------ | ----- | ----- |
 | custom_frequency_generator      | Y      | Yport  | Yport   | Yport  | Yport | Yport |
 | electronica2026/                                                                     |
-| pdm_audio/pdm_audio             | Y      | Npru   | Npru    | Npru   | Npru  | Yport |
+| pdm_audio/pdm_audio             | Y      | Yport  | Yport   | Yport  | Yport | Yport |
 | empty                           | Y      | Y      | Y       | Y      | Y     | Y     |
 | empty_c                         | Y      | Y      | Y       | Y      | Y     | Y     |
 | fft/                                                                                 |

@@ -37,8 +37,10 @@ that the board run did not settle are still marked `FIXME`.
 | AM243x    | AM243x LaunchPad | ICSSG0 RTU1, PRU1 and PRU0  | r5fss0-0 FreeRTOS |
 
 Refer to open-pru/examples/readme.md > Supported processors per-project for
-porting information. This project is AM243x only: the pin table, the 333.33 MHz
-clock and the MSRAM clip region are specific to the LP-AM243.
+porting information. This project has build files for AM243x only: the pin
+table, the 333.33 MHz clock and the MSRAM clip region are specific to the
+LP-AM243. The other processors are `Yport`: the demo can be ported with
+limitations, for example the lower PRU clock on AM261x.
 
 ## Validated HW & SW
 

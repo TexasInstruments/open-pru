@@ -355,10 +355,10 @@ the repo root (a root build dirties `pru_i2s`).
       description list, and the portability table (`electronica2026/` group
       header row plus the project row) in the readme. The entry here is
       `electronica2026/pdm_audio/pdm_audio`.
-- [ ] **`examples/readme.md` portability row** is `Y` for am243x, `Npru` for
-      am261x, am263px, am263x and am62x (they have no RTU1 / ICSSG sigma-delta
-      chain), `Yport` for am64x (same ICSSG, but other pins and clock). Please
-      confirm.
+- [x] **`examples/readme.md` portability row:** `Y` for am243x, `Yport` for
+      the other five (user, 2026-11-04: they can be ported with limitations,
+      for example the lower PRU clock on AM261x). The agent had proposed
+      `Npru` for am261x, am263px, am263x and am62x.
 - [ ] **SysConfig GUI re-save.** `example.syscfg` was edited by hand (section
       6). Open it once in the GUI, check the clock and the pins, and save.
 - [ ] **`iepClk`** stays at its default of 200 MHz. The Ethernet-reader project
