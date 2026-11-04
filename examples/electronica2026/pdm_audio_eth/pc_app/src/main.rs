@@ -189,6 +189,9 @@ enum Cmd {
         /// Frames the PC stays ahead of RTU1 (8000 = 0.5 s)
         #[arg(long, default_value_t = 8000)]
         lead: u32,
+        /// Export aligned input/output blocks to /dev/shm/NAME (processing seam)
+        #[arg(long)]
+        export_shm: Option<String>,
         /// Save a PNG of the window after 5 s and exit (documentation;
         /// implies --no-vsync; under Wayland run it with WAYLAND_DISPLAY unset)
         #[arg(long)]
@@ -200,8 +203,13 @@ enum Cmd {
     },
 }
 
-fn gui(target: &Target, inputs: &Inputs, lead: u32, screenshot: Option<PathBuf>, no_vsync: bool) -> Result<(), String> {
+fn gui(target: &Target, inputs: &Inputs, lead: u32, export_shm: Option<String>, screenshot: Option<PathBuf>,
+       no_vsync: bool) -> Result<(), String> {
     let set = inputs.load()?;
+    let export = match export_shm {
+        Some(n) => Some(pdm_eth::seam::ShmExport::create(&n, 256).map_err(|e| format!("/dev/shm/{n}: {e}"))?),
+        None => None,
+    };
     let no_vsync = no_vsync || screenshot.is_some();
     let (link, _) = open(target)?;
     let source = if target.emulator { "emulator".to_string() } else { target.iface.clone() };
@@ -224,7 +232,7 @@ fn gui(target: &Target, inputs: &Inputs, lead: u32, screenshot: Option<PathBuf>,
         options,
         Box::new(move |cc| {
             let sel = std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0));
-            let input = set.map(|set| pdm_eth::ui::NetInput { set, lead, sel: sel.clone() });
+            let input = set.map(|set| pdm_eth::ui::NetInput { set, lead, sel: sel.clone(), export });
             let ctx = cc.egui_ctx.clone();
             let repaint: std::sync::Arc<dyn Fn() + Send + Sync> = std::sync::Arc::new(move || ctx.request_repaint());
             std::thread::spawn(move || pdm_eth::ui::run_net(link, input, tx, repaint));
@@ -299,7 +307,7 @@ fn main() -> ExitCode {
             }
             if all { ExitCode::SUCCESS } else { ExitCode::FAILURE }
         }
-        Cmd::Gui { target, inputs, lead, screenshot, no_vsync } => match gui(&target, &inputs, lead, screenshot, no_vsync) {
+        Cmd::Gui { target, inputs, lead, export_shm, screenshot, no_vsync } => match gui(&target, &inputs, lead, export_shm, screenshot, no_vsync) {
             Ok(()) => ExitCode::SUCCESS,
             Err(e) => {
                 eprintln!("error: {e}");

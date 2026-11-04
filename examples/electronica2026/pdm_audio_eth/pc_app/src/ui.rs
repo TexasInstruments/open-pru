@@ -60,6 +60,8 @@ pub struct NetInput {
     pub lead: u32,
     /// Channel of the latency measurement (the UI's selection).
     pub sel: Arc<AtomicUsize>,
+    /// Aligned input/output blocks to a shared-memory ring (processing seam).
+    pub export: Option<crate::seam::ShmExport>,
 }
 
 /// Network thread -> UI.
@@ -91,6 +93,8 @@ pub fn run_net(mut link: Box<dyn Link>, input: Option<NetInput>, tx: Sender<NetM
     let (mut pos, mut seq) = (0usize, 0u32);
     let mut win_in: VecDeque<u64> = VecDeque::new();
     let mut sent_in: Vec<(u64, [i16; 8])> = Vec::new();
+    let mut input = input;
+    let mut aligner = crate::seam::Aligner::new();
     let mut last_audio = 0u64;
     let mut last_hello = 0u64;
     let mut last_flush = now_ns();
@@ -160,6 +164,18 @@ pub fn run_net(mut link: Box<dyn Link>, input: Option<NetInput>, tx: Sender<NetM
         if now - last_flush > 20_000_000 {
             last_flush = now;
             let frames = out.take_new();
+            if let Some(x) = input.as_mut().and_then(|i| i.export.as_mut()) {
+                if let Some(l) = meter.lag() {
+                    aligner.set_lag(l);
+                    aligner.push_in(&sent_in);
+                    aligner.push_out(&frames);
+                    for (i, a, b) in aligner.take_blocks() {
+                        if let Err(e) = x.write(i, &a, &b) {
+                            let _ = tx.send(NetMsg::Error(format!("shm export: {e}")));
+                        }
+                    }
+                }
+            }
             if !frames.is_empty() && tx.send(NetMsg::Out(frames)).is_err() {
                 return;
             }
@@ -551,7 +567,7 @@ mod tests {
         let mut s = 7u32;
         set.ch[0] = (0..32000).map(|_| { s = s.wrapping_mul(1_664_525).wrapping_add(1_013_904_223); (s >> 17) as i16 }).collect();
         let sel = Arc::new(AtomicUsize::new(0));
-        let input = NetInput { set, lead: 8000, sel: sel.clone() };
+        let input = NetInput { set, lead: 8000, sel: sel.clone(), export: None };
         std::thread::spawn(move || run_net(link, Some(input), tx, Arc::new(|| {})));
         let mut app = App::new(rx, "emulator".into()).with_selection(sel);
         std::thread::sleep(Duration::from_millis(1800));
