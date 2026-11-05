@@ -60,11 +60,14 @@
 #define RXCFG0_VAL                  (0x00000015U)
 #define RXCFG1_VAL                  (0x0000021FU)   /* port 1: ... RX_EOF on R31 bit 20 */
 #define RX_FRMS_MIN                 (0x06U)
-/* TX_IPG in TX interface clocks (TXCFG bit 12): n + 1 clocks of 8 ns at 1G,
- * 11 = 96 ns, the TRM minimum for RGMII 1G. In core-clock mode (HIL 0x18,
- * then 0x20 = 96 ns of 333 MHz clocks) back-to-back 64-byte frames left
- * every 661 ns on the board, an 85 ns gap. */
-#define TX_IPG_1G                   (0x0000000BU)
+/* TX_IPG in TX interface clocks (TXCFG bit 12): n + 1 clocks. Measured on
+ * the board with back-to-back 64-byte frames (gap = frame period - 576 ns):
+ *   core clock, 0x20 (32 x 3 ns = 96 ns nominal)  -> 85 ns gap (too short)
+ *   TX clock,   11   (TRM "1G >= 11, 8 ns")        -> 271 ns gap
+ * so one TX clock counts ~24 ns here, as in the TRM example "3h = 4 TX
+ * interface clocks (96 ns for 1G)", and the gap is ~11-17 ns under nominal.
+ * 4 -> 5 x 24 = 120 ns nominal, ~103 ns expected: the first value >= 96 ns. */
+#define TX_IPG_1G                   (0x00000004U)
 #define G_RGMII_CFG_VAL             (0x006600DDU)   /* both ports 1000 Mbit/s, FD, link */
 #define IEP_CFG_333MHZ_NS           (0x00000331U)   /* enable, increment 3: counts ns */
 
