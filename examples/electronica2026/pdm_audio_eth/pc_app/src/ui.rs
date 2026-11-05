@@ -468,6 +468,10 @@ pub fn save_png(path: &std::path::Path, img: &ColorImage) -> std::io::Result<()>
     w.write_image_data(&data).map_err(std::io::Error::other)
 }
 
+/// Side-panel line titles: readable at booth distance (were egui `small().weak()`).
+const LABEL_PX: f32 = 15.0;
+const LABEL_COLOUR: Color32 = Color32::from_rgb(190, 190, 205);
+
 /// Seconds shown across a pane: `COLUMNS` columns of hop 128 at 16 kHz.
 pub const SPAN_S: f32 = (COLUMNS * 128) as f32 / 16000.0;
 /// Top of the frequency axis (Nyquist of 16 kHz PCM).
@@ -606,7 +610,7 @@ impl eframe::App for App {
         egui::Panel::right("numbers").resizable(false).exact_size(320.0).show(ui, |ui| {
             ui.add_space(6.0);
             for (k, v) in self.side_lines(fps) {
-                ui.label(egui::RichText::new(k).small().weak());
+                ui.label(egui::RichText::new(k).size(LABEL_PX).color(LABEL_COLOUR));
                 ui.add(egui::Label::new(egui::RichText::new(v).size(18.0).strong()).wrap());
                 ui.add_space(4.0);
             }
