@@ -46,8 +46,8 @@
 #define ICSSG1_MDIO_LINK            (ICSSG1_BASE + 0x0003240CU)
 #define ICSSG1_MDIO_USERACCESS0     (ICSSG1_BASE + 0x00032480U)
 #define ICSSG1_IEP_GLOBAL_CFG       (ICSSG1_BASE + 0x0002E000U)
-#define ICSSG1_IEP_COUNT_LO         (ICSSG1_BASE + 0x0002E00CU)
-#define ICSSG1_IEP_COUNT_HI         (ICSSG1_BASE + 0x0002E010U)
+#define ICSSG1_IEP_COUNT_LO         (ICSSG1_BASE + 0x0002E010U)   /* count_reg0 */
+#define ICSSG1_IEP_COUNT_HI         (ICSSG1_BASE + 0x0002E014U)   /* count_reg1 */
 
 /* Register values from the HIL example (pru_eth_init_register_doc.md) */
 #define TXCFG_ALL_OFF               (0x00000800U)

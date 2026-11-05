@@ -127,8 +127,8 @@ ICSS_RX_RESET_BITS          .set    0xF4        ; or r31.b2: RX reset, EOF and e
 ICSS_TX_FIFO_RESET          .set    0x40        ; ldi r31.b3: TX FIFO reset
 ICSS_TX_CRC_EOF             .set    0x2C00      ; ldi r31.w2: push CRC MS+LS word, TX EOF
 ICSS_IEP_LOCAL              .set    0x2E000     ; IEP0, local address
-ICSS_IEP_COUNT_LO           .set    0x0C        ; IEP0 count, ns (CFG 0x331)
-ICSS_IEP_COUNT_HI           .set    0x10
+ICSS_IEP_COUNT_LO           .set    0x10        ; IEP0 count_reg0, ns (CFG 0x331); ICSSG map, not ICSS 0x0C
+ICSS_IEP_COUNT_HI           .set    0x14        ; count_reg1
 PDM0_SHARED_GLOBAL          .set    0x30010000  ; ICSSG0 shared RAM (pdm8_shared.inc header)
 PDM0_HALF_A_GLOBAL          .set    0x30010100
 PDM0_HALF_B_GLOBAL          .set    0x30010900

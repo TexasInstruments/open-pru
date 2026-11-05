@@ -45,3 +45,22 @@ fn tx_routines_do_not_fall_through() {
         assert!(unconditional(&b), "eth_tx.asm: '{b}' falls through into {label}");
     }
 }
+
+/// ICSSG IEP0 (AM64x/AM243x TRM, PRU_ICSSG IEP registers): global_cfg 0x00,
+/// global_status 0x04, compen 0x08, slow_compen 0x0C, count_reg0 0x10,
+/// count_reg1 0x14. 0x0C is the count on the older PRU-ICSS, not on ICSSG
+/// (board run 2026-11-05: timestamps took slow_compen as their low word).
+#[test]
+fn iep_count_is_icssg_count_reg0() {
+    let inc = std::fs::read_to_string(PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../pdm_audio_eth/firmware/eth_proto.inc")).unwrap();
+    let val = |name: &str| {
+        let l = inc.lines().find(|l| l.split_whitespace().next() == Some(name)).unwrap_or_else(|| panic!("no {name}"));
+        let v = l.split_whitespace().nth(2).unwrap();
+        u32::from_str_radix(v.trim_start_matches("0x"), 16).unwrap()
+    };
+    assert_eq!(val("ICSS_IEP_COUNT_LO"), 0x10);
+    assert_eq!(val("ICSS_IEP_COUNT_HI"), 0x14);
+    let c = std::fs::read_to_string(PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../pdm_audio_eth/mcuplus/eth_init.c")).unwrap();
+    assert!(c.contains("ICSSG1_IEP_COUNT_LO         (ICSSG1_BASE + 0x0002E010U)"), "eth_init.c COUNT_LO");
+    assert!(c.contains("ICSSG1_IEP_COUNT_HI         (ICSSG1_BASE + 0x0002E014U)"), "eth_init.c COUNT_HI");
+}
