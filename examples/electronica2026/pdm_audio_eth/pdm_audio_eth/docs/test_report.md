@@ -330,9 +330,12 @@ NIC `rx_missed` unchanged. `python3 tools/analyze_capture.py DIR`:
 | 7 | tone_5000 | 5000.0000 Hz | 0.850 | 0.850 | 0.850..0.850 | -86.3 dB |
 
 - Loop check: RTU1 plays the 16 384-frame clip in a loop. For channels 3 to
-  7 every loop of the capture (585) is bit for bit equal to the one before,
-  so no frame was lost, repeated or reordered in 600 s (the capture's own
-  counters say the same).
+  7 every loop of the capture (585) is bit for bit equal to the one before.
+  The tones repeat within 32 frames, so this alone cannot see a shift by a
+  whole 1 KB part (32 frames); a lost part is zero-filled by `capture` and
+  would break it, and a shift would show in channels 0 to 2 below. With the
+  capture's own counters (lost, duplicates, resyncs 0): no frame lost,
+  repeated or out of place in 600 s.
 - Channels 0 to 2 (speech, linear and log chirp) cannot repeat bit for bit
   (the modulator noise differs per loop): loop to loop they differ by
   -94 dB RMS (worst sample -76 dB of 2^22); a slipped frame would give about
