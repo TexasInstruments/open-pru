@@ -12,14 +12,12 @@ Design: [design.md](design.md), plan: [plan.md](plan.md), board project:
 | Part | Status |
 | ---- | ------ |
 | Off-board: builds, PRU assembler and linter, PC application tests, PC application against its board emulator | **PASS**, section 3 |
-| On the board: ICSSG1 Ethernet (B0, B3) | **PASS** 2026-11-05, section 6 |
-| On the board: link console line, clip buffer, RX counters, audio both ways (B1, B2, B4 to B9) | **not run yet**, section 6 (FIXME) |
+| On the board: B0 to B9 (Ethernet test, ICSSG0 header, link, clip buffer, RX counters, board to PC, GUI, PC to board, latency) | **PASS** 2026-11-05, section 6 |
 
 The board runs were deferred by the user during the implementation ("Need to
 skip for now. Save it for later verification and continue with next block if
-possible."). The Ethernet test (B0, B3) ran on the board on 2026-11-05, after
-two firmware fixes found there (section 6.1); the audio checks are still to
-run. The ICSSG0
+possible."). All of them ran on the board on 2026-11-05, with the fixes
+found there (section 6.1). The ICSSG0
 PDM chain is the board-tested `pdm_audio` firmware (board run PASSED
 2026-11-04, see the
 [pdm_audio porting report](../../../pdm_audio/pdm_audio/docs/porting_report.md));
@@ -166,8 +164,9 @@ CCS headless: `~/ti/ccs2101/ccs/eclipse/ccs-server-cli.sh -workspace <new dir>
 ## 6. Board results
 
 Wiring and PC setup are in [../readme.md](../readme.md). Run order: one PONG,
-then pings, throughput, audio. B0 and B3 ran on 2026-11-05 with the firmware
-of `23428c46`; the other checks are still FIXME.
+then pings, throughput, audio. All checks ran on 2026-11-05; B0 and the
+first B3 runs with the firmware of `23428c46`, the rest with `cb26d504`
+(sections 6.1 to 6.9).
 
 | # | Check | Command | Pass criterion | Result |
 | - | ----- | ------- | -------------- | ------ |
@@ -461,6 +460,5 @@ period off is possible, so the noise channel (ch2) is the reliable one to
 read. The user reported the value constant at 1.08 ms but did not state
 the channel.
 
-When the table is filled, close the matching FIXMEs in
-[../readme.md](../readme.md) ("Validated HW & SW", "Hardware results") and
-open the PR.
+The readme's "Validated HW & SW" and "Hardware results" carry these
+results (2026-11-05).

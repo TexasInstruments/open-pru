@@ -23,9 +23,10 @@ The ICSSG0 firmware is the board-tested `pdm_audio` firmware, byte-identical
 [docs/design.md](docs/design.md), the implementation plan in
 [docs/plan.md](docs/plan.md).
 
-**Status (2026-11-04): built and tested against the PC application's board
-emulator; nothing of the Ethernet part has run on a board yet.** The board
-checks are listed under "Hardware results" and are marked `FIXME`.
+**Status (2026-11-05): board run PASSED** on an LP-AM243 Rev A, all ten
+board checks B0 to B9 (Ethernet test, clip buffer, counters, 600 s capture,
+GUI, PC-to-board stream, latency); results under "Hardware results" and in
+[docs/test_report.md](docs/test_report.md).
 
 ## Supported Combinations
 
@@ -40,7 +41,7 @@ Build files exist for AM243x only. The other processors are `Yport`, as for
 
 | Processor | Hardware        | Software |
 | --------- | --------------- | -------- |
-| AM243x    | LP-AM243 Rev A (FIXME: not run yet) | Builds with MCU+ SDK 12.01.00.33, CCS 21.0.1, ti-cgt-pru 2.3.3, ti-cgt-armllvm 5.1.1.LTS, SysConfig 1.28.1; PC: Ubuntu 26.04, Rust 1.99, Realtek RTL8125 (`enp129s0`) |
+| AM243x    | LP-AM243 Rev A, board run PASSED 2026-11-05 | Builds with MCU+ SDK 12.01.00.33, CCS 21.0.1, ti-cgt-pru 2.3.3, ti-cgt-armllvm 5.1.1.LTS, SysConfig 1.28.1; PC: Ubuntu 26.04, Rust 1.99, Realtek RTL8125 (`enp129s0`) |
 
 ## How it works
 
@@ -108,9 +109,31 @@ apply; CLIP_FRAMES now reads 0x4000.
 
 ## Hardware results
 
-FIXME: none yet. The off-board results and the board-results table to fill
-are in [docs/test_report.md](docs/test_report.md). The checks to run
-(docs/plan.md, deferred board checks):
+LP-AM243 Rev A, cable from J18 to the PC's RTL8125, 2026-11-05. Details,
+commands and raw numbers: [docs/test_report.md](docs/test_report.md),
+section 6.
+
+| Check | Result |
+| ----- | ------ |
+| B0 single PONG | 1/1, RTT 141 us, board turnaround 0.39 us |
+| B1 ICSSG0 header | as in pdm_audio, CLIP_FRAMES 0x4000; after 31 min UNDERRUN_COUNT 0, SD_OVF_COUNT 0, PCM_COUNT of all 8 channels = RTU1 frames +-1 |
+| B2 link | console `link 1000 FD on ICSSG1 port 1 after 3610 ms`; `ethtool` 1000/full |
+| B3 `pdm-eth test` | 10 000 of 10 000 pings (turnaround 0.3 us idle); 1514 B: 984.4 Mbit/s to the board, 976.0 Mbit/s from it; 64 B: 0.598 Mframes/s to the board (PC NIC limit), 1.459 Mframes/s from it (98 % of line rate); no loss, 3 of 3 runs |
+| B4 clip buffer | identical to `mcuplus/pdm_clips.h` after B3 (`tools/compare_clip_dump.py`) |
+| B5 RX counters | RX_FRAMES = frames of the last burst exactly, RX_BAD 0, RX_FOREIGN 0 |
+| B6 capture 600 s | lost / duplicates / resyncs 0, board counters 0; tones 1000, 3000, 500, 2000, 5000 Hz exact, at the pdm_audio levels, -85 to -90 dB residual; CCS half A/B dump found bit for bit in the capture (`tools/analyze_capture.py`, `tools/match_half_dump.py`) |
+| B7 GUI | 11 min, 56 to 60 fps, lost 0 |
+| B8 PC to board | 70 s, 8 channels: 17 500 of 17 500 AUDIO_IN blocks landed, no underrun or stale block, output = input through the chain to -85 to -94 dB (`tools/make_b8_inputs.py`, `tools/analyze_stream.py`); spectrograms alike in the GUI |
+| B9 latency | board audio latency 1.08 ms, constant |
+
+Fixed during the board run: the ICSSG IEP count offset, a frame lost after
+an audio pair (0.3 us guard), the PHY address of port 1 (15, not 3, the
+console said link DOWN), the post-EOF wait (100 to 5 cycles) and the
+inter-frame gap (`TX_IPG` 0x28 core clocks, 109 ns), plus spectrogram axes
+in the GUI (test_report.md 6.1). Open: the GUI's board-clock ppm figure is
+noisy and disagrees with the capture's (no effect on the audio).
+
+The checks as planned (docs/plan.md, deferred board checks):
 
 1. Header check as in pdm_audio, CLIP_FRAMES = 0x4000, UNDERRUN_COUNT and
    SD_OVF_COUNT 0.
@@ -144,9 +167,15 @@ CRC/EOF), then audio (the 30-byte tail).
 - **If the PC falls more than the 0.5 s lead behind**, RTU1 replays old ring
   audio until the PC catches up; the PC counts it as an input underrun and
   restarts the lead.
-- **Throughput loss on the PC side**: at about 81 000 frames/s the RTL8125 or
-  the socket buffer can drop frames; `pdm-eth test` reports kernel drops as PC
-  loss, not as board loss.
+- **Throughput loss on the PC side**: at full rate the RTL8125 or the socket
+  buffer can drop frames; `pdm-eth test` reports kernel and NIC drops as PC
+  loss, not as board loss. On the test PC the NIC interrupt has its own
+  isolated CPU and the network thread another (test_report.md section 2);
+  with both on one CPU the NIC dropped frames.
+- **Inter-frame gap** is set by MII_RT `TX_IPG` in core clocks (0x28 = about
+  109 ns on the wire at 333 MHz); the TX-interface-clock mode was slower on
+  the board (test_report.md 6.3). The gap was derived from frame rates, not
+  measured with a scope.
 - **Fixed frame sizes**: XOUT sizes are immediates, so PONG and TPUT_REPORT
   are 64 B, TPUT_DATA 1514 B and AUDIO_OUT 1118 B.
 - **Board audio latency** is the best case over recent frames (youngest
@@ -155,7 +184,10 @@ CRC/EOF), then audio (the 30-byte tail).
 - **Changes against the HIL example**: the RGMII2/MDIO pads are set with the
   SDK Pinmux_config (the HIL kick writes targeted other registers), the HIL
   step that enabled PRU0 before its firmware was loaded and the PHY table
-  store at ICSSG1 shared RAM + 0x04 are dropped (`mcuplus/eth_init.c`).
+  store at ICSSG1 shared RAM + 0x04 are dropped, the PHY addresses of the two
+  ports are swapped (port 1 / J18 is PHY 15), `TX_IPG` is 0x28 instead of
+  0x18 (0x18 was 96 ns at 250 MHz) (`mcuplus/eth_init.c`), and PRU0 waits 5
+  cycles after CRC + EOF instead of 100 (`firmware/eth_tx.asm`).
 
 ## Project layout
 
