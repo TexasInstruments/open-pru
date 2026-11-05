@@ -178,7 +178,7 @@ of `23428c46`; the other checks are still FIXME.
 | B4 | Clip buffer untouched | save 0x700C0000, 0x40000 bytes after B3; `python3 tools/compare_clip_dump.py DUMP` | identical | **PASS** 2026-11-05: `identical: 262144 bytes`, section 6.4 |
 | B5 | RX counters | ICSSG1 shared RAM 0x30090010 | RX_BAD not rising with RX_FRAMES | **PASS** 2026-11-05, section 6.4 |
 | B6 | Board to PC | `pdm-eth capture --iface enp129s0 --seconds 600 --out DIR`, then `python3 tools/analyze_capture.py DIR` | lost 0, resyncs 0, tx_late 0; channels 3 to 7 at 1000, 3000, 500, 2000, 5000 Hz at the pdm_audio levels; CCS half A matches the capture | **PASS** 2026-11-05, section 6.6 |
-| B7 | GUI | `pdm-eth gui --iface enp129s0` | channel 3 a 1 kHz line, channel 1 the chirp, at least 30 fps while switching channels, lost 0 over 10 min | FIXME: fps |
+| B7 | GUI | `pdm-eth gui --iface enp129s0` | channel 3 a 1 kHz line, channel 1 the chirp, at least 30 fps while switching channels, lost 0 over 10 min | **PASS** 2026-11-05, section 6.8 |
 | B8 | PC to board | 8 WAVs of at least 60 s via `gui` and `stream --capture DIR` (inputs: `tools/make_b8_inputs.py`, check: `tools/analyze_stream.py DIR`) | input underrun/blocked/lost 0, UNDERRUN_COUNT and SD_OVF_COUNT 0, input and output spectrograms alike, `in_ch*.wav` and `out_ch*.wav` match (back-to-back AUDIO_IN frames both land) | **PASS** 2026-11-05 for `stream --capture`, section 6.7. FIXME: the `gui` part (spectrograms) with B7/B9 |
 | B9 | Board audio latency | GUI side panel during B8 | stable within 1 ms | FIXME: ms |
 
@@ -401,6 +401,37 @@ residual for the whole run and the worst 64-frame block:
 - Without the DC-blocker model the noise channel only reached -22 dB and
   the chirp -36 dB (the blocker's 128-sample tail is outside a 33-tap FIR),
   spread over all blocks; that was the analysis, not the board.
+
+### 6.8 B7 GUI
+
+`pdm-eth gui --iface enp129s0` (booth clips, no PC input), 13:51:25 to
+after 14:02:32, firmware of `cb26d504`, `pdm-eth` of `316fe2f7` (before the
+axis change). The user checked channel 3 (a 1 kHz line) and channel 1 (the
+chirp) and switched channels; side panel read twice:
+
+| Line | ~13:56:30 (5 min) | 14:02:32 (11.1 min) |
+| ---- | ----------------- | ------------------- |
+| spectrogram | 56 fps | 60 fps |
+| frames/s out | 499 | 500 |
+| lost / dup / resync | 0 / 0 / 0 | 0 / 0 / 0 |
+| UNDERRUN / SD_OVF | 0 / 0 | 0 / 0 |
+| tx_late | 0 | 0 |
+| PC kernel drops | 0 | 0 |
+| board clock | +4.6 ppm | +7.2 ppm |
+| HALF_SEQ | 875 389 | 958 353 |
+
+NIC `rx_missed` unchanged. The fps numbers are readings at rest; the user
+reported no slow-down while switching channels but gave no fps reading
+during the switch.
+
+Found in this run: the panes had no scales. Fixed in `19e3e85f`: kHz axis
+and 1 kHz grid, colour bars with their dB range, a -10 s .. now time strip.
+
+Open: the board clock in the GUI (+4.6, +7.2 ppm) disagrees with the 600 s
+capture of B6 (-25.8 ppm). On the emulator, whose true offset is 0 ppm, the
+GUI showed -17.7, -4.4 and -0.8 ppm after 5 s each, so the GUI estimate is
+noisy over short windows; whether the capture's long fit is right is not
+checked. No effect on the audio: every frame is placed by its sample index.
 
 When the table is filled, close the matching FIXMEs in
 [../readme.md](../readme.md) ("Validated HW & SW", "Hardware results") and
