@@ -64,3 +64,22 @@ fn iep_count_is_icssg_count_reg0() {
     assert!(c.contains("ICSSG1_IEP_COUNT_LO         (ICSSG1_BASE + 0x0002E010U)"), "eth_init.c COUNT_LO");
     assert!(c.contains("ICSSG1_IEP_COUNT_HI         (ICSSG1_BASE + 0x0002E014U)"), "eth_init.c COUNT_HI");
 }
+
+/// After an audio pair PRU0 must pause before the next frame: without it the
+/// TPUT frame that followed the second AUDIO_OUT sometimes never became a
+/// valid frame on the wire (board run 2026-11-05: 2 to 6 per 243 822-frame
+/// burst; the MAC counted it as sent, the PC saw nothing, even promiscuous).
+/// 50 x 2 cycles (0.3 us) removed the loss over 1.46 M frames.
+#[test]
+fn audio_pair_ends_with_tx_guard() {
+    let raw = std::fs::read_to_string(PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../pdm_audio_eth/firmware/eth_tx.asm")).unwrap();
+    let guard = raw.lines().find_map(|l| {
+        let t: Vec<&str> = l.split(';').next().unwrap().split_whitespace().collect();
+        (t.len() >= 3 && t[0] == "AUDIO_TX_GUARD" && t[1] == ".set").then(|| t[2].parse::<u32>().unwrap())
+    });
+    assert!(guard.is_some_and(|g| g >= 50), "AUDIO_TX_GUARD .set >= 50 missing: {guard:?}");
+    let l = asm("eth_tx.asm");
+    let i = l.iter().position(|x| x == "audio_done:").expect("audio_done");
+    let body: Vec<&String> = l[i + 1..].iter().filter(|x| !x.is_empty()).take(4).collect();
+    assert!(body[0].starts_with("ldi") && body[0].contains("AUDIO_TX_GUARD"), "audio_done starts with {:?}", body[0]);
+}

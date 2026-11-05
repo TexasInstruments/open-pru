@@ -66,6 +66,7 @@ TPUT_TAIL           .set    42
 AUDIO_LEN           .set    1088        ; 1118 - 14 - 16 (status + PCM)
 AUDIO_CHUNKS        .set    17          ; 1118 = 17 x 64 + 30
 AUDIO_TAIL          .set    30
+AUDIO_TX_GUARD      .set    50          ; 2-cycle loops (0.3 us) after audio
 OFF_BODY            .set    30          ; frame offset of the body
 OFF_PCM             .set    94          ; 30 + 64-byte status block
 PART_BYTES          .set    1024        ; 32 frames x 8 ch x int32
@@ -253,6 +254,12 @@ audio_copy:
     sbbo    &r2, r18, OFF_BODY, 4
     qba     audio_part
 audio_done:
+    ; pause (AUDIO_TX_GUARD x 2 cycles): the frame that followed the
+    ; second AUDIO_OUT at once sometimes never left as a valid frame
+    ldi     r21, AUDIO_TX_GUARD
+audio_guard:
+    sub     r21, r21, 1
+    qbne    audio_guard, r21, 0
     jmp     r28.w2
 
 ; ---- build_header: frame bytes 0..29 at TX_BUF --------------------------
