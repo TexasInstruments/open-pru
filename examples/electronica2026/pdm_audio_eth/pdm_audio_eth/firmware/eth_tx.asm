@@ -13,8 +13,9 @@
 ;                     header ts is the TX IEP time), TX_PONGS++
 ;   REPORT_REQ     -> TPUT_REPORT (copy of the TPUT_RX block)
 ;   TPUT_TX_COUNT  -> that many TPUT_DATA frames back to back, seq 0..n-1;
-;                     the burst checks HALF_SEQ before every frame, so audio
-;                     still goes out on time
+;                     1514 B, or 60 B (64 B with CRC) when TPUT_TX_LEN is
+;                     60; the burst checks HALF_SEQ before every frame, so
+;                     audio still goes out on time
 ;
 ; Audio: HALF_SEQ is polled at its global address (0x30010018). When it
 ; changes, PRU0 takes the IEP time (detect_iep), reads the ICSSG0 header
@@ -33,7 +34,7 @@
 ; FIFO level (R19.b2 after XIN 40) is 0, XOUT 64; the tail with a fixed
 ; XOUT size (XOUT sizes are immediates); then 10 NOPs, CRC + EOF, 100 NOPs.
 ; Frame sizes are therefore fixed: PONG 64 B, TPUT_REPORT 64 B, TPUT_DATA
-; 1514 B (CONTROL arg1 is ignored), AUDIO_OUT 1118 B (Task 10).
+; 1514 B or 60 B (CONTROL arg1 60), AUDIO_OUT 1118 B (Task 10).
 ;
 ; Registers:
 ;   R0, R1    IEP time (build_header)
@@ -67,6 +68,8 @@ AUDIO_LEN           .set    1088        ; 1118 - 14 - 16 (status + PCM)
 AUDIO_CHUNKS        .set    17          ; 1118 = 17 x 64 + 30
 AUDIO_TAIL          .set    30
 AUDIO_TX_GUARD      .set    50          ; 2-cycle loops (0.3 us) after audio
+SMALL_ARG           .set    60          ; TPUT_TX length that asks for 60 B
+SMALL_LEN           .set    30          ; 60 - 14 - 16 (64 B with CRC)
 OFF_BODY            .set    30          ; frame offset of the body
 OFF_PCM             .set    94          ; 30 + 64-byte status block
 PART_BYTES          .set    1024        ; 32 frames x 8 ch x int32
@@ -153,6 +156,8 @@ do_report:
 do_tput:
     mov     r24, r22
     ldi     r23, 0
+    lbco    &r22, c28, ETH1_TPUT_TX_LEN, 4
+    qbeq    small_loop, r22, SMALL_ARG
 tput_loop:
     jal     r28.w2, audio               ; a new half goes out first
     ldi     r20.b0, ETH_T_TPUT_DATA
@@ -165,6 +170,21 @@ tput_loop:
     add     r23, r23, 1
     sub     r24, r24, 1
     qbne    tput_loop, r24, 0
+    qba     tput_end
+
+small_loop:                             ; 60-byte frames: one XOUT, no chunks
+    jal     r28.w2, audio
+    ldi     r20.b0, ETH_T_TPUT_DATA
+    ldi     r20.w2, SMALL_LEN
+    mov     r21, r23
+    jal     r28.w0, build_header
+    ldi     r25, 0
+    ldi     r20.b1, SMALL_ARG
+    jal     r28.w0, send_frame
+    add     r23, r23, 1
+    sub     r24, r24, 1
+    qbne    small_loop, r24, 0
+tput_end:
     ldi     r22, 0
     sbco    &r22, c28, ETH1_TPUT_TX_COUNT, 4
     qba     idle
@@ -302,7 +322,11 @@ sf_wait2:
     xin     ICSS_TXL2_XID, &r19, 4
     qbne    sf_wait2, r19.b2, 0
     qbeq    sf_tail30, r20.b1, 30
+    qbeq    sf_tail60, r20.b1, SMALL_ARG
     xout    ICSS_TXL2_XID, &r2, 42
+    qba     sf_end
+sf_tail60:
+    xout    ICSS_TXL2_XID, &r2, 60
     qba     sf_end
 sf_tail30:
     xout    ICSS_TXL2_XID, &r2, 30

@@ -10,10 +10,16 @@ use std::time::Duration;
 use crate::link::{now_ns, Link};
 use crate::proto::*;
 
-/// Wire time of one 1514-byte frame at 1 Gbit/s (with CRC, preamble, IPG).
-pub const TPUT_FRAMES_PER_S: f64 = 81_274.0;
 /// Frame size of the throughput test (fixed on the board).
 pub const TPUT_FRAME: usize = 1514;
+/// Frame size of the small-frame throughput test: 64 B on the wire with CRC.
+pub const SMALL_FRAME: usize = 60;
+
+/// Frames per second at 1 Gbit/s for a frame of `frame` bytes without CRC
+/// (+ 4 CRC, 8 preamble, 12 IPG).
+pub fn line_rate_fps(frame: usize) -> f64 {
+    1e9 / ((frame + 24) as f64 * 8.0)
+}
 /// Pass thresholds (design 6.3, Global Constraints).
 pub const MIN_MBIT_S: f64 = 500.0;
 pub const MAX_LOSS: f64 = 0.001;
@@ -56,6 +62,8 @@ pub enum Dir {
 #[derive(Clone, Debug, PartialEq)]
 pub struct TputResult {
     pub dir: Dir,
+    /// Frame size without CRC (TPUT_FRAME or SMALL_FRAME).
+    pub frame: usize,
     pub frames: u64,
     pub bytes: u64,
     pub mbit_s: f64,
@@ -79,15 +87,21 @@ pub struct Summary {
     pub ping: PingResult,
     pub to_board: TputResult,
     pub from_board: TputResult,
+    pub to_board_64: TputResult,
+    pub from_board_64: TputResult,
 }
 
 fn tput_verdict(t: &TputResult) -> (bool, String) {
     let lost = t.sent.saturating_sub(t.frames);
-    let ok = t.mbit_s >= MIN_MBIT_S && t.loss() < MAX_LOSS;
-    let mut text = format!(
-        "{}/{} frames, {:.1} Mbit/s, {} sequence gaps",
-        t.frames, t.sent, t.mbit_s, t.seq_gaps
-    );
+    // the rate floor is for large frames; small frames report what they get
+    let ok = (t.frame != TPUT_FRAME || t.mbit_s >= MIN_MBIT_S) && t.loss() < MAX_LOSS;
+    let mut text = if t.frame == TPUT_FRAME {
+        format!("{}/{} frames, {:.1} Mbit/s, {} sequence gaps", t.frames, t.sent, t.mbit_s, t.seq_gaps)
+    } else {
+        let fps = t.mbit_s * 1e6 / (t.frame as f64 * 8.0);
+        format!("{}/{} frames, {:.3} Mframes/s ({:.0} % of line rate), {:.1} Mbit/s, {} sequence gaps",
+                t.frames, t.sent, fps / 1e6, 100.0 * fps / line_rate_fps(t.frame), t.mbit_s, t.seq_gaps)
+    };
     if lost > 0 {
         let pc = t.pc_kernel_drops + t.pc_nic_drops;
         if pc > 0 {
@@ -115,6 +129,8 @@ impl Summary {
         let p = &self.ping;
         let to = tput_verdict(&self.to_board);
         let from = tput_verdict(&self.from_board);
+        let to64 = tput_verdict(&self.to_board_64);
+        let from64 = tput_verdict(&self.from_board_64);
         vec![
             ("link", mbit == 1000 && full && carrier,
              format!("{mbit}/{}{}", if full { "full" } else { "half" }, if carrier { "" } else { ", no carrier" })),
@@ -124,6 +140,8 @@ impl Summary {
                      p.board_turnaround_ns.0 as f64 / 1000.0, p.board_turnaround_ns.1 as f64 / 1000.0)),
             ("to board", to.0, to.1),
             ("from board", from.0, from.1),
+            ("to board 64 B", to64.0, to64.1),
+            ("from board 64 B", from64.0, from64.1),
         ]
     }
 }
@@ -192,11 +210,11 @@ pub fn ping(link: &mut dyn Link, cfg: &TestConfig) -> io::Result<PingResult> {
 
 /// PC -> board: TPUT_DATA as fast as the PC sends for `seconds`, then the
 /// board's TPUT_REPORT. The rate is the board's (first to last IEP time).
-pub fn tput_to_board(link: &mut dyn Link, cfg: &TestConfig) -> io::Result<TputResult> {
+pub fn tput_to_board(link: &mut dyn Link, cfg: &TestConfig, frame: usize) -> io::Result<TputResult> {
     hello(link)?; // zero the board's TPUT counters
     let h = Header { version: VERSION, ftype: FrameType::TputData, length: 0, seq: 0, ts: 0 };
     let mac = link.mac();
-    let mut f = encode(BOARD_MAC, mac, &h, &Body::TputData, TPUT_FRAME);
+    let mut f = encode(BOARD_MAC, mac, &h, &Body::TputData, frame);
     let end = now_ns() + (cfg.seconds * 1e9) as u64;
     let mut sent = 0u32;
     while now_ns() < end {
@@ -215,18 +233,18 @@ pub fn tput_to_board(link: &mut dyn Link, cfg: &TestConfig) -> io::Result<TputRe
         _ => (0, 0, 0, 0),
     };
     let dt = last.saturating_sub(first) as f64;
-    let mbit_s = if frames > 1 && dt > 0.0 { (frames - 1) as f64 * TPUT_FRAME as f64 * 8.0 / dt * 1e3 } else { 0.0 };
-    Ok(TputResult { dir: Dir::ToBoard, frames, bytes: frames * TPUT_FRAME as u64, mbit_s,
+    let mbit_s = if frames > 1 && dt > 0.0 { (frames - 1) as f64 * frame as f64 * 8.0 / dt * 1e3 } else { 0.0 };
+    Ok(TputResult { dir: Dir::ToBoard, frame, frames, bytes: frames * frame as u64, mbit_s,
                     sent: sent as u64, seq_gaps: gaps, pc_kernel_drops: 0, pc_nic_drops: 0 })
 }
 
 /// Board -> PC: the board sends `seconds` worth of 1514-byte frames back to
 /// back; the PC counts them. The rate is the PC's (first to last receive).
-pub fn tput_from_board(link: &mut dyn Link, cfg: &TestConfig) -> io::Result<TputResult> {
-    let count = (cfg.seconds * TPUT_FRAMES_PER_S).round() as u32;
+pub fn tput_from_board(link: &mut dyn Link, cfg: &TestConfig, frame: usize) -> io::Result<TputResult> {
+    let count = (cfg.seconds * line_rate_fps(frame)).round() as u32;
     let st0 = link.stats();
     send_frame(link, FrameType::Control, 0, now_ns(),
-               &Body::Control { cmd: CMD_TPUT_TX, arg0: count, arg1: 1500 }, 60)?;
+               &Body::Control { cmd: CMD_TPUT_TX, arg0: count, arg1: frame as u32 }, 60)?;
     let (mut frames, mut gaps, mut last_seq) = (0u64, 0u64, None::<u32>);
     let (mut t_first, mut t_last) = (0u64, 0u64);
     while frames < count as u64 {
@@ -248,8 +266,8 @@ pub fn tput_from_board(link: &mut dyn Link, cfg: &TestConfig) -> io::Result<Tput
         }
     }
     let dt = t_last.saturating_sub(t_first) as f64;
-    let mbit_s = if frames > 1 && dt > 0.0 { (frames - 1) as f64 * TPUT_FRAME as f64 * 8.0 / dt * 1e3 } else { 0.0 };
-    Ok(TputResult { dir: Dir::FromBoard, frames, bytes: frames * TPUT_FRAME as u64, mbit_s,
+    let mbit_s = if frames > 1 && dt > 0.0 { (frames - 1) as f64 * frame as f64 * 8.0 / dt * 1e3 } else { 0.0 };
+    Ok(TputResult { dir: Dir::FromBoard, frame, frames, bytes: frames * frame as u64, mbit_s,
                     sent: count as u64, seq_gaps: gaps,
                     pc_kernel_drops: link.stats().rx_kernel_drops - st0.rx_kernel_drops,
                     pc_nic_drops: link.stats().rx_nic_drops - st0.rx_nic_drops })
@@ -259,9 +277,11 @@ pub fn tput_from_board(link: &mut dyn Link, cfg: &TestConfig) -> io::Result<Tput
 pub fn run(link: &mut dyn Link, cfg: &TestConfig, link_info: (u32, bool, bool)) -> io::Result<Summary> {
     hello(link)?;
     let ping = ping(link, cfg)?;
-    let to_board = tput_to_board(link, cfg)?;
-    let from_board = tput_from_board(link, cfg)?;
-    Ok(Summary { link: link_info, ping, to_board, from_board })
+    let to_board = tput_to_board(link, cfg, TPUT_FRAME)?;
+    let from_board = tput_from_board(link, cfg, TPUT_FRAME)?;
+    let to_board_64 = tput_to_board(link, cfg, SMALL_FRAME)?;
+    let from_board_64 = tput_from_board(link, cfg, SMALL_FRAME)?;
+    Ok(Summary { link: link_info, ping, to_board, from_board, to_board_64, from_board_64 })
 }
 
 #[cfg(test)]
@@ -290,7 +310,7 @@ mod tests {
     }
 
     fn tput(dir: Dir, mbit_s: f64, frames: u64, lost: u64, pc_drops: u64) -> TputResult {
-        TputResult { dir, frames, bytes: frames * 1514, mbit_s, sent: frames + lost, seq_gaps: lost.min(1),
+        TputResult { dir, frame: TPUT_FRAME, frames, bytes: frames * 1514, mbit_s, sent: frames + lost, seq_gaps: lost.min(1),
                      pc_kernel_drops: pc_drops, pc_nic_drops: 0 }
     }
 
@@ -315,8 +335,10 @@ mod tests {
         Summary {
             link: (1000, true, true),
             ping: PingResult { sent: 10, lost: 0, min_us: 1.0, mean_us: 2.0, p99_us: 3.0, max_us: 4.0, board_turnaround_ns: (1, 2) },
-            to_board: to,
-            from_board: from,
+            to_board: to.clone(),
+            from_board: from.clone(),
+            to_board_64: TputResult { frame: SMALL_FRAME, ..to },
+            from_board_64: TputResult { frame: SMALL_FRAME, ..from },
         }
     }
 
@@ -349,10 +371,10 @@ mod tests {
         let mut e = Emulator::new(EmuConfig { pc_drop_every_nth_tput: Some(100), audio_out: false, ..EmuConfig::default() });
         let cfg = quick();
         hello(&mut e).unwrap();
-        let to = tput_to_board(&mut e, &cfg).unwrap();
+        let to = tput_to_board(&mut e, &cfg, TPUT_FRAME).unwrap();
         assert_eq!(to.frames, to.sent, "board saw every PC frame");
         assert_eq!(to.seq_gaps, 0);
-        let from = tput_from_board(&mut e, &cfg).unwrap();
+        let from = tput_from_board(&mut e, &cfg, TPUT_FRAME).unwrap();
         assert!(from.seq_gaps > 0 && from.pc_kernel_drops > 0, "{from:?}");
         let s = summary(to, from);
         let (ok, text) = pass(&s, "from board");
@@ -365,8 +387,35 @@ mod tests {
     fn run_against_emulator_passes() {
         let mut e = Emulator::new(EmuConfig::default());
         let s = run(&mut e, &quick(), (1000, true, true)).unwrap();
-        for (name, ok, text) in s.verdicts() {
+        let v = s.verdicts();
+        for (name, ok, text) in &v {
             assert!(ok, "{name}: {text}");
         }
+        let names: Vec<&str> = v.iter().map(|x| x.0).collect();
+        assert_eq!(names, ["link", "ping", "to board", "from board", "to board 64 B", "from board 64 B"]);
+        assert_eq!(s.from_board_64.frame, SMALL_FRAME);
+        assert!(s.from_board_64.frames > 1000, "{:?}", s.from_board_64);
+    }
+
+    #[test]
+    fn line_rate_for_64_and_1514_byte_frames() {
+        assert!((line_rate_fps(TPUT_FRAME) - 81_274.0).abs() < 1.0);
+        assert!((line_rate_fps(SMALL_FRAME) - 1_488_095.2).abs() < 1.0);
+    }
+
+    #[test]
+    fn small_frame_verdict_has_no_rate_floor() {
+        let small = |dir, frames, lost| {
+            let mut t = tput(dir, 100.0, frames, lost, 0);
+            t.frame = SMALL_FRAME;
+            t
+        };
+        let mut s = summary(tput(Dir::ToBoard, 900.0, 10_000, 0, 0), tput(Dir::FromBoard, 900.0, 10_000, 0, 0));
+        s.to_board_64 = small(Dir::ToBoard, 10_000, 0);
+        s.from_board_64 = small(Dir::FromBoard, 9_980, 20);
+        let (ok, text) = pass(&s, "to board 64 B");
+        assert!(ok, "{text}");
+        assert!(text.contains("Mframes/s") && text.contains("% of line rate"), "{text}");
+        assert!(!pass(&s, "from board 64 B").0);
     }
 }

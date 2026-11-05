@@ -51,7 +51,6 @@ impl Default for EmuConfig {
 /// The PC-side MAC the emulator pretends the PC has.
 pub const EMU_PC_MAC: [u8; 6] = [0x02, 0x11, 0x22, 0x33, 0x44, 0x55];
 const RATE: u64 = 16_000;
-const TPUT_WIRE_NS: u64 = 12_304; // 1514 B + CRC + preamble + IPG at 1 Gbit/s
 
 #[derive(Default)]
 struct Counters {
@@ -82,6 +81,8 @@ pub struct Emulator {
     tput_left: u32,
     tput_seq: u32,
     tput_start: u64,
+    /// TPUT_DATA frame size: 60 when TPUT_TX asked for 60, else 1514 (like PRU0)
+    tput_frame: usize,
     c: Counters,
     stats: LinkStats,
     created: u64,
@@ -114,6 +115,7 @@ impl Emulator {
             tput_left: 0,
             tput_seq: 0,
             tput_start: 0,
+            tput_frame: 1514,
             c: Counters::default(),
             stats: LinkStats::default(),
             created: now_ns(),
@@ -212,7 +214,8 @@ impl Emulator {
             }
         }
         while self.tput_left > 0 {
-            let due = self.tput_start + self.tput_seq as u64 * TPUT_WIRE_NS;
+            // wire time: frame + CRC + preamble + IPG at 1 Gbit/s
+            let due = self.tput_start + self.tput_seq as u64 * (self.tput_frame as u64 + 24) * 8;
             if now < due {
                 break;
             }
@@ -223,7 +226,7 @@ impl Emulator {
                 self.stats.rx_kernel_drops += 1;
                 continue;
             }
-            let f = self.frame(FrameType::TputData, seq, self.board_ns(due), &Body::TputData, 1514);
+            let f = self.frame(FrameType::TputData, seq, self.board_ns(due), &Body::TputData, self.tput_frame);
             self.queue.push_back(f);
         }
     }
@@ -234,7 +237,7 @@ impl Emulator {
             due = Some(self.t0 + self.half_due_ns(self.next_half));
         }
         if self.tput_left > 0 {
-            let t = self.tput_start + self.tput_seq as u64 * TPUT_WIRE_NS;
+            let t = self.tput_start + self.tput_seq as u64 * (self.tput_frame as u64 + 24) * 8;
             due = Some(due.map_or(t, |d| d.min(t)));
         }
         due.map(|d| d.max(now))
@@ -291,13 +294,14 @@ impl Emulator {
                 }
                 self.c.last_in_end = first_index + 64;
             }
-            Body::Control { cmd, arg0, .. } => match cmd {
+            Body::Control { cmd, arg0, arg1 } => match cmd {
                 CMD_RESET_COUNTERS => {
                     let last = self.c.last_in_end;
                     self.c = Counters { last_in_end: last, ..Counters::default() };
                 }
                 CMD_TPUT_TX => {
                     self.tput_left = arg0;
+                    self.tput_frame = if arg1 == 60 { 60 } else { 1514 };
                     self.tput_seq = 0;
                     self.tput_start = now;
                 }
@@ -403,6 +407,23 @@ mod tests {
             }
             _ => unreachable!(),
         }
+    }
+
+    #[test]
+    fn emulator_tput_tx_short_frames_when_len_60() {
+        let mut e = emu(false);
+        send(&mut e, FrameType::Control, 0, Body::Control { cmd: CMD_TPUT_TX, arg0: 50, arg1: 60 });
+        let mut seqs = vec![];
+        let end = Instant::now() + Duration::from_millis(500);
+        while seqs.len() < 50 && Instant::now() < end {
+            if let Some(f) = e.recv(T).unwrap() {
+                assert_eq!(f.data.len(), 60);
+                let (h, _, _) = decode(&f.data).unwrap();
+                assert_eq!(h.ftype, FrameType::TputData);
+                seqs.push(h.seq);
+            }
+        }
+        assert_eq!(seqs, (0..50).collect::<Vec<u32>>());
     }
 
     #[test]

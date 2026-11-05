@@ -40,7 +40,8 @@ fn rx_handlers_do_not_fall_through() {
 #[test]
 fn tx_routines_do_not_fall_through() {
     let l = asm("eth_tx.asm");
-    for label in ["do_pong", "do_report", "do_tput", "audio", "build_header", "send_frame"] {
+    for label in ["do_pong", "do_report", "do_tput", "small_loop", "audio", "build_header", "send_frame",
+                  "sf_tail60", "sf_tail30"] {
         let b = before(&l, label);
         assert!(unconditional(&b), "eth_tx.asm: '{b}' falls through into {label}");
     }
@@ -82,4 +83,13 @@ fn audio_pair_ends_with_tx_guard() {
     let i = l.iter().position(|x| x == "audio_done:").expect("audio_done");
     let body: Vec<&String> = l[i + 1..].iter().filter(|x| !x.is_empty()).take(4).collect();
     assert!(body[0].starts_with("ldi") && body[0].contains("AUDIO_TX_GUARD"), "audio_done starts with {:?}", body[0]);
+}
+
+/// TPUT_TX with length 60 sends 60-byte frames (64 B with CRC): PRU0 reads
+/// ETH1_TPUT_TX_LEN and has a 60-byte XOUT tail (XOUT sizes are immediates).
+#[test]
+fn tput_tx_has_short_frame_path() {
+    let l = asm("eth_tx.asm");
+    assert!(l.iter().any(|x| x.starts_with("lbco") && x.contains("ETH1_TPUT_TX_LEN")), "no ETH1_TPUT_TX_LEN read");
+    assert!(l.iter().any(|x| x.replace(' ', "") == "xoutICSS_TXL2_XID,&r2,60"), "no 60-byte xout");
 }
