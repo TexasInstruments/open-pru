@@ -175,7 +175,7 @@ of `23428c46`; the other checks are still FIXME.
 | B1 | ICSSG0 header | CCS memory browser 0x30010000 | as in pdm_audio, CLIP_FRAMES 0x4000, UNDERRUN_COUNT 0, SD_OVF_COUNT 0 | FIXME |
 | B2 | Link | console line, `ethtool enp129s0` | `link 1000 FD on ICSSG1 port 1`; 1000 Mb/s, full duplex | PC side **PASS** (`ethtool`: 1000Mb/s, Full, link detected). FIXME: the console prints link DOWN although data flows (MDIO link poll) |
 | B3 | Ethernet test | `pdm-eth test --iface enp129s0` | every line PASS: 0 lost of 10 000 pings, at least 500 Mbit/s each way, less than 0.1 % loss | **PASS** 3 of 3 runs, section 6.2 |
-| B4 | Clip buffer untouched | save 0x700C0000, 0x40000 bytes after B3; compare with `mcuplus/pdm_clips.h` | identical | FIXME |
+| B4 | Clip buffer untouched | save 0x700C0000, 0x40000 bytes after B3; `python3 tools/compare_clip_dump.py DUMP` | identical | **PASS** 2026-11-05: `identical: 262144 bytes`, section 6.4 |
 | B5 | RX counters | ICSSG1 shared RAM 0x30090010 | RX_BAD not rising with RX_FRAMES | **PASS** 2026-11-05, section 6.4 |
 | B6 | Board to PC | `pdm-eth capture --iface enp129s0 --seconds 600 --out DIR` | lost 0, resyncs 0, tx_late 0; channels 3 to 7 at 1000, 3000, 500, 2000, 5000 Hz at the pdm_audio levels; CCS half A matches the capture | FIXME |
 | B7 | GUI | `pdm-eth gui --iface enp129s0` | channel 3 a 1 kHz line, channel 1 the chirp, at least 30 fps while switching channels, lost 0 over 10 min | FIXME: fps |
@@ -277,6 +277,14 @@ the two CONTROL frames after it (TPUT_REPORT_REQ, TPUT_TX).
 | 0x64 | TX_AUDIO | 612 850, rising | 500/s x 20.4 min since the reload |
 | 0x68, 0x6C | TX_PONGS, TX_LATE | 30 000, 0 | 3 runs x 10 000 pings, no late half |
 | 0x70, 0x74 | CLIP_ADDR, CLIP_FRAMES | 0x700C0000, 0x4000 | as written by the R5F |
+
+B4 (same session, 13:26): CCS Memory view, save 0x700C0000, 0x40000 bytes
+(CCS Theia writes TI Data format 9: a `1651 9 700c0000 0 40000 10` header,
+then one byte per line as 8 binary digits). `tools/compare_clip_dump.py`
+reads that, raw binary and hex TI Data, and printed `identical: 262144
+bytes (16384 frames x 8 channels)`: some 2 million PC-to-board frames per B3
+run (TPUT_DATA, PING, CONTROL) left the clip buffer that RTU1 plays
+unchanged. Only AUDIO_IN (stage 3, B8) may write it.
 
 When the table is filled, close the matching FIXMEs in
 [../readme.md](../readme.md) ("Validated HW & SW", "Hardware results") and

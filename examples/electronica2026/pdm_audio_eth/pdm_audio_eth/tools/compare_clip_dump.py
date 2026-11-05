@@ -37,14 +37,18 @@ def header_bytes(path):
 
 
 def dump_bytes(path):
-    """Raw binary, or TI Data format: '1651 ...' header, one word per line."""
+    """Raw binary, or TI Data: a '1651 <format> <addr> ...' header line, then
+    one value per line. Format 9 (CCS Theia binary save) has one byte per
+    line as 8 binary digits; the other formats are read as hex 32-bit words."""
     raw = path.read_bytes()
     if not raw.startswith(b"1651 "):
         return raw
-    lines = raw.decode("ascii").split()
-    fields = raw.decode("ascii").splitlines()[0].split()
-    words = [int(w, 16) for w in lines[len(fields) :]]
-    return b"".join(w.to_bytes(4, "little") for w in words)
+    text = raw.decode("ascii")
+    fields = text.splitlines()[0].split()
+    values = text.split()[len(fields) :]
+    if fields[1] == "9":
+        return bytes(int(v, 2) for v in values)
+    return b"".join(int(w, 16).to_bytes(4, "little") for w in values)
 
 
 def compare(want, got, show=8):
