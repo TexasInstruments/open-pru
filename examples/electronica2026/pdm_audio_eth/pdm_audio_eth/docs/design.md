@@ -364,6 +364,37 @@ alternatives).
   the lead can be shown as a separate number ("buffered ahead") so the screen
   does not hide it.
 
+### 7.2a Custom audio per channel in the GUI (added 2026-11-05, user)
+
+After the board run the user asked for custom WAV files per channel in the
+window, by drag and drop (choice over a file-picker button and "the CLI is
+enough"), and for example audio with speech and music (7.2b).
+
+- **Drop target:** the selected channel. Dropping a WAV onto the window
+  loads it with the same conversion as `--chN` (16 kHz mono, peak 0.5 FS);
+  while a file hovers, the window says which channel it will go to. A file
+  that does not load shows its error in the toolbar; nothing changes.
+- **Live:** the UI hands the converted samples to the network thread
+  (`NetCmd::SetChannel`). Without a running stream, the first drop starts
+  one (the pacer starts one lead ahead, as at start-up); later drops replace
+  one channel's samples in place, the stream keeps running.
+- **Channels without a file play their booth clip:** the PC sends the clip
+  of that channel from `mcuplus/pdm_clips.h` (compiled in), so dropping one
+  file does not silence the other seven. This also applies to `gui --chN`
+  started with fewer than 8 files (before: silence). `stream` keeps its
+  silence rule (7.1), which the B8 analysis relies on.
+- **Looping per channel:** in the GUI each channel loops on its own length
+  (a 30 s music file next to the 1.024 s clips). Before, all channels
+  looped on the longest file and the shorter ones were silent until then.
+- **Labels:** the IN pane shows the file name of the channel, or "booth
+  clip".
+
+### 7.2b Example audio
+
+`pc_app/audio/`: about 30 s each of speech (LibriVox, the recording of the
+booth speech clip), music (a public-domain recording) and both mixed, as
+16 kHz mono WAV, with their origin and licence in `pc_app/audio/SOURCES.md`.
+
 ### 7.3 PC-side testing
 
 The board is the Ethernet test bench, but the PC application should not need
