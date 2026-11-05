@@ -33,7 +33,16 @@ that channel), *speech*, *music*, *speech + music* (the example files in
 or *open WAV file...* (the desktop's file dialog; any rate, stereo mixed
 down, scaled to 0.5 FS like `--chN`). A choice plays live, without a
 restart; the first one starts the stream to the board, the channels nobody
-changed play their booth clips. The IN pane names the channel's source.
+changed play their booth clips. The IN pane names the channel's source. A
+new source starts at its first sample.
+
+**Capture sets** (synchronized multi-microphone recordings): *open capture
+set...* above the table multi-selects up to 8 mono WAV files of one sample
+rate; sorted by file name they go to ch0, ch1, ... and start on the same
+sample. The set is trimmed to its shortest file, so all channels have the
+same length and loop together, and gets one gain (its loudest sample maps
+to 0.5 FS), so the level differences between the microphones are kept. The
+side panel shows the set's length and the samples cut from each file.
 
 GUI options for documentation: `--screenshot PNG` saves the window after 5 s
 and exits; under Wayland run it with `WAYLAND_DISPLAY` unset (XWayland), since a

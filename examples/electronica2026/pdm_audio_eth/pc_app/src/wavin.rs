@@ -45,6 +45,24 @@ pub fn load_channel_bytes(name: &str, bytes: &[u8]) -> Result<Vec<i16>, WavError
 }
 
 fn convert<R: std::io::Read>(path: &Path, r: hound::WavReader<R>) -> Result<Vec<i16>, WavError> {
+    let x = decode(path, r)?.0;
+    Ok(scale(&x, peak_of(&x)))
+}
+
+/// Largest magnitude of `x`.
+fn peak_of(x: &[f32]) -> f32 {
+    x.iter().fold(0.0f32, |m, v| m.max(v.abs()))
+}
+
+/// `x` scaled so that `peak` maps to 16384 (0.5 FS); silence stays silence.
+fn scale(x: &[f32], peak: f32) -> Vec<i16> {
+    let g = if peak > 0.0 { PEAK / peak } else { 0.0 };
+    x.iter().map(|v| (v * g).round().clamp(-32768.0, 32767.0) as i16).collect()
+}
+
+/// Mono samples at 16 kHz (mixed down, resampled), the file's channel count
+/// and sample rate.
+fn decode<R: std::io::Read>(path: &Path, r: hound::WavReader<R>) -> Result<(Vec<f32>, u16, u32), WavError> {
     let spec = r.spec();
     let chans = spec.channels.max(1) as usize;
     let raw: Vec<f32> = match spec.sample_format {
@@ -62,9 +80,50 @@ fn convert<R: std::io::Read>(path: &Path, r: hound::WavReader<R>) -> Result<Vec<
     }
     let mono: Vec<f32> = raw.chunks_exact(chans).map(|f| f.iter().sum::<f32>() / chans as f32).collect();
     let x = if spec.sample_rate == RATE { mono } else { resample(&mono, spec.sample_rate, RATE) };
-    let peak = x.iter().fold(0.0f32, |m, v| m.max(v.abs()));
-    let g = if peak > 0.0 { PEAK / peak } else { 0.0 };
-    Ok(x.iter().map(|v| (v * g).round().clamp(-32768.0, 32767.0) as i16).collect())
+    Ok((x, spec.channels, spec.sample_rate))
+}
+
+/// A synchronized multi-microphone capture (design 7.2a).
+#[derive(Clone, Debug)]
+pub struct CaptureSet {
+    /// One channel per file, in the order given, all `frames` long.
+    pub ch: Vec<Vec<i16>>,
+    /// Common length after trimming (16 kHz frames).
+    pub frames: usize,
+    /// Frames cut from the end of each file to reach `frames`.
+    pub trimmed: Vec<usize>,
+}
+
+/// Load up to 8 mono files of one sample rate as one set: trimmed to the
+/// shortest from a common start, one gain (the set's loudest sample maps to
+/// 0.5 FS, so the level differences between the channels are kept).
+pub fn load_set(paths: &[std::path::PathBuf]) -> Result<CaptureSet, WavError> {
+    if paths.is_empty() || paths.len() > 8 {
+        return Err(WavError(format!("a capture set has 1 to 8 files, not {}", paths.len())));
+    }
+    let mut chans = Vec::with_capacity(paths.len());
+    let mut rate0 = None;
+    for p in paths {
+        let r = hound::WavReader::open(p).map_err(|e| err(p, e))?;
+        let (x, channels, rate) = decode(p, r)?;
+        if channels != 1 {
+            return Err(err(p, format!("{channels} channels; a capture set needs mono files")));
+        }
+        match rate0 {
+            None => rate0 = Some((rate, p)),
+            Some((r0, p0)) if r0 != rate => {
+                return Err(err(p, format!("{rate} Hz, but {} is {r0} Hz; a capture set needs one sample rate",
+                                          p0.display())));
+            }
+            Some(_) => {}
+        }
+        chans.push(x);
+    }
+    let frames = chans.iter().map(Vec::len).min().unwrap_or(0);
+    let trimmed = chans.iter().map(|c| c.len() - frames).collect();
+    let peak = chans.iter().map(|c| peak_of(&c[..frames])).fold(0.0f32, f32::max);
+    let ch = chans.iter().map(|c| scale(&c[..frames], peak)).collect();
+    Ok(CaptureSet { ch, frames, trimmed })
 }
 
 /// Windowed-sinc resampler: 64 taps, Hann window, cutoff at 0.9 of the
@@ -102,6 +161,9 @@ pub fn resample(x: &[f32], fin: u32, fout: u32) -> Vec<f32> {
 #[derive(Clone, Debug, Default)]
 pub struct InputSet {
     pub ch: [Vec<i16>; 8],
+    /// Sent-frame count at which each channel's source was set: the GUI
+    /// plays it from its first sample from there (design 7.2a).
+    pub start: [u64; 8],
 }
 
 impl InputSet {
@@ -120,8 +182,17 @@ impl InputSet {
     pub fn frame_looped(&self, i: u64) -> [i16; 8] {
         std::array::from_fn(|c| {
             let x = &self.ch[c];
-            if x.is_empty() { 0 } else { x[(i % x.len() as u64) as usize] }
+            if x.is_empty() { 0 } else { x[(i.saturating_sub(self.start[c]) % x.len() as u64) as usize] }
         })
+    }
+
+    /// New samples for channel `ch`, played from their first sample at
+    /// sent-frame count `at`.
+    pub fn set_channel(&mut self, ch: usize, x: Vec<i16>, at: u64) {
+        if ch < 8 {
+            self.ch[ch] = x;
+            self.start[ch] = at;
+        }
     }
 
     /// Give every channel without a file its booth clip (design 7.2a).
@@ -282,5 +353,57 @@ mod tests {
         assert_eq!(s.ch[1], vec![5; 100]);
         assert_eq!(s.ch[3], booth_clips()[3]);
         assert_eq!(s.ch[0].len(), 16384);
+    }
+
+    fn mono16(path: &Path, rate: u32, x: &[f64]) {
+        let spec = hound::WavSpec { channels: 1, sample_rate: rate, bits_per_sample: 16,
+                                    sample_format: hound::SampleFormat::Int };
+        let mut w = hound::WavWriter::create(path, spec).unwrap();
+        for v in x {
+            w.write_sample((v * 32767.0) as i16).unwrap();
+        }
+    }
+
+    #[test]
+    fn capture_set_is_trimmed_to_the_shortest_with_one_gain() {
+        let d = tempfile::tempdir().unwrap();
+        let p: Vec<_> = (0..3).map(|k| d.path().join(format!("mic{k}.wav"))).collect();
+        mono16(&p[0], RATE, &vec![0.8; 1010]);  // loudest
+        mono16(&p[1], RATE, &vec![0.2; 1000]);  // shortest
+        mono16(&p[2], RATE, &vec![-0.4; 1003]);
+        let s = load_set(&p).unwrap();
+        assert_eq!(s.frames, 1000);
+        assert_eq!(s.trimmed, vec![10, 0, 3]);
+        assert!(s.ch.iter().all(|c| c.len() == 1000));
+        assert_eq!(s.ch[0][0], 16384, "loudest sample of the set = 0.5 FS");
+        assert!((s.ch[1][0] - 4096).abs() <= 1, "{}", s.ch[1][0]); // 0.2 / 0.8 of it
+        assert!((s.ch[2][0] + 8192).abs() <= 1, "{}", s.ch[2][0]);
+    }
+
+    #[test]
+    fn capture_set_refuses_stereo_mixed_rates_and_more_than_8() {
+        let d = tempfile::tempdir().unwrap();
+        let a = d.path().join("a.wav");
+        mono16(&a, RATE, &vec![0.1; 100]);
+        let b = d.path().join("b.wav");
+        mono16(&b, 48_000, &vec![0.1; 300]);
+        let e = load_set(&[a.clone(), b.clone()]).unwrap_err().to_string();
+        assert!(e.contains("b.wav") && e.contains("48000"), "{e}");
+        let st = d.path().join("stereo.wav");
+        write(&st, RATE, 2, 16, false, |_, _| 0.1, 100);
+        let e = load_set(&[a.clone(), st]).unwrap_err().to_string();
+        assert!(e.contains("stereo.wav") && e.contains("mono"), "{e}");
+        let e = load_set(&vec![a; 9]).unwrap_err().to_string();
+        assert!(e.contains("8"), "{e}");
+    }
+
+    #[test]
+    fn frame_looped_counts_each_channel_from_its_start() {
+        let mut s = InputSet::default();
+        s.set_channel(0, vec![1, 2, 3], 0);
+        s.set_channel(1, vec![10, 20, 30, 40, 50], 640);
+        assert_eq!(s.frame_looped(640)[1], 10, "a new source starts at its first sample");
+        assert_eq!(s.frame_looped(642)[1], 30);
+        assert_eq!(s.frame_looped(641)[0], 641 % 3 + 1);
     }
 }

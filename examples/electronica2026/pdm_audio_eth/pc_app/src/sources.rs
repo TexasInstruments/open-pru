@@ -21,6 +21,8 @@ pub enum Source {
     Silence,
     /// A WAV file (its name, for the label).
     File(String),
+    /// One file of a capture set (design 7.2a).
+    SetFile(String),
 }
 
 /// The built-in entries of the selector, in menu order.
@@ -36,6 +38,7 @@ impl Source {
             Source::SpeechMusic => "speech + music".into(),
             Source::Silence => "silence".into(),
             Source::File(n) => n.clone(),
+            Source::SetFile(n) => format!("{n} (set)"),
         }
     }
 
@@ -49,7 +52,7 @@ impl Source {
             Source::Music => load_channel_bytes("music_chopin_nocturne_30s.wav", MUSIC),
             Source::SpeechMusic => load_channel_bytes("speech_music_30s.wav", SPEECH_MUSIC),
             Source::Silence => Ok(vec![0; 16384]),
-            Source::File(n) => Err(WavError(format!("{n}: a file source is loaded from its path"))),
+            Source::File(n) | Source::SetFile(n) => Err(WavError(format!("{n}: a file source is loaded from its path"))),
         }
     }
 }
@@ -72,6 +75,11 @@ mod tests {
         assert_eq!(&Source::Booth.samples(3).unwrap(), &crate::wavin::booth_clips()[3]);
         let z = Source::Silence.samples(5).unwrap();
         assert!(!z.is_empty() && z.iter().all(|v| *v == 0));
+    }
+
+    #[test]
+    fn set_files_are_marked_in_their_label() {
+        assert_eq!(Source::SetFile("mic3.wav".into()).label(), "mic3.wav (set)");
     }
 
     #[test]

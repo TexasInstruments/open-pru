@@ -72,6 +72,8 @@ pub enum NetCmd {
     /// New samples for one channel (the source selector, 16 kHz, 0.5 FS);
     /// starts the stream if none runs (design 7.2a).
     SetChannel { ch: usize, samples: Vec<i16> },
+    /// A capture set: all its channels start on the same sample.
+    SetSet { chans: Vec<(usize, Vec<i16>)> },
 }
 
 /// What the network thread needs to start a stream later (on a source choice).
@@ -128,15 +130,21 @@ pub fn run_net(mut link: Box<dyn Link>, input: Option<NetInput>, ctl: NetCtl, tx
     let mut last_flush = now_ns();
     let mut win: VecDeque<u64> = VecDeque::new();
     loop {
-        while let Ok(NetCmd::SetChannel { ch, samples }) = ctl.cmds.try_recv() {
+        while let Ok(cmd) = ctl.cmds.try_recv() {
             let inp = input.get_or_insert_with(|| {
                 let mut set = InputSet::default();
                 set.fill_with_booth();
                 pacer = Some(Pacer::new(ctl.lead, 16384));
                 NetInput { set, lead: ctl.lead, sel: ctl.sel.clone(), export: None }
             });
-            if let Some(x) = inp.set.ch.get_mut(ch) {
-                *x = samples;
+            // a new source plays from its first sample, starting with the next block
+            match cmd {
+                NetCmd::SetChannel { ch, samples } => inp.set.set_channel(ch, samples, pos),
+                NetCmd::SetSet { chans } => {
+                    for (ch, samples) in chans {
+                        inp.set.set_channel(ch, samples, pos);
+                    }
+                }
             }
         }
         let now = now_ns();
@@ -314,6 +322,8 @@ pub struct App {
     cmds: Option<Sender<NetCmd>>,
     /// What each channel plays.
     pub(crate) sources: [Source; 8],
+    /// The loaded capture set, for the side panel.
+    pub(crate) set_info: Option<String>,
 }
 
 impl App {
@@ -339,6 +349,7 @@ impl App {
             shot_focused: false,
             cmds: None,
             sources: std::array::from_fn(|_| Source::Booth),
+            set_info: None,
         }
     }
 
@@ -382,9 +393,49 @@ impl App {
         }
     }
 
+    /// Load up to 8 mono files as one capture set onto ch0, ch1, ... in file
+    /// name order (design 7.2a); a set that does not load changes nothing.
+    pub fn choose_set(&mut self, mut paths: Vec<std::path::PathBuf>) {
+        paths.sort_by(|a, b| a.file_name().cmp(&b.file_name()));
+        let set = match crate::wavin::load_set(&paths) {
+            Ok(s) => s,
+            Err(e) => {
+                self.error = Some(e.to_string());
+                return;
+            }
+        };
+        let chans: Vec<(usize, Vec<i16>)> = set.ch.into_iter().enumerate().collect();
+        let n = chans.len();
+        if let Some(c) = &self.cmds
+            && c.send(NetCmd::SetSet { chans }).is_ok() {
+                for (k, p) in paths.iter().enumerate() {
+                    let name = p.file_name().map_or_else(|| p.display().to_string(), |n| n.to_string_lossy().into_owned());
+                    self.sources[k] = Source::SetFile(name);
+                }
+                let cut = set.trimmed.iter().map(usize::to_string).collect::<Vec<_>>().join(" / ");
+                self.set_info = Some(format!("{n} ch, {:.2} s, cut {cut} samples", set.frames as f64 / 16000.0));
+                self.error = None;
+                self.dirty = true;
+            }
+    }
+
     /// The "Sources" table: one selector per channel.
     fn sources_table(&mut self, ui: &mut egui::Ui) {
         ui.label(egui::RichText::new("Sources").size(LABEL_PX).color(LABEL_COLOUR));
+        if ui.button("open capture set...")
+            .on_hover_text("Up to 8 mono WAV files of one sample rate: sorted by name onto ch0, ch1, ..., \
+                            started on the same sample, trimmed to the shortest, one gain for the set")
+            .clicked()
+            && let Some(p) = rfd::FileDialog::new()
+                .set_title("Capture set: up to 8 mono WAV files")
+                .add_filter("WAV audio", &["wav", "WAV"])
+                .pick_files()
+        {
+            self.choose_set(p);
+        }
+        if let Some(i) = &self.set_info {
+            ui.label(egui::RichText::new(format!("capture set: {i}")).size(LABEL_PX));
+        }
         let mut pick: Option<(usize, Option<Source>)> = None; // None: open a file
         egui::Grid::new("sources").num_columns(2).spacing([8.0, 4.0]).show(ui, |ui| {
             for c in 0..8 {
@@ -880,6 +931,7 @@ mod tests {
                 assert_eq!(samples.len(), 1000);
                 assert_eq!(samples.iter().map(|v| v.unsigned_abs()).max(), Some(16384)); // 0.5 FS
             }
+            NetCmd::SetSet { .. } => panic!("one file is not a set"),
         }
         assert_eq!(app.sources[5], Source::File("song.wav".into()));
         assert!(app.error.is_none());
@@ -907,11 +959,13 @@ mod tests {
         app.set_source(4, Source::Music);
         match crx.try_recv().expect("a command") {
             NetCmd::SetChannel { ch, samples } => assert_eq!((ch, samples.len()), (4, 480_000)),
+            NetCmd::SetSet { .. } => panic!("one source is not a set"),
         }
         assert_eq!(app.sources[4], Source::Music);
         app.set_source(4, Source::Booth);
         match crx.try_recv().expect("a command") {
             NetCmd::SetChannel { ch, samples } => assert_eq!(samples, crate::wavin::booth_clips()[ch]),
+            NetCmd::SetSet { .. } => panic!("one source is not a set"),
         }
     }
 
@@ -936,5 +990,70 @@ mod tests {
         assert!(sent.iter().all(|(_, f)| f[2] == 1234), "ch2 plays the chosen samples");
         let booth = crate::wavin::booth_clips();
         assert!(sent.iter().enumerate().all(|(k, (_, f))| f[3] == booth[3][k % 16384]), "ch3 plays its booth clip");
+    }
+
+    #[test]
+    fn capture_set_starts_all_channels_together_at_their_first_sample() {
+        use crate::emulator::{EmuConfig, Emulator};
+        let (tx, rx) = std::sync::mpsc::channel();
+        let (ctx, crx) = std::sync::mpsc::channel();
+        let link: Box<dyn Link> = Box::new(Emulator::new(EmuConfig::default()));
+        let ctl = NetCtl { cmds: crx, lead: 8000, sel: Arc::new(AtomicUsize::new(0)) };
+        std::thread::spawn(move || run_net(link, None, ctl, tx, Arc::new(|| {})));
+        std::thread::sleep(Duration::from_millis(200));
+        ctx.send(NetCmd::SetChannel { ch: 7, samples: vec![5; 64] }).unwrap(); // stream runs
+        std::thread::sleep(Duration::from_millis(300));
+        let ramp: Vec<i16> = (0..2000).collect();
+        // ch1 below -16384: no booth clip goes there, so the set is found unambiguously
+        ctx.send(NetCmd::SetSet { chans: vec![(0, ramp.clone()), (1, ramp.iter().map(|v| v - 20000).collect())] }).unwrap();
+        std::thread::sleep(Duration::from_millis(500));
+        let mut sent = Vec::new();
+        while let Ok(m) = rx.try_recv() {
+            if let NetMsg::In(v) = m {
+                sent.extend(v);
+            }
+        }
+        let k = sent.iter().position(|(_, f)| f[1] < -16384).expect("the set was sent");
+        assert_eq!(sent[k].1[0], 0, "the set starts at its first sample");
+        assert!(sent[k..].iter().all(|(_, f)| f[1] == f[0] - 20000), "ch0 and ch1 stay sample-aligned");
+        assert!(sent.len() - k > 1000, "only {} frames after the set", sent.len() - k);
+    }
+
+    #[test]
+    fn chosen_capture_set_goes_to_ch0_up_in_name_order() {
+        let d = tempfile::tempdir().unwrap();
+        let (a, b) = (d.path().join("mic_a.wav"), d.path().join("mic_b.wav"));
+        wav16(&a, 900);
+        wav16(&b, 1000);
+        let (_tx, rx) = std::sync::mpsc::channel();
+        let (ctx, crx) = std::sync::mpsc::channel();
+        let mut app = App::new(rx, "test".into()).with_commands(ctx);
+        app.choose_set(vec![b, a]); // the dialog's order does not matter
+        match crx.try_recv().expect("a command") {
+            NetCmd::SetSet { chans } => {
+                let v: Vec<(usize, usize)> = chans.iter().map(|(c, x)| (*c, x.len())).collect();
+                assert_eq!(v, vec![(0, 900), (1, 900)], "trimmed to the shortest");
+            }
+            NetCmd::SetChannel { .. } => panic!("a set goes as one command"),
+        }
+        assert_eq!(app.sources[0].label(), "mic_a.wav (set)");
+        assert_eq!(app.sources[1].label(), "mic_b.wav (set)");
+        assert_eq!(app.sources[2], Source::Booth);
+        let info = app.set_info.clone().expect("set info");
+        assert!(info.contains("2 ch") && info.contains("100"), "{info}");
+    }
+
+    #[test]
+    fn capture_set_that_does_not_load_changes_nothing() {
+        let d = tempfile::tempdir().unwrap();
+        let a = d.path().join("a.wav");
+        wav16(&a, 900);
+        let (_tx, rx) = std::sync::mpsc::channel();
+        let (ctx, crx) = std::sync::mpsc::channel();
+        let mut app = App::new(rx, "test".into()).with_commands(ctx);
+        app.choose_set(vec![a.clone(), d.path().join("missing.wav")]);
+        assert!(crx.try_recv().is_err());
+        assert!(app.error.as_deref().is_some_and(|e| e.contains("missing.wav")), "{:?}", app.error);
+        assert!(app.sources.iter().all(|s| *s == Source::Booth));
     }
 }
