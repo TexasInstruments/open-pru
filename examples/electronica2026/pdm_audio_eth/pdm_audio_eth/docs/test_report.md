@@ -176,7 +176,7 @@ of `23428c46`; the other checks are still FIXME.
 | B2 | Link | console line, `ethtool enp129s0` | `link 1000 FD on ICSSG1 port 1`; 1000 Mb/s, full duplex | PC side **PASS** (`ethtool`: 1000Mb/s, Full, link detected). FIXME: the console prints link DOWN although data flows (MDIO link poll) |
 | B3 | Ethernet test | `pdm-eth test --iface enp129s0` | every line PASS: 0 lost of 10 000 pings, at least 500 Mbit/s each way, less than 0.1 % loss | **PASS** 3 of 3 runs, section 6.2 |
 | B4 | Clip buffer untouched | save 0x700C0000, 0x40000 bytes after B3; compare with `mcuplus/pdm_clips.h` | identical | FIXME |
-| B5 | RX counters | ICSSG1 shared RAM 0x30090010 | RX_BAD not rising with RX_FRAMES | FIXME |
+| B5 | RX counters | ICSSG1 shared RAM 0x30090010 | RX_BAD not rising with RX_FRAMES | **PASS** 2026-11-05, section 6.4 |
 | B6 | Board to PC | `pdm-eth capture --iface enp129s0 --seconds 600 --out DIR` | lost 0, resyncs 0, tx_late 0; channels 3 to 7 at 1000, 3000, 500, 2000, 5000 Hz at the pdm_audio levels; CCS half A matches the capture | FIXME |
 | B7 | GUI | `pdm-eth gui --iface enp129s0` | channel 3 a 1 kHz line, channel 1 the chirp, at least 30 fps while switching channels, lost 0 over 10 min | FIXME: fps |
 | B8 | PC to board | 8 WAVs of at least 60 s via `gui` and `stream --capture DIR` | input underrun/blocked/lost 0, UNDERRUN_COUNT and SD_OVF_COUNT 0, input and output spectrograms alike, `in_ch*.wav` and `out_ch*.wav` match (back-to-back AUDIO_IN frames both land) | FIXME |
@@ -254,6 +254,29 @@ every run.
   means about 104 ns and 112 ns. The PC NIC lost no frame even at 85 ns. A
   direct measurement needs a scope on RGMII2 TX_CTL. FIXME if a strict
   minimum gap must be shown.
+
+### 6.4 B5 RX counters
+
+CCS memory view of ICSSG1 shared RAM after the three B3 runs of section 6.2
+(13:19, board reloaded 12:58). Each `pdm-eth test` zeroes RX_FRAMES ..
+RX_BAD and the TPUT_RX block with CONTROL RESET_COUNTERS before its 64 B
+PC-to-board burst, so they hold that burst (1 793 096 frames in run 3) plus
+the two CONTROL frames after it (TPUT_REPORT_REQ, TPUT_TX).
+
+| Offset | Word | Value | Expected |
+| ------ | ---- | ----- | -------- |
+| 0x10 | RX_FRAMES | 0x001B5C4A = 1 793 098 | 1 793 096 + 2 |
+| 0x14 | RX_AUDIO | 0 | 0 (no AUDIO_IN in `test`) |
+| 0x18 | RX_FOREIGN | 0 | 0 |
+| 0x1C | RX_BAD | 0 | 0 |
+| 0x20 | LAST_IN_END | 0 | 0 |
+| 0x38, 0x3C | TPUT_TX_COUNT, TPUT_TX_LEN | 0, 60 | burst done, 64 B mode |
+| 0x40, 0x44 | TPUT_RX_FRAMES, TPUT_RX_GAPS | 0x001B5C48 = 1 793 096, 0 | run 3: 1 793 096 |
+| 0x48 | TPUT_RX_BYTES | 53 792 880 | 1 793 096 x 30 (header length of a 60 B frame) |
+| 0x50, 0x58 | TPUT_RX_FIRST_IEP, _LAST_IEP | 0xA00FD416A, 0xAB3D31BDF | 3.000 s apart: 0.5976 Mframes/s |
+| 0x64 | TX_AUDIO | 612 850, rising | 500/s x 20.4 min since the reload |
+| 0x68, 0x6C | TX_PONGS, TX_LATE | 30 000, 0 | 3 runs x 10 000 pings, no late half |
+| 0x70, 0x74 | CLIP_ADDR, CLIP_FRAMES | 0x700C0000, 0x4000 | as written by the R5F |
 
 When the table is filled, close the matching FIXMEs in
 [../readme.md](../readme.md) ("Validated HW & SW", "Hardware results") and
