@@ -177,7 +177,7 @@ of `23428c46`; the other checks are still FIXME.
 | B3 | Ethernet test | `pdm-eth test --iface enp129s0` | every line PASS: 0 lost of 10 000 pings, at least 500 Mbit/s each way, less than 0.1 % loss | **PASS** 3 of 3 runs, section 6.2 |
 | B4 | Clip buffer untouched | save 0x700C0000, 0x40000 bytes after B3; `python3 tools/compare_clip_dump.py DUMP` | identical | **PASS** 2026-11-05: `identical: 262144 bytes`, section 6.4 |
 | B5 | RX counters | ICSSG1 shared RAM 0x30090010 | RX_BAD not rising with RX_FRAMES | **PASS** 2026-11-05, section 6.4 |
-| B6 | Board to PC | `pdm-eth capture --iface enp129s0 --seconds 600 --out DIR` | lost 0, resyncs 0, tx_late 0; channels 3 to 7 at 1000, 3000, 500, 2000, 5000 Hz at the pdm_audio levels; CCS half A matches the capture | FIXME |
+| B6 | Board to PC | `pdm-eth capture --iface enp129s0 --seconds 600 --out DIR`, then `python3 tools/analyze_capture.py DIR` | lost 0, resyncs 0, tx_late 0; channels 3 to 7 at 1000, 3000, 500, 2000, 5000 Hz at the pdm_audio levels; CCS half A matches the capture | **PASS** 2026-11-05 for the capture, section 6.6. FIXME: CCS half A spot check |
 | B7 | GUI | `pdm-eth gui --iface enp129s0` | channel 3 a 1 kHz line, channel 1 the chirp, at least 30 fps while switching channels, lost 0 over 10 min | FIXME: fps |
 | B8 | PC to board | 8 WAVs of at least 60 s via `gui` and `stream --capture DIR` | input underrun/blocked/lost 0, UNDERRUN_COUNT and SD_OVF_COUNT 0, input and output spectrograms alike, `in_ch*.wav` and `out_ch*.wav` match (back-to-back AUDIO_IN frames both land) | FIXME |
 | B9 | Board audio latency | GUI side panel during B8 | stable within 1 ms | FIXME: ms |
@@ -307,6 +307,41 @@ The PDM decoder output (PCM_COUNT) and the clip player (RTU1 frames) agree
 within one sample per channel; HALF_SEQ x 64 = 29 673 856 is 36 frames
 behind, the half being filled. No underrun and no SD overflow while the
 ICSSG1 Ethernet tests ran at full rate.
+
+### 6.6 B6 board to PC
+
+`pdm-eth capture --iface enp129s0 --seconds 600`, 13:30:44 to 13:40:44,
+firmware of `cb26d504`:
+
+```
+9599904 frames per channel written to DIR
+lost 0 duplicates 0 resyncs 0; board: underrun 0 sd_ovf 0 tx_late 0 rx_foreign 0 rx_bad 0
+board clock -25.8 ppm against the PC
+```
+
+NIC `rx_missed` unchanged. `python3 tools/analyze_capture.py DIR`:
+
+| Ch | Clip | Frequency (fit) | Amplitude / 2^22 | pdm_audio board run | Min..max over 60 x 10 s | Fit residual |
+| -- | ---- | --------------- | ---------------- | ------------------- | ----------------------- | ------------ |
+| 3 | tone_1000 | 1000.0000 Hz | 1.000 | 1.000 | 1.000..1.000 | -89.7 dB |
+| 4 | tone_3000 | 3000.0000 Hz | 0.942 | 0.942 | 0.942..0.942 | -87.1 dB |
+| 5 | tone_500 | 500.0000 Hz | 0.999 | 0.999 | 0.999..0.999 | -87.9 dB |
+| 6 | tone_2000 | 2000.0000 Hz | 0.981 | 0.981 | 0.981..0.981 | -84.6 dB |
+| 7 | tone_5000 | 5000.0000 Hz | 0.850 | 0.850 | 0.850..0.850 | -86.3 dB |
+
+- Loop check: RTU1 plays the 16 384-frame clip in a loop. For channels 3 to
+  7 every loop of the capture (585) is bit for bit equal to the one before,
+  so no frame was lost, repeated or reordered in 600 s (the capture's own
+  counters say the same).
+- Channels 0 to 2 (speech, linear and log chirp) cannot repeat bit for bit
+  (the modulator noise differs per loop): loop to loop they differ by
+  -94 dB RMS (worst sample -76 dB of 2^22); a slipped frame would give about
+  0 dB. Each correlates best with its own clip of `pdm_clips.h` (1.00, 0.91,
+  0.98; the others 0.13 or less), so the channel order is right. Peaks 0.99,
+  1.12, 1.07 x 2^22 (the pdm_audio CCS frames showed 0.33, 0.75, 0.84 in a
+  few frames).
+- Amplitudes equal the pdm_audio board run to three digits: the level drop
+  of the higher tones is RTU1's zero-order hold, as predicted there.
 
 When the table is filled, close the matching FIXMEs in
 [../readme.md](../readme.md) ("Validated HW & SW", "Hardware results") and
