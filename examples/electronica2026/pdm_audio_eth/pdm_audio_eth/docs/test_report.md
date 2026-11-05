@@ -173,7 +173,7 @@ of `23428c46`; the other checks are still FIXME.
 | - | ----- | ------- | -------------- | ------ |
 | B0 | Single PONG | `pdm-eth test --iface enp129s0 --pings 1 --seconds 0.1` | ping line 1/1 | **PASS**: 1/1, RTT 141 us, board turnaround 0.39 us |
 | B1 | ICSSG0 header | CCS memory browser 0x30010000 | as in pdm_audio, CLIP_FRAMES 0x4000, UNDERRUN_COUNT 0, SD_OVF_COUNT 0 | FIXME |
-| B2 | Link | console line, `ethtool enp129s0` | `link 1000 FD on ICSSG1 port 1`; 1000 Mb/s, full duplex | PC side **PASS** (`ethtool`: 1000Mb/s, Full, link detected). FIXME: the console prints link DOWN although data flows (MDIO link poll) |
+| B2 | Link | console line, `ethtool enp129s0` | `link 1000 FD on ICSSG1 port 1`; 1000 Mb/s, full duplex | **PASS** 2026-11-05 (firmware of `cb26d504`): console `PDM audio eth: link 1000 FD on ICSSG1 port 1 after 3610 ms, board MAC 02:00:5d:4d:00:01`; `ethtool`: 1000Mb/s, Full, link detected |
 | B3 | Ethernet test | `pdm-eth test --iface enp129s0` | every line PASS: 0 lost of 10 000 pings, at least 500 Mbit/s each way, less than 0.1 % loss | **PASS** 3 of 3 runs, section 6.2 |
 | B4 | Clip buffer untouched | save 0x700C0000, 0x40000 bytes after B3; `python3 tools/compare_clip_dump.py DUMP` | identical | **PASS** 2026-11-05: `identical: 262144 bytes`, section 6.4 |
 | B5 | RX counters | ICSSG1 shared RAM 0x30090010 | RX_BAD not rising with RX_FRAMES | **PASS** 2026-11-05, section 6.4 |
@@ -190,7 +190,7 @@ of `23428c46`; the other checks are still FIXME.
 | `82eea4c5` | the TPUT frame sent right after the second AUDIO_OUT frame of a pair never reached the wire (the MAC counted it TX_GOOD); PRU0 now waits 0.3 us (`AUDIO_TX_GUARD`) after an audio pair |
 | `80ef1862` | 64-byte throughput test added (frame rate, not only Mbit/s) |
 | `23428c46` | `sendmmsg` batching, and the network thread is pinned away from the NIC interrupt CPU: with both on one CPU the NIC dropped frames (`rx_missed`) |
-| `303a981d`, `0ec2906e` | the console said link DOWN: the HIL example had the PHY addresses swapped (J18 / RGMII2 is PHY 15, not 3; MDIO_LINK read 0x00008000). The R5F now reads the PHY's PHYSTS register and prints speed, duplex and time to link |
+| `303a981d`, `0ec2906e` | the console said link DOWN: the HIL example had the PHY addresses swapped (J18 / RGMII2 is PHY 15, not 3; MDIO_LINK read 0x00008000). The R5F now reads the PHY's PHYSTS register and prints speed, duplex and time to link (3610 ms on the board, so the old 5 s wait was not the cause) |
 | `7236a9a3` | PRU0 waited 100 cycles after CRC + EOF (copied from the HIL example, which only waited before its halt); the TRM lets the next frame start 5 core clocks after TX_L2 drains, so it now waits 5 (`TX_EOF_GAP`) |
 | `cb26d504` | the inter-frame gap comes from MII_RT `TX_IPG` (R5F), section 6.3; the HIL value 0x18 counts 333 MHz core clocks (72 ns nominal) |
 | `9d95d473` | `pdm-eth test` takes the board-to-PC rate from the board's header time stamps, not from PC receive times |
