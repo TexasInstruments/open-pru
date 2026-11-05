@@ -59,7 +59,11 @@
 #define RXCFG0_VAL                  (0x00000015U)
 #define RXCFG1_VAL                  (0x0000021FU)   /* port 1: ... RX_EOF on R31 bit 20 */
 #define RX_FRMS_MIN                 (0x06U)
-#define TX_IPG_1G                   (0x00000018U)   /* 96 ns */
+/* TX_IPG counts ICSSG1 core clocks (TXCFG TX_IPG_WIRE_CLK_EN = 0): 32 x 3 ns
+ * = 96 ns at 333 MHz, the 1G minimum; the HIL value 0x18 was 96 ns at 250 MHz
+ * (72 ns here). With the short post-EOF wait in eth_tx.asm this gap is the
+ * only one between back-to-back frames. */
+#define TX_IPG_1G                   (0x00000020U)
 #define G_RGMII_CFG_VAL             (0x006600DDU)   /* both ports 1000 Mbit/s, FD, link */
 #define IEP_CFG_333MHZ_NS           (0x00000331U)   /* enable, increment 3: counts ns */
 

@@ -32,7 +32,11 @@
 ; Frames are built in DRAM0 at TX_BUF (local 0x0000) and sent through the
 ; TX_L2 FIFO as in the HIL example: per 64-byte chunk LBBO, wait until the
 ; FIFO level (R19.b2 after XIN 40) is 0, XOUT 64; the tail with a fixed
-; XOUT size (XOUT sizes are immediates); then 10 NOPs, CRC + EOF, 100 NOPs.
+; XOUT size (XOUT sizes are immediates); then 10 NOPs, CRC + EOF and
+; TX_EOF_GAP NOPs. The HIL example waited 100 NOPs after EOF only because it
+; halted next; the TRM (SPRUIM2H 6.4.11.2.4.1.1.1) lets a new frame start
+; once TX_L2 is empty, before TX_L1 drains, 5 or more core clocks after the
+; drain (CRC of the old frame). The gap on the wire is MII_RT TX_IPG (R5F).
 ; Frame sizes are therefore fixed: PONG 64 B, TPUT_REPORT 64 B, TPUT_DATA
 ; 1514 B or 60 B (CONTROL arg1 60), AUDIO_OUT 1118 B (Task 10).
 ;
@@ -51,6 +55,15 @@
 ;   R28.w2    return address (jal, audio)
 ;   R29       IEP0 base (local)
 ;   C28       ICSSG1 shared RAM (local 0x10000, set by the R5F)
+;
+; Cycle budget (333 MHz, 3 ns per cycle), small frames (TPUT_TX length 60):
+;   Path                      Budget            Estimate        Verified
+;   EOF -> next XOUT          < 480 ns queued   ~100 cyc 300 ns hand count
+;   (small_loop: TX_EOF_GAP, audio poll with one cross-ICSSG read,
+;   build_header, send_frame up to its XOUT)
+; After EOF the wire still has up to 40 B of TX_L1 (320 ns), the IPG (96 ns)
+; and the next preamble (64 ns) to send, so the wire (64 B frame + preamble
+; + IPG = 672 ns, 1.488 Mframes/s) and not PRU0 should set the rate.
 
     .include "eth_proto.inc"
     .include "pdm8_shared.inc"
@@ -68,6 +81,7 @@ AUDIO_LEN           .set    1088        ; 1118 - 14 - 16 (status + PCM)
 AUDIO_CHUNKS        .set    17          ; 1118 = 17 x 64 + 30
 AUDIO_TAIL          .set    30
 AUDIO_TX_GUARD      .set    50          ; 2-cycle loops (0.3 us) after audio
+TX_EOF_GAP          .set    5           ; cycles after CRC + EOF (TRM: >= 5)
 SMALL_ARG           .set    60          ; TPUT_TX length that asks for 60 B
 SMALL_LEN           .set    30          ; 60 - 14 - 16 (64 B with CRC)
 OFF_BODY            .set    30          ; frame offset of the body
@@ -337,7 +351,7 @@ sf_end:
     nop
 sf_nop1:
     ldi     r31.w2, ICSS_TX_CRC_EOF
-    loop    sf_nop2, 100
+    loop    sf_nop2, TX_EOF_GAP
     nop
 sf_nop2:
     jmp     r28.w0
