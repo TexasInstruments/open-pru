@@ -53,21 +53,22 @@
 #define TXCFG_ALL_OFF               (0x00000800U)
 #define G_ICSS_G_CFG_VAL            (0x0001022BU)   /* TX_L1/L2, RX_L2, RGMII both ports */
 #define GPCFG1_MII_VAL              (0x08000003U)   /* PRU1 GPI = MII_RT, GP_MUX_SEL = MII */
-/* HIL values plus bit 12 TX_IPG_WIRE_CLK_EN (both ports alike, TRM): the
- * TX_IPG counter runs on the TX interface clock */
-#define TXCFG1_VAL                  (0x00001803U)   /* port 1: enable, auto preamble, PRU0 */
-#define TXCFG0_VAL                  (0x00001903U)
+#define TXCFG1_VAL                  (0x00000803U)   /* port 1: enable, auto preamble, PRU0 */
+#define TXCFG0_VAL                  (0x00000903U)
 #define RXCFG0_VAL                  (0x00000015U)
 #define RXCFG1_VAL                  (0x0000021FU)   /* port 1: ... RX_EOF on R31 bit 20 */
 #define RX_FRMS_MIN                 (0x06U)
-/* TX_IPG in TX interface clocks (TXCFG bit 12): n + 1 clocks. Measured on
- * the board with back-to-back 64-byte frames (gap = frame period - 576 ns):
- *   core clock, 0x20 (32 x 3 ns = 96 ns nominal)  -> 85 ns gap (too short)
- *   TX clock,   11   (TRM "1G >= 11, 8 ns")        -> 271 ns gap
- * so one TX clock counts ~24 ns here, as in the TRM example "3h = 4 TX
- * interface clocks (96 ns for 1G)", and the gap is ~11-17 ns under nominal.
- * 4 -> 5 x 24 = 120 ns nominal, ~103 ns expected: the first value >= 96 ns. */
-#define TX_IPG_1G                   (0x00000004U)
+/* TX_IPG in ICSSG1 core clocks (3 ns at 333 MHz; TXCFG bit 12
+ * TX_IPG_WIRE_CLK_EN = 0). Board runs, back-to-back 64-byte frames from
+ * PRU0 (gap = frame period - 576 ns):
+ *   core clock 0x20 (96 ns nominal)        -> 661 ns period, 85 ns gap
+ *   TX clock   11 (the TRM 1G minimum)     -> 847 ns period, 271 ns gap
+ *   TX clock   4 (below it: TRM "jitter")  -> 911 ns period, 335 ns gap
+ * The TX-clock mode costs ~175 ns per frame even at its minimum. In core-
+ * clock mode the gap was ~11 ns under nominal, so 0x28 (120 ns nominal, the
+ * reset value) gives ~109 ns, above the 96 ns minimum. The HIL value 0x18
+ * (96 ns at 250 MHz) is 72 ns here. */
+#define TX_IPG_1G                   (0x00000028U)
 #define G_RGMII_CFG_VAL             (0x006600DDU)   /* both ports 1000 Mbit/s, FD, link */
 #define IEP_CFG_333MHZ_NS           (0x00000331U)   /* enable, increment 3: counts ns */
 
