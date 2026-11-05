@@ -243,8 +243,11 @@ pub fn tput_to_board(link: &mut dyn Link, cfg: &TestConfig, frame: usize) -> io:
                     sent: sent as u64, seq_gaps: gaps, pc_kernel_drops: 0, pc_nic_drops: 0 })
 }
 
-/// Board -> PC: the board sends `seconds` worth of 1514-byte frames back to
-/// back; the PC counts them. The rate is the PC's (first to last receive).
+/// Board -> PC: the board sends `seconds` worth of frames back to back; the
+/// PC counts them. The rate is the board's: first to last header time stamp
+/// (PRU0's IEP time when it built the frame). The PC receive times are not
+/// used: frames that wait in the socket queue before the reader gets to them
+/// carry late receive times, which made the rate look higher than line rate.
 pub fn tput_from_board(link: &mut dyn Link, cfg: &TestConfig, frame: usize) -> io::Result<TputResult> {
     let count = (cfg.seconds * line_rate_fps(frame)).round() as u32;
     let st0 = link.stats();
@@ -259,11 +262,11 @@ pub fn tput_from_board(link: &mut dyn Link, cfg: &TestConfig, frame: usize) -> i
             continue;
         }
         if frames == 0 {
-            t_first = f.t_ns;
+            t_first = h.ts;
         } else if Some(h.seq) != last_seq.map(|s| s.wrapping_add(1)) {
             gaps += 1;
         }
-        t_last = f.t_ns;
+        t_last = h.ts;
         last_seq = Some(h.seq);
         frames += 1;
         if h.seq + 1 == count {
@@ -444,6 +447,48 @@ mod tests {
         assert_eq!(r.sent, l.seqs.len() as u64);
         let want: Vec<u32> = (0..l.seqs.len() as u32).collect();
         assert_eq!(l.seqs, want, "the frames the link refused are sent again, in order");
+    }
+
+    /// Answers TPUT_TX with `count` TPUT_DATA frames whose board time stamps
+    /// are at line rate, but which all reach the PC at the same moment (as when
+    /// they waited in the socket queue before the reader got to them).
+    struct QueuedLink {
+        rx: std::collections::VecDeque<crate::link::RxFrame>,
+    }
+
+    impl Link for QueuedLink {
+        fn send(&mut self, frame: &[u8]) -> io::Result<()> {
+            if let Ok((_, Body::Control { cmd: CMD_TPUT_TX, arg0, arg1 }, _)) = decode(frame) {
+                let frame = arg1 as usize;
+                let wire_ns = (frame as u64 + 24) * 8;
+                for seq in 0..arg0 {
+                    let h = Header { version: crate::proto::layout::ETH_VERSION as u8, ftype: FrameType::TputData,
+                                     length: 0, seq, ts: 1_000_000 + seq as u64 * wire_ns };
+                    let data = encode([2, 0, 0, 0, 0, 9], [2, 0, 0x5d, 0x4d, 0, 1], &h, &Body::TputData, frame);
+                    self.rx.push_back(crate::link::RxFrame { data, t_ns: 5_000_000_000 });
+                }
+            }
+            Ok(())
+        }
+        fn recv(&mut self, _timeout: Duration) -> io::Result<Option<crate::link::RxFrame>> {
+            Ok(self.rx.pop_front())
+        }
+        fn mac(&self) -> [u8; 6] {
+            [2, 0, 0, 0, 0, 9]
+        }
+        fn stats(&mut self) -> crate::link::LinkStats {
+            crate::link::LinkStats::default()
+        }
+    }
+
+    #[test]
+    fn from_board_rate_uses_board_time_stamps() {
+        let mut l = QueuedLink { rx: Default::default() };
+        let cfg = TestConfig { pings: 0, ping_timeout: Duration::from_millis(1), seconds: 0.01 };
+        let r = tput_from_board(&mut l, &cfg, SMALL_FRAME).unwrap();
+        let line = line_rate_fps(SMALL_FRAME) * SMALL_FRAME as f64 * 8.0 / 1e6;
+        assert!(r.frames > 1000, "{r:?}");
+        assert!((r.mbit_s - line).abs() < line * 0.001, "{} Mbit/s, line rate {line}", r.mbit_s);
     }
 
     #[test]
