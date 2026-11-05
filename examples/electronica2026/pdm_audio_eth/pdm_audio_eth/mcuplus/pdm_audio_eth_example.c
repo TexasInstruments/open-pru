@@ -216,6 +216,7 @@ static void pdm_audio_eth_icssg1_start(void)
     uint32_t words;
     int32_t  status;
     int32_t  link;
+    EthLinkInfo linkInfo;
 
     gPruIcss1Handle = PRUICSS_open(CONFIG_PRU_ICSS1);
     DebugP_assert(gPruIcss1Handle != NULL);
@@ -264,13 +265,30 @@ static void pdm_audio_eth_icssg1_start(void)
                    (int)status);
         return;
     }
-    link = eth_wait_for_link(5000U);
-    DebugP_log("PDM audio eth: link %s on ICSSG1 port 1, board MAC "
-               "%02x:%02x:%02x:%02x:%02x:%02x\r\n",
-               (link == 0) ? "1000 FD" : "DOWN",
-               (unsigned int)ETH_BOARD_MAC_0, (unsigned int)ETH_BOARD_MAC_1,
-               (unsigned int)ETH_BOARD_MAC_2, (unsigned int)ETH_BOARD_MAC_3,
-               (unsigned int)ETH_BOARD_MAC_4, (unsigned int)ETH_BOARD_MAC_5);
+    link = eth_wait_for_link(10000U, &linkInfo);
+    if (link == 0)
+    {
+        DebugP_log("PDM audio eth: link %s %s on ICSSG1 port 1 after %u ms, board MAC "
+                   "%02x:%02x:%02x:%02x:%02x:%02x\r\n",
+                   (linkInfo.speed == 2U) ? "1000" : ((linkInfo.speed == 1U) ? "100" : "10"),
+                   (linkInfo.full != 0U) ? "FD" : "HD",
+                   (unsigned int)linkInfo.wait_ms,
+                   (unsigned int)ETH_BOARD_MAC_0, (unsigned int)ETH_BOARD_MAC_1,
+                   (unsigned int)ETH_BOARD_MAC_2, (unsigned int)ETH_BOARD_MAC_3,
+                   (unsigned int)ETH_BOARD_MAC_4, (unsigned int)ETH_BOARD_MAC_5);
+    }
+    else
+    {
+        DebugP_log("PDM audio eth: link DOWN on ICSSG1 port 1 after %u ms "
+                   "(PHYSTS 0x%04x), continuing\r\n",
+                   (unsigned int)linkInfo.wait_ms, (unsigned int)linkInfo.physts);
+    }
+    if (((linkInfo.mdio_link >> 3) & 1U) == 0U)     /* bit 3 = PHY address 3 */
+    {
+        /* FIXME: remove once the MDIO_LINK = 0 cause is known */
+        DebugP_log("PDM audio eth: MDIO_LINK 0x%08x MDIO_ALIVE 0x%08x\r\n",
+                   (unsigned int)linkInfo.mdio_link, (unsigned int)linkInfo.mdio_alive);
+    }
 
     pdm_audio_eth_load(gPruIcss1Handle, PRUICSS_IRAM_PRU(1),
                        PR1_PRU1Firmware_0, sizeof(PR1_PRU1Firmware_0));

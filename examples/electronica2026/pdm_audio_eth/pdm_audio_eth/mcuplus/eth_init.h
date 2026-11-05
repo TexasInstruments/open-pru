@@ -33,11 +33,24 @@
  */
 int32_t eth_init(void);
 
+/** \brief Port-1 link state from eth_wait_for_link() */
+typedef struct
+{
+    uint32_t wait_ms;       /**< time until the link was up (or the timeout) */
+    uint32_t physts;        /**< last DP83869 PHYSTS (register 0x11) read */
+    uint32_t speed;         /**< PHYSTS speed: 0 = 10, 1 = 100, 2 = 1000 Mbit/s */
+    uint32_t full;          /**< 1 = full duplex */
+    uint32_t mdio_link;     /**< MDIO_LINK register (poll state machine), for debug */
+    uint32_t mdio_alive;    /**< MDIO_ALIVE register, for debug */
+} EthLinkInfo;
+
 /**
- * \brief Wait until the MDIO link register reports the port-1 PHY up.
+ * \brief Wait until the port-1 PHY (address 3) reports link with speed and
+ *        duplex resolved, polling its PHYSTS register every 10 ms.
  * \param timeout_ms  maximum wait
+ * \param info        filled in on return (also on timeout)
  * \return 0 when the link is up, -1 on timeout
  */
-int32_t eth_wait_for_link(uint32_t timeout_ms);
+int32_t eth_wait_for_link(uint32_t timeout_ms, EthLinkInfo *info);
 
 #endif /* ETH_INIT_H_ */

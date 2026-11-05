@@ -43,6 +43,7 @@
 #define ICSSG1_G_RGMII_CFG          (ICSSG1_BASE + 0x00033004U)
 #define ICSSG1_GPCFG1               (ICSSG1_BASE + 0x0002600CU)
 #define ICSSG1_MDIO_CONTROL         (ICSSG1_BASE + 0x00032404U)
+#define ICSSG1_MDIO_ALIVE           (ICSSG1_BASE + 0x00032408U)
 #define ICSSG1_MDIO_LINK            (ICSSG1_BASE + 0x0003240CU)
 #define ICSSG1_MDIO_USERACCESS0     (ICSSG1_BASE + 0x00032480U)
 #define ICSSG1_IEP_GLOBAL_CFG       (ICSSG1_BASE + 0x0002E000U)
@@ -71,6 +72,12 @@
 #define PHY_PORT0_ADDR              (15U)
 #define PHY_PORT1_ADDR              (3U)
 #define PHY_REG_BMSR                (0x01U)
+#define PHY_REG_PHYSTS              (0x11U)     /* DP83869 PHY status */
+#define PHYSTS_LINK                 (1U << 10)
+#define PHYSTS_RESOLVED             (1U << 11)  /* speed and duplex resolved */
+#define PHYSTS_DUPLEX               (1U << 13)
+#define PHYSTS_SPEED_SHIFT          (14U)       /* 0: 10, 1: 100, 2: 1000 Mbit/s */
+#define LINK_POLL_MS                (10U)
 #define PHY_REG_CTRL                (0x1FU)
 #define PHY_CTRL_SW_RESET           (0x4000U)
 #define PHY_EXT_REG_CTL             (0x0DU)
@@ -129,8 +136,11 @@ static int32_t mdio_write(uint32_t phy, uint32_t reg, uint32_t data)
     return mdio_wait();
 }
 
-static int32_t mdio_read(uint32_t phy, uint32_t reg)
+/* Clause-22 read; *data gets the register value when the PHY acknowledged */
+static int32_t mdio_read_data(uint32_t phy, uint32_t reg, uint32_t *data)
 {
+    uint32_t ua;
+
     if (mdio_wait() != 0)
     {
         return -1;
@@ -140,7 +150,20 @@ static int32_t mdio_read(uint32_t phy, uint32_t reg)
     {
         return -1;
     }
-    return ((HW_RD_REG32(ICSSG1_MDIO_USERACCESS0) & MDIO_UA_ACK) != 0U) ? 0 : -1;
+    ua = HW_RD_REG32(ICSSG1_MDIO_USERACCESS0);
+    if ((ua & MDIO_UA_ACK) == 0U)
+    {
+        return -1;
+    }
+    *data = ua & 0xFFFFU;
+    return 0;
+}
+
+static int32_t mdio_read(uint32_t phy, uint32_t reg)
+{
+    uint32_t data;
+
+    return mdio_read_data(phy, reg, &data);
 }
 
 static int32_t mdio_ext_write(uint32_t phy, uint32_t ext_reg, uint32_t data)
@@ -225,17 +248,35 @@ int32_t eth_init(void)
     return status;
 }
 
-int32_t eth_wait_for_link(uint32_t timeout_ms)
+int32_t eth_wait_for_link(uint32_t timeout_ms, EthLinkInfo *info)
 {
-    uint32_t ms;
+    uint32_t ms = 0U;
+    uint32_t physts = 0U;
+    int32_t  up = -1;
 
-    for (ms = 0U; ms < timeout_ms; ms++)
+    /* Read the port-1 PHY's own status register instead of the MDIO_LINK
+     * register: MDIO_LINK only follows the MDIO poll state machine, and the
+     * first board runs printed DOWN with the link up (raw value logged). */
+    for (;;)
     {
-        if ((HW_RD_REG32(ICSSG1_MDIO_LINK) & (1U << PHY_PORT1_ADDR)) != 0U)
+        if ((mdio_read_data(PHY_PORT1_ADDR, PHY_REG_PHYSTS, &physts) == 0) &&
+            ((physts & (PHYSTS_LINK | PHYSTS_RESOLVED)) == (PHYSTS_LINK | PHYSTS_RESOLVED)))
         {
-            return 0;
+            up = 0;
+            break;
         }
-        ClockP_usleep(1000U);
+        if (ms >= timeout_ms)
+        {
+            break;
+        }
+        ClockP_usleep(LINK_POLL_MS * 1000U);
+        ms += LINK_POLL_MS;
     }
-    return -1;
+    info->wait_ms   = ms;
+    info->physts    = physts;
+    info->speed     = (physts >> PHYSTS_SPEED_SHIFT) & 3U;
+    info->full      = ((physts & PHYSTS_DUPLEX) != 0U) ? 1U : 0U;
+    info->mdio_link = HW_RD_REG32(ICSSG1_MDIO_LINK);
+    info->mdio_alive = HW_RD_REG32(ICSSG1_MDIO_ALIVE);
+    return up;
 }
