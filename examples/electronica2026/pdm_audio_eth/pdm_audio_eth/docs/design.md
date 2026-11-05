@@ -366,28 +366,34 @@ alternatives).
 
 ### 7.2a Custom audio per channel in the GUI (added 2026-11-05, user)
 
-After the board run the user asked for custom WAV files per channel in the
-window, by drag and drop (choice over a file-picker button and "the CLI is
-enough"), and for example audio with speech and music (7.2b).
+After the board run the user asked for custom audio per channel in the
+window and for example audio with speech and music (7.2b).
 
-- **Drop target:** the selected channel. Dropping a WAV onto the window
-  loads it with the same conversion as `--chN` (16 kHz mono, peak 0.5 FS);
-  while a file hovers, the window says which channel it will go to. A file
-  that does not load shows its error in the toolbar; nothing changes.
-- **Live:** the UI hands the converted samples to the network thread
-  (`NetCmd::SetChannel`). Without a running stream, the first drop starts
-  one (the pacer starts one lead ahead, as at start-up); later drops replace
-  one channel's samples in place, the stream keeps running.
-- **Channels without a file play their booth clip:** the PC sends the clip
-  of that channel from `mcuplus/pdm_clips.h` (compiled in), so dropping one
-  file does not silence the other seven. This also applies to `gui --chN`
-  started with fewer than 8 files (before: silence). `stream` keeps its
-  silence rule (7.1), which the B8 analysis relies on.
+- **First try, removed: drag and drop.** Built and unit-tested, but on the
+  user's Ubuntu Wayland session a drop did nothing: winit 0.30.13 (under
+  eframe) delivers file-drop events only on Windows, macOS and X11, its
+  Wayland backend has no drag-and-drop. The user then chose a selector per
+  channel instead.
+- **Source selector per channel (user: all 8 visible):** a "Sources" table
+  at the top of the side panel, one dropdown per channel: *booth clip* (the
+  channel's clip of `mcuplus/pdm_clips.h`), *speech*, *music*, *speech +
+  music* (the files of 7.2b, compiled in), *silence*, and *open WAV file...*
+  (the desktop's file dialog through the XDG portal, `rfd`, works on
+  Wayland). A file is converted as `--chN` (16 kHz mono, peak 0.5 FS); one
+  that does not load shows its error in the toolbar and changes nothing.
+- **Live:** the UI hands the samples to the network thread
+  (`NetCmd::SetChannel`). Without a running stream, the first choice starts
+  one (the pacer starts one lead ahead, as at start-up); later choices
+  replace one channel in place, the stream keeps running.
+- **Channels nobody chose play their booth clip:** the PC sends that
+  channel's clip, so changing one channel does not silence the other seven.
+  This also applies to `gui --chN` started with fewer than 8 files (before:
+  silence). `stream` keeps its silence rule (7.1), which the B8 analysis
+  relies on.
 - **Looping per channel:** in the GUI each channel loops on its own length
   (a 30 s music file next to the 1.024 s clips). Before, all channels
   looped on the longest file and the shorter ones were silent until then.
-- **Labels:** the IN pane shows the file name of the channel, or "booth
-  clip".
+- **Labels:** the IN pane names the channel's source.
 
 ### 7.2b Example audio
 
