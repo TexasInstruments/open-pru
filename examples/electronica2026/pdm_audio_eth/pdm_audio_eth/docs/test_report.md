@@ -190,17 +190,26 @@ of `23428c46`; the other checks are still FIXME.
 | `82eea4c5` | the TPUT frame sent right after the second AUDIO_OUT frame of a pair never reached the wire (the MAC counted it TX_GOOD); PRU0 now waits 0.3 us (`AUDIO_TX_GUARD`) after an audio pair |
 | `80ef1862` | 64-byte throughput test added (frame rate, not only Mbit/s) |
 | `23428c46` | `sendmmsg` batching, and the network thread is pinned away from the NIC interrupt CPU: with both on one CPU the NIC dropped frames (`rx_missed`) |
+| `303a981d`, `0ec2906e` | the console said link DOWN: the HIL example had the PHY addresses swapped (J18 / RGMII2 is PHY 15, not 3; MDIO_LINK read 0x00008000). The R5F now reads the PHY's PHYSTS register and prints speed, duplex and time to link |
+| `7236a9a3` | PRU0 waited 100 cycles after CRC + EOF (copied from the HIL example, which only waited before its halt); the TRM lets the next frame start 5 core clocks after TX_L2 drains, so it now waits 5 (`TX_EOF_GAP`) |
+| `cb26d504` | the inter-frame gap comes from MII_RT `TX_IPG` (R5F), section 6.3; the HIL value 0x18 counts 333 MHz core clocks (72 ns nominal) |
+| `9d95d473` | `pdm-eth test` takes the board-to-PC rate from the board's header time stamps, not from PC receive times |
 
 ### 6.2 B3 Ethernet test
 
 Three runs of `pdm-eth test --iface enp129s0` with the tuning of section 2
-(interrupt on CPU 6, network thread on CPU 7):
+(interrupt on CPU 6, network thread on CPU 7), firmware of `cb26d504`
+(5-cycle post-EOF gap, `TX_IPG` 0x28):
 
 | Run | Ping RTT min/mean/p99/max | Board turnaround | To board 1514 B | From board 1514 B | To board 64 B | From board 64 B |
 | --- | ------------------------- | ---------------- | --------------- | ----------------- | ------------- | --------------- |
-| 1 | 17/39/187/4133 us | 0.30-32.02 us | 984.4 Mbit/s | 956.5 Mbit/s | 0.595 Mframes/s | 1.051 Mframes/s |
-| 2 | 19/29/163/4020 us | 0.30-31.57 us | 984.4 Mbit/s | 956.5 Mbit/s | 0.595 Mframes/s | 1.051 Mframes/s |
-| 3 | 19/23/56/273 us | 0.30-31.61 us | 984.4 Mbit/s | 956.4 Mbit/s | 0.595 Mframes/s | 1.051 Mframes/s |
+| 1 | 18/32/172/4006 us | 0.30-31.33 us | 984.4 Mbit/s | 976.0 Mbit/s | 0.598 Mframes/s | 1.459 Mframes/s (98 %) |
+| 2 | 17/33/167/4055 us | 0.30-31.30 us | 984.4 Mbit/s | 976.0 Mbit/s | 0.598 Mframes/s | 1.459 Mframes/s (98 %) |
+| 3 | 18/31/168/4066 us | 0.30-31.13 us | 984.4 Mbit/s | 976.0 Mbit/s | 0.598 Mframes/s | 1.459 Mframes/s (98 %) |
+
+The same test with the firmware of `23428c46` (100-cycle post-EOF wait,
+`TX_IPG` 0x18) gave 956.5 Mbit/s and 1.051 Mframes/s from the board; the
+other columns were the same.
 
 Every run: 10 000 of 10 000 pings, 0 frames lost and 0 sequence gaps in all
 four throughput directions, NIC `rx_missed` unchanged.
@@ -208,17 +217,43 @@ four throughput directions, NIC `rx_missed` unchanged.
 - Board turnaround (PONG IEP time minus PING receive IEP time) is 0.3 us when
   PRU0 is idle. The maximum of about 32 us is a PONG that waits behind an
   AUDIO_OUT pair already on the wire (2 x 1118 B).
-- The single pings of about 4 ms (runs 1 and 2) are on the PC: the board
+- The single pings of about 4 ms are on the PC: the board
   turnaround of the same runs stays below 33 us. They do not matter for audio,
   where the PC runs 0.5 s ahead.
 - 64 B to the board, 0.6 Mframes/s, is the limit of the PC's NIC (one
-  doorbell per frame). 64 B from the board, 1.05 Mframes/s, is the PRU0 limit
-  (100 NOPs after each EOF).
+  doorbell per frame). 64 B from the board, 1.459 Mframes/s, is set by the
+  inter-frame gap (section 6.3): one frame per 685 ns = 576 ns of frame and
+  preamble plus a ~109 ns gap. 1514 B from the board, 976.0 Mbit/s, is
+  ~90 ns per frame under that: PRU0 loads 24 chunks per frame.
 - Before the NIC interrupt was moved to CPU 6 (it stayed on CPU 17, because
   `pdm-eth-irq.service` ran before NetworkManager opened `enp129s0`), one of
   three runs lost 2688 frames of the 64 B board-to-PC test in the NIC
   (`rx_missed`); the board lost none. The service now waits for the
   interrupt to appear.
+
+### 6.3 Inter-frame gap (MII_RT `TX_IPG`)
+
+With the 5-cycle post-EOF wait PRU0 is no longer the limit for 64-byte frames,
+and the gap between frames is the one MII_RT inserts. It was measured
+indirectly: the gap is the board-to-PC frame period of the 64 B test minus
+576 ns (64 B frame + 8 B preamble). Every setting gave the same number in
+every run.
+
+| `TX_IPG` counter clock | `TX_IPG` | Frame period | Gap | Result |
+| ---------------------- | -------- | ------------ | --- | ------ |
+| core clock (3 ns) | 0x20 (96 ns nominal) | 661 ns | 85 ns | too short (96 ns minimum) |
+| TX interface clock (TXCFG bit 12) | 11 (TRM minimum for RGMII 1G) | 847 ns | 271 ns | slow |
+| TX interface clock | 4 (below the TRM minimum) | 911 ns | 335 ns | slower; TRM: below the minimum "will get a jitter" |
+| **core clock** | **0x28 (120 ns nominal, reset value)** | **685 ns** | **109 ns** | **kept** |
+
+- In core-clock mode the gap is ~11 ns under nominal; 0x28 is the first
+  setting in steps of 8 (as the TRM advises) above 96 ns.
+- The TX-interface-clock mode costs ~175 ns per frame even at its minimum
+  setting; why is not known.
+- The gap is an average. RGMII gaps are whole byte times (8 ns), so 109 ns
+  means about 104 ns and 112 ns. The PC NIC lost no frame even at 85 ns. A
+  direct measurement needs a scope on RGMII2 TX_CTL. FIXME if a strict
+  minimum gap must be shown.
 
 When the table is filled, close the matching FIXMEs in
 [../readme.md](../readme.md) ("Validated HW & SW", "Hardware results") and
