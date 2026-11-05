@@ -172,7 +172,7 @@ of `23428c46`; the other checks are still FIXME.
 | # | Check | Command | Pass criterion | Result |
 | - | ----- | ------- | -------------- | ------ |
 | B0 | Single PONG | `pdm-eth test --iface enp129s0 --pings 1 --seconds 0.1` | ping line 1/1 | **PASS**: 1/1, RTT 141 us, board turnaround 0.39 us |
-| B1 | ICSSG0 header | CCS memory browser 0x30010000 | as in pdm_audio, CLIP_FRAMES 0x4000, UNDERRUN_COUNT 0, SD_OVF_COUNT 0 | FIXME |
+| B1 | ICSSG0 header | CCS memory browser 0x30010000 | as in pdm_audio, CLIP_FRAMES 0x4000, UNDERRUN_COUNT 0, SD_OVF_COUNT 0 | **PASS** 2026-11-05, section 6.5 |
 | B2 | Link | console line, `ethtool enp129s0` | `link 1000 FD on ICSSG1 port 1`; 1000 Mb/s, full duplex | **PASS** 2026-11-05 (firmware of `cb26d504`): console `PDM audio eth: link 1000 FD on ICSSG1 port 1 after 3610 ms, board MAC 02:00:5d:4d:00:01`; `ethtool`: 1000Mb/s, Full, link detected |
 | B3 | Ethernet test | `pdm-eth test --iface enp129s0` | every line PASS: 0 lost of 10 000 pings, at least 500 Mbit/s each way, less than 0.1 % loss | **PASS** 3 of 3 runs, section 6.2 |
 | B4 | Clip buffer untouched | save 0x700C0000, 0x40000 bytes after B3; `python3 tools/compare_clip_dump.py DUMP` | identical | **PASS** 2026-11-05: `identical: 262144 bytes`, section 6.4 |
@@ -285,6 +285,28 @@ reads that, raw binary and hex TI Data, and printed `identical: 262144
 bytes (16384 frames x 8 channels)`: some 2 million PC-to-board frames per B3
 run (TPUT_DATA, PING, CONTROL) left the clip buffer that RTU1 plays
 unchanged. Only AUDIO_IN (stage 3, B8) may write it.
+
+### 6.5 B1 ICSSG0 header
+
+CCS memory view of 0x30010000 at 13:29, 31 min after the 12:58 reload, with
+the B3 runs in between:
+
+| Offset | Field | Value | Expected |
+| ------ | ----- | ----- | -------- |
+| 0x00 | MAGIC | 0x50444D38 | 'PDM8' |
+| 0x04, 0x08, 0x0C | N_CH, FRAMES_PER_HALF, PCM_RATE | 8, 64, 16 000 | as in pdm_audio |
+| 0x10, 0x14 | CLIP_ADDR, CLIP_FRAMES | 0x700C0000, 0x4000 | as written by the R5F |
+| 0x18 | HALF_SEQ | 463 654 | 1854.6 s at 250/s |
+| 0x1C | UNDERRUN_COUNT | 0 | 0 |
+| 0x20 | BATCH_COUNT | 203 477 094 | 109 700/s (pdm_audio: ~110 000/s) |
+| 0x24, 0x28 | RTU1_FRAME_POS, RTU1_LOOPS | 2468, 1811 | 1811 x 16 384 + 2468 = 29 673 892 frames; 1811 loops = 1854.5 s |
+| 0x2C, 0x30 | VERSION, SD_OVF_COUNT | 1, 0 | 1, 0 |
+| 0x40..0x5C | PCM_COUNT[0..7] | 29 673 891 .. 29 673 893 | RTU1 total +-1 (read while PRU0 updates) |
+
+The PDM decoder output (PCM_COUNT) and the clip player (RTU1 frames) agree
+within one sample per channel; HALF_SEQ x 64 = 29 673 856 is 36 frames
+behind, the half being filled. No underrun and no SD overflow while the
+ICSSG1 Ethernet tests ran at full rate.
 
 When the table is filled, close the matching FIXMEs in
 [../readme.md](../readme.md) ("Validated HW & SW", "Hardware results") and
