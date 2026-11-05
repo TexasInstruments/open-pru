@@ -468,9 +468,95 @@ pub fn save_png(path: &std::path::Path, img: &ColorImage) -> std::io::Result<()>
     w.write_image_data(&data).map_err(std::io::Error::other)
 }
 
-fn pane(ui: &mut egui::Ui, h: f32, tex: &Option<TextureHandle>, label: &str, empty: &str) {
+/// Seconds shown across a pane: `COLUMNS` columns of hop 128 at 16 kHz.
+pub const SPAN_S: f32 = (COLUMNS * 128) as f32 / 16000.0;
+/// Top of the frequency axis (Nyquist of 16 kHz PCM).
+const F_MAX_HZ: f32 = 8000.0;
+/// Width of the axis label column left of a pane and of the colour bar right of it.
+const AXIS_W: f32 = 46.0;
+const BAR_W: f32 = 64.0;
+const AXIS_TEXT: Color32 = Color32::from_rgb(170, 170, 185);
+
+/// Screen y of `hz` in a pane from `top` to `bottom` (0 Hz at the bottom).
+pub fn freq_y(top: f32, bottom: f32, hz: f32) -> f32 {
+    bottom - (hz / F_MAX_HZ) * (bottom - top)
+}
+
+/// Screen x of a column `secs_ago` old in a pane from `left` to `right` (now on the right).
+pub fn time_x(left: f32, right: f32, secs_ago: f32) -> f32 {
+    right - (secs_ago / SPAN_S) * (right - left)
+}
+
+/// Colour scale of a pane: dB range of `heat`, or the ±30 dB of `diff_heat`.
+#[derive(Clone, Copy)]
+enum Scale {
+    Level(f32, f32),
+    Diff,
+}
+
+/// The image area of a pane row: label column on the left, colour bar on the right.
+fn image_rect(r: Rect) -> Rect {
+    Rect::from_min_max(pos2(r.left() + AXIS_W, r.top()), pos2(r.right() - BAR_W, r.bottom()))
+}
+
+/// kHz labels and faint grid lines (every 1 kHz, labels every 2 kHz).
+fn freq_axis(painter: &egui::Painter, img: Rect) {
+    let font = egui::FontId::proportional(11.0);
+    for k in 0..=8 {
+        let y = freq_y(img.top(), img.bottom(), k as f32 * 1000.0);
+        let grid = Color32::from_rgba_unmultiplied(255, 255, 255, if k % 2 == 0 { 34 } else { 16 });
+        painter.line_segment([pos2(img.left(), y), pos2(img.right(), y)], (1.0, grid));
+        painter.line_segment([pos2(img.left() - 4.0, y), pos2(img.left(), y)], (1.0, AXIS_TEXT));
+        if k % 2 == 0 {
+            let align = match k { 0 => egui::Align2::RIGHT_BOTTOM, 8 => egui::Align2::RIGHT_TOP, _ => egui::Align2::RIGHT_CENTER };
+            painter.text(pos2(img.left() - 6.0, y), align, format!("{k} kHz"), font.clone(), AXIS_TEXT);
+        }
+    }
+}
+
+/// Vertical colour bar right of the image with its end values.
+fn colour_bar(painter: &egui::Painter, r: Rect, scale: Scale) {
+    let bar = Rect::from_min_max(pos2(r.right() - BAR_W + 8.0, r.top() + 2.0), pos2(r.right() - BAR_W + 20.0, r.bottom() - 2.0));
+    let steps = 48;
+    for i in 0..steps {
+        let t = (i as f32 + 0.5) / steps as f32;            // 0 bottom .. 1 top
+        let c = match scale {
+            Scale::Level(lo, hi) => heat(lo + t * (hi - lo), (lo, hi)),
+            Scale::Diff => diff_heat(-30.0 + t * 60.0),
+        };
+        let y1 = bar.bottom() - i as f32 * bar.height() / steps as f32;
+        let y0 = y1 - bar.height() / steps as f32;
+        painter.rect_filled(Rect::from_min_max(pos2(bar.left(), y0), pos2(bar.right(), y1 + 0.5)), 0.0, c);
+    }
+    let font = egui::FontId::proportional(11.0);
+    let (top, bottom) = match scale {
+        Scale::Level(lo, hi) => (format!("{hi:.0} dB"), format!("{lo:.0}")),
+        Scale::Diff => ("+30 dB".into(), "-30".into()),
+    };
+    painter.text(pos2(bar.right() + 3.0, bar.top()), egui::Align2::LEFT_TOP, top, font.clone(), AXIS_TEXT);
+    painter.text(pos2(bar.right() + 3.0, bar.bottom()), egui::Align2::LEFT_BOTTOM, bottom, font, AXIS_TEXT);
+}
+
+/// Time strip under the panes: -10 s .. now, ticks every second.
+fn time_axis(ui: &mut egui::Ui) {
+    let (resp, painter) = ui.allocate_painter(vec2(ui.available_width(), 18.0), Sense::hover());
+    let img = image_rect(resp.rect);
+    let font = egui::FontId::proportional(11.0);
+    for s in 0..=SPAN_S as i32 {
+        let x = time_x(img.left(), img.right(), s as f32);
+        painter.line_segment([pos2(x, img.top()), pos2(x, img.top() + 4.0)], (1.0, AXIS_TEXT));
+        if s % 2 == 0 {
+            let align = match s { 0 => egui::Align2::RIGHT_TOP, _ if s as f32 >= SPAN_S => egui::Align2::LEFT_TOP, _ => egui::Align2::CENTER_TOP };
+            let text = if s == 0 { "now".to_string() } else { format!("-{s} s") };
+            painter.text(pos2(x, img.top() + 4.0), align, text, font.clone(), AXIS_TEXT);
+        }
+    }
+}
+
+fn pane(ui: &mut egui::Ui, h: f32, tex: &Option<TextureHandle>, label: &str, empty: &str, scale: Scale) {
     let (resp, painter) = ui.allocate_painter(vec2(ui.available_width(), h), Sense::hover());
-    let r = resp.rect;
+    let row = resp.rect;
+    let r = image_rect(row);
     painter.rect_filled(r, 2.0, Color32::from_rgb(8, 8, 24));
     match tex {
         Some(t) => {
@@ -481,6 +567,10 @@ fn pane(ui: &mut egui::Ui, h: f32, tex: &Option<TextureHandle>, label: &str, emp
                          Color32::GRAY);
         }
     }
+    if let Scale::Level(..) = scale {
+        freq_axis(&painter, r);
+    }
+    colour_bar(&painter, row, scale);
     painter.text(r.left_top() + vec2(6.0, 4.0), egui::Align2::LEFT_TOP, label,
                  egui::FontId::proportional(14.0), Color32::from_rgb(230, 230, 230));
 }
@@ -522,11 +612,15 @@ impl eframe::App for App {
             }
         });
         egui::CentralPanel::default().show(ui, |ui| {
-            let h = ((ui.available_height() - 60.0) / 2.0).max(60.0);
+            let h = ((ui.available_height() - 84.0) / 2.0).max(60.0);
             let c = self.sel;
-            pane(ui, h, &self.tex[0], &format!("ch{c} IN (PC)"), "no input stream");
-            pane(ui, h, &self.tex[1], &format!("ch{c} OUT (board, PDM round trip)"), "waiting for the board");
-            pane(ui, 40.0, &self.tex[2], "difference IN - OUT", "");
+            let o = self.out[c].range();
+            let i = self.inp.as_ref().map_or(o, |inp| inp[c].range());
+            pane(ui, h, &self.tex[0], &format!("ch{c} IN (PC)"), "no input stream", Scale::Level(i.0, i.1));
+            pane(ui, h, &self.tex[1], &format!("ch{c} OUT (board, PDM round trip)"), "waiting for the board",
+                 Scale::Level(o.0, o.1));
+            pane(ui, 40.0, &self.tex[2], "difference IN - OUT", "", Scale::Diff);
+            time_axis(ui);
         });
         self.screenshot(&ctx);
         ctx.request_repaint_after(Duration::from_millis(16));
@@ -536,6 +630,21 @@ impl eframe::App for App {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn frequency_axis_runs_bottom_to_top() {
+        assert_eq!(freq_y(10.0, 110.0, 0.0), 110.0);
+        assert_eq!(freq_y(10.0, 110.0, 8000.0), 10.0);
+        assert_eq!(freq_y(10.0, 110.0, 4000.0), 60.0);
+    }
+
+    #[test]
+    fn time_axis_has_now_on_the_right() {
+        assert_eq!(SPAN_S, 10.0);
+        assert_eq!(time_x(100.0, 1100.0, 0.0), 1100.0);
+        assert_eq!(time_x(100.0, 1100.0, SPAN_S), 100.0);
+        assert_eq!(time_x(100.0, 1100.0, 2.5), 850.0);
+    }
 
     #[test]
     fn heat_ends_and_clamps() {

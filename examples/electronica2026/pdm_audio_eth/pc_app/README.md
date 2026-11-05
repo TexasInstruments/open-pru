@@ -34,6 +34,11 @@ the display (a hidden window is otherwise throttled by the compositor to about
 
 ![GUI on the emulator](../pdm_audio_eth/docs/gui_emulator_loop.png)
 
+Each spectrogram has its frequency scale on the left (0 to 8 kHz, grid every
+1 kHz), its colour scale on the right (IN and OUT: -90 to 0 dB, a full-scale
+sine reads 0 dB; difference: -30 to +30 dB), and the time strip at the
+bottom runs from 10 s ago to now (8 ms per column).
+
 ## Side panel
 
 | Line | Meaning |
