@@ -179,7 +179,7 @@ of `23428c46`; the other checks are still FIXME.
 | B5 | RX counters | ICSSG1 shared RAM 0x30090010 | RX_BAD not rising with RX_FRAMES | **PASS** 2026-11-05, section 6.4 |
 | B6 | Board to PC | `pdm-eth capture --iface enp129s0 --seconds 600 --out DIR`, then `python3 tools/analyze_capture.py DIR` | lost 0, resyncs 0, tx_late 0; channels 3 to 7 at 1000, 3000, 500, 2000, 5000 Hz at the pdm_audio levels; CCS half A matches the capture | **PASS** 2026-11-05, section 6.6 |
 | B7 | GUI | `pdm-eth gui --iface enp129s0` | channel 3 a 1 kHz line, channel 1 the chirp, at least 30 fps while switching channels, lost 0 over 10 min | FIXME: fps |
-| B8 | PC to board | 8 WAVs of at least 60 s via `gui` and `stream --capture DIR` | input underrun/blocked/lost 0, UNDERRUN_COUNT and SD_OVF_COUNT 0, input and output spectrograms alike, `in_ch*.wav` and `out_ch*.wav` match (back-to-back AUDIO_IN frames both land) | FIXME |
+| B8 | PC to board | 8 WAVs of at least 60 s via `gui` and `stream --capture DIR` (inputs: `tools/make_b8_inputs.py`, check: `tools/analyze_stream.py DIR`) | input underrun/blocked/lost 0, UNDERRUN_COUNT and SD_OVF_COUNT 0, input and output spectrograms alike, `in_ch*.wav` and `out_ch*.wav` match (back-to-back AUDIO_IN frames both land) | **PASS** 2026-11-05 for `stream --capture`, section 6.7. FIXME: the `gui` part (spectrograms) with B7/B9 |
 | B9 | Board audio latency | GUI side panel during B8 | stable within 1 ms | FIXME: ms |
 
 ### 6.1 Fixes found on the board
@@ -351,6 +351,56 @@ NIC `rx_missed` unchanged. `python3 tools/analyze_capture.py DIR`:
   (512 common clip positions each, all at multiples of 32 frames, as the
   tones repeat within 32 frames): the PCM in ICSSG0 shared RAM is what
   reached the PC.
+
+### 6.7 B8 PC to board (`stream --capture`)
+
+Inputs: `python3 tools/make_b8_inputs.py DIR --seconds 70`, 16 kHz mono
+16-bit, peak 16384. If an AUDIO_IN block never lands, RTU1 plays the ring's
+audio of 1.024 s earlier there; the tones are chosen off the multiples of
+1/1.024 Hz so that old audio differs (750, 1000 or 2000 Hz would hide it).
+
+| Ch | Input |
+| -- | ----- |
+| 0, 3, 4, 5 | 757, 1243, 263, 3911 Hz |
+| 1 | linear chirp 100 to 7000 Hz in 5 s, repeated |
+| 2 | noise, 4 kHz low-pass, seed 2026 |
+| 6 | 443 Hz + 887 Hz |
+| 7 | 1511 Hz, level 1, 1/2, 1/4, 1/8 for 10 s each, repeated |
+
+`pdm-eth stream --iface enp129s0 --ch0 b8_ch0.wav ... --ch7 b8_ch7.wav
+--capture DIR`, 13:46:30 to 13:47:41, firmware of `cb26d504`:
+
+```
+sent 17500 blocks (1120000 frames of 1120000); underruns 0 overwrite_blocked 0 restarts 0
+output lost 0 duplicates 0 resyncs 0; board: rx_audio 17500 last_in_end 47160000 underrun 0 sd_ovf 0 tx_late 0
+```
+
+All 17 500 AUDIO_IN blocks reached PRU1 (RX_AUDIO = blocks sent); NIC
+`rx_missed` unchanged. `python3 tools/analyze_stream.py DIR` applies the
+decoder's 20 Hz DC blocker to the input, aligns by the noise channel
+(8142 frames, constant over the run in 5 s windows), fits a 33-tap FIR per
+channel (zero-order hold, decimation filter, stagger) and gives the
+residual for the whole run and the worst 64-frame block:
+
+| Ch | Residual | Worst block | Gain at the tone |
+| -- | -------- | ----------- | ---------------- |
+| 0 | -94.0 dB | -91.0 dB | +0.04 dB |
+| 1 | -93.0 dB | -88.1 dB | |
+| 2 | -85.3 dB | -80.8 dB | |
+| 3 | -93.8 dB | -89.9 dB | +0.01 dB |
+| 4 | -94.1 dB | -91.2 dB | +0.02 dB |
+| 5 | -93.1 dB | -89.2 dB | -0.79 dB (zero-order hold: -0.85 dB) |
+| 6 | -92.2 dB | -89.0 dB | +0.03 dB (443 Hz) |
+| 7 | -91.1 dB | -73.7 dB (the 1/8 to 1 step at 40 s) | -0.04 dB |
+
+- ch7 per 10 s: -0.07, -6.09, -12.11, -18.13, -0.07, -6.09, -12.11 dB for
+  an input of 0, -6.02, -12.04, -18.06 dB: linear, the 0.07 dB is the hold
+  droop at 1511 Hz.
+- No block played stale audio: that gives about 0 dB in its block; the
+  worst block of any channel is -73.7 dB, at a hard level step.
+- Without the DC-blocker model the noise channel only reached -22 dB and
+  the chirp -36 dB (the blocker's 128-sample tail is outside a 33-tap FIR),
+  spread over all blocks; that was the analysis, not the board.
 
 When the table is filled, close the matching FIXMEs in
 [../readme.md](../readme.md) ("Validated HW & SW", "Hardware results") and
