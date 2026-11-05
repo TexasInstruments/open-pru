@@ -649,9 +649,12 @@ pub const SPAN_S: f32 = (COLUMNS * 128) as f32 / 16000.0;
 /// Top of the frequency axis (Nyquist of 16 kHz PCM).
 const F_MAX_HZ: f32 = 8000.0;
 /// Width of the axis label column left of a pane and of the colour bar right of it.
-const AXIS_W: f32 = 46.0;
-const BAR_W: f32 = 64.0;
-const AXIS_TEXT: Color32 = Color32::from_rgb(170, 170, 185);
+const AXIS_W: f32 = 62.0;
+const BAR_W: f32 = 84.0;
+/// Scale labels: as large as the side-panel titles (user).
+const AXIS_PX: f32 = 15.0;
+const TIME_STRIP_H: f32 = 24.0;
+const AXIS_TEXT: Color32 = LABEL_COLOUR;
 
 /// Screen y of `hz` in a pane from `top` to `bottom` (0 Hz at the bottom).
 pub fn freq_y(top: f32, bottom: f32, hz: f32) -> f32 {
@@ -677,7 +680,7 @@ fn image_rect(r: Rect) -> Rect {
 
 /// kHz labels and faint grid lines (every 1 kHz, labels every 2 kHz).
 fn freq_axis(painter: &egui::Painter, img: Rect) {
-    let font = egui::FontId::proportional(11.0);
+    let font = egui::FontId::proportional(AXIS_PX);
     for k in 0..=8 {
         let y = freq_y(img.top(), img.bottom(), k as f32 * 1000.0);
         let grid = Color32::from_rgba_unmultiplied(255, 255, 255, if k % 2 == 0 { 34 } else { 16 });
@@ -704,7 +707,7 @@ fn colour_bar(painter: &egui::Painter, r: Rect, scale: Scale) {
         let y0 = y1 - bar.height() / steps as f32;
         painter.rect_filled(Rect::from_min_max(pos2(bar.left(), y0), pos2(bar.right(), y1 + 0.5)), 0.0, c);
     }
-    let font = egui::FontId::proportional(11.0);
+    let font = egui::FontId::proportional(AXIS_PX);
     let (top, bottom) = match scale {
         Scale::Level(lo, hi) => (format!("{hi:.0} dB"), format!("{lo:.0}")),
         Scale::Diff => ("+30 dB".into(), "-30".into()),
@@ -715,9 +718,9 @@ fn colour_bar(painter: &egui::Painter, r: Rect, scale: Scale) {
 
 /// Time strip under the panes: -10 s .. now, ticks every second.
 fn time_axis(ui: &mut egui::Ui) {
-    let (resp, painter) = ui.allocate_painter(vec2(ui.available_width(), 18.0), Sense::hover());
+    let (resp, painter) = ui.allocate_painter(vec2(ui.available_width(), TIME_STRIP_H), Sense::hover());
     let img = image_rect(resp.rect);
-    let font = egui::FontId::proportional(11.0);
+    let font = egui::FontId::proportional(AXIS_PX);
     for s in 0..=SPAN_S as i32 {
         let x = time_x(img.left(), img.right(), s as f32);
         painter.line_segment([pos2(x, img.top()), pos2(x, img.top() + 4.0)], (1.0, AXIS_TEXT));
@@ -795,7 +798,7 @@ impl eframe::App for App {
             });
         });
         egui::CentralPanel::default().show(ui, |ui| {
-            let h = ((ui.available_height() - 84.0) / 2.0).max(60.0);
+            let h = ((ui.available_height() - 40.0 - TIME_STRIP_H - 26.0) / 2.0).max(60.0);
             let c = self.sel;
             let o = self.out[c].range();
             let i = self.inp.as_ref().map_or(o, |inp| inp[c].range());
