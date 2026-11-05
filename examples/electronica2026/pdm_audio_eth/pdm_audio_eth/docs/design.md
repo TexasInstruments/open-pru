@@ -75,7 +75,8 @@ for it.
   is a demo on its own.
 - **Hardware:** LP-AM243 Rev A. ICSSG0 is fully used by the PDM chain (RTU1,
   PRU1, PRU0 at 333.33 MHz). Ethernet runs on **ICSSG1, port 1 (RGMII2, PHY
-  address 3)** as in the user's HIL example. ICSSG1 also runs at 333.33 MHz.
+  address 15; the HIL example said 3, corrected after the first board run)**
+  as in the user's HIL example. ICSSG1 also runs at 333.33 MHz.
 - **PRUs only in the data path.** The R5F (r5fss0-0, FreeRTOS) configures
   both ICSSGs, the pins, the MDIO and the PHY, loads and starts all PRU cores,
   and idles (user decision).
@@ -101,7 +102,7 @@ four CCS projects: the R5F application, ICSSG1 PRU0 and PRU1 firmware, and
   RX_EOF on R31 bit 20), G_ICSS_G_CFG (TX_L1/TX_L2/RX_L2 on, RGMII mode),
   G_RGMII_CFG (1000 Mbit/s full duplex), IEP at 333 MHz with an increment of
   3 (the IEP counts in ns), MDIO and the extended PHY registers (RGMII TX delay)
-  of both DP83869 PHYs (port 0 address 15, port 1 address 3).
+  of both DP83869 PHYs (port 0 address 3, port 1 address 15; swapped in the HIL example).
   `PRU_ETH_wait_for_link(port, timeout)` polls the MDIO link register.
 - **ICSSG1 PRU0 (TX):** writes a frame through the TX_L2 FIFO with `xout 40`
   (64 bytes at a time), waits until the FIFO level is 0, then pushes CRC and EOF

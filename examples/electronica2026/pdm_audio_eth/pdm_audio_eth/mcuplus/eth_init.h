@@ -25,7 +25,7 @@
 #define ETH_INIT_ERR_PHY2_RESET     (-6)
 
 /**
- * \brief Configure ICSSG1 for raw Ethernet on port 1 (RGMII2, PHY address 3)
+ * \brief Configure ICSSG1 for raw Ethernet on port 1 (RGMII2, J18, PHY address 15)
  *        at 1000 Mbit/s full duplex: ICSSG1 PRU0 transmits through TX_L2,
  *        PRU1 receives through RX_L2 with RX_EOF on R31 bit 20, IEP0 counts
  *        in ns (333 MHz, increment 3).
@@ -40,12 +40,10 @@ typedef struct
     uint32_t physts;        /**< last DP83869 PHYSTS (register 0x11) read */
     uint32_t speed;         /**< PHYSTS speed: 0 = 10, 1 = 100, 2 = 1000 Mbit/s */
     uint32_t full;          /**< 1 = full duplex */
-    uint32_t mdio_link;     /**< MDIO_LINK register (poll state machine), for debug */
-    uint32_t mdio_alive;    /**< MDIO_ALIVE register, for debug */
 } EthLinkInfo;
 
 /**
- * \brief Wait until the port-1 PHY (address 3) reports link with speed and
+ * \brief Wait until the port-1 PHY (address 15) reports link with speed and
  *        duplex resolved, polling its PHYSTS register every 10 ms.
  * \param timeout_ms  maximum wait
  * \param info        filled in on return (also on timeout)

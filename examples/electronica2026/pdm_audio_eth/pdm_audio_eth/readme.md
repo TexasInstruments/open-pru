@@ -69,9 +69,8 @@ reconstruction.
 
 - The nine PDM jumpers, SW6 and the "no BoosterPack" rule as in the
   [pdm_audio readme](../../pdm_audio/pdm_audio/readme.md).
-- An Ethernet cable from the PC straight to the LP's ICSSG1 port 1 RJ45 (the
-  RGMII2 port, PHY address 3; the port the HIL example used). FIXME: name the
-  connector on the board.
+- An Ethernet cable from the PC straight to the LP's ICSSG1 port 1 RJ45,
+  connector J18 (RGMII2, PHY address 15; the port the HIL example used).
 - PC, once: `sudo nmcli device set enp129s0 managed no` (Ubuntu must not send
   its own traffic on the cable; the board drops and counts it anyway).
 - PC, after every build of `pdm-eth`:

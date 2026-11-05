@@ -125,7 +125,7 @@ skipped.
 
 ## 4. What the off-board tests do not show
 
-- ICSSG1 bring-up: MII_RT, RGMII2 pads, MDIO, the PHY at address 3, and the
+- ICSSG1 bring-up: MII_RT, RGMII2 pads, MDIO, the PHY at address 15, and the
   1000 Mbit/s full-duplex link.
 - The TX paths of `eth_tx.asm` that the HIL example never used: back-to-back
   frames after CRC/EOF, multi-chunk frames with the 42-byte tail (TPUT_DATA),

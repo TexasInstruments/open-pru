@@ -283,12 +283,6 @@ static void pdm_audio_eth_icssg1_start(void)
                    "(PHYSTS 0x%04x), continuing\r\n",
                    (unsigned int)linkInfo.wait_ms, (unsigned int)linkInfo.physts);
     }
-    if (((linkInfo.mdio_link >> 3) & 1U) == 0U)     /* bit 3 = PHY address 3 */
-    {
-        /* FIXME: remove once the MDIO_LINK = 0 cause is known */
-        DebugP_log("PDM audio eth: MDIO_LINK 0x%08x MDIO_ALIVE 0x%08x\r\n",
-                   (unsigned int)linkInfo.mdio_link, (unsigned int)linkInfo.mdio_alive);
-    }
 
     pdm_audio_eth_load(gPruIcss1Handle, PRUICSS_IRAM_PRU(1),
                        PR1_PRU1Firmware_0, sizeof(PR1_PRU1Firmware_0));

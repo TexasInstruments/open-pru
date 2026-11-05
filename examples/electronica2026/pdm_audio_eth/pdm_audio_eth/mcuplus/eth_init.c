@@ -18,8 +18,9 @@
  *  - the PHY-address store to ICSSG1 shared RAM + 0x04 is dropped: that word
  *    is ETH1_VERSION here, and no firmware reads the table;
  *  - busy loops are replaced by ClockP_usleep().
- * Only port 1 (RGMII2, PHY address 3) carries traffic; port 0 is configured
- * as in the HIL example so both PHYs are in a known state.
+ * Only port 1 (RGMII2, connector J18, PHY address 15) carries traffic; port 0
+ * (PHY address 3) is configured as in the HIL example so both PHYs are in a
+ * known state.
  */
 
 #include <stdint.h>
@@ -43,8 +44,6 @@
 #define ICSSG1_G_RGMII_CFG          (ICSSG1_BASE + 0x00033004U)
 #define ICSSG1_GPCFG1               (ICSSG1_BASE + 0x0002600CU)
 #define ICSSG1_MDIO_CONTROL         (ICSSG1_BASE + 0x00032404U)
-#define ICSSG1_MDIO_ALIVE           (ICSSG1_BASE + 0x00032408U)
-#define ICSSG1_MDIO_LINK            (ICSSG1_BASE + 0x0003240CU)
 #define ICSSG1_MDIO_USERACCESS0     (ICSSG1_BASE + 0x00032480U)
 #define ICSSG1_IEP_GLOBAL_CFG       (ICSSG1_BASE + 0x0002E000U)
 #define ICSSG1_IEP_COUNT_LO         (ICSSG1_BASE + 0x0002E010U)   /* count_reg0 */
@@ -73,8 +72,10 @@
 #define MDIO_UA_GO                  (1U << 31)
 #define MDIO_UA_WRITE               (1U << 30)
 #define MDIO_UA_ACK                 (1U << 29)
-#define PHY_PORT0_ADDR              (15U)
-#define PHY_PORT1_ADDR              (3U)
+/* The HIL example had these two swapped: on the board, with the cable in
+ * J18 (RGMII2), only PHY 15 reported link (MDIO_LINK 0x8000), PHY 3 not. */
+#define PHY_PORT0_ADDR              (3U)
+#define PHY_PORT1_ADDR              (15U)
 #define PHY_REG_BMSR                (0x01U)
 #define PHY_REG_PHYSTS              (0x11U)     /* DP83869 PHY status */
 #define PHYSTS_LINK                 (1U << 10)
@@ -258,9 +259,8 @@ int32_t eth_wait_for_link(uint32_t timeout_ms, EthLinkInfo *info)
     uint32_t physts = 0U;
     int32_t  up = -1;
 
-    /* Read the port-1 PHY's own status register instead of the MDIO_LINK
-     * register: MDIO_LINK only follows the MDIO poll state machine, and the
-     * first board runs printed DOWN with the link up (raw value logged). */
+    /* Read the port-1 PHY's own status register: it gives speed and duplex
+     * as well (MDIO_LINK gives the link bit only). */
     for (;;)
     {
         if ((mdio_read_data(PHY_PORT1_ADDR, PHY_REG_PHYSTS, &physts) == 0) &&
@@ -280,7 +280,5 @@ int32_t eth_wait_for_link(uint32_t timeout_ms, EthLinkInfo *info)
     info->physts    = physts;
     info->speed     = (physts >> PHYSTS_SPEED_SHIFT) & 3U;
     info->full      = ((physts & PHYSTS_DUPLEX) != 0U) ? 1U : 0U;
-    info->mdio_link = HW_RD_REG32(ICSSG1_MDIO_LINK);
-    info->mdio_alive = HW_RD_REG32(ICSSG1_MDIO_ALIVE);
     return up;
 }
