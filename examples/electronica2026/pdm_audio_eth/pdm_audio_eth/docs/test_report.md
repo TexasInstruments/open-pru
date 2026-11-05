@@ -180,7 +180,7 @@ of `23428c46`; the other checks are still FIXME.
 | B6 | Board to PC | `pdm-eth capture --iface enp129s0 --seconds 600 --out DIR`, then `python3 tools/analyze_capture.py DIR` | lost 0, resyncs 0, tx_late 0; channels 3 to 7 at 1000, 3000, 500, 2000, 5000 Hz at the pdm_audio levels; CCS half A matches the capture | **PASS** 2026-11-05, section 6.6 |
 | B7 | GUI | `pdm-eth gui --iface enp129s0` | channel 3 a 1 kHz line, channel 1 the chirp, at least 30 fps while switching channels, lost 0 over 10 min | **PASS** 2026-11-05, section 6.8 |
 | B8 | PC to board | 8 WAVs of at least 60 s via `gui` and `stream --capture DIR` (inputs: `tools/make_b8_inputs.py`, check: `tools/analyze_stream.py DIR`) | input underrun/blocked/lost 0, UNDERRUN_COUNT and SD_OVF_COUNT 0, input and output spectrograms alike, `in_ch*.wav` and `out_ch*.wav` match (back-to-back AUDIO_IN frames both land) | **PASS** 2026-11-05, section 6.7 (`stream --capture`) and the `gui` run of B9 (spectrograms alike, user) |
-| B9 | Board audio latency | GUI side panel during B8 | stable within 1 ms | FIXME: ms |
+| B9 | Board audio latency | GUI side panel during B8 | stable within 1 ms | **PASS** 2026-11-05: 1.08 ms, constant (section 6.9) |
 
 ### 6.1 Fixes found on the board
 
@@ -432,6 +432,34 @@ capture of B6 (-25.8 ppm). On the emulator, whose true offset is 0 ppm, the
 GUI showed -17.7, -4.4 and -0.8 ppm after 5 s each, so the GUI estimate is
 noisy over short windows; whether the capture's long fit is right is not
 checked. No effect on the audio: every frame is placed by its sample index.
+
+### 6.9 B8 GUI part and B9 latency
+
+`pdm-eth gui --iface enp129s0 --ch0 b8_ch0.wav ... --ch7 b8_ch7.wav` (the
+B8 inputs, looping every 70 s), from 14:04:20, `pdm-eth` of `19e3e85f`
+(with the axes). The user stepped through the channels: input and output
+spectrograms alike on all eight (B8). Side panel at about 14:11:30
+(HALF_SEQ 1 092 408):
+
+| Line | Value |
+| ---- | ----- |
+| spectrogram | 60 fps |
+| frames/s out / in | 500 / 250 |
+| board audio latency | 1.08 ms, constant over the following readings (user) |
+| buffered ahead (PC) | 0.50 s |
+| input underrun / blocked / restart | 0 / 0 / 0 |
+| lost / dup / resync | 0 / 0 / 0 |
+| UNDERRUN / SD_OVF, tx_late, PC kernel drops | 0 / 0, 0, 0 |
+| board clock | +10.9 ppm |
+
+The board audio latency is the youngest-sample minimum on the board's IEP
+clock (RTU1 takes a sample until its AUDIO_OUT frame leaves the board,
+design 7 / plan Task 14), so it is the best case: it leaves out the wait
+inside a 4 ms half and the PC's 0.5 s lead. The meter cross-correlates
+input and output of the selected channel; on a pure tone a match one
+period off is possible, so the noise channel (ch2) is the reliable one to
+read. The user reported the value constant at 1.08 ms but did not state
+the channel.
 
 When the table is filled, close the matching FIXMEs in
 [../readme.md](../readme.md) ("Validated HW & SW", "Hardware results") and
