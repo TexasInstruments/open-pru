@@ -177,7 +177,7 @@ of `23428c46`; the other checks are still FIXME.
 | B3 | Ethernet test | `pdm-eth test --iface enp129s0` | every line PASS: 0 lost of 10 000 pings, at least 500 Mbit/s each way, less than 0.1 % loss | **PASS** 3 of 3 runs, section 6.2 |
 | B4 | Clip buffer untouched | save 0x700C0000, 0x40000 bytes after B3; `python3 tools/compare_clip_dump.py DUMP` | identical | **PASS** 2026-11-05: `identical: 262144 bytes`, section 6.4 |
 | B5 | RX counters | ICSSG1 shared RAM 0x30090010 | RX_BAD not rising with RX_FRAMES | **PASS** 2026-11-05, section 6.4 |
-| B6 | Board to PC | `pdm-eth capture --iface enp129s0 --seconds 600 --out DIR`, then `python3 tools/analyze_capture.py DIR` | lost 0, resyncs 0, tx_late 0; channels 3 to 7 at 1000, 3000, 500, 2000, 5000 Hz at the pdm_audio levels; CCS half A matches the capture | **PASS** 2026-11-05 for the capture, section 6.6. FIXME: CCS half A spot check |
+| B6 | Board to PC | `pdm-eth capture --iface enp129s0 --seconds 600 --out DIR`, then `python3 tools/analyze_capture.py DIR` | lost 0, resyncs 0, tx_late 0; channels 3 to 7 at 1000, 3000, 500, 2000, 5000 Hz at the pdm_audio levels; CCS half A matches the capture | **PASS** 2026-11-05, section 6.6 |
 | B7 | GUI | `pdm-eth gui --iface enp129s0` | channel 3 a 1 kHz line, channel 1 the chirp, at least 30 fps while switching channels, lost 0 over 10 min | FIXME: fps |
 | B8 | PC to board | 8 WAVs of at least 60 s via `gui` and `stream --capture DIR` | input underrun/blocked/lost 0, UNDERRUN_COUNT and SD_OVF_COUNT 0, input and output spectrograms alike, `in_ch*.wav` and `out_ch*.wav` match (back-to-back AUDIO_IN frames both land) | FIXME |
 | B9 | Board audio latency | GUI side panel during B8 | stable within 1 ms | FIXME: ms |
@@ -345,6 +345,12 @@ NIC `rx_missed` unchanged. `python3 tools/analyze_capture.py DIR`:
   few frames).
 - Amplitudes equal the pdm_audio board run to three digits: the level drop
   of the higher tones is RTU1's zero-order hold, as predicted there.
+- CCS spot check (13:44, 4 min after the capture): dump of 0x30010100,
+  0x1000 bytes (half A and half B), `python3 tools/match_half_dump.py DUMP
+  DIR`: both halves match the capture bit for bit in all five tone channels
+  (512 common clip positions each, all at multiples of 32 frames, as the
+  tones repeat within 32 frames): the PCM in ICSSG0 shared RAM is what
+  reached the PC.
 
 When the table is filled, close the matching FIXMEs in
 [../readme.md](../readme.md) ("Validated HW & SW", "Hardware results") and
