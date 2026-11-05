@@ -32,6 +32,14 @@ pub struct LinkStats {
 pub trait Link: Send {
     /// Send one complete frame (destination MAC first, no CRC).
     fn send(&mut self, frame: &[u8]) -> io::Result<()>;
+    /// Send several frames; returns how many the link took (the first `n`).
+    /// Fewer than all means the NIC queue was full: send the rest again.
+    fn send_batch(&mut self, frames: &[Vec<u8>]) -> io::Result<usize> {
+        for f in frames {
+            self.send(f)?;
+        }
+        Ok(frames.len())
+    }
     /// Wait up to `timeout` for one frame of this protocol.
     fn recv(&mut self, timeout: Duration) -> io::Result<Option<RxFrame>>;
     /// The PC side's MAC address.
@@ -115,6 +123,84 @@ pub struct AfPacketLink {
 }
 
 const PACKET_IGNORE_OUTGOING: libc::c_int = 23;
+const PACKET_QDISC_BYPASS: libc::c_int = 20;
+
+/// CPUs of a sysfs/procfs CPU list such as `0-3,8`.
+pub fn parse_cpu_list(s: &str) -> Vec<usize> {
+    let mut v = Vec::new();
+    for part in s.trim().split(',').filter(|p| !p.is_empty()) {
+        match part.split_once('-') {
+            Some((a, b)) => {
+                if let (Ok(a), Ok(b)) = (a.trim().parse::<usize>(), b.trim().parse::<usize>()) {
+                    v.extend(a..=b);
+                }
+            }
+            None => v.extend(part.trim().parse::<usize>().ok()),
+        }
+    }
+    v
+}
+
+/// IRQ numbers whose `/proc/interrupts` line ends with `iface`.
+pub fn irqs_of(interrupts: &str, iface: &str) -> Vec<u32> {
+    interrupts
+        .lines()
+        .filter(|l| l.split_whitespace().last() == Some(iface))
+        .filter_map(|l| l.trim().split(':').next()?.parse().ok())
+        .collect()
+}
+
+/// `allowed` without the IRQ CPUs; `allowed` itself if nothing would be left.
+pub fn cpus_avoiding(allowed: &[usize], irq_cpus: &[usize]) -> Vec<usize> {
+    let v: Vec<usize> = allowed.iter().copied().filter(|c| !irq_cpus.contains(c)).collect();
+    if v.is_empty() { allowed.to_vec() } else { v }
+}
+
+/// CPUs for the thread that talks to the NIC: one isolated CPU (isolcpus)
+/// that does not serve the NIC interrupt, if there is one in `allowed`;
+/// otherwise `allowed` without the interrupt CPUs.
+pub fn nic_cpus(allowed: &[usize], isolated: &[usize], irq_cpus: &[usize]) -> Vec<usize> {
+    match isolated.iter().find(|c| allowed.contains(c) && !irq_cpus.contains(c)) {
+        Some(c) => vec![*c],
+        None => cpus_avoiding(allowed, irq_cpus),
+    }
+}
+
+/// Pin the calling thread (and the threads it starts later) for NIC work on
+/// `iface`, see [`nic_cpus`]: at a million small frames a second the NIC's
+/// 256-entry ring overruns when this thread competes with the receive
+/// softirq (board run 2026-11-05). Returns the CPUs it now runs on (empty:
+/// unchanged).
+pub fn pin_for_nic(iface: &str) -> Vec<usize> {
+    let interrupts = std::fs::read_to_string("/proc/interrupts").unwrap_or_default();
+    let mut irq_cpus: Vec<usize> = irqs_of(&interrupts, iface)
+        .iter()
+        .filter_map(|n| std::fs::read_to_string(format!("/proc/irq/{n}/effective_affinity_list")).ok())
+        .flat_map(|s| parse_cpu_list(&s))
+        .collect();
+    irq_cpus.sort_unstable();
+    irq_cpus.dedup();
+    let isolated = parse_cpu_list(&std::fs::read_to_string("/sys/devices/system/cpu/isolated").unwrap_or_default());
+    unsafe {
+        let mut set: libc::cpu_set_t = std::mem::zeroed();
+        if libc::sched_getaffinity(0, std::mem::size_of::<libc::cpu_set_t>(), &mut set) != 0 {
+            return vec![];
+        }
+        let mut allowed: Vec<usize> = (0..libc::CPU_SETSIZE as usize).filter(|c| libc::CPU_ISSET(*c, &set)).collect();
+        // isolated CPUs are not in the default affinity; they may be chosen
+        let extra: Vec<usize> = isolated.iter().copied().filter(|c| !allowed.contains(c)).collect();
+        allowed.extend(extra);
+        let keep = nic_cpus(&allowed, &isolated, &irq_cpus);
+        libc::CPU_ZERO(&mut set);
+        for c in &keep {
+            libc::CPU_SET(*c, &mut set);
+        }
+        if libc::sched_setaffinity(0, std::mem::size_of::<libc::cpu_set_t>(), &set) != 0 {
+            return vec![];
+        }
+        keep
+    }
+}
 
 fn last_err() -> io::Error {
     io::Error::last_os_error()
@@ -158,6 +244,14 @@ impl AfPacketLink {
         unsafe {
             libc::setsockopt(fd, libc::SOL_PACKET, PACKET_IGNORE_OUTGOING,
                              &one as *const _ as *const libc::c_void, 4);
+            // straight to the driver: a full NIC queue is an error (ENOBUFS)
+            // the sender sees and retries, not a silent qdisc drop
+            // PDM_ETH_QDISC_BYPASS=0: through the qdisc (bulk dequeue, fewer
+            // NIC doorbells; board-run experiment)
+            if std::env::var("PDM_ETH_QDISC_BYPASS").as_deref() != Ok("0") {
+                libc::setsockopt(fd, libc::SOL_PACKET, PACKET_QDISC_BYPASS,
+                                 &one as *const _ as *const libc::c_void, 4);
+            }
             if libc::setsockopt(fd, libc::SOL_SOCKET, libc::SO_RCVBUFFORCE,
                                 &buf as *const _ as *const libc::c_void, 4) != 0 {
                 libc::setsockopt(fd, libc::SOL_SOCKET, libc::SO_RCVBUF,
@@ -187,11 +281,38 @@ impl Drop for AfPacketLink {
 
 impl Link for AfPacketLink {
     fn send(&mut self, frame: &[u8]) -> io::Result<()> {
-        let n = unsafe { libc::send(self.fd, frame.as_ptr() as *const libc::c_void, frame.len(), 0) };
-        if n < 0 {
-            return Err(last_err());
+        loop {
+            let n = unsafe { libc::send(self.fd, frame.as_ptr() as *const libc::c_void, frame.len(), 0) };
+            if n >= 0 {
+                return Ok(());
+            }
+            let e = last_err();
+            if !matches!(e.raw_os_error(), Some(libc::ENOBUFS) | Some(libc::EAGAIN)) {
+                return Err(e);
+            }
         }
-        Ok(())
+    }
+
+    fn send_batch(&mut self, frames: &[Vec<u8>]) -> io::Result<usize> {
+        let mut iov: Vec<libc::iovec> = frames
+            .iter()
+            .map(|f| libc::iovec { iov_base: f.as_ptr() as *mut libc::c_void, iov_len: f.len() })
+            .collect();
+        let mut msgs: Vec<libc::mmsghdr> = iov
+            .iter_mut()
+            .map(|v| {
+                let mut m: libc::mmsghdr = unsafe { std::mem::zeroed() };
+                m.msg_hdr.msg_iov = v;
+                m.msg_hdr.msg_iovlen = 1;
+                m
+            })
+            .collect();
+        let n = unsafe { libc::sendmmsg(self.fd, msgs.as_mut_ptr(), msgs.len() as libc::c_uint, 0) };
+        if n >= 0 {
+            return Ok(n as usize);
+        }
+        let e = last_err();
+        if matches!(e.raw_os_error(), Some(libc::ENOBUFS) | Some(libc::EAGAIN)) { Ok(0) } else { Err(e) }
     }
 
     fn recv(&mut self, timeout: Duration) -> io::Result<Option<RxFrame>> {
@@ -256,6 +377,47 @@ impl Link for AfPacketLink {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn cpu_list_parses_ranges() {
+        assert_eq!(parse_cpu_list("13\n"), vec![13]);
+        assert_eq!(parse_cpu_list("0-3,8,10-11"), vec![0, 1, 2, 3, 8, 10, 11]);
+        assert_eq!(parse_cpu_list(""), Vec::<usize>::new());
+    }
+
+    #[test]
+    fn irqs_of_iface_from_proc_interrupts() {
+        let t = "            CPU0       CPU1\n \
+                 16:          0          0  IR-IO-APIC   16-fasteoi   i801_smbus\n \
+                 136:         0    3871545  IR-PCI-MSIX-0000:81:00.0    0-edge      enp129s0\n \
+                 137:         5          0  IR-PCI-MSIX-0000:01:00.0    0-edge      enp1s0\n";
+        assert_eq!(irqs_of(t, "enp129s0"), vec![136]);
+        assert_eq!(irqs_of(t, "enp1s0"), vec![137]);
+        assert_eq!(irqs_of(t, "eth9"), Vec::<u32>::new());
+    }
+
+    #[test]
+    fn nic_cpus_prefer_an_isolated_cpu_without_the_irq() {
+        let all: Vec<usize> = (0..20).collect();
+        // isolcpus=6-7, NIC IRQ on 6: the network thread gets CPU 7 alone
+        assert_eq!(nic_cpus(&all, &[6, 7], &[6]), vec![7]);
+        // no isolated CPU: everything but the IRQ CPU
+        assert_eq!(nic_cpus(&all, &[], &[13]).len(), 19);
+        // the only isolated CPU serves the IRQ: fall back to avoiding it
+        assert!(!nic_cpus(&all, &[6], &[6]).contains(&6));
+        // an isolated CPU outside the allowed set is not used
+        assert_eq!(nic_cpus(&[0, 1], &[7], &[0]), vec![1]);
+    }
+
+    #[test]
+    fn cpus_avoid_the_nic_irq_but_never_empty() {
+        let all: Vec<usize> = (0..20).collect();
+        let v = cpus_avoiding(&all, &[13]);
+        assert_eq!(v.len(), 19);
+        assert!(!v.contains(&13));
+        assert_eq!(cpus_avoiding(&[13], &[13]), vec![13]);
+        assert_eq!(cpus_avoiding(&[2, 3], &[]), vec![2, 3]);
+    }
 
     #[test]
     fn link_info_parses_sysfs() {

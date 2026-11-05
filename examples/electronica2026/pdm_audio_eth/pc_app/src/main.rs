@@ -138,7 +138,8 @@ fn gui(target: &Target, inputs: &Inputs, lead: u32, export_shm: Option<String>, 
         None => None,
     };
     let no_vsync = no_vsync || screenshot.is_some();
-    let (link, _) = open(target)?;
+    let (link, _) = open(target, false)?;
+    let pin_iface = (!target.emulator).then(|| target.iface.clone());
     let source = if target.emulator { "emulator".to_string() } else { target.iface.clone() };
     let (tx, rx) = std::sync::mpsc::channel();
     let options = eframe::NativeOptions {
@@ -162,7 +163,12 @@ fn gui(target: &Target, inputs: &Inputs, lead: u32, export_shm: Option<String>, 
             let input = set.map(|set| pdm_eth::ui::NetInput { set, lead, sel: sel.clone(), export });
             let ctx = cc.egui_ctx.clone();
             let repaint: std::sync::Arc<dyn Fn() + Send + Sync> = std::sync::Arc::new(move || ctx.request_repaint());
-            std::thread::spawn(move || pdm_eth::ui::run_net(link, input, tx, repaint));
+            std::thread::spawn(move || {
+                if let Some(i) = &pin_iface {
+                    pdm_eth::link::pin_for_nic(i);
+                }
+                pdm_eth::ui::run_net(link, input, tx, repaint)
+            });
             let app = pdm_eth::ui::App::new(rx, source).with_selection(sel);
             Ok(Box::new(match screenshot {
                 Some(p) => app.with_screenshot(p, Duration::from_secs(5)),
@@ -176,12 +182,16 @@ fn gui(target: &Target, inputs: &Inputs, lead: u32, export_shm: Option<String>, 
 /// The link and its (Mbit/s, full duplex, carrier).
 type Opened = (Box<dyn Link>, (u32, bool, bool));
 
-fn open(t: &Target) -> Result<Opened, String> {
+/// `pin`: pin this thread for NIC work (the GUI pins its network thread).
+fn open(t: &Target, pin: bool) -> Result<Opened, String> {
     if t.emulator {
         return Ok((Box::new(Emulator::new(EmuConfig::default())), (1000, true, true)));
     }
     let info = link_info(&t.iface).map_err(|e| format!("{}: {e}", t.iface))?;
     let link = AfPacketLink::open(&t.iface).map_err(|e| e.to_string())?;
+    if pin {
+        pdm_eth::link::pin_for_nic(&t.iface);
+    }
     Ok((Box::new(link), info))
 }
 
@@ -189,7 +199,7 @@ fn main() -> ExitCode {
     let cli = Cli::parse();
     match cli.cmd {
         Cmd::Test { target, pings, seconds } => {
-            let (mut link, info) = match open(&target) {
+            let (mut link, info) = match open(&target, true) {
                 Ok(x) => x,
                 Err(e) => {
                     eprintln!("error: {e}");
@@ -230,7 +240,7 @@ fn main() -> ExitCode {
                     return ExitCode::from(2);
                 }
             };
-            let (mut link, _) = match open(&target) {
+            let (mut link, _) = match open(&target, true) {
                 Ok(x) => x,
                 Err(e) => {
                     eprintln!("error: {e}");
@@ -254,7 +264,7 @@ fn main() -> ExitCode {
             }
         }
         Cmd::Capture { target, seconds, out } => {
-            let (mut link, _) = match open(&target) {
+            let (mut link, _) = match open(&target, true) {
                 Ok(x) => x,
                 Err(e) => {
                     eprintln!("error: {e}");

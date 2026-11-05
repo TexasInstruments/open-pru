@@ -14,6 +14,8 @@ use crate::proto::*;
 pub const TPUT_FRAME: usize = 1514;
 /// Frame size of the small-frame throughput test: 64 B on the wire with CRC.
 pub const SMALL_FRAME: usize = 60;
+/// Frames per sendmmsg call in the PC -> board run.
+pub const SEND_BATCH: usize = 64;
 
 /// Frames per second at 1 Gbit/s for a frame of `frame` bytes without CRC
 /// (+ 4 CRC, 8 preamble, 12 IPG).
@@ -214,13 +216,16 @@ pub fn tput_to_board(link: &mut dyn Link, cfg: &TestConfig, frame: usize) -> io:
     hello(link)?; // zero the board's TPUT counters
     let h = Header { version: VERSION, ftype: FrameType::TputData, length: 0, seq: 0, ts: 0 };
     let mac = link.mac();
-    let mut f = encode(BOARD_MAC, mac, &h, &Body::TputData, frame);
+    let f = encode(BOARD_MAC, mac, &h, &Body::TputData, frame);
+    let mut batch = vec![f; SEND_BATCH];
     let end = now_ns() + (cfg.seconds * 1e9) as u64;
     let mut sent = 0u32;
     while now_ns() < end {
-        f[14 + 4..14 + 8].copy_from_slice(&sent.to_le_bytes());
-        link.send(&f)?;
-        sent += 1;
+        // frames the link refused (NIC queue full) go again with their seq
+        for (k, b) in batch.iter_mut().enumerate() {
+            b[14 + 4..14 + 8].copy_from_slice(&(sent + k as u32).to_le_bytes());
+        }
+        sent += link.send_batch(&batch)? as u32;
     }
     std::thread::sleep(Duration::from_millis(20));
     send_frame(link, FrameType::Control, 0, now_ns(),
@@ -395,6 +400,50 @@ mod tests {
         assert_eq!(names, ["link", "ping", "to board", "from board", "to board 64 B", "from board 64 B"]);
         assert_eq!(s.from_board_64.frame, SMALL_FRAME);
         assert!(s.from_board_64.frames > 1000, "{:?}", s.from_board_64);
+    }
+
+    /// Accepts at most `take` frames per batch; records batch sizes and seqs.
+    struct BatchLink {
+        take: usize,
+        batches: Vec<usize>,
+        seqs: Vec<u32>,
+    }
+
+    impl Link for BatchLink {
+        fn send(&mut self, _frame: &[u8]) -> io::Result<()> {
+            Ok(())
+        }
+        fn send_batch(&mut self, frames: &[Vec<u8>]) -> io::Result<usize> {
+            self.batches.push(frames.len());
+            let n = frames.len().min(self.take);
+            for f in &frames[..n] {
+                if let Ok((h, Body::TputData, _)) = decode(f) {
+                    self.seqs.push(h.seq);
+                }
+            }
+            Ok(n)
+        }
+        fn recv(&mut self, _timeout: Duration) -> io::Result<Option<crate::link::RxFrame>> {
+            Ok(None)
+        }
+        fn mac(&self) -> [u8; 6] {
+            [2, 0, 0, 0, 0, 9]
+        }
+        fn stats(&mut self) -> crate::link::LinkStats {
+            crate::link::LinkStats::default()
+        }
+    }
+
+    #[test]
+    fn to_board_sends_in_batches_and_counts_only_accepted() {
+        let mut l = BatchLink { take: 40, batches: vec![], seqs: vec![] };
+        let cfg = TestConfig { pings: 0, ping_timeout: Duration::from_millis(1), seconds: 0.02 };
+        let r = tput_to_board(&mut l, &cfg, SMALL_FRAME).unwrap();
+        assert!(l.batches.iter().all(|b| *b <= SEND_BATCH), "{:?}", &l.batches[..4]);
+        assert!(l.batches.contains(&SEND_BATCH), "full batches used");
+        assert_eq!(r.sent, l.seqs.len() as u64);
+        let want: Vec<u32> = (0..l.seqs.len() as u32).collect();
+        assert_eq!(l.seqs, want, "the frames the link refused are sent again, in order");
     }
 
     #[test]
