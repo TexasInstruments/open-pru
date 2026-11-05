@@ -23,6 +23,11 @@ The ICSSG0 firmware is the board-tested `pdm_audio` firmware, byte-identical
 [docs/design.md](docs/design.md), the implementation plan in
 [docs/plan.md](docs/plan.md).
 
+**Running the demo:** [docs/demo_howto.md](docs/demo_howto.md) (every step and
+command). **How it was built** (simulator example → 8-channel port → Ethernet
+→ Rust app, simulation versus hardware-in-the-loop):
+[docs/development_flow.md](docs/development_flow.md).
+
 **Status (2026-11-05): board run PASSED** on an LP-AM243 Rev A, all ten
 board checks B0 to B9 (Ethernet test, clip buffer, counters, 600 s capture,
 GUI, PC-to-board stream, latency); results under "Hardware results" and in
