@@ -16,6 +16,7 @@ use eframe::egui::{self, Color32, ColorImage, Rect, Sense, TextureHandle, Textur
 use crate::latency::LatencyMeter;
 use crate::link::{now_ns, Link};
 use crate::pacing::Pacer;
+use crate::sources::{Source, BUILTIN};
 use crate::wavin::InputSet;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use crate::proto::{decode, encode, Body, FrameType, Header, Status, BOARD_MAC, CMD_RESET_COUNTERS, VERSION};
@@ -68,15 +69,15 @@ pub struct NetInput {
 
 /// UI -> network thread.
 pub enum NetCmd {
-    /// New samples for one channel (a dropped WAV, 16 kHz, 0.5 FS); starts
-    /// the stream if none runs (design 7.2a).
+    /// New samples for one channel (the source selector, 16 kHz, 0.5 FS);
+    /// starts the stream if none runs (design 7.2a).
     SetChannel { ch: usize, samples: Vec<i16> },
 }
 
-/// What the network thread needs to start a stream later (on a drop).
+/// What the network thread needs to start a stream later (on a source choice).
 pub struct NetCtl {
     pub cmds: Receiver<NetCmd>,
-    /// Pacer lead of a stream started by a drop.
+    /// Pacer lead of a stream started by a source choice.
     pub lead: u32,
     /// Channel of the latency measurement (the UI's selection).
     pub sel: Arc<AtomicUsize>,
@@ -135,7 +136,7 @@ pub fn run_net(mut link: Box<dyn Link>, input: Option<NetInput>, ctl: NetCtl, tx
                 NetInput { set, lead: ctl.lead, sel: ctl.sel.clone(), export: None }
             });
             if let Some(x) = inp.set.ch.get_mut(ch) {
-                *x = if samples.is_empty() { crate::wavin::booth_clips()[ch].clone() } else { samples };
+                *x = samples;
             }
         }
         let now = now_ns();
@@ -309,10 +310,10 @@ pub struct App {
     shot: Option<(std::path::PathBuf, Instant, bool)>,
     shot_done: Arc<std::sync::atomic::AtomicBool>,
     shot_focused: bool,
-    /// Commands to the network thread (drag and drop).
+    /// Commands to the network thread (source selector).
     cmds: Option<Sender<NetCmd>>,
-    /// File name per channel (None: booth clip).
-    pub(crate) names: [Option<String>; 8],
+    /// What each channel plays.
+    pub(crate) sources: [Source; 8],
 }
 
 impl App {
@@ -337,35 +338,86 @@ impl App {
             shot_done: Arc::new(std::sync::atomic::AtomicBool::new(false)),
             shot_focused: false,
             cmds: None,
-            names: Default::default(),
+            sources: std::array::from_fn(|_| Source::Booth),
         }
     }
 
-    /// Let dropped WAV files reach the network thread.
+    /// Let the source selector reach the network thread.
     pub fn with_commands(mut self, cmds: Sender<NetCmd>) -> Self {
         self.cmds = Some(cmds);
         self
     }
 
-    /// File names of the channels given on the command line.
-    pub fn with_names(mut self, names: [Option<String>; 8]) -> Self {
-        self.names = names;
+    /// Sources of the channels given on the command line.
+    pub fn with_sources(mut self, sources: [Source; 8]) -> Self {
+        self.sources = sources;
         self
     }
 
-    /// Load a dropped file into the selected channel (design 7.2a).
-    pub fn load_dropped(&mut self, path: &std::path::Path) {
+    fn send_channel(&mut self, ch: usize, samples: Vec<i16>, src: Source) {
+        if let Some(c) = &self.cmds
+            && c.send(NetCmd::SetChannel { ch, samples }).is_ok() {
+                self.sources[ch] = src;
+                self.error = None;
+                self.dirty = true;
+            }
+    }
+
+    /// Play a built-in source on channel `ch` (design 7.2a).
+    pub fn set_source(&mut self, ch: usize, src: Source) {
+        match src.samples(ch) {
+            Ok(x) => self.send_channel(ch, x, src),
+            Err(e) => self.error = Some(e.to_string()),
+        }
+    }
+
+    /// Play a WAV file on channel `ch`; a file that does not load changes nothing.
+    pub fn choose_file(&mut self, ch: usize, path: &std::path::Path) {
         match crate::wavin::load_channel(path) {
-            Ok(samples) => {
-                let ch = self.sel;
-                if let Some(c) = &self.cmds
-                    && c.send(NetCmd::SetChannel { ch, samples }).is_ok() {
-                        self.names[ch] = path.file_name().map(|n| n.to_string_lossy().into_owned());
-                        self.error = None;
-                        self.dirty = true;
-                    }
+            Ok(x) => {
+                let name = path.file_name().map_or_else(|| path.display().to_string(), |n| n.to_string_lossy().into_owned());
+                self.send_channel(ch, x, Source::File(name));
             }
             Err(e) => self.error = Some(e.to_string()),
+        }
+    }
+
+    /// The "Sources" table: one selector per channel.
+    fn sources_table(&mut self, ui: &mut egui::Ui) {
+        ui.label(egui::RichText::new("Sources").size(LABEL_PX).color(LABEL_COLOUR));
+        let mut pick: Option<(usize, Option<Source>)> = None; // None: open a file
+        egui::Grid::new("sources").num_columns(2).spacing([8.0, 4.0]).show(ui, |ui| {
+            for c in 0..8 {
+                ui.label(egui::RichText::new(format!("ch{c}")).size(LABEL_PX));
+                egui::ComboBox::from_id_salt(("source", c))
+                    .width(200.0)
+                    .selected_text(self.sources[c].label())
+                    .show_ui(ui, |ui| {
+                        for b in BUILTIN {
+                            if ui.selectable_label(self.sources[c] == b, b.label()).clicked() {
+                                pick = Some((c, Some(b.clone())));
+                            }
+                        }
+                        ui.separator();
+                        if ui.button("open WAV file...").clicked() {
+                            pick = Some((c, None));
+                        }
+                    });
+                ui.end_row();
+            }
+        });
+        match pick {
+            Some((c, Some(src))) => self.set_source(c, src),
+            Some((c, None)) => {
+                if let Some(p) = rfd::FileDialog::new()
+                    .set_title(format!("WAV file for ch{c}"))
+                    .add_filter("WAV audio", &["wav", "WAV"])
+                    .pick_file()
+                {
+                    self.choose_file(c, &p);
+                }
+            }
+            None => {}
         }
     }
 
@@ -654,12 +706,6 @@ impl eframe::App for App {
         self.drain();
         self.release_input();
         let fps = self.fps();
-        let dropped: Vec<std::path::PathBuf> =
-            ctx.input(|i| i.raw.dropped_files.iter().map(|f| f.path().to_path_buf()).collect());
-        for p in dropped {
-            self.load_dropped(&p);
-        }
-        let hovering = ctx.input(|i| !i.raw.hovered_files.is_empty());
         self.update_textures(&ctx);
         egui::Panel::top("toolbar").show(ui, |ui| {
             ui.horizontal(|ui| {
@@ -683,32 +729,32 @@ impl eframe::App for App {
             });
         });
         egui::Panel::right("numbers").resizable(false).exact_size(320.0).show(ui, |ui| {
-            ui.add_space(6.0);
-            for (k, v) in self.side_lines(fps) {
-                ui.label(egui::RichText::new(k).size(LABEL_PX).color(LABEL_COLOUR));
-                ui.add(egui::Label::new(egui::RichText::new(v).size(18.0).strong()).wrap());
-                ui.add_space(4.0);
-            }
+            // scrolls when the window is too low for the sources and all numbers
+            egui::ScrollArea::vertical().show(ui, |ui| {
+                ui.add_space(6.0);
+                if self.cmds.is_some() {
+                    self.sources_table(ui);
+                    ui.separator();
+                }
+                for (k, v) in self.side_lines(fps) {
+                    ui.label(egui::RichText::new(k).size(LABEL_PX).color(LABEL_COLOUR));
+                    ui.add(egui::Label::new(egui::RichText::new(v).size(18.0).strong()).wrap());
+                    ui.add_space(4.0);
+                }
+            });
         });
         egui::CentralPanel::default().show(ui, |ui| {
             let h = ((ui.available_height() - 84.0) / 2.0).max(60.0);
             let c = self.sel;
             let o = self.out[c].range();
             let i = self.inp.as_ref().map_or(o, |inp| inp[c].range());
-            let name = self.names[c].as_deref().unwrap_or("booth clip");
+            let name = self.sources[c].label();
             pane(ui, h, &self.tex[0], &format!("ch{c} IN (PC): {name}"),
-                 &format!("no input stream: drop a WAV file to stream it into ch{c}"), Scale::Level(i.0, i.1));
+                 "no input stream: choose a source on the right", Scale::Level(i.0, i.1));
             pane(ui, h, &self.tex[1], &format!("ch{c} OUT (board, PDM round trip)"), "waiting for the board",
                  Scale::Level(o.0, o.1));
             pane(ui, 40.0, &self.tex[2], "difference IN - OUT", "", Scale::Diff);
             time_axis(ui);
-            if hovering && self.cmds.is_some() {
-                let r = ui.max_rect();
-                ui.painter().rect_filled(r, 6.0, Color32::from_rgba_unmultiplied(20, 40, 90, 170));
-                ui.painter().text(r.center(), egui::Align2::CENTER_CENTER,
-                                  format!("drop the WAV file: it plays on ch{c}"),
-                                  egui::FontId::proportional(28.0), Color32::WHITE);
-            }
         });
         self.screenshot(&ctx);
         ctx.request_repaint_after(Duration::from_millis(16));
@@ -820,15 +866,14 @@ mod tests {
     }
 
     #[test]
-    fn dropped_wav_goes_to_the_selected_channel() {
+    fn chosen_file_goes_to_its_channel() {
         let d = tempfile::tempdir().unwrap();
-        let p = d.path().join("music.wav");
+        let p = d.path().join("song.wav");
         wav16(&p, 1000);
         let (_tx, rx) = std::sync::mpsc::channel();
         let (ctx, crx) = std::sync::mpsc::channel();
         let mut app = App::new(rx, "test".into()).with_commands(ctx);
-        app.sel = 5;
-        app.load_dropped(&p);
+        app.choose_file(5, &p);
         match crx.try_recv().expect("a command") {
             NetCmd::SetChannel { ch, samples } => {
                 assert_eq!(ch, 5);
@@ -836,22 +881,38 @@ mod tests {
                 assert_eq!(samples.iter().map(|v| v.unsigned_abs()).max(), Some(16384)); // 0.5 FS
             }
         }
-        assert_eq!(app.names[5].as_deref(), Some("music.wav"));
+        assert_eq!(app.sources[5], Source::File("song.wav".into()));
         assert!(app.error.is_none());
     }
 
     #[test]
-    fn dropped_bad_file_shows_an_error_and_sends_nothing() {
+    fn chosen_bad_file_shows_an_error_and_changes_nothing() {
         let d = tempfile::tempdir().unwrap();
         let p = d.path().join("notes.txt");
         std::fs::write(&p, b"not audio").unwrap();
         let (_tx, rx) = std::sync::mpsc::channel();
         let (ctx, crx) = std::sync::mpsc::channel();
         let mut app = App::new(rx, "test".into()).with_commands(ctx);
-        app.load_dropped(&p);
+        app.choose_file(2, &p);
         assert!(crx.try_recv().is_err());
         assert!(app.error.as_deref().is_some_and(|e| e.contains("notes.txt")), "{:?}", app.error);
-        assert!(app.names.iter().all(Option::is_none));
+        assert!(app.sources.iter().all(|s| *s == Source::Booth));
+    }
+
+    #[test]
+    fn chosen_builtin_source_goes_to_its_channel() {
+        let (_tx, rx) = std::sync::mpsc::channel();
+        let (ctx, crx) = std::sync::mpsc::channel();
+        let mut app = App::new(rx, "test".into()).with_commands(ctx);
+        app.set_source(4, Source::Music);
+        match crx.try_recv().expect("a command") {
+            NetCmd::SetChannel { ch, samples } => assert_eq!((ch, samples.len()), (4, 480_000)),
+        }
+        assert_eq!(app.sources[4], Source::Music);
+        app.set_source(4, Source::Booth);
+        match crx.try_recv().expect("a command") {
+            NetCmd::SetChannel { ch, samples } => assert_eq!(samples, crate::wavin::booth_clips()[ch]),
+        }
     }
 
     #[test]
@@ -872,7 +933,7 @@ mod tests {
             }
         }
         assert!(sent.len() > 1000, "only {} input frames", sent.len());
-        assert!(sent.iter().all(|(_, f)| f[2] == 1234), "ch2 is the dropped file");
+        assert!(sent.iter().all(|(_, f)| f[2] == 1234), "ch2 plays the chosen samples");
         let booth = crate::wavin::booth_clips();
         assert!(sent.iter().enumerate().all(|(k, (_, f))| f[3] == booth[3][k % 16384]), "ch3 plays its booth clip");
     }

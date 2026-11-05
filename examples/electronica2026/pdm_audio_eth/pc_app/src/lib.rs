@@ -12,6 +12,7 @@ pub mod proto;
 pub mod rx;
 pub mod seam;
 pub mod session;
+pub mod sources;
 pub mod spectro;
 pub mod ui;
 pub mod wavin;

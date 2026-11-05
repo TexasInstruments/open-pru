@@ -182,7 +182,8 @@ fn gui(target: &Target, inputs: &Inputs, lead: u32, export_shm: Option<String>, 
                 }
                 pdm_eth::ui::run_net(link, input, ctl, tx, repaint)
             });
-            let app = pdm_eth::ui::App::new(rx, source).with_selection(sel).with_commands(cmd_tx).with_names(names);
+            let app = pdm_eth::ui::App::new(rx, source).with_selection(sel).with_commands(cmd_tx)
+                .with_sources(names.map(|n| n.map_or(pdm_eth::sources::Source::Booth, pdm_eth::sources::Source::File)));
             Ok(Box::new(match screenshot {
                 Some(p) => app.with_screenshot(p, Duration::from_secs(5)),
                 None => app,

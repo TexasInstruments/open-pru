@@ -33,6 +33,18 @@ fn err(path: &Path, what: impl fmt::Display) -> WavError {
 /// 16 kHz, peak-normalised to 16384 (silence stays silence).
 pub fn load_channel(path: &Path) -> Result<Vec<i16>, WavError> {
     let r = hound::WavReader::open(path).map_err(|e| err(path, e))?;
+    convert(path, r)
+}
+
+/// [`load_channel`] of a WAV held in memory (the built-in sources); `name`
+/// appears in errors.
+pub fn load_channel_bytes(name: &str, bytes: &[u8]) -> Result<Vec<i16>, WavError> {
+    let path = Path::new(name);
+    let r = hound::WavReader::new(std::io::Cursor::new(bytes)).map_err(|e| err(path, e))?;
+    convert(path, r)
+}
+
+fn convert<R: std::io::Read>(path: &Path, r: hound::WavReader<R>) -> Result<Vec<i16>, WavError> {
     let spec = r.spec();
     let chans = spec.channels.max(1) as usize;
     let raw: Vec<f32> = match spec.sample_format {
