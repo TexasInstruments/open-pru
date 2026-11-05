@@ -54,6 +54,12 @@ struct Inputs {
 }
 
 impl Inputs {
+    /// File name per channel, for the GUI labels.
+    fn names(&self) -> [Option<String>; 8] {
+        let files = [&self.ch0, &self.ch1, &self.ch2, &self.ch3, &self.ch4, &self.ch5, &self.ch6, &self.ch7];
+        std::array::from_fn(|c| files[c].as_ref().and_then(|p| p.file_name()).map(|n| n.to_string_lossy().into_owned()))
+    }
+
     fn load(&self) -> Result<Option<InputSet>, String> {
         let files = [&self.ch0, &self.ch1, &self.ch2, &self.ch3, &self.ch4, &self.ch5, &self.ch6, &self.ch7];
         if files.iter().all(|f| f.is_none()) {
@@ -132,7 +138,12 @@ enum Cmd {
 
 fn gui(target: &Target, inputs: &Inputs, lead: u32, export_shm: Option<String>, screenshot: Option<PathBuf>,
        no_vsync: bool) -> Result<(), String> {
-    let set = inputs.load()?;
+    let names = inputs.names();
+    // channels without a --chN file play their booth clip (design 7.2a)
+    let set = inputs.load()?.map(|mut s| {
+        s.fill_with_booth();
+        s
+    });
     let export = match export_shm {
         Some(n) => Some(pdm_eth::seam::ShmExport::create(&n, 256).map_err(|e| format!("/dev/shm/{n}: {e}"))?),
         None => None,
@@ -161,15 +172,17 @@ fn gui(target: &Target, inputs: &Inputs, lead: u32, export_shm: Option<String>, 
         Box::new(move |cc| {
             let sel = std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0));
             let input = set.map(|set| pdm_eth::ui::NetInput { set, lead, sel: sel.clone(), export });
+            let (cmd_tx, cmd_rx) = std::sync::mpsc::channel();
+            let ctl = pdm_eth::ui::NetCtl { cmds: cmd_rx, lead, sel: sel.clone() };
             let ctx = cc.egui_ctx.clone();
             let repaint: std::sync::Arc<dyn Fn() + Send + Sync> = std::sync::Arc::new(move || ctx.request_repaint());
             std::thread::spawn(move || {
                 if let Some(i) = &pin_iface {
                     pdm_eth::link::pin_for_nic(i);
                 }
-                pdm_eth::ui::run_net(link, input, tx, repaint)
+                pdm_eth::ui::run_net(link, input, ctl, tx, repaint)
             });
-            let app = pdm_eth::ui::App::new(rx, source).with_selection(sel);
+            let app = pdm_eth::ui::App::new(rx, source).with_selection(sel).with_commands(cmd_tx).with_names(names);
             Ok(Box::new(match screenshot {
                 Some(p) => app.with_screenshot(p, Duration::from_secs(5)),
                 None => app,

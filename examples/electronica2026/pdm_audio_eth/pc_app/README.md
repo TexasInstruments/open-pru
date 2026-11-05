@@ -24,7 +24,14 @@ in-process board model with the same frames, for work without the board.
 | `pdm-eth test [--pings N] [--seconds S]` | link speed/duplex, ping-pong RTT (min/mean/p99/max) and the board's turnaround, throughput both ways; one PASS/FAIL line per step |
 | `pdm-eth capture --seconds S --out DIR` | board output to `DIR/out_ch0..7.wav` (16 kHz, 24-bit), loss and board counters |
 | `pdm-eth stream --ch0 a.wav ... --ch7 h.wav [--capture DIR] [--lead 8000]` | streams the files (any rate, converted to 16 kHz mono, peak 0.5 FS), stops at the end of the longest; `--capture` writes `in_ch*.wav` and `out_ch*.wav` |
-| `pdm-eth gui [--ch0 a.wav ...] [--export-shm NAME]` | the booth window (layout C): one channel large, input above output and their dB difference, live numbers on the right; the files loop |
+| `pdm-eth gui [--ch0 a.wav ...] [--export-shm NAME]` | the booth window (layout C): one channel large, input above output and their dB difference, live numbers on the right; each file loops on its own length, channels without a file play their booth clip |
+
+**Custom audio per channel:** drag a WAV file onto the window; it plays on
+the selected channel (any rate, stereo mixed down, scaled to 0.5 FS like
+`--chN`), live, without a restart. The first drop starts the stream to the
+board; the other channels then play their booth clips. The IN pane names the
+file of the channel. Example files with speech and music are in `audio/`
+(origin and licence in `audio/SOURCES.md`).
 
 GUI options for documentation: `--screenshot PNG` saves the window after 5 s
 and exits; under Wayland run it with `WAYLAND_DISPLAY` unset (XWayland), since a

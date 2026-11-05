@@ -66,6 +66,30 @@ pub struct NetInput {
     pub export: Option<crate::seam::ShmExport>,
 }
 
+/// UI -> network thread.
+pub enum NetCmd {
+    /// New samples for one channel (a dropped WAV, 16 kHz, 0.5 FS); starts
+    /// the stream if none runs (design 7.2a).
+    SetChannel { ch: usize, samples: Vec<i16> },
+}
+
+/// What the network thread needs to start a stream later (on a drop).
+pub struct NetCtl {
+    pub cmds: Receiver<NetCmd>,
+    /// Pacer lead of a stream started by a drop.
+    pub lead: u32,
+    /// Channel of the latency measurement (the UI's selection).
+    pub sel: Arc<AtomicUsize>,
+}
+
+impl NetCtl {
+    /// No commands will come (tests, screenshots of a fixed set).
+    pub fn idle() -> Self {
+        let (_tx, cmds) = std::sync::mpsc::channel();
+        NetCtl { cmds, lead: 8000, sel: Arc::new(AtomicUsize::new(0)) }
+    }
+}
+
 /// Network thread -> UI.
 pub enum NetMsg {
     /// Contiguous output PCM frames.
@@ -86,13 +110,14 @@ fn hello(link: &mut dyn Link) -> std::io::Result<()> {
 /// Run the receive side until the UI goes away: say hello (again after
 /// 1 s without audio, so a reset board learns the PC MAC again), rebuild
 /// the stream, send PCM and stats to the UI about every 20 ms.
-pub fn run_net(mut link: Box<dyn Link>, input: Option<NetInput>, tx: Sender<NetMsg>,
+pub fn run_net(mut link: Box<dyn Link>, input: Option<NetInput>, ctl: NetCtl, tx: Sender<NetMsg>,
                repaint: Arc<dyn Fn() + Send + Sync>) {
     let mut out = OutStream::new();
     let mut pacer = input.as_ref().map(|i| Pacer::new(i.lead, 16384));
     let mut meter = LatencyMeter::new();
     let mut meter_ch = usize::MAX;
-    let (mut pos, mut seq) = (0usize, 0u32);
+    // frames sent so far; every channel loops on its own length (design 7.2a)
+    let (mut pos, mut seq) = (0u64, 0u32);
     let mut win_in: VecDeque<u64> = VecDeque::new();
     let mut sent_in: Vec<(u64, [i16; 8])> = Vec::new();
     let mut input = input;
@@ -102,6 +127,17 @@ pub fn run_net(mut link: Box<dyn Link>, input: Option<NetInput>, tx: Sender<NetM
     let mut last_flush = now_ns();
     let mut win: VecDeque<u64> = VecDeque::new();
     loop {
+        while let Ok(NetCmd::SetChannel { ch, samples }) = ctl.cmds.try_recv() {
+            let inp = input.get_or_insert_with(|| {
+                let mut set = InputSet::default();
+                set.fill_with_booth();
+                pacer = Some(Pacer::new(ctl.lead, 16384));
+                NetInput { set, lead: ctl.lead, sel: ctl.sel.clone(), export: None }
+            });
+            if let Some(x) = inp.set.ch.get_mut(ch) {
+                *x = if samples.is_empty() { crate::wavin::booth_clips()[ch].clone() } else { samples };
+            }
+        }
         let now = now_ns();
         if now.saturating_sub(last_audio) > 1_000_000_000 && now.saturating_sub(last_hello) > 1_000_000_000 {
             if let Err(e) = hello(link.as_mut()) {
@@ -136,11 +172,10 @@ pub fn run_net(mut link: Box<dyn Link>, input: Option<NetInput>, tx: Sender<NetM
             }
         }
         if let (Some(p), Some(inp)) = (pacer.as_mut(), input.as_ref()) {
-            let n = inp.set.frames().max(1);
             while let Some(first) = p.next_due(now_ns()) {
                 let mut pcm = Box::new([[0i16; 8]; 64]);
                 for (k, row) in pcm.iter_mut().enumerate() {
-                    *row = inp.set.frame((pos + k) % n);
+                    *row = inp.set.frame_looped(pos + k as u64);
                     sent_in.push((first as u64 + k as u64, *row));
                 }
                 let x: Vec<i16> = pcm.iter().map(|r| r[meter_ch.min(7)]).collect();
@@ -153,7 +188,7 @@ pub fn run_net(mut link: Box<dyn Link>, input: Option<NetInput>, tx: Sender<NetM
                 }
                 win_in.push_back(now_ns());
                 seq += 1;
-                pos = (pos + 64) % n;
+                pos += 64;
             }
         }
         let now = now_ns();
@@ -274,6 +309,10 @@ pub struct App {
     shot: Option<(std::path::PathBuf, Instant, bool)>,
     shot_done: Arc<std::sync::atomic::AtomicBool>,
     shot_focused: bool,
+    /// Commands to the network thread (drag and drop).
+    cmds: Option<Sender<NetCmd>>,
+    /// File name per channel (None: booth clip).
+    pub(crate) names: [Option<String>; 8],
 }
 
 impl App {
@@ -297,6 +336,36 @@ impl App {
             shot: None,
             shot_done: Arc::new(std::sync::atomic::AtomicBool::new(false)),
             shot_focused: false,
+            cmds: None,
+            names: Default::default(),
+        }
+    }
+
+    /// Let dropped WAV files reach the network thread.
+    pub fn with_commands(mut self, cmds: Sender<NetCmd>) -> Self {
+        self.cmds = Some(cmds);
+        self
+    }
+
+    /// File names of the channels given on the command line.
+    pub fn with_names(mut self, names: [Option<String>; 8]) -> Self {
+        self.names = names;
+        self
+    }
+
+    /// Load a dropped file into the selected channel (design 7.2a).
+    pub fn load_dropped(&mut self, path: &std::path::Path) {
+        match crate::wavin::load_channel(path) {
+            Ok(samples) => {
+                let ch = self.sel;
+                if let Some(c) = &self.cmds
+                    && c.send(NetCmd::SetChannel { ch, samples }).is_ok() {
+                        self.names[ch] = path.file_name().map(|n| n.to_string_lossy().into_owned());
+                        self.error = None;
+                        self.dirty = true;
+                    }
+            }
+            Err(e) => self.error = Some(e.to_string()),
         }
     }
 
@@ -585,6 +654,12 @@ impl eframe::App for App {
         self.drain();
         self.release_input();
         let fps = self.fps();
+        let dropped: Vec<std::path::PathBuf> =
+            ctx.input(|i| i.raw.dropped_files.iter().map(|f| f.path().to_path_buf()).collect());
+        for p in dropped {
+            self.load_dropped(&p);
+        }
+        let hovering = ctx.input(|i| !i.raw.hovered_files.is_empty());
         self.update_textures(&ctx);
         egui::Panel::top("toolbar").show(ui, |ui| {
             ui.horizontal(|ui| {
@@ -620,11 +695,20 @@ impl eframe::App for App {
             let c = self.sel;
             let o = self.out[c].range();
             let i = self.inp.as_ref().map_or(o, |inp| inp[c].range());
-            pane(ui, h, &self.tex[0], &format!("ch{c} IN (PC)"), "no input stream", Scale::Level(i.0, i.1));
+            let name = self.names[c].as_deref().unwrap_or("booth clip");
+            pane(ui, h, &self.tex[0], &format!("ch{c} IN (PC): {name}"),
+                 &format!("no input stream: drop a WAV file to stream it into ch{c}"), Scale::Level(i.0, i.1));
             pane(ui, h, &self.tex[1], &format!("ch{c} OUT (board, PDM round trip)"), "waiting for the board",
                  Scale::Level(o.0, o.1));
             pane(ui, 40.0, &self.tex[2], "difference IN - OUT", "", Scale::Diff);
             time_axis(ui);
+            if hovering && self.cmds.is_some() {
+                let r = ui.max_rect();
+                ui.painter().rect_filled(r, 6.0, Color32::from_rgba_unmultiplied(20, 40, 90, 170));
+                ui.painter().text(r.center(), egui::Align2::CENTER_CENTER,
+                                  format!("drop the WAV file: it plays on ch{c}"),
+                                  egui::FontId::proportional(28.0), Color32::WHITE);
+            }
         });
         self.screenshot(&ctx);
         ctx.request_repaint_after(Duration::from_millis(16));
@@ -671,7 +755,7 @@ mod tests {
         use crate::emulator::{EmuConfig, Emulator};
         let (tx, rx) = std::sync::mpsc::channel();
         let link: Box<dyn Link> = Box::new(Emulator::new(EmuConfig::default()));
-        std::thread::spawn(move || run_net(link, None, tx, Arc::new(|| {})));
+        std::thread::spawn(move || run_net(link, None, NetCtl::idle(), tx, Arc::new(|| {})));
         let mut app = App::new(rx, "emulator".into());
         std::thread::sleep(Duration::from_millis(400));
         app.drain();
@@ -713,7 +797,7 @@ mod tests {
         set.ch[0] = (0..32000).map(|_| { s = s.wrapping_mul(1_664_525).wrapping_add(1_013_904_223); (s >> 17) as i16 }).collect();
         let sel = Arc::new(AtomicUsize::new(0));
         let input = NetInput { set, lead: 8000, sel: sel.clone(), export: None };
-        std::thread::spawn(move || run_net(link, Some(input), tx, Arc::new(|| {})));
+        std::thread::spawn(move || run_net(link, Some(input), NetCtl::idle(), tx, Arc::new(|| {})));
         let mut app = App::new(rx, "emulator".into()).with_selection(sel);
         std::thread::sleep(Duration::from_millis(1800));
         app.drain();
@@ -724,5 +808,72 @@ mod tests {
         assert!(app.inp.as_ref().unwrap()[0].columns().len() > 50);
         assert_eq!(i.underruns, 0);
         assert!(app.side_lines(60.0).iter().any(|(k, _)| k == "board audio latency"));
+    }
+
+    fn wav16(path: &std::path::Path, n: usize) {
+        let spec = hound::WavSpec { channels: 1, sample_rate: 16000, bits_per_sample: 16,
+                                    sample_format: hound::SampleFormat::Int };
+        let mut w = hound::WavWriter::create(path, spec).unwrap();
+        for i in 0..n {
+            w.write_sample(if i % 2 == 0 { 8000i16 } else { -8000 }).unwrap();
+        }
+    }
+
+    #[test]
+    fn dropped_wav_goes_to_the_selected_channel() {
+        let d = tempfile::tempdir().unwrap();
+        let p = d.path().join("music.wav");
+        wav16(&p, 1000);
+        let (_tx, rx) = std::sync::mpsc::channel();
+        let (ctx, crx) = std::sync::mpsc::channel();
+        let mut app = App::new(rx, "test".into()).with_commands(ctx);
+        app.sel = 5;
+        app.load_dropped(&p);
+        match crx.try_recv().expect("a command") {
+            NetCmd::SetChannel { ch, samples } => {
+                assert_eq!(ch, 5);
+                assert_eq!(samples.len(), 1000);
+                assert_eq!(samples.iter().map(|v| v.unsigned_abs()).max(), Some(16384)); // 0.5 FS
+            }
+        }
+        assert_eq!(app.names[5].as_deref(), Some("music.wav"));
+        assert!(app.error.is_none());
+    }
+
+    #[test]
+    fn dropped_bad_file_shows_an_error_and_sends_nothing() {
+        let d = tempfile::tempdir().unwrap();
+        let p = d.path().join("notes.txt");
+        std::fs::write(&p, b"not audio").unwrap();
+        let (_tx, rx) = std::sync::mpsc::channel();
+        let (ctx, crx) = std::sync::mpsc::channel();
+        let mut app = App::new(rx, "test".into()).with_commands(ctx);
+        app.load_dropped(&p);
+        assert!(crx.try_recv().is_err());
+        assert!(app.error.as_deref().is_some_and(|e| e.contains("notes.txt")), "{:?}", app.error);
+        assert!(app.names.iter().all(Option::is_none));
+    }
+
+    #[test]
+    fn set_channel_starts_a_stream_with_booth_clips_elsewhere() {
+        use crate::emulator::{EmuConfig, Emulator};
+        let (tx, rx) = std::sync::mpsc::channel();
+        let (ctx, crx) = std::sync::mpsc::channel();
+        let link: Box<dyn Link> = Box::new(Emulator::new(EmuConfig::default()));
+        let ctl = NetCtl { cmds: crx, lead: 8000, sel: Arc::new(AtomicUsize::new(0)) };
+        std::thread::spawn(move || run_net(link, None, ctl, tx, Arc::new(|| {})));
+        std::thread::sleep(Duration::from_millis(200));
+        ctx.send(NetCmd::SetChannel { ch: 2, samples: vec![1234; 640] }).unwrap();
+        std::thread::sleep(Duration::from_millis(600));
+        let mut sent = Vec::new();
+        while let Ok(m) = rx.try_recv() {
+            if let NetMsg::In(v) = m {
+                sent.extend(v);
+            }
+        }
+        assert!(sent.len() > 1000, "only {} input frames", sent.len());
+        assert!(sent.iter().all(|(_, f)| f[2] == 1234), "ch2 is the dropped file");
+        let booth = crate::wavin::booth_clips();
+        assert!(sent.iter().enumerate().all(|(k, (_, f))| f[3] == booth[3][k % 16384]), "ch3 plays its booth clip");
     }
 }

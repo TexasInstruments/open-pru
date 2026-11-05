@@ -102,6 +102,42 @@ impl InputSet {
     pub fn frame(&self, i: usize) -> [i16; 8] {
         std::array::from_fn(|c| self.ch[c].get(i).copied().unwrap_or(0))
     }
+
+    /// Frame `i` with every channel looping on its own length (the GUI);
+    /// a channel without samples is silent.
+    pub fn frame_looped(&self, i: u64) -> [i16; 8] {
+        std::array::from_fn(|c| {
+            let x = &self.ch[c];
+            if x.is_empty() { 0 } else { x[(i % x.len() as u64) as usize] }
+        })
+    }
+
+    /// Give every channel without a file its booth clip (design 7.2a).
+    pub fn fill_with_booth(&mut self) {
+        let b = booth_clips();
+        for (c, x) in self.ch.iter_mut().enumerate() {
+            if x.is_empty() {
+                *x = b[c].clone();
+            }
+        }
+    }
+}
+
+/// The board's booth clips: `mcuplus/pdm_clips.h` (compiled in), 8 channels
+/// x 16384 frames, what RTU1 plays without a PC stream.
+pub fn booth_clips() -> &'static [Vec<i16>; 8] {
+    static CLIPS: std::sync::OnceLock<[Vec<i16>; 8]> = std::sync::OnceLock::new();
+    CLIPS.get_or_init(|| {
+        let text = include_str!("../../pdm_audio_eth/mcuplus/pdm_clips.h");
+        let body = &text[text.find("pdm_clip_buffer[").expect("pdm_clips.h: no array")..];
+        let body = &body[body.find('{').expect("pdm_clips.h: no {") + 1..body.find("};").expect("pdm_clips.h: no };")];
+        let v: Vec<i16> = body
+            .split(|ch: char| ch == ',' || ch.is_whitespace())
+            .filter(|t| !t.is_empty())
+            .map(|t| t.parse().expect("pdm_clips.h: not a number"))
+            .collect();
+        std::array::from_fn(|c| v.iter().skip(c).step_by(8).copied().collect())
+    })
 }
 
 #[cfg(test)]
@@ -201,5 +237,38 @@ mod tests {
         std::fs::write(&junk, b"not a wav").unwrap();
         let e = load_channel(&junk).unwrap_err().to_string();
         assert!(e.contains("junk.wav"), "{e}");
+    }
+
+    #[test]
+    fn booth_clips_are_the_board_clip_buffer() {
+        let b = booth_clips();
+        for c in b.iter() {
+            assert_eq!(c.len(), 16384);
+        }
+        // ch3 is the 1 kHz tone (16 samples per period), peak 0.5 FS
+        assert!((0..1000).all(|i| b[3][i] == b[3][i + 16]));
+        assert_eq!(b[3].iter().map(|v| v.unsigned_abs()).max(), Some(16384));
+        // the header's last frame (the last 8 numbers of the initialiser)
+        let last: [i16; 8] = std::array::from_fn(|c| b[c][16383]);
+        assert_eq!(last, [312, 15544, -4674, -6270, -15136, -3196, -11585, -15136]);
+    }
+
+    #[test]
+    fn frame_looped_wraps_each_channel_on_its_own_length() {
+        let mut s = InputSet::default();
+        s.ch[0] = vec![1, 2, 3];
+        s.ch[1] = vec![10, 20, 30, 40, 50];
+        let f = s.frame_looped(7);
+        assert_eq!((f[0], f[1], f[2]), (2, 30, 0));
+    }
+
+    #[test]
+    fn fill_with_booth_fills_only_channels_without_a_file() {
+        let mut s = InputSet::default();
+        s.ch[1] = vec![5; 100];
+        s.fill_with_booth();
+        assert_eq!(s.ch[1], vec![5; 100]);
+        assert_eq!(s.ch[3], booth_clips()[3]);
+        assert_eq!(s.ch[0].len(), 16384);
     }
 }
