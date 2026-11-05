@@ -53,16 +53,18 @@
 #define TXCFG_ALL_OFF               (0x00000800U)
 #define G_ICSS_G_CFG_VAL            (0x0001022BU)   /* TX_L1/L2, RX_L2, RGMII both ports */
 #define GPCFG1_MII_VAL              (0x08000003U)   /* PRU1 GPI = MII_RT, GP_MUX_SEL = MII */
-#define TXCFG1_VAL                  (0x00000803U)   /* port 1: enable, auto preamble, PRU0 */
-#define TXCFG0_VAL                  (0x00000903U)
+/* HIL values plus bit 12 TX_IPG_WIRE_CLK_EN (both ports alike, TRM): the
+ * TX_IPG counter runs on the TX interface clock */
+#define TXCFG1_VAL                  (0x00001803U)   /* port 1: enable, auto preamble, PRU0 */
+#define TXCFG0_VAL                  (0x00001903U)
 #define RXCFG0_VAL                  (0x00000015U)
 #define RXCFG1_VAL                  (0x0000021FU)   /* port 1: ... RX_EOF on R31 bit 20 */
 #define RX_FRMS_MIN                 (0x06U)
-/* TX_IPG counts ICSSG1 core clocks (TXCFG TX_IPG_WIRE_CLK_EN = 0): 32 x 3 ns
- * = 96 ns at 333 MHz, the 1G minimum; the HIL value 0x18 was 96 ns at 250 MHz
- * (72 ns here). With the short post-EOF wait in eth_tx.asm this gap is the
- * only one between back-to-back frames. */
-#define TX_IPG_1G                   (0x00000020U)
+/* TX_IPG in TX interface clocks (TXCFG bit 12): n + 1 clocks of 8 ns at 1G,
+ * 11 = 96 ns, the TRM minimum for RGMII 1G. In core-clock mode (HIL 0x18,
+ * then 0x20 = 96 ns of 333 MHz clocks) back-to-back 64-byte frames left
+ * every 661 ns on the board, an 85 ns gap. */
+#define TX_IPG_1G                   (0x0000000BU)
 #define G_RGMII_CFG_VAL             (0x006600DDU)   /* both ports 1000 Mbit/s, FD, link */
 #define IEP_CFG_333MHZ_NS           (0x00000331U)   /* enable, increment 3: counts ns */
 
