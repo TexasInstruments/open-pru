@@ -1,6 +1,7 @@
 # Test report: pdm_audio_eth (PDM audio over Gigabit Ethernet, AM243x LP)
 
-Date: 2026-11-04, 22:10 CET (off-board results re-run on the pushed head)
+Date: 2026-11-04, 22:10 CET (off-board results re-run on the pushed head);
+section 6 board runs 2026-11-05
 Branch: `dev_tley_electronica2026_pdm_audio_eth` (open-pru), commit `18284abc`,
 stacked on `dev_tley_electronica2026_pdm_audio`
 Design: [design.md](design.md), plan: [plan.md](plan.md), board project:
@@ -11,11 +12,14 @@ Design: [design.md](design.md), plan: [plan.md](plan.md), board project:
 | Part | Status |
 | ---- | ------ |
 | Off-board: builds, PRU assembler and linter, PC application tests, PC application against its board emulator | **PASS**, section 3 |
-| On the board: ICSSG1 Ethernet, PC to board and board to PC audio | **not run yet**, section 6 (FIXME) |
+| On the board: ICSSG1 Ethernet (B0, B3) | **PASS** 2026-11-05, section 6 |
+| On the board: link console line, clip buffer, RX counters, audio both ways (B1, B2, B4 to B9) | **not run yet**, section 6 (FIXME) |
 
-Nothing of the Ethernet part has run on an LP-AM243 yet. The board runs were
-deferred by the user during the implementation ("Need to skip for now. Save it
-for later verification and continue with next block if possible."). The ICSSG0
+The board runs were deferred by the user during the implementation ("Need to
+skip for now. Save it for later verification and continue with next block if
+possible."). The Ethernet test (B0, B3) ran on the board on 2026-11-05, after
+two firmware fixes found there (section 6.1); the audio checks are still to
+run. The ICSSG0
 PDM chain is the board-tested `pdm_audio` firmware (board run PASSED
 2026-11-04, see the
 [pdm_audio porting report](../../../pdm_audio/pdm_audio/docs/porting_report.md));
@@ -24,14 +28,15 @@ this project uses it byte for byte.
 There was no pru-simulator work for this project (user decision: "board is the
 test bench for Ethernet. No simulator work here"). The ICSSG1 firmware
 (`eth_rx.asm`, `eth_tx.asm`) is therefore checked only by the assembler, the
-linter and the structure tests of section 3.3. Its timing and its behaviour
-on the real MII_RT, TX_L2 and RX_L2 hardware are not checked yet.
+linter and the structure tests of section 3.3 off the board, and by the
+board runs of section 6.
 
 ## 2. Setup
 
 | Item | Value |
 | ---- | ----- |
-| Host PC | Intel Core Ultra 7 265F, Ubuntu 26.04, kernel 7.0.0-38, Realtek RTL8125 `enp129s0` (cable not connected for these runs) |
+| Host PC | Intel Core Ultra 7 265F, Ubuntu 26.04, kernel 7.0.0-38, Realtek RTL8125 `enp129s0` (cable not connected for section 3; direct cable to the LP J18 (RGMII2) for section 6) |
+| PC tuning (section 6) | `isolcpus=domain,managed_irq,6-7 nohz_full=6-7 rcu_nocbs=6-7 irqaffinity=0-5,8-19`; `enp129s0` interrupt on CPU 6 (systemd `pdm-eth-irq.service`), `pdm-eth` network thread on CPU 7 (`link::pin_for_nic`) |
 | PC toolchain | Rust 1.99.1, cargo 1.99.1 |
 | Board toolchain | MCU+ SDK 12.01.00.33, CCS 21.0.1, ti-cgt-pru 2.3.3, ti-cgt-armllvm 5.1.1.LTS, SysConfig 1.28.1 |
 | Board | LP-AM243 Rev A (for section 6) |
@@ -160,21 +165,60 @@ CCS headless: `~/ti/ccs2101/ccs/eclipse/ccs-server-cli.sh -workspace <new dir>
 
 ## 6. Board results
 
-FIXME: not run yet. Wiring and PC setup are in [../readme.md](../readme.md).
-Run the first session in this order (one PONG, then pings, throughput, audio):
+Wiring and PC setup are in [../readme.md](../readme.md). Run order: one PONG,
+then pings, throughput, audio. B0 and B3 ran on 2026-11-05 with the firmware
+of `23428c46`; the other checks are still FIXME.
 
 | # | Check | Command | Pass criterion | Result |
 | - | ----- | ------- | -------------- | ------ |
-| B0 | Single PONG | `pdm-eth test --iface enp129s0 --pings 1 --seconds 0.1` | ping line 1/1 | FIXME |
+| B0 | Single PONG | `pdm-eth test --iface enp129s0 --pings 1 --seconds 0.1` | ping line 1/1 | **PASS**: 1/1, RTT 141 us, board turnaround 0.39 us |
 | B1 | ICSSG0 header | CCS memory browser 0x30010000 | as in pdm_audio, CLIP_FRAMES 0x4000, UNDERRUN_COUNT 0, SD_OVF_COUNT 0 | FIXME |
-| B2 | Link | console line, `ethtool enp129s0` | `link 1000 FD on ICSSG1 port 1`; 1000 Mb/s, full duplex | FIXME |
-| B3 | Ethernet test | `pdm-eth test --iface enp129s0` | every line PASS: 0 lost of 10 000 pings, at least 500 Mbit/s each way, less than 0.1 % loss | FIXME: RTT min/mean/p99/max, turnaround, Mbit/s both ways |
+| B2 | Link | console line, `ethtool enp129s0` | `link 1000 FD on ICSSG1 port 1`; 1000 Mb/s, full duplex | PC side **PASS** (`ethtool`: 1000Mb/s, Full, link detected). FIXME: the console prints link DOWN although data flows (MDIO link poll) |
+| B3 | Ethernet test | `pdm-eth test --iface enp129s0` | every line PASS: 0 lost of 10 000 pings, at least 500 Mbit/s each way, less than 0.1 % loss | **PASS** 3 of 3 runs, section 6.2 |
 | B4 | Clip buffer untouched | save 0x700C0000, 0x40000 bytes after B3; compare with `mcuplus/pdm_clips.h` | identical | FIXME |
 | B5 | RX counters | ICSSG1 shared RAM 0x30090010 | RX_BAD not rising with RX_FRAMES | FIXME |
 | B6 | Board to PC | `pdm-eth capture --iface enp129s0 --seconds 600 --out DIR` | lost 0, resyncs 0, tx_late 0; channels 3 to 7 at 1000, 3000, 500, 2000, 5000 Hz at the pdm_audio levels; CCS half A matches the capture | FIXME |
 | B7 | GUI | `pdm-eth gui --iface enp129s0` | channel 3 a 1 kHz line, channel 1 the chirp, at least 30 fps while switching channels, lost 0 over 10 min | FIXME: fps |
 | B8 | PC to board | 8 WAVs of at least 60 s via `gui` and `stream --capture DIR` | input underrun/blocked/lost 0, UNDERRUN_COUNT and SD_OVF_COUNT 0, input and output spectrograms alike, `in_ch*.wav` and `out_ch*.wav` match (back-to-back AUDIO_IN frames both land) | FIXME |
 | B9 | Board audio latency | GUI side panel during B8 | stable within 1 ms | FIXME: ms |
+
+### 6.1 Fixes found on the board
+
+| Commit | Finding |
+| ------ | ------- |
+| `6f4d0431` | the ICSSG IEP count is at offset 0x10/0x14; 0x0C is `slow_compen`, so every board time stamp was wrong |
+| `82eea4c5` | the TPUT frame sent right after the second AUDIO_OUT frame of a pair never reached the wire (the MAC counted it TX_GOOD); PRU0 now waits 0.3 us (`AUDIO_TX_GUARD`) after an audio pair |
+| `80ef1862` | 64-byte throughput test added (frame rate, not only Mbit/s) |
+| `23428c46` | `sendmmsg` batching, and the network thread is pinned away from the NIC interrupt CPU: with both on one CPU the NIC dropped frames (`rx_missed`) |
+
+### 6.2 B3 Ethernet test
+
+Three runs of `pdm-eth test --iface enp129s0` with the tuning of section 2
+(interrupt on CPU 6, network thread on CPU 7):
+
+| Run | Ping RTT min/mean/p99/max | Board turnaround | To board 1514 B | From board 1514 B | To board 64 B | From board 64 B |
+| --- | ------------------------- | ---------------- | --------------- | ----------------- | ------------- | --------------- |
+| 1 | 17/39/187/4133 us | 0.30-32.02 us | 984.4 Mbit/s | 956.5 Mbit/s | 0.595 Mframes/s | 1.051 Mframes/s |
+| 2 | 19/29/163/4020 us | 0.30-31.57 us | 984.4 Mbit/s | 956.5 Mbit/s | 0.595 Mframes/s | 1.051 Mframes/s |
+| 3 | 19/23/56/273 us | 0.30-31.61 us | 984.4 Mbit/s | 956.4 Mbit/s | 0.595 Mframes/s | 1.051 Mframes/s |
+
+Every run: 10 000 of 10 000 pings, 0 frames lost and 0 sequence gaps in all
+four throughput directions, NIC `rx_missed` unchanged.
+
+- Board turnaround (PONG IEP time minus PING receive IEP time) is 0.3 us when
+  PRU0 is idle. The maximum of about 32 us is a PONG that waits behind an
+  AUDIO_OUT pair already on the wire (2 x 1118 B).
+- The single pings of about 4 ms (runs 1 and 2) are on the PC: the board
+  turnaround of the same runs stays below 33 us. They do not matter for audio,
+  where the PC runs 0.5 s ahead.
+- 64 B to the board, 0.6 Mframes/s, is the limit of the PC's NIC (one
+  doorbell per frame). 64 B from the board, 1.05 Mframes/s, is the PRU0 limit
+  (100 NOPs after each EOF).
+- Before the NIC interrupt was moved to CPU 6 (it stayed on CPU 17, because
+  `pdm-eth-irq.service` ran before NetworkManager opened `enp129s0`), one of
+  three runs lost 2688 frames of the 64 B board-to-PC test in the NIC
+  (`rx_missed`); the board lost none. The service now waits for the
+  interrupt to appear.
 
 When the table is filled, close the matching FIXMEs in
 [../readme.md](../readme.md) ("Validated HW & SW", "Hardware results") and
