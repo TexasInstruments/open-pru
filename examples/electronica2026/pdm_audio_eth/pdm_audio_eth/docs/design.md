@@ -394,6 +394,24 @@ window and for example audio with speech and music (7.2b).
   (a 30 s music file next to the 1.024 s clips). Before, all channels
   looped on the longest file and the shorter ones were silent until then.
 - **Labels:** the IN pane names the channel's source.
+- **A new source starts at its beginning:** each channel counts from the
+  sample at which its source was set (before: one shared counter, so a
+  30 s file chosen 40 s into the session started 10 s in).
+- **Capture sets (user):** for real multi-microphone captures, which must
+  stay sample-aligned. "open capture set..." above the table multi-selects
+  up to 8 mono WAV files (user: mono files, not one multichannel file);
+  sorted by file name they go to ch0, ch1, ... (channels beyond the set
+  keep their sources). The set is loaded as a whole:
+  - all files mono and at one sample rate, else the set is refused with
+    an error naming the file;
+  - trimmed to the shortest file from a common start (user), so every
+    channel has the same length and they loop together; the side panel
+    shows the length and how many samples were cut;
+  - **one gain for the set:** its loudest sample maps to 0.5 FS, so the
+    level differences between the microphones are kept (a single file is
+    still scaled on its own);
+  - handed to the network thread in one command (`NetCmd::SetSet`), so all
+    its channels start on the same sample.
 
 ### 7.2b Example audio
 
