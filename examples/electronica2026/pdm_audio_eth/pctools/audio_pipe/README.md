@@ -161,8 +161,9 @@ Run `SCENE_ROOT=... node tools/render_mics.js factory <dir> '<json>'`. The rende
 - `_voices` / `_rate`: put other 16 kHz clips into the `male_low` / `female_high` voice slots.
 - `_noise_db`: offset for every ambient noise source and robot noise.
 
-`tools/voices/worker_{a,b}.wav` are two extra sentences, synthesised with SpeechBrain TTS (Tacotron2 + HiFi-GAN,
-LJSpeech). Worker A is pitched down by 0.85. Score a run with `python3 tools/wer4.py <out> <scene>`.
+`tools/voices/worker_{a,b,c}.wav` are three extra sentences, synthesised with SpeechBrain TTS (Tacotron2 + HiFi-GAN,
+LJSpeech). Worker A is pitched down by 0.85 at render time; worker C ("The forklift is waiting at gate two.") is pitched
+up by 1.1 in the file and replaces the Scene Simulator's female in the booth scenes (`tools/make_booth_scenes.sh`). Score a run with `python3 tools/wer4.py <out> <scene>`.
 
 | talker (Factory, RT60 1.2 s) | az | partial overlap, 9.5 s | same, noise −10 dB | dense: up to 4 at once, −10 dB |
 |---|---|---|---|---|

@@ -5,7 +5,7 @@
 import json, re, sys
 REF = {"male": "hi there how are you doing today", "female": "i'm good what is the plan for the day",
        "male_low": "please bring the red toolbox to station four", "female_high": "the conveyor belt stopped five minutes ago"}
-NUM = {"4": "four", "5": "five"}
+NUM = {"2": "two", "3": "three", "4": "four", "5": "five", "10": "ten"}
 def norm(t):
     t = t.lower().replace("what's", "what is")
     return [NUM.get(w, w) for w in re.sub(r"[^a-z0-9' ]", " ", t).split()]

@@ -19,11 +19,19 @@ OUT=${BOOTH_OUT:-$(readlink -f "$HERE/../../../pc_app")/audio/booth}
 V=$HERE/voices
 : "${SCENE_ROOT:?set SCENE_ROOT to the folder that holds scenes/web}"
 
-# talker <id> <voice> <az> <dist m> <dB> <start s>
-talker() { printf '{"id":"%s","voice":"%s","az":%s,"el":0,"dist":%s,"db":%s,"start":%s,"target":true}' "$@"; }
+# talker <id> <voice> <az> <dist m> <dB> <start s> [reference text, for a replaced clip]
+talker() {
+    printf '{"id":"%s","voice":"%s","az":%s,"el":0,"dist":%s,"db":%s,"start":%s,"target":true' "$1" "$2" "$3" "$4" "$5" "$6"
+    [ -n "${7:-}" ] && printf ',"text":"%s"' "$7"
+    printf '}'
+}
 
-# scene <name> <duration s> <talker json>...: the factory scenario, the two TTS
-# workers in the male_low (worker A, 0.85x) and female_high (worker B) slots
+# scene <name> <duration s> <talker json>...: the factory scenario with three
+# TTS voices (tools/voices, SpeechBrain Tacotron2 + HiFi-GAN, LJSpeech):
+# worker A (0.85x) in the male_low slot, worker B in female_high, worker C
+# (1.1x) in the female slot; the male is the Scene Simulator's male.wav. The
+# Scene Simulator's female.wav is not used: in this hall (RT60 1.2 s) whisper
+# garbles her at every position tried (2026-11-07).
 scene() {
     local name=$1 dur=$2; shift 2
     if [ ${#want[@]} -gt 0 ] && [[ ! " ${want[*]} " =~ " $name " ]]; then return; fi
@@ -32,15 +40,26 @@ scene() {
     mkdir -p "$d"
     echo "== $name"
     node "$HERE/render_mics.js" factory "$d" "{\"_dur\":$dur,\"speakers\":[$sp],\
-\"_voices\":{\"male_low\":\"$V/worker_a.wav\",\"female_high\":\"$V/worker_b.wav\"},\"_rate\":{\"male_low\":0.85},\"_dry_dir\":\"$d/dry\"}"
+\"_voices\":{\"male_low\":\"$V/worker_a.wav\",\"female_high\":\"$V/worker_b.wav\",\"female\":\"$V/worker_c.wav\"},\
+\"_rate\":{\"male_low\":0.85},\"_dry_dir\":\"$d/dry\"}"
 }
 want=("$@")
+C="The forklift is waiting at gate two."
 
-# factory_a: the 2026-11-07 scene factory_4workers_9s5_b270_f150 (female not yet exact: Task 10)
+# The directions are where each voice comes out exact (machine 90°, press 330°,
+# AGV 120°->40°, robot 1 60°->170°, conveyor 180° make the others hard).
+# factory_a: male first, then worker C, A, B (0.4 s apart, overlapping)
 scene factory_a 9.5 \
     "$(talker s1 male 30 1.5 0 0.3)" \
-    "$(talker s2 female 150 2.0 -2 0.7)" \
+    "$(talker s2 female 0 1.5 0 0.7 "$C")" \
     "$(talker s3 male_low 210 1.8 -1 1.1)" \
     "$(talker s4 female_high 270 2.5 -3 1.5)"
+
+# factory_b: the same places, the other order (worker B first, the male last)
+scene factory_b 9.5 \
+    "$(talker s1 female_high 270 2.5 -3 0.3)" \
+    "$(talker s2 male_low 210 1.8 -1 0.7)" \
+    "$(talker s3 female 0 1.5 0 1.1 "$C")" \
+    "$(talker s4 male 30 1.5 0 1.5)"
 
 echo "scenes in $OUT"
