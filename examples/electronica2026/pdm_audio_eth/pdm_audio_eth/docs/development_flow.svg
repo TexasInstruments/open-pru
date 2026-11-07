@@ -1,0 +1,165 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1640 1130" width="1640" height="1130" font-family="Segoe UI, Ubuntu, Helvetica, Arial, sans-serif">
+  <defs>
+    <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#44546a"/>
+    </marker>
+    <marker id="arrw" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="9" markerHeight="9" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#c0392b"/>
+    </marker>
+    <style>
+      .t  { font-size: 15px; fill: #1f2933; }
+      .ts { font-size: 13.5px; fill: #3e4c59; }
+      .h  { font-size: 17px; font-weight: 700; fill: #ffffff; }
+      .hd { font-size: 13px; fill: #e8eef5; }
+      .sec{ font-size: 20px; font-weight: 700; fill: #1f2933; }
+      .num{ font-size: 15px; font-weight: 700; fill: #1f2933; }
+      .ok { fill: #1e7b45; font-weight: 700; }
+      .no { fill: #b03a2e; font-weight: 700; }
+    </style>
+  </defs>
+
+  <rect x="0" y="0" width="1640" height="1130" fill="#ffffff"/>
+  <text x="40" y="44" font-size="26" font-weight="700" fill="#1f2933">8-channel PDM MEMS microphone pipeline on AM243x: from simulation to hardware-in-the-loop</text>
+  <text x="40" y="72" class="ts">AI-assisted ("vibe coding") development with Claude Code, 2026-11-03 to 2026-11-05. Each stage is tested before the next one starts.</text>
+
+  <!-- ===== Stage row ===== -->
+  <g>
+    <rect x="40" y="96" width="360" height="250" rx="10" fill="#f4f7fb" stroke="#2c6fb7" stroke-width="2"/>
+    <rect x="40" y="96" width="360" height="52" rx="10" fill="#2c6fb7"/><rect x="40" y="130" width="360" height="18" fill="#2c6fb7"/>
+    <text x="56" y="122" class="h">1  pru-simulator: the audio example</text>
+    <text x="56" y="142" class="hd">2026-11-03 · TI pru-simulator</text>
+    <text x="56" y="176" class="t">2 channels: PRU1 sigma-delta modulator</text>
+    <text x="56" y="198" class="t">and PDM pins, PRU0 SD SINC3 (OSR 96),</text>
+    <text x="56" y="220" class="t">FIR ÷2, DC blocker → 16 kHz PCM</text>
+    <text x="56" y="246" class="t">Live spectrograms in the Audio view</text>
+    <text x="56" y="272" class="t">Cycle-exact, every pin and register</text>
+    <text x="56" y="298" class="t">visible, no board needed</text>
+    <text x="56" y="328" class="num">0.09 s of audio per minute</text>
+  </g>
+  <g>
+    <rect x="440" y="96" width="360" height="250" rx="10" fill="#f4f7fb" stroke="#1e7b45" stroke-width="2"/>
+    <rect x="440" y="96" width="360" height="52" rx="10" fill="#1e7b45"/><rect x="440" y="130" width="360" height="18" fill="#1e7b45"/>
+    <text x="456" y="122" class="h">2  open-pru: 8 channels on the LP</text>
+    <text x="456" y="142" class="hd">2026-11-03 to 11-04 · ICSSG0 at 333 MHz</text>
+    <text x="456" y="176" class="t">RTU1: 8 sigma-delta modulators</text>
+    <text x="456" y="198" class="t">PRU1: PDM clock + 8 data pins → 9 jumpers</text>
+    <text x="456" y="220" class="t">PRU0: 8 SD channels → PCM ping-pong</text>
+    <text x="456" y="246" class="t">Simulator harness checks the port</text>
+    <text x="456" y="272" class="t">(3 channels, all three cores)</text>
+    <text x="456" y="298" class="t">Board run: 20 min, 0 underrun, 0 overflow</text>
+    <text x="456" y="328" class="num">8 channels in real time</text>
+  </g>
+  <g>
+    <rect x="840" y="96" width="360" height="250" rx="10" fill="#f4f7fb" stroke="#b9770e" stroke-width="2"/>
+    <rect x="840" y="96" width="360" height="52" rx="10" fill="#b9770e"/><rect x="840" y="130" width="360" height="18" fill="#b9770e"/>
+    <text x="856" y="122" class="h">3  + Gigabit Ethernet on ICSSG1</text>
+    <text x="856" y="142" class="hd">2026-11-04 to 11-05 · PRUs only in the data path</text>
+    <text x="856" y="176" class="t">ICSSG1 PRU1 receives, PRU0 sends raw</text>
+    <text x="856" y="198" class="t">Ethernet frames; the R5F only sets up</text>
+    <text x="856" y="220" class="t">One protocol file, mirrored in C and Rust</text>
+    <text x="856" y="246" class="t">Board checks B0 to B9: all PASS</text>
+    <text x="856" y="272" class="t">600 s capture, no frame lost</text>
+    <text x="856" y="298" class="t">Output = input to -85 dB or better</text>
+    <text x="856" y="328" class="num">98 % of line rate, 1.08 ms latency</text>
+  </g>
+  <g>
+    <rect x="1240" y="96" width="360" height="250" rx="10" fill="#f4f7fb" stroke="#6c3483" stroke-width="2"/>
+    <rect x="1240" y="96" width="360" height="52" rx="10" fill="#6c3483"/><rect x="1240" y="130" width="360" height="18" fill="#6c3483"/>
+    <text x="1256" y="122" class="h">4  Rust PC application</text>
+    <text x="1256" y="142" class="hd">2026-11-04 to 11-05 · pdm-eth, egui</text>
+    <text x="1256" y="176" class="t">Board emulator: develop and test the</text>
+    <text x="1256" y="198" class="t">app without hardware</text>
+    <text x="1256" y="220" class="t">Ethernet test, capture, stream, GUI</text>
+    <text x="1256" y="246" class="t">Live spectrograms, per-channel sources,</text>
+    <text x="1256" y="272" class="t">synchronized capture sets</text>
+    <text x="1256" y="298" class="t">Analysis tools for every board check</text>
+    <text x="1256" y="328" class="num">91 unit + 6 integration tests</text>
+  </g>
+  <line x1="402" y1="221" x2="436" y2="221" stroke="#44546a" stroke-width="3" marker-end="url(#arr)"/>
+  <line x1="802" y1="221" x2="836" y2="221" stroke="#44546a" stroke-width="3" marker-end="url(#arr)"/>
+  <line x1="1202" y1="221" x2="1236" y2="221" stroke="#44546a" stroke-width="3" marker-end="url(#arr)"/>
+
+  <!-- ===== Application signal chain ===== -->
+  <text x="40" y="398" class="sec">The 8-channel MEMS microphone application (signal flow on the board and the PC)</text>
+  <g>
+    <rect x="40" y="416" width="280" height="132" rx="8" fill="#eaf2fb" stroke="#2c6fb7"/>
+    <text x="54" y="442" class="num">8 × PDM MEMS microphone</text>
+    <text x="54" y="466" class="ts">today emulated on the board:</text>
+    <text x="54" y="486" class="ts">RTU1 runs 8 sigma-delta modulators,</text>
+    <text x="54" y="506" class="ts">PRU1 drives clock + data pins,</text>
+    <text x="54" y="526" class="ts">9 jumpers into the SD inputs</text>
+
+    <rect x="360" y="416" width="300" height="132" rx="8" fill="#eaf6ee" stroke="#1e7b45"/>
+    <text x="374" y="442" class="num">ICSSG0 PRU0: decoder</text>
+    <text x="374" y="466" class="ts">8 SD channels, SINC3 OSR 96,</text>
+    <text x="374" y="486" class="ts">FIR ÷2, 20 Hz DC blocker</text>
+    <text x="374" y="506" class="ts">→ 16 kHz 24-bit PCM, 8 channels</text>
+    <text x="374" y="526" class="ts">in 4 ms ping-pong halves</text>
+
+    <rect x="700" y="416" width="300" height="132" rx="8" fill="#fdf3e4" stroke="#b9770e"/>
+    <text x="714" y="442" class="num">ICSSG1: Gigabit Ethernet</text>
+    <text x="714" y="466" class="ts">PRU0 sends 2 frames per half</text>
+    <text x="714" y="486" class="ts">(500/s, PCM + status + IEP time)</text>
+    <text x="714" y="506" class="ts">PRU1 receives PC audio (250/s)</text>
+    <text x="714" y="526" class="ts">into the clip ring that RTU1 plays</text>
+
+    <rect x="1040" y="416" width="270" height="132" rx="8" fill="#f3ecf8" stroke="#6c3483"/>
+    <text x="1054" y="442" class="num">PC: pdm-eth (Rust)</text>
+    <text x="1054" y="466" class="ts">input vs output spectrograms</text>
+    <text x="1054" y="486" class="ts">WAV capture and stream</text>
+    <text x="1054" y="506" class="ts">latency, loss and board counters</text>
+    <text x="1054" y="526" class="ts">shared-memory seam for processing</text>
+
+    <rect x="1350" y="416" width="250" height="132" rx="8" fill="#ffffff" stroke="#6c3483" stroke-dasharray="7 5"/>
+    <text x="1364" y="442" class="num">Next: GPU stage</text>
+    <text x="1364" y="466" class="ts">speaker separation,</text>
+    <text x="1364" y="486" class="ts">noise and echo cancelling,</text>
+    <text x="1364" y="506" class="ts">beamforming on the</text>
+    <text x="1364" y="526" class="ts">synchronized 8 channels</text>
+  </g>
+  <line x1="322" y1="470" x2="356" y2="470" stroke="#44546a" stroke-width="3" marker-end="url(#arr)"/>
+  <line x1="662" y1="470" x2="696" y2="470" stroke="#44546a" stroke-width="3" marker-end="url(#arr)"/>
+  <line x1="1002" y1="470" x2="1036" y2="470" stroke="#44546a" stroke-width="3" marker-end="url(#arr)"/>
+  <line x1="1312" y1="470" x2="1346" y2="470" stroke="#44546a" stroke-width="3" stroke-dasharray="6 4" marker-end="url(#arr)"/>
+  <!-- return path PC -> board -->
+  <path d="M1175,550 L1175,580 L180,580 L180,552" fill="none" stroke="#44546a" stroke-width="2.5" stroke-dasharray="8 5" marker-end="url(#arr)"/>
+  <text x="440" y="602" class="ts">PC → board: WAV audio per channel over Ethernet (AUDIO_IN, 0.5 s ahead) replaces the clips the modulators play</text>
+
+  <!-- ===== Value: simulation -> HIL ===== -->
+  <text x="40" y="660" class="sec">The value of moving from simulation to hardware-in-the-loop</text>
+  <g>
+    <rect x="40" y="678" width="640" height="300" rx="10" fill="#f4f7fb" stroke="#2c6fb7" stroke-width="2"/>
+    <text x="60" y="708" font-size="18" font-weight="700" fill="#2c6fb7">Simulation (pru-simulator)</text>
+    <text x="60" y="740" class="t"><tspan class="ok">+</tspan>  Cycle budgets known before any hardware:</text>
+    <text x="80" y="762" class="ts">RTU1 1329 of 2278 cycles, PRU0 4082 of 10417 per batch</text>
+    <text x="60" y="790" class="t"><tspan class="ok">+</tspan>  Deterministic and fully visible: every register, every pin edge</text>
+    <text x="60" y="818" class="t"><tspan class="ok">+</tspan>  No board, no lab: runs on any PC, any time</text>
+    <text x="60" y="846" class="t"><tspan class="ok">+</tspan>  The decoder chain is checked bit for bit against a Python model</text>
+    <text x="60" y="880" class="t"><tspan class="no">−</tspan>  About 11 minutes of simulation per second of audio</text>
+    <text x="60" y="908" class="t"><tspan class="no">−</tspan>  No Ethernet PHY, MAC, NIC or PC operating system</text>
+    <text x="60" y="936" class="t"><tspan class="no">−</tspan>  Only as right as its model of the silicon</text>
+  </g>
+  <g>
+    <line x1="692" y1="828" x2="788" y2="828" stroke="#c0392b" stroke-width="6" marker-end="url(#arrw)"/>
+    <text x="740" y="800" text-anchor="middle" font-size="16" font-weight="700" fill="#c0392b">≈ 660×</text>
+    <text x="740" y="868" text-anchor="middle" class="ts">to real time</text>
+  </g>
+  <g>
+    <rect x="800" y="678" width="800" height="300" rx="10" fill="#fdf8f0" stroke="#b9770e" stroke-width="2"/>
+    <text x="820" y="708" font-size="18" font-weight="700" fill="#b9770e">Hardware-in-the-loop (LP-AM243 + PC over Gigabit Ethernet)</text>
+    <text x="820" y="740" class="t"><tspan class="ok">+</tspan>  Real time, 8 channels in both directions, hours of run time</text>
+    <text x="820" y="768" class="t"><tspan class="ok">+</tspan>  The PC app is the test bench: test, capture, stream, analysis</text>
+    <text x="820" y="800" class="t" font-weight="700">Found on the board (parts with no simulator model), fixed the same day:</text>
+    <text x="840" y="826" class="ts">• IEP counter at offset 0x10, not 0x0C: every board time stamp was wrong</text>
+    <text x="840" y="850" class="ts">• a frame right after an audio pair never reached the wire → 0.3 µs guard</text>
+    <text x="840" y="874" class="ts">• port-1 PHY at MDIO address 15, not 3 → console said "link DOWN"</text>
+    <text x="840" y="898" class="ts">• 100-cycle wait after each frame → 5 cycles: 64 B frames 1.05 → 1.46 Mframes/s</text>
+    <text x="840" y="922" class="ts">• TX_IPG counts 333 MHz clocks: 72 ns frame gap → 0x28, about 109 ns</text>
+    <text x="840" y="946" class="ts">• NIC interrupt shared a CPU with the app → dropped frames → CPU isolation</text>
+  </g>
+  <rect x="40" y="996" width="1560" height="104" rx="10" fill="#eef5ee" stroke="#1e7b45"/>
+  <text x="60" y="1024" class="t" font-weight="700">Caught before the board, by tests and review on the PC:</text>
+  <text x="60" y="1050" class="ts">• the ping handler ran into the audio store (every ping wrote into the clip buffer): structure test of the PRU assembly</text>
+  <text x="60" y="1072" class="ts">• protocol constants kept equal in PRU assembly, C and Rust: mirror test · board reset, loss and pacing handled: emulator tests</text>
+  <text x="60" y="1094" class="ts">→ the board sessions were left with the parts no simulator modelled here: ICSSG1 Ethernet registers and timing, the PHY, the PC's NIC and kernel.</text>
+</svg>
