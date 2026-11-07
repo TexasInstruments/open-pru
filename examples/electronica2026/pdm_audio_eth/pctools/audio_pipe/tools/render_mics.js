@@ -9,14 +9,19 @@ const web = path.join(process.env.SCENE_ROOT, "scenes", "web"), root = path.join
 const ctx = { console, Math, Date, Float64Array, Float32Array, Uint32Array, Array, Object, JSON, Number, String, Set };
 vm.createContext(ctx);
 // optional overrides (in-memory only, the repo is not modified):
-//   "_dur": scene length in s (engine default 5.5; also lifts the 4.5 s start clamp and the 5.5 s noise loops)
+//   "_dur": scene length in s (engine default 5.5). The current engine takes it as the "duration" setting (1-120 s,
+//           start clamp and noise loops follow it); an engine without "duration" (before scenes 2026-10) is patched
+//           in source as before. Either way the rendered length is checked.
 //   "_voices": {"male_low": "a.wav", "female_high": "b.wav"} replace those two voice slots with other 16 kHz clips
 //   "_rate": {"male_low": 0.85} resampling factor applied to a replaced clip (pitch/tempo change)
 const [scene, out, extra] = process.argv.slice(2);
 const ov = extra ? JSON.parse(extra) : {};
 let src = ["engine.js", "scenarios.js"].map(f => fs.readFileSync(path.join(web, "src", f), "utf8")).join("\n");
-if (ov._dur) {
-  const d = Number(ov._dur);
+const DUR_WANT = ov._dur ? Number(ov._dur) : null;
+const DUR_PARAM = src.includes("engSetDuration(");   // current engine: length is the "duration" setting
+if (DUR_WANT && !DUR_PARAM) {
+  if (!src.includes("DUR = 5.5,")) throw new Error("engine changed: neither engSetDuration() nor 'DUR = 5.5,' found");
+  const d = DUR_WANT;
   src = src.replace("DUR = 5.5,", `DUR = ${d},`).replace("engClamp(Number(s.start) || 0, 0, 4.5)", `engClamp(Number(s.start) || 0, 0, ${d - 1})`)
     .replace(/(t|c) < 5\.5;/g, "$1 < DUR_SC();");
 }
@@ -66,11 +71,14 @@ if (ov._voices) {   // engVoice() derives male_low/female_high from male/female;
 }
 //   "_noise_db": dB offset applied to every ambient noise source and to the robot's own noises
 const p = { ...paramsFor(scene), ...Object.fromEntries(Object.entries(ov).filter(([k]) => !k.startsWith("_"))) };
+if (DUR_WANT && DUR_PARAM) p.duration = DUR_WANT;
 if (ov._noise_db) {
   p.noises = (p.noises || []).map(n => ({ ...n, db: n.db + ov._noise_db }));
   for (const k of ["fan", "neck", "shoulders", "footsteps", "clicks", "hum"]) if (p[k + "Db"] !== undefined) p[k + "Db"] += ov._noise_db;
 }
 const res = render(p, voices);
+if (DUR_WANT && res.mics[0].length !== Math.round(DUR_WANT * 16000))
+  throw new Error(`_dur ${DUR_WANT} s requested, rendered ${res.mics[0].length / 16000} s (engine clamps "duration" to 1-120 s)`);
 fs.mkdirSync(out, { recursive: true });
 let pk = 0; for (const c of res.mics) for (const v of c) pk = Math.max(pk, Math.abs(v));
 const g = pk > 0.99 ? 0.99 / pk : 1;
