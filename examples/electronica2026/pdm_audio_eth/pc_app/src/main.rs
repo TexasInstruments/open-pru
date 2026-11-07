@@ -207,12 +207,12 @@ fn gui(target: &Target, inputs: &Inputs, lead: u32, export_shm: Option<String>, 
 }
 
 /// The link and its (Mbit/s, full duplex, carrier).
-type Opened = (Box<dyn Link>, (u32, bool, bool));
+type Opened = (Box<dyn Link>, pdm_eth::link::LinkInfo);
 
 /// `pin`: pin this thread for NIC work (the GUI pins its network thread).
 fn open(t: &Target, pin: bool) -> Result<Opened, String> {
     if t.emulator {
-        return Ok((Box::new(Emulator::new(EmuConfig::default())), (1000, true, true)));
+        return Ok((Box::new(Emulator::new(EmuConfig::default())), (1000, Some(true), true)));
     }
     let info = link_info(&t.iface).map_err(|e| format!("{}: {e}", t.iface))?;
     let link = AfPacketLink::open(&t.iface).map_err(|e| e.to_string())?;

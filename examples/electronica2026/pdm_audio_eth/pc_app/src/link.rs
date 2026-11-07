@@ -55,14 +55,15 @@ pub fn now_ns() -> u64 {
     ts.tv_sec as u64 * 1_000_000_000 + ts.tv_nsec as u64
 }
 
-/// `(Mbit/s, full duplex, carrier)` of `iface` from sysfs. A down interface
-/// reads as `(0, false, false)`.
-pub fn link_info(iface: &str) -> io::Result<(u32, bool, bool)> {
+/// `(Mbit/s, full duplex, carrier)` of `iface` from sysfs. Duplex is `None`
+/// when the driver does not report it (cdc_ncm USB adapters write
+/// "unknown"). A down interface reads as `(0, None, false)`.
+pub fn link_info(iface: &str) -> io::Result<LinkInfo> {
     link_info_at(Path::new("/sys/class/net"), iface)
 }
 
 /// [`link_info`] with an injectable sysfs root (tests).
-pub fn link_info_at(root: &Path, iface: &str) -> io::Result<(u32, bool, bool)> {
+pub fn link_info_at(root: &Path, iface: &str) -> io::Result<LinkInfo> {
     let d = root.join(iface);
     if !d.is_dir() {
         return Err(io::Error::new(io::ErrorKind::NotFound, format!("no interface {iface}")));
@@ -70,9 +71,16 @@ pub fn link_info_at(root: &Path, iface: &str) -> io::Result<(u32, bool, bool)> {
     let read = |f: &str| std::fs::read_to_string(d.join(f)).ok().map(|s| s.trim().to_string());
     let carrier = read("carrier").as_deref() == Some("1");
     let speed = read("speed").and_then(|s| s.parse::<i64>().ok()).filter(|v| *v > 0).unwrap_or(0);
-    let full = read("duplex").as_deref() == Some("full");
+    let full = match read("duplex").as_deref() {
+        Some("full") => Some(true),
+        Some("half") => Some(false),
+        _ => None,
+    };
     Ok((speed as u32, full, carrier))
 }
+
+/// `(Mbit/s, full duplex if reported, carrier)`, see [`link_info`].
+pub type LinkInfo = (u32, Option<bool>, bool);
 
 /// NIC receive overruns of `iface`: rx_missed_errors + rx_fifo_errors +
 /// rx_over_errors from sysfs (0 if unreadable). rx_dropped is left out: it
@@ -427,10 +435,13 @@ mod tests {
         std::fs::write(d.join("speed"), "1000\n").unwrap();
         std::fs::write(d.join("duplex"), "full\n").unwrap();
         std::fs::write(d.join("carrier"), "1\n").unwrap();
-        assert_eq!(link_info_at(root.path(), "enpX").unwrap(), (1000, true, true));
+        assert_eq!(link_info_at(root.path(), "enpX").unwrap(), (1000, Some(true), true));
         std::fs::write(d.join("carrier"), "0\n").unwrap();
         std::fs::write(d.join("duplex"), "half\n").unwrap();
-        assert_eq!(link_info_at(root.path(), "enpX").unwrap(), (1000, false, false));
+        assert_eq!(link_info_at(root.path(), "enpX").unwrap(), (1000, Some(false), false));
+        // cdc_ncm (USB adapters) writes "unknown"
+        std::fs::write(d.join("duplex"), "unknown\n").unwrap();
+        assert_eq!(link_info_at(root.path(), "enpX").unwrap(), (1000, None, false));
     }
 
     #[test]
@@ -440,7 +451,7 @@ mod tests {
         let d = root.path().join("enpY");
         std::fs::create_dir_all(&d).unwrap();
         std::fs::write(d.join("carrier"), "0\n").unwrap();
-        assert_eq!(link_info_at(root.path(), "enpY").unwrap(), (0, false, false));
+        assert_eq!(link_info_at(root.path(), "enpY").unwrap(), (0, None, false));
     }
 
     #[test]

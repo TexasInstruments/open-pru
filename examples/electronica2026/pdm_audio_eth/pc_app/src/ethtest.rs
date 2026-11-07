@@ -85,7 +85,7 @@ impl TputResult {
 /// Everything the test measured.
 #[derive(Clone, Debug, PartialEq)]
 pub struct Summary {
-    pub link: (u32, bool, bool),
+    pub link: crate::link::LinkInfo,
     pub ping: PingResult,
     pub to_board: TputResult,
     pub from_board: TputResult,
@@ -134,8 +134,15 @@ impl Summary {
         let to64 = tput_verdict(&self.to_board_64);
         let from64 = tput_verdict(&self.from_board_64);
         vec![
-            ("link", mbit == 1000 && full && carrier,
-             format!("{mbit}/{}{}", if full { "full" } else { "half" }, if carrier { "" } else { ", no carrier" })),
+            // duplex None: the driver does not say (cdc_ncm); not a fail
+            ("link", mbit == 1000 && full != Some(false) && carrier,
+             format!("{mbit}/{}{}",
+                     match full {
+                         Some(true) => "full",
+                         Some(false) => "half",
+                         None => "duplex not reported by the driver",
+                     },
+                     if carrier { "" } else { ", no carrier" })),
             ("ping", p.sent > 0 && p.lost == 0,
              format!("{}/{}, rtt min/mean/p99/max {:.0}/{:.0}/{:.0}/{:.0} us, board turnaround {:.2}-{:.2} us",
                      p.sent - p.lost, p.sent, p.min_us, p.mean_us, p.p99_us, p.max_us,
@@ -282,7 +289,7 @@ pub fn tput_from_board(link: &mut dyn Link, cfg: &TestConfig, frame: usize) -> i
 }
 
 /// The whole test: ping, then throughput both ways.
-pub fn run(link: &mut dyn Link, cfg: &TestConfig, link_info: (u32, bool, bool)) -> io::Result<Summary> {
+pub fn run(link: &mut dyn Link, cfg: &TestConfig, link_info: crate::link::LinkInfo) -> io::Result<Summary> {
     hello(link)?;
     let ping = ping(link, cfg)?;
     let to_board = tput_to_board(link, cfg, TPUT_FRAME)?;
@@ -341,7 +348,7 @@ mod tests {
 
     fn summary(to: TputResult, from: TputResult) -> Summary {
         Summary {
-            link: (1000, true, true),
+            link: (1000, Some(true), true),
             ping: PingResult { sent: 10, lost: 0, min_us: 1.0, mean_us: 2.0, p99_us: 3.0, max_us: 4.0, board_turnaround_ns: (1, 2) },
             to_board: to.clone(),
             from_board: from.clone(),
@@ -368,10 +375,24 @@ mod tests {
         assert!(!pass(&s, "to board").0);
         assert!(pass(&s, "from board").0);
         let mut s = summary(tput(Dir::ToBoard, 900.0, 1, 0, 0), tput(Dir::FromBoard, 900.0, 1, 0, 0));
-        s.link = (100, true, true);
+        s.link = (100, Some(true), true);
         assert!(!pass(&s, "link").0);
         s.ping.lost = 1;
         assert!(!pass(&s, "ping").0);
+    }
+
+    #[test]
+    fn link_with_unreported_duplex_passes_and_says_so() {
+        // cdc_ncm USB adapters report duplex "unknown": not a half-duplex link
+        let mut s = summary(tput(Dir::ToBoard, 900.0, 1, 0, 0), tput(Dir::FromBoard, 900.0, 1, 0, 0));
+        s.link = (1000, None, true);
+        let (ok, text) = pass(&s, "link");
+        assert!(ok, "{text}");
+        assert_eq!(text, "1000/duplex not reported by the driver");
+        s.link = (1000, Some(false), true);
+        assert_eq!(pass(&s, "link"), (false, "1000/half".to_string()));
+        s.link = (1000, Some(true), true);
+        assert_eq!(pass(&s, "link"), (true, "1000/full".to_string()));
     }
 
     #[test]
@@ -394,7 +415,7 @@ mod tests {
     #[test]
     fn run_against_emulator_passes() {
         let mut e = Emulator::new(EmuConfig::default());
-        let s = run(&mut e, &quick(), (1000, true, true)).unwrap();
+        let s = run(&mut e, &quick(), (1000, Some(true), true)).unwrap();
         let v = s.verdicts();
         for (name, ok, text) in &v {
             assert!(ok, "{name}: {text}");
