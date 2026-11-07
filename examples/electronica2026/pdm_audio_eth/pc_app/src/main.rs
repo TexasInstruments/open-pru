@@ -148,15 +148,28 @@ enum Cmd {
         /// throttled by the compositor)
         #[arg(long)]
         no_vsync: bool,
+        /// Booth playlist: every subfolder with mic1..8.wav is a scene,
+        /// played in name order, each followed by 1 s of silence, looped
+        #[arg(long, conflicts_with_all = ["ch0", "ch1", "ch2", "ch3", "ch4", "ch5", "ch6", "ch7", "set"])]
+        playlist: Option<PathBuf>,
     },
 }
 
 fn gui(target: &Target, inputs: &Inputs, lead: u32, export_shm: Option<String>, screenshot: Option<PathBuf>,
-       no_vsync: bool) -> Result<(), String> {
-    let names = inputs.names();
-    // stream from the start; channels without a --chN file play their booth
-    // clip (design 7.2a)
-    let set = Some(InputSet::gui_start(inputs.load()?));
+       no_vsync: bool, playlist: Option<PathBuf>) -> Result<(), String> {
+    let mut names = inputs.names();
+    let (set, marks, scenes) = match &playlist {
+        Some(dir) => {
+            let pl = pdm_eth::playlist::load_playlist(dir).map_err(|e| e.to_string())?;
+            eprintln!("playlist {}: {} scenes, loop {:.1} s", dir.display(), pl.passes.len(), pl.total as f64 / 16000.0);
+            names = std::array::from_fn(|_| Some(format!("playlist {}", dir.display())));
+            (pl.set, pl.passes.iter().map(|p| p.offset).collect(), pl.passes.iter().map(|p| p.scene.clone()).collect())
+        }
+        // stream from the start; channels without a --chN file play their
+        // booth clip (design 7.2a)
+        None => (InputSet::gui_start(inputs.load()?), Vec::new(), Vec::new()),
+    };
+    let set = Some(set);
     let export = match export_shm {
         Some(n) => Some(pdm_eth::seam::ShmExport::create(&n, 256).map_err(|e| format!("/dev/shm/{n}: {e}"))?),
         None => None,
@@ -184,7 +197,7 @@ fn gui(target: &Target, inputs: &Inputs, lead: u32, export_shm: Option<String>, 
         options,
         Box::new(move |cc| {
             let sel = std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0));
-            let input = set.map(|set| pdm_eth::ui::NetInput { set, lead, sel: sel.clone(), export });
+            let input = set.map(|set| pdm_eth::ui::NetInput { set, lead, sel: sel.clone(), export, marks });
             let (cmd_tx, cmd_rx) = std::sync::mpsc::channel();
             let ctl = pdm_eth::ui::NetCtl { cmds: cmd_rx, lead, sel: sel.clone() };
             let ctx = cc.egui_ctx.clone();
@@ -195,7 +208,7 @@ fn gui(target: &Target, inputs: &Inputs, lead: u32, export_shm: Option<String>, 
                 }
                 pdm_eth::ui::run_net(link, input, ctl, tx, repaint)
             });
-            let app = pdm_eth::ui::App::new(rx, source).with_selection(sel).with_commands(cmd_tx)
+            let app = pdm_eth::ui::App::new(rx, source).with_selection(sel).with_commands(cmd_tx).with_playlist(scenes)
                 .with_sources(names.map(|n| n.map_or(pdm_eth::sources::Source::Booth, pdm_eth::sources::Source::File)));
             Ok(Box::new(match screenshot {
                 Some(p) => app.with_screenshot(p, Duration::from_secs(5)),
@@ -248,7 +261,7 @@ fn main() -> ExitCode {
             }
             if all { ExitCode::SUCCESS } else { ExitCode::FAILURE }
         }
-        Cmd::Gui { target, inputs, lead, export_shm, screenshot, no_vsync } => match gui(&target, &inputs, lead, export_shm, screenshot, no_vsync) {
+        Cmd::Gui { target, inputs, lead, export_shm, screenshot, no_vsync, playlist } => match gui(&target, &inputs, lead, export_shm, screenshot, no_vsync, playlist) {
             Ok(()) => ExitCode::SUCCESS,
             Err(e) => {
                 eprintln!("error: {e}");

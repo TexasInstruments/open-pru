@@ -65,6 +65,8 @@ pub struct NetInput {
     pub sel: Arc<AtomicUsize>,
     /// Aligned input/output blocks to a shared-memory ring (processing seam).
     pub export: Option<crate::seam::ShmExport>,
+    /// Loop offsets of the playlist's pass starts (empty without a playlist).
+    pub marks: Vec<usize>,
 }
 
 /// UI -> network thread.
@@ -101,6 +103,9 @@ pub enum NetMsg {
     In(Vec<(u64, [i16; 8])>),
     Stats(NetStats),
     Error(String),
+    /// The frame at loop offset `marks[slot]` went to the board with board
+    /// index `index`, in loop number `cycle` (from 0).
+    Mark { slot: usize, cycle: u64, index: u64 },
 }
 
 fn hello(link: &mut dyn Link) -> std::io::Result<()> {
@@ -135,7 +140,7 @@ pub fn run_net(mut link: Box<dyn Link>, input: Option<NetInput>, ctl: NetCtl, tx
                 let mut set = InputSet::default();
                 set.fill_with_booth();
                 pacer = Some(Pacer::new(ctl.lead, 16384));
-                NetInput { set, lead: ctl.lead, sel: ctl.sel.clone(), export: None }
+                NetInput { set, lead: ctl.lead, sel: ctl.sel.clone(), export: None, marks: Vec::new() }
             });
             // a new source plays from its first sample, starting with the next block
             match cmd {
@@ -183,9 +188,20 @@ pub fn run_net(mut link: Box<dyn Link>, input: Option<NetInput>, ctl: NetCtl, tx
         if let (Some(p), Some(inp)) = (pacer.as_mut(), input.as_ref()) {
             while let Some(first) = p.next_due(now_ns()) {
                 let mut pcm = Box::new([[0i16; 8]; 64]);
+                let total = inp.set.ch[0].len() as u64;
                 for (k, row) in pcm.iter_mut().enumerate() {
-                    *row = inp.set.frame_looped(pos + k as u64);
+                    let p = pos + k as u64;
+                    *row = inp.set.frame_looped(p);
                     sent_in.push((first as u64 + k as u64, *row));
+                    if !inp.marks.is_empty() && total > 0 {
+                        let rel = p.saturating_sub(inp.set.start[0]);
+                        if let Some(slot) = inp.marks.iter().position(|&m| m as u64 == rel % total) {
+                            let m = NetMsg::Mark { slot, cycle: rel / total, index: first as u64 + k as u64 };
+                            if tx.send(m).is_err() {
+                                return;
+                            }
+                        }
+                    }
                 }
                 let x: Vec<i16> = pcm.iter().map(|r| r[meter_ch.min(7)]).collect();
                 meter.push_in(first as u64, &x);
@@ -324,6 +340,10 @@ pub struct App {
     pub(crate) sources: [Source; 8],
     /// The loaded capture set, for the side panel.
     pub(crate) set_info: Option<String>,
+    /// Playlist scene names, by pass slot.
+    pub(crate) scenes: Vec<String>,
+    /// Scene and pass number of the newest pass start sent to the board.
+    pub(crate) pass: Option<(String, u64)>,
 }
 
 impl App {
@@ -350,6 +370,22 @@ impl App {
             cmds: None,
             sources: std::array::from_fn(|_| Source::Booth),
             set_info: None,
+            scenes: Vec::new(),
+            pass: None,
+        }
+    }
+
+    /// Scene names of the playlist (`--playlist`), in pass-slot order.
+    pub fn with_playlist(mut self, scenes: Vec<String>) -> Self {
+        self.scenes = scenes;
+        self
+    }
+
+    /// Title of the IN pane of channel `c`.
+    pub(crate) fn in_label(&self, c: usize) -> String {
+        match &self.pass {
+            Some((scene, n)) => format!("ch{c} IN (PC): {scene} (pass {n})"),
+            None => format!("ch{c} IN (PC): {}", self.sources[c].label()),
         }
     }
 
@@ -543,6 +579,11 @@ impl App {
                     self.stats = s;
                 }
                 NetMsg::Error(e) => self.error = Some(e),
+                NetMsg::Mark { slot, cycle, .. } => {
+                    if let Some(scene) = self.scenes.get(slot) {
+                        self.pass = Some((scene.clone(), cycle * self.scenes.len() as u64 + slot as u64));
+                    }
+                }
             }
         }
     }
@@ -802,8 +843,7 @@ impl eframe::App for App {
             let c = self.sel;
             let o = self.out[c].range();
             let i = self.inp.as_ref().map_or(o, |inp| inp[c].range());
-            let name = self.sources[c].label();
-            pane(ui, h, &self.tex[0], &format!("ch{c} IN (PC): {name}"),
+            pane(ui, h, &self.tex[0], &self.in_label(c),
                  "no input stream: choose a source on the right", Scale::Level(i.0, i.1));
             pane(ui, h, &self.tex[1], &format!("ch{c} OUT (board, PDM round trip)"), "waiting for the board",
                  Scale::Level(o.0, o.1));
@@ -896,7 +936,7 @@ mod tests {
         let mut s = 7u32;
         set.ch[0] = (0..32000).map(|_| { s = s.wrapping_mul(1_664_525).wrapping_add(1_013_904_223); (s >> 17) as i16 }).collect();
         let sel = Arc::new(AtomicUsize::new(0));
-        let input = NetInput { set, lead: 8000, sel: sel.clone(), export: None };
+        let input = NetInput { set, lead: 8000, sel: sel.clone(), export: None, marks: Vec::new() };
         std::thread::spawn(move || run_net(link, Some(input), NetCtl::idle(), tx, Arc::new(|| {})));
         let mut app = App::new(rx, "emulator".into()).with_selection(sel);
         std::thread::sleep(Duration::from_millis(1800));
@@ -908,6 +948,65 @@ mod tests {
         assert!(app.inp.as_ref().unwrap()[0].columns().len() > 50);
         assert_eq!(i.underruns, 0);
         assert!(app.side_lines(60.0).iter().any(|(k, _)| k == "board audio latency"));
+    }
+
+    /// A 4000-frame loop, frame i of channel c = i + c, pass starts at 0 and 1500; messages for `ms`.
+    fn run_marks(cfg: crate::emulator::EmuConfig, ms: u64) -> (InputSet, Vec<(usize, u64, u64)>, std::collections::HashMap<u64, [i16; 8]>) {
+        use crate::emulator::Emulator;
+        let (tx, rx) = std::sync::mpsc::channel();
+        let link: Box<dyn Link> = Box::new(Emulator::new(cfg));
+        let mut set = InputSet::default();
+        for c in 0..8 {
+            set.ch[c] = (0..4000).map(|i| i + c as i16).collect();
+        }
+        let input = NetInput { set: set.clone(), lead: 8000, sel: Arc::new(AtomicUsize::new(0)), export: None, marks: vec![0, 1500] };
+        std::thread::spawn(move || run_net(link, Some(input), NetCtl::idle(), tx, Arc::new(|| {})));
+        let t0 = Instant::now();
+        let (mut marks, mut ins) = (Vec::new(), std::collections::HashMap::new());
+        while t0.elapsed() < Duration::from_millis(ms) {
+            match rx.recv_timeout(Duration::from_millis(50)) {
+                Ok(NetMsg::Mark { slot, cycle, index }) => marks.push((slot, cycle, index)),
+                Ok(NetMsg::In(v)) => ins.extend(v),
+                _ => {}
+            }
+        }
+        (set, marks, ins)
+    }
+
+    #[test]
+    fn marks_carry_board_indices() {
+        let (set, marks, ins) = run_marks(crate::emulator::EmuConfig::default(), 600);
+        assert!(marks.len() >= 2, "{marks:?}");
+        assert_eq!((marks[0].0, marks[1].0), (0, 1));
+        assert_eq!(marks[1].2 - marks[0].2, 1500);
+        assert_eq!(ins[&marks[0].2], set.frame(0));
+        assert_eq!(ins[&marks[1].2], set.frame(1500));
+    }
+
+    #[test]
+    fn marks_repeat_every_cycle() {
+        let (_, marks, _) = run_marks(crate::emulator::EmuConfig::default(), 900);
+        let first = marks[0].2;
+        let again = marks.iter().find(|m| m.0 == 0 && m.1 == 1).expect("slot 0, cycle 1");
+        assert_eq!(again.2, first + 4000);
+    }
+
+    #[test]
+    fn board_reset_does_not_stop_marks() {
+        let cfg = crate::emulator::EmuConfig { reset_after_ms: Some(400), ..Default::default() };
+        let (_, marks, _) = run_marks(cfg, 2500);
+        let reset = marks.windows(2).position(|w| w[1].2 < w[0].2).expect("indices restart after the reset");
+        assert!(marks.len() - reset > 3, "marks stop after the reset: {marks:?}");
+    }
+
+    #[test]
+    fn mark_names_scene_and_pass() {
+        let (tx, rx) = std::sync::mpsc::channel();
+        let mut app = App::new(rx, "test".into()).with_playlist(vec!["a".into(), "b".into()]);
+        tx.send(NetMsg::Mark { slot: 1, cycle: 2, index: 123 }).unwrap();
+        app.drain();
+        assert_eq!(app.pass, Some(("b".to_string(), 5)));
+        assert_eq!(app.in_label(0), "ch0 IN (PC): b (pass 5)");
     }
 
     fn wav16(path: &std::path::Path, n: usize) {
