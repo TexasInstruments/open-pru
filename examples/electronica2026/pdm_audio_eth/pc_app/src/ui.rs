@@ -344,6 +344,12 @@ pub struct App {
     pub(crate) scenes: Vec<String>,
     /// Scene and pass number of the newest pass start sent to the board.
     pub(crate) pass: Option<(String, u64)>,
+    /// Text lanes per talker.
+    pub(crate) lanes: crate::lanes::Lanes,
+    /// audio_pipe's state; None without --transcribe.
+    pub(crate) tstatus: Option<crate::transcribe::TStatus>,
+    /// End of speech to final text of the newest utterance.
+    pub(crate) text_latency_ms: Option<f32>,
 }
 
 impl App {
@@ -372,6 +378,72 @@ impl App {
             set_info: None,
             scenes: Vec::new(),
             pass: None,
+            lanes: crate::lanes::Lanes::default(),
+            tstatus: None,
+            text_latency_ms: None,
+        }
+    }
+
+    /// A final utterance from audio_pipe.
+    pub(crate) fn on_text(&mut self, t: crate::transcribe::TextLine) {
+        self.text_latency_ms = Some(t.latency_ms);
+        self.lanes.add(t);
+    }
+
+    /// Board index (input side) of the newest frame the panes show.
+    fn now_index(&self) -> Option<u64> {
+        let lag = self.stats.input.as_ref().and_then(|i| i.lag).unwrap_or(0);
+        self.out_newest.map(|k| (k as i64 + lag).max(0) as u64)
+    }
+
+    /// Height of the lane area.
+    fn lanes_h(&self) -> f32 {
+        match self.tstatus {
+            None => LANE_H,
+            Some(_) => LANE_H * self.lanes.lanes.len().clamp(4, crate::lanes::MAX_LANES) as f32,
+        }
+    }
+
+    /// The text lanes, on the panes' time axis.
+    fn draw_lanes(&self, ui: &mut egui::Ui, h: f32) {
+        let (resp, painter) = ui.allocate_painter(vec2(ui.available_width(), h), Sense::hover());
+        let img = image_rect(resp.rect);
+        painter.rect_filled(img, 2.0, Color32::from_rgb(17, 19, 24));
+        let grey = Color32::from_rgb(150, 150, 160);
+        let msg = match &self.tstatus {
+            None => Some("transcription off".to_string()),
+            Some(st @ crate::transcribe::TStatus::Off(_)) => Some(format!("transcription {st}")),
+            Some(st) if self.lanes.lanes.is_empty() => Some(match st {
+                crate::transcribe::TStatus::Running => "listening…".to_string(),
+                _ => format!("transcription {st}"),
+            }),
+            Some(_) => None,
+        };
+        if let Some(m) = msg {
+            painter.text(img.center(), egui::Align2::CENTER_CENTER, m, egui::FontId::proportional(16.0), grey);
+            return;
+        }
+        let Some(now) = self.now_index() else { return };
+        let clip = painter.with_clip_rect(img);
+        let secs = |i: u64| now.saturating_sub(i) as f32 / 16000.0;
+        for (row, lane) in self.lanes.lanes.iter().enumerate() {
+            let top = img.top() + row as f32 * LANE_H;
+            if row > 0 {
+                painter.line_segment([pos2(img.left(), top), pos2(img.right(), top)], (1.0, Color32::from_rgb(35, 38, 46)));
+            }
+            let c = crate::lanes::palette(lane.colour);
+            painter.text(pos2(resp.rect.left() + 2.0, top + LANE_H / 2.0), egui::Align2::LEFT_CENTER,
+                         format!("● {} · {:.0}°", lane.label, lane.az), egui::FontId::proportional(12.0), c);
+            let fill = Color32::from_rgb((c.r() as f32 * 0.5) as u8, (c.g() as f32 * 0.5) as u8, (c.b() as f32 * 0.5) as u8);
+            for t in &lane.items {
+                let x0 = time_x(img.left(), img.right(), secs(t.start));
+                let x1 = time_x(img.left(), img.right(), secs(t.end));
+                let g = painter.layout_no_wrap(t.text.clone(), egui::FontId::proportional(14.0), Color32::WHITE);
+                let w = (g.size().x + 16.0).max(x1 - x0);
+                let r = Rect::from_min_max(pos2(x0, top + 3.0), pos2(x0 + w, top + LANE_H - 3.0));
+                clip.rect_filled(r, 9.0, fill);
+                clip.galley(pos2(x0 + 8.0, r.center().y - g.size().y / 2.0), g, Color32::WHITE);
+            }
         }
     }
 
@@ -655,6 +727,9 @@ impl App {
         let mut v = vec![
             ("spectrogram".into(), format!("{fps:.0} fps")),
             ("frames/s out".into(), format!("{:.0}", s.out_frames_per_s)),
+            // high up: the panel scrolls, these must be visible at the booth
+            ("transcription".into(), self.tstatus.as_ref().map_or("off".into(), |t| t.to_string())),
+            ("text latency".into(), self.text_latency_ms.map_or("—".into(), |m| format!("{m:.0} ms"))),
         ];
         v.extend(self.extra.iter().cloned());
         v.extend([
@@ -680,6 +755,9 @@ pub fn save_png(path: &std::path::Path, img: &ColorImage) -> std::io::Result<()>
     let data: Vec<u8> = img.pixels.iter().flat_map(|c| c.to_array()).collect();
     w.write_image_data(&data).map_err(std::io::Error::other)
 }
+
+/// Height of one text lane.
+const LANE_H: f32 = 26.0;
 
 /// Side-panel line titles: readable at booth distance (were egui `small().weak()`).
 const LABEL_PX: f32 = 15.0;
@@ -800,6 +878,9 @@ impl eframe::App for App {
         let ctx = ui.ctx().clone();
         self.drain();
         self.release_input();
+        if let Some(now) = self.now_index() {
+            self.lanes.prune(now);
+        }
         let fps = self.fps();
         self.update_textures(&ctx);
         egui::Panel::top("toolbar").show(ui, |ui| {
@@ -821,6 +902,10 @@ impl eframe::App for App {
                 if let Some(e) = &self.error {
                     ui.colored_label(Color32::RED, e);
                 }
+                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                    ui.add_enabled(false, egui::Button::new("booth view")).on_disabled_hover_text("for the real-mic project");
+                    let _ = ui.selectable_label(true, "engineering");
+                });
             });
         });
         egui::Panel::right("numbers").resizable(false).exact_size(320.0).show(ui, |ui| {
@@ -839,7 +924,8 @@ impl eframe::App for App {
             });
         });
         egui::CentralPanel::default().show(ui, |ui| {
-            let h = ((ui.available_height() - 40.0 - TIME_STRIP_H - 26.0) / 2.0).max(60.0);
+            let lanes_h = self.lanes_h();
+            let h = ((ui.available_height() - 40.0 - TIME_STRIP_H - 26.0 - lanes_h - 4.0) / 2.0).max(60.0);
             let c = self.sel;
             let o = self.out[c].range();
             let i = self.inp.as_ref().map_or(o, |inp| inp[c].range());
@@ -848,6 +934,7 @@ impl eframe::App for App {
             pane(ui, h, &self.tex[1], &format!("ch{c} OUT (board, PDM round trip)"), "waiting for the board",
                  Scale::Level(o.0, o.1));
             pane(ui, 40.0, &self.tex[2], "difference IN - OUT", "", Scale::Diff);
+            self.draw_lanes(ui, lanes_h);
             time_axis(ui);
         });
         self.screenshot(&ctx);
@@ -1007,6 +1094,23 @@ mod tests {
         app.drain();
         assert_eq!(app.pass, Some(("b".to_string(), 5)));
         assert_eq!(app.in_label(0), "ch0 IN (PC): b (pass 5)");
+    }
+
+    #[test]
+    fn side_lines_show_transcription() {
+        let (_tx, rx) = std::sync::mpsc::channel();
+        let mut app = App::new(rx, "test".into());
+        let get = |app: &App, k: &str| app.side_lines(60.0).into_iter().find(|(a, _)| a == k).map(|(_, v)| v);
+        assert_eq!(get(&app, "text latency").as_deref(), Some("—"));
+        assert_eq!(get(&app, "transcription").as_deref(), Some("off"));
+        app.tstatus = Some(crate::transcribe::TStatus::Running);
+        app.on_text(crate::transcribe::TextLine { pass: 1, scene: "a".into(), speaker: 0, az: 30.0, start: 0, end: 16000,
+                                                  text: "Hi.".into(), latency_ms: 512.4 });
+        assert_eq!(get(&app, "text latency").as_deref(), Some("512 ms"));
+        assert_eq!(get(&app, "transcription").as_deref(), Some("running"));
+        assert_eq!(app.lanes.lanes.len(), 1);
+        app.tstatus = Some(crate::transcribe::TStatus::Off("audio_pipe not found: x".into()));
+        assert_eq!(get(&app, "transcription").as_deref(), Some("off: audio_pipe not found: x"));
     }
 
     fn wav16(path: &std::path::Path, n: usize) {

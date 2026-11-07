@@ -5,6 +5,7 @@
 
 pub mod emulator;
 pub mod ethtest;
+pub mod lanes;
 pub mod latency;
 pub mod link;
 pub mod pacing;
