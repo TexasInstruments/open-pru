@@ -92,6 +92,8 @@ pub struct CaptureSet {
     pub frames: usize,
     /// Frames cut from the end of each file to reach `frames`.
     pub trimmed: Vec<usize>,
+    /// int16 counts per file unit (full scale 1.0): the gain applied, 0 for a silent set.
+    pub gain: f32,
 }
 
 /// Load up to 8 mono files of one sample rate as one set: trimmed to the
@@ -123,7 +125,8 @@ pub fn load_set(paths: &[std::path::PathBuf]) -> Result<CaptureSet, WavError> {
     let trimmed = chans.iter().map(|c| c.len() - frames).collect();
     let peak = chans.iter().map(|c| peak_of(&c[..frames])).fold(0.0f32, f32::max);
     let ch = chans.iter().map(|c| scale(&c[..frames], peak)).collect();
-    Ok(CaptureSet { ch, frames, trimmed })
+    let gain = if peak > 0.0 { PEAK / peak } else { 0.0 };
+    Ok(CaptureSet { ch, frames, trimmed, gain })
 }
 
 /// Files for some of the 8 channels loaded as one capture set ([`load_set`]:

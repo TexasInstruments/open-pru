@@ -8,6 +8,7 @@ pub mod ethtest;
 pub mod latency;
 pub mod link;
 pub mod pacing;
+pub mod playlist;
 pub mod proto;
 pub mod rx;
 pub mod seam;
