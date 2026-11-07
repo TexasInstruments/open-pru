@@ -12,7 +12,8 @@
 # checkout as scenes/ (gh repo clone accio-sunshine/scenes).
 #   SCENE_ROOT=~/GitHub/audio_pipe_scenes tools/make_booth_scenes.sh [name ...]
 # Without names every scene is rendered. Each scene is kept only after
-# tools/booth_curate.py passed it on the board (5 passes, every talker exact).
+# tools/booth_curate.py passed it on the board (5 passes, every talker exact;
+# factory_a and factory_b: every pass exact, 8 and 9 passes, 2026-11-08).
 set -euo pipefail
 HERE=$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")
 OUT=${BOOTH_OUT:-$(readlink -f "$HERE/../../../pc_app")/audio/booth}
@@ -41,13 +42,19 @@ scene() {
     echo "== $name"
     node "$HERE/render_mics.js" factory "$d" "{\"_dur\":$dur,\"speakers\":[$sp],\
 \"_voices\":{\"male_low\":\"$V/worker_a.wav\",\"female_high\":\"$V/worker_b.wav\",\"female\":\"$V/worker_c.wav\"},\
-\"_rate\":{\"male_low\":0.85},\"_dry_dir\":\"$d/dry\"}"
+\"_rate\":{\"male_low\":0.85},\"_dry_dir\":\"$d/dry\",\"noises\":$NOISES}"
 }
 want=("$@")
 C="The forklift is waiting at gate two."
 
-# The directions are where each voice comes out exact (machine 90°, press 330°,
-# AGV 120°->40°, robot 1 60°->170°, conveyor 180° make the others hard).
+# The factory preset's noise sources, with the stamping press moved from 330°
+# to 150°: through the board the tracker pulled worker C (0°) onto the press at
+# 330° and whisper garbled her on most passes (2026-11-08). Everything else is
+# the preset (machine 90°, air hiss 250°, AGV 120°->40°, robot 1 60°->170°,
+# robot 2 300°->220°, conveyor 180°).
+NOISES='[{"id":"machine","label":"Machine hum + drive whine","gen":"machine_hum","az":90,"el":20,"dist":6,"db":-6,"on":true,"path":null},{"id":"press","label":"Stamping press","gen":"press","az":150,"el":10,"dist":7,"db":-3,"on":true,"path":null},{"id":"airhiss","label":"Compressed-air hiss","gen":"airhiss","az":250,"el":40,"dist":4,"db":-10,"on":true,"path":null},{"id":"agv","label":"AGV reverse beeper (moves)","gen":"agv_beeper","az":120,"el":-5,"dist":7,"db":-8,"on":true,"path":{"az1":40,"el1":-5,"dist1":6}},{"id":"robot1","label":"Other robot 1 (moves)","gen":"robot_a","az":60,"el":-5,"dist":5,"db":-9,"on":true,"path":{"az1":170,"el1":-5,"dist1":3.5}},{"id":"robot2","label":"Other robot 2 (moves)","gen":"robot_b","az":300,"el":-5,"dist":6,"db":-9,"on":true,"path":{"az1":220,"el1":-5,"dist1":4}},{"id":"conveyor","label":"Conveyor rumble + clacks","gen":"conveyor","az":180,"el":-10,"dist":5,"db":-9,"on":true,"path":null}]'
+
+# The directions are where each voice comes out exact.
 # factory_a: male first, then worker C, A, B (0.4 s apart, overlapping)
 scene factory_a 9.5 \
     "$(talker s1 male 30 1.5 0 0.3)" \
