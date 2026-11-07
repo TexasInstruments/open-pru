@@ -334,9 +334,10 @@ of one sample rate, for example a real 8-microphone recording:
 - stereo files, mixed sample rates or more than 8 files are refused with an
   error naming the file. Nothing changes then.
 
-The board adds a known offset: odd channels come out half a 16 kHz sample
-(1/32 ms) later than even ones (the decimation filter's even/odd stagger, see
-the pdm_audio readme).
+The eight output channels are time-aligned: the decimation filter's even/odd
+stagger is compensated in PRU0 (odd-channel coefficient table T_odd, see the
+pdm_audio readme). Firmware before 2026-11-07 put the even channels half a
+16 kHz sample (31.25 us) behind the odd ones.
 
 ### 7.4 Command line: start with files
 

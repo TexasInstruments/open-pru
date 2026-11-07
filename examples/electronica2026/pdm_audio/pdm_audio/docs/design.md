@@ -151,6 +151,9 @@ SINC3 window is 96 SD clocks = **10 416.7 cycles**.
 - Keep the round-robin and the even/odd FIR stagger. Known effect, already documented:
   odd channels' PCM is 1/32 kHz later. It is irrelevant here, but a note for the later
   mic-array project.
+  *Changed 2026-11-07 (mic-array project):* the stagger stays, but odd channels run the
+  FIR with T_odd[j] = T[j + 1], T_odd[63] = 0, which lines their PCM up with the even
+  channels' (readme, "Limitations and notes").
 - Budget: ~4 300 of 10 417 cycles worst-case window (~42 %), extrapolated from the 2-ch
   measurement. Re-measure it in the simulator at 3 channels.
   *Refined in implementation (Task 4, final review fix M4):* measured at 3 channels,

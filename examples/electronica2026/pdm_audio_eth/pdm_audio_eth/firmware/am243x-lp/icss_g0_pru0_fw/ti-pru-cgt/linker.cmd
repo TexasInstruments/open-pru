@@ -5,8 +5,8 @@
  * (pru0_rx.asm), built with the TI-PRU-CGT on AM243x ICSSG0.
  *
  * pru0_rx.asm has no data sections. At run time it keeps its state in
- * PRU0 DRAM0 local 0x07F8..0x19FF (publish block, FIR coefficients, 8
- * channel blocks; register and memory map in pru0_rx.asm), which takes
+ * PRU0 DRAM0 local 0x07F8..0x1AFF (publish block, FIR coefficients, 8
+ * channel blocks, odd-channel FIR coefficients; register and memory map in pru0_rx.asm), which takes
  * the RTU0 / TX_PRU0 share of DRAM0 too: this demo runs neither core.
  * PRU0 sections may only go to PRU0_DMEM_0 (0x0000..0x07F7). PRU0 never
  * touches DRAM1 (local 0x2000..0x3FFF), where RTU1 keeps its scratch at
@@ -24,11 +24,11 @@ MEMORY
 	/* Data RAMs */
 	/* 8 KB PRU Data RAM 0: the first 2 KB - 8 B for PRU0 sections */
 	PRU0_DMEM_0	: org = 0x00000000 len = 0x000007F8
-	/* pru0_rx.asm run-time state (PUB_BASE .. CH_BASE + 8 * CH_STRIDE):
+	/* pru0_rx.asm run-time state (PUB_BASE .. FIR_T_ODD_BASE + 0x100):
 	 * no sections are placed here */
-	PRU0_RX_STATE	: org = 0x000007F8 len = 0x00001208
+	PRU0_RX_STATE	: org = 0x000007F8 len = 0x00001308
 	/* Rest of DRAM0, unused (RTU0 / TX_PRU0 are not run) */
-	PRU0_DMEM_0_TOP	: org = 0x00001A00 len = 0x00000600
+	PRU0_DMEM_0_TOP	: org = 0x00001B00 len = 0x00000500
 	/* 8 KB PRU Data RAM 1; reserved completely for Slice1 cores - PRU1,
 	 * RTU1 and Tx_PRU1; do not use for any Slice0 cores */
 	PRU1_DMEM_1	: org = 0x00002000 len = 0x00001700

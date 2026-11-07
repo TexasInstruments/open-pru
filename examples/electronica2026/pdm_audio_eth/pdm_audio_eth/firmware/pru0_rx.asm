@@ -20,7 +20,8 @@
 ;   fir_coefs.inc (tools/gen_fir_coefs.py from decimation_fir.h), the Q32
 ;   DC blocker, sat24 and the even/odd FIR stagger. Changed: the SD set-up
 ;   (every channel CLK_SEL = 0, CLK_INV = 0, SD channel map SD_CH_k), the
-;   output (interleaved halves, PCM_COUNT[c]) and HALF_SEQ publishing.
+;   output (interleaved halves, PCM_COUNT[c]), HALF_SEQ publishing and the
+;   odd channels' coefficient table T_odd (time alignment, below).
 ;   Python reference: pru-simulator source/pdm/reference.py
 ;   (pcm_chain_for_channel); tests: pru-simulator
 ;   tests/test_pdm_open_pru_port.py (3 channels, all three cores).
@@ -54,6 +55,16 @@
 ;   odd channels on phase 1, and a window runs at most ceil(N_CH / 2) FIRs.
 ;   Odd channel c writes PCM n one window after channel c - 1 (the parity
 ;   of the logical index c counts, not the SD channel number).
+;   Time alignment: an odd channel's FIR window ends one comb output later
+;   (one 32 kHz sample, 31.25 us) than an even channel's. With the shared
+;   table T that put odd channels half a 16 kHz sample ahead of even ones
+;   (measured on the board: even channels +0.500 samples against odd, which
+;   a microphone array reads as a 1 cm position error). Odd channels use
+;   T_odd[j] = T[j + 1], T_odd[63] = 0 instead (built at the init from T;
+;   T[0] = 0, so no tap is lost): the newest input gets no weight and every
+;   other tap moves one input older, so odd PCM n is the FIR of the same
+;   comb outputs as even PCM n. Same tap count and MAC cycles; the table
+;   select costs 2 cycles per FIR.
 ;
 ; Output (pdm8_shared.inc, PDM8_SHARED_BASE in r22): sample n of channel c
 ;   goes to half h = (n >> 6) & 1, frame f = n & 63:
@@ -105,7 +116,7 @@
 ;   0x7F8  publish block (PUB_BASE): +0 HALF_SEQ (PRU0's copy), +4 b0/b1
 ;          channels done with frame 63 of half 0 / half 1
 ;   0x800  64 x Q27 coefficients T[j], oldest input first (FIR_T_BASE),
-;          shared by all channels
+;          even channels
 ;   0x900  channel block c at CH_BASE + c * CH_STRIDE (0x220), 8 blocks
 ;          up to 0x1A00:
 ;     +0x00  comb state x[-1], d3, d5 (3 words)
@@ -116,7 +127,9 @@
 ;     +0x18  DC estimate e, int64 Q32 (low word first)
 ;     +0x20  128 x int32 mirrored delay line: sample at index w in D[w],
 ;            D[w + 64]
-;   The 0x1000..0x1A00 part is the RTU0 / TX_PRU0 share of DRAM0 in the
+;   0x1A00 64 x Q27 coefficients T_odd[j] = T[j + 1], T_odd[63] = 0
+;          (FIR_T_ODD_BASE), odd channels
+;   The 0x1000..0x1B00 part is the RTU0 / TX_PRU0 share of DRAM0 in the
 ;   open-pru linker split; this demo runs neither core (linker.cmd), and
 ;   the R5F halts both before it starts PRU0.
 ;
@@ -182,7 +195,8 @@ SD_HALF_SCALE       .set    442368      ; SD_OSR^3 / 2
 DC_BLOCK            .set    1           ; 1 = 20 Hz DC blocker on, 0 = off
 WARMUP_SAMPLES      .set    3           ; comb outputs dropped after reinit (+1 on odd ch)
 PUB_BASE            .set    0x7F8       ; publish block in DRAM0 (8 bytes)
-FIR_T_BASE          .set    0x800       ; coefficient table in DRAM0
+FIR_T_BASE          .set    0x800       ; coefficient table in DRAM0 (even channels)
+FIR_T_ODD_BASE      .set    0x1A00      ; T_odd for odd channels (CH_BASE + 8 * CH_STRIDE)
 CH_BASE             .set    0x900       ; channel block 0 in DRAM0 (FIR_T_BASE + 0x100)
 CH_STRIDE           .set    0x220       ; bytes per channel block
 CH_STATE_OFS        .set    0x10        ; state word in a channel block
@@ -272,6 +286,9 @@ CH_D_OFS            .set    0x20        ; delay line in a channel block
     .endif
     .if CH_BASE + 8 * CH_STRIDE > 0x2000
     .emsg "channel blocks leave PRU0 DRAM0 (0x2000 and up is DRAM1)"
+    .endif
+    .if (FIR_T_ODD_BASE != CH_BASE + 8 * CH_STRIDE) | (FIR_T_ODD_BASE + 0x100 > 0x2000)
+    .emsg "FIR_T_ODD_BASE must follow the channel blocks inside PRU0 DRAM0"
     .endif
     .if PUB_BASE + 8 > FIR_T_BASE
     .emsg "PUB_BASE overlaps the coefficient table"
@@ -380,6 +397,19 @@ PDM_ZERO:
     .if FIR_COEF_OSR != SD_OSR
     .emsg "fir_coefs.inc was generated for a different SD_OSR"
     .endif
+    ; --- T_odd[j] = T[j + 1] (j = 0..62), T_odd[63] = 0: odd channels' table,
+    ;     one input older, so their PCM lines up with the even channels' ----
+    ldi     r0, FIR_T_BASE
+    add     r0, r0, 4                       ; T[1]
+    ldi     r1, FIR_T_ODD_BASE
+    loop    PDM_TODD, 63
+    lbco    &r2, c24, r0, 4
+    sbco    &r2, c24, r1, 4
+    add     r0, r0, 4
+    add     r1, r1, 4
+PDM_TODD:
+    ldi     r2, 0
+    sbco    &r2, c24, r1, 4                 ; T_odd[63] = 0
 
     ; --- MAC: multiply-only mode -------------------------------------------
     ldi     r25, 0
@@ -488,7 +518,10 @@ PDM_FIR:
     add     r0, r0, CH_D_OFS
     add     r0, r0, r20
     mov     r1.w2, r0.w0                    ; input offset of D[w + 1]
-    ldi     r0, FIR_T_BASE                  ; coefficient offset
+    ldi     r0, FIR_T_BASE                  ; coefficient offset: T (even c) ...
+    qbbc    PDM_FIR_T, r21, 0
+    ldi     r0, FIR_T_ODD_BASE              ; ... or T_odd (odd c)
+PDM_FIR_T:
     ldi     r18, 0
     ldi     r19, 0
     loop    PDM_FIR_END, 8

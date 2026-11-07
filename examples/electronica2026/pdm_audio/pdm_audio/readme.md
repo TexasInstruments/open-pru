@@ -469,11 +469,21 @@ the next project reads.
 
 ## Limitations and notes
 
-- **Odd channels are late.** The FIR stagger on PRU0 (even and odd channels
-  alternate) delays the PCM of the odd channels by 1/32 kHz (31.25 us)
-  relative to the even channels. Irrelevant for this demo, but it matters for
-  later beamforming across channels. Within a frame the odd channels' sample is
-  not simultaneous with the even channels'.
+- **The channels are time-aligned (since 2026-11-07).** The FIR stagger on
+  PRU0 (even and odd channels alternate) makes an odd channel's FIR window end
+  one comb output (31.25 us) later; with one coefficient table that put the
+  odd channels' PCM half a 16 kHz sample ahead of the even channels' (board,
+  the same noise on all 8 inputs: even channels +0.500 samples against odd).
+  For a microphone array that is a 1 cm position error: through the
+  audio_pipe post-processing (4 factory scenes, 16 talkers) it cost 1.7 dB
+  SDR and raised the WER from 0.15 to 0.23. Odd channels now use
+  T_odd[j] = T[j + 1], T_odd[63] = 0 (DRAM0 0x1A00, built at the init), so
+  their PCM n is the FIR of the same comb outputs as the even channels'.
+  Board, same test: all 8 channels at 0.000 samples, each within -82 dB of
+  channel 1; the post-processing is back at the direct-WAV result. Cost: 256
+  B of DRAM0, 2 cycles per FIR. The odd channels still write PCM n one SD
+  window after the even channels (the stagger itself is kept: it halves the
+  FIRs per window); only the time the sample stands for has changed.
 - **Modulator input range.** The RTU1 modulators use int32 integrators.
   Clips with a peak of 0.5 FS are safe (the clips are normalised to that).
   Sustained input near full scale wraps the integrators. Keep the input well
