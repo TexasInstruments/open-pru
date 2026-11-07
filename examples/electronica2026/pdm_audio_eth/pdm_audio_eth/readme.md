@@ -50,6 +50,13 @@ Build files exist for AM243x only. The other processors are `Yport`, as for
 
 ## How it works
 
+![Signal flow and clocks](docs/signal_flow.svg)
+
+The whole loop, WAV file to the 8 PDM pins and back to the GUI, with the
+clock domain, rate and buffer of every stage (`docs/signal_flow.png` is the
+same diagram as a picture, for slides; `tools/gen_signal_flow.py` generates
+it).
+
 | Core | Firmware | Job |
 | ---- | -------- | --- |
 | ICSSG0 RTU1 | `firmware/rtu1_mod.asm` (pdm_audio) | 8 modulators, reads the clip buffer at `CLIP_ADDR`, `CLIP_FRAMES` = 16384 frames (1.024 s, 256 KB at MSRAM 0x700C0000) |

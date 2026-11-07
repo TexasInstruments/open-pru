@@ -33,6 +33,17 @@ export DEMO=~/GitHub/open-pru/examples/electronica2026/pdm_audio_eth
 export PDM=$DEMO/pc_app/target/release/pdm-eth
 ```
 
+**Quick start** (PC set up once as in 2, board wired and running as in 3 to
+5): open a terminal anywhere and type
+
+```
+pdm-eth-demo
+```
+
+It builds the PC application if needed, restores its network permissions,
+prepares the NIC, checks the link and opens the live window (7.1). The
+variables above are only needed for the step-by-step commands.
+
 ## 1. What you need
 
 | Item | Used here |
@@ -65,8 +76,18 @@ Check with `getcap $PDM` (it must print `cap_net_admin,cap_net_raw=ep`).
 it shorter: `ln -s $PDM ~/.local/bin/pdm-eth` (it follows new builds; `setcap`
 is still needed after each).
 
+**Install the one-step launcher** (`pc_app/pdm-eth-demo.sh`, see 7.1):
+
+```
+ln -sf $DEMO/pc_app/pdm-eth-demo.sh ~/.local/bin/pdm-eth-demo
+```
+
+`~/.local/bin` is on Ubuntu's default `PATH` (open a new terminal if the
+directory did not exist before). The launcher finds the demo through the
+symlink, so it keeps working after `git pull` and new builds.
+
 Without a board you can try everything against the built-in emulator:
-`$PDM gui --emulator`.
+`$PDM gui --emulator`, or `pdm-eth-demo --emulator`.
 
 ### 2.2 Keep Ubuntu off the demo cable
 
@@ -75,7 +96,8 @@ sudo nmcli device set enp129s0 managed no
 ```
 
 Otherwise NetworkManager sends DHCP and IPv6 traffic on the cable. The board
-drops and counts it (RX_FOREIGN), but it is noise.
+drops and counts it (RX_FOREIGN), but it is noise. `pdm-eth-demo` does this
+for you when the NIC is still managed.
 
 ### 2.3 CPU isolation (for the throughput test)
 
@@ -277,6 +299,38 @@ stays below 33 µs. The first run after power-up takes a few seconds longer
 
 ### 7.1 The live window
 
+From any directory (launcher installed as in 2.1):
+
+```
+pdm-eth-demo
+```
+
+The launcher runs these steps, then opens the window:
+
+| Step | Same as | `sudo` |
+| ---- | ------- | ------ |
+| `cargo build --release` (a no-op when nothing changed) | 2.1 | no |
+| `setcap` on `pdm-eth`, only if a build removed the capabilities | 2.1 | yes, then |
+| `nmcli device set <NIC> managed no`, only if still managed | 2.2 | yes, then |
+| `ip link set <NIC> up`, only if down | 9 | yes, then |
+| prints the link speed; warns if there is no link or not 1000 Mb/s | 6 | no |
+| `pdm-eth gui --iface <NIC> [your arguments]` | below | no |
+
+Without a link it warns ("cable in J18? R5F running?") and opens the window
+anyway; it works once the link comes up. It does not run `pdm-eth test`: run
+that by hand (6) when you want the throughput numbers.
+
+| Command | Does |
+| ------- | ---- |
+| `pdm-eth-demo` | live window on `enp129s0` |
+| `pdm-eth-demo --emulator` | no board: the built-in emulator (skips the NIC steps) |
+| `pdm-eth-demo --ch0 a.wav ...` | extra arguments go to `pdm-eth gui` (7.4) |
+| `PDM_IFACE=enp5s0 pdm-eth-demo` | another NIC (`--iface` is refused: use the variable) |
+| `PDM_NO_BUILD=1 pdm-eth-demo` | skip the build step |
+| `pdm-eth-demo --help` | this summary |
+
+The same window by hand, after 2.1, 2.2 and 6:
+
 ```
 $PDM gui --iface enp129s0
 ```
@@ -342,7 +396,8 @@ pdm_audio readme). Firmware before 2026-11-07 put the even channels half a
 ### 7.4 Command line: start with files
 
 ```
-$PDM gui --iface enp129s0 --ch0 a.wav --ch1 b.wav ... --ch7 h.wav
+pdm-eth-demo --ch0 a.wav --ch1 b.wav ... --ch7 h.wav
+$PDM gui --iface enp129s0 --ch0 a.wav --ch1 b.wav ... --ch7 h.wav   # same, by hand
 ```
 
 Files given here are loaded before the stream starts. Channels without a file
@@ -410,6 +465,10 @@ channel by channel (expected: -85 to -94 dB residual, no bad 64-frame block).
 | Symptom | Cause, fix |
 | ------- | ---------- |
 | `pdm-eth: command not found` | not on `PATH`: use `$PDM` or the full path (2.1) |
+| `pdm-eth-demo: command not found` | launcher not installed (2.1), or `~/.local/bin` was created in this session: open a new terminal |
+| `[pdm-eth-demo] no interface enp129s0` | the NIC has another name: `ip -br link`, then `PDM_IFACE=<name> pdm-eth-demo` |
+| `[pdm-eth-demo] warning: no link on ...` | as `link DOWN` below; the window is open and recovers when the link comes up |
+| `pdm-eth-demo` stops at a password prompt | a step needs `sudo` (table in 7.1); normal after a rebuild or on a new PC |
 | `raw socket on enp129s0 needs CAP_NET_RAW: run sudo setcap ...` | `setcap` missing after a build (2.1); `getcap $PDM` |
 | `ethtool`: no link, console `link DOWN` | cable not in J18, board not running, or the NIC is down (`ip link set enp129s0 up`) |
 | Board loaded but numbers do not change after a firmware edit | CCS loaded the old image: re-import **and build** (4) |
