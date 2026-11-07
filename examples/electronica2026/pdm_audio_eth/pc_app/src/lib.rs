@@ -15,5 +15,6 @@ pub mod seam;
 pub mod session;
 pub mod sources;
 pub mod spectro;
+pub mod transcribe;
 pub mod ui;
 pub mod wavin;
