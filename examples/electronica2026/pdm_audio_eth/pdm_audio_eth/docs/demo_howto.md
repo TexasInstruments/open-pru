@@ -339,6 +339,33 @@ demo itself works: the audio uses full-size frames at a few Mbit/s. Section
 NIC like the RTL8125. Do not run `test` while the GUI is open: both use the
 same NIC, and `test` then reports losses.
 
+**A USB 3 adapter is a good alternative** to a weak on-board NIC. Same PC,
+2026-11-07, an ASIX adapter (USB ID `0b95:1790`, AX88179 family) on USB 3
+(5 Gbit/s bus, 1000 Mb/s link), Linux driver `cdc_ncm`, interface
+`enx9c69d3c13719`:
+
+| Check | USB adapter | On-board RTL8111 | RTL8125 (reference) |
+| ----- | ----------- | ---------------- | ------------------- |
+| ping | 9999/10000, RTT about 1.27 ms | 9999/10000, about 22 us | 10000/10000, 32 us |
+| to / from board, full size | 984.4 / 976.1 Mbit/s, 0 gaps | 984.3 / 983.8, 0 gaps | 984.4 / 976.0 |
+| to board 64 B | 100 % of line rate (1 frame lost on the board) | 27 % | 40 % |
+| from board 64 B | 97 %: 30624 dropped in the PC kernel, 1550 unexplained | 35 %: 46152 in the NIC, 2.8 M unexplained | 98 %, 0 lost |
+| `stream --capture` (7.6), lost output frames | 0 | 4 | 0 |
+| `stream` residuals | -85.3 to -94.0 dB | same | same |
+
+- Use it with `PDM_IFACE=enx9c69d3c13719 pdm-eth-demo` (and
+  `sudo nmcli device set enx9c69d3c13719 managed no` once; the launcher does
+  that too).
+- The higher ping RTT is the USB NCM transfer batching on the PC side; the
+  board turnaround stays at 0.30 to 31 us. The demo keeps 0.5 s buffered, so
+  it does not matter there.
+- `cdc_ncm` reports neither duplex (sysfs `duplex` is `unknown`) nor NIC drop
+  counters (`ethtool -S` has none). `test` reports such a link as
+  `1000/duplex not reported by the driver` and passes it (before 2026-11-07
+  it FAILed as "1000/half"); the board's console still shows `1000 FD`.
+- The 64-byte losses from the board are now PC kernel drops (the socket buffer
+  overflows): CPU isolation (2.3) is the next step if you want 98 %.
+
 ## 7. Run the demo
 
 ### 7.1 The live window
@@ -524,7 +551,8 @@ channel by channel (expected: -85 to -94 dB residual, no bad 64-frame block).
 | PRU1/RTU1 stuck, no audio, BATCH_COUNT frozen | a single core was restarted: run the R5F again (5). Still 0 after that: power-cycle J10 (5) |
 | `capture` writes 0 frames, NIC receives 0 frames/s, `test` passes | the ICSSG0 chain is not producing PCM (HALF_SEQ at 0x30010018 stays 0): power-cycle J10 (5) |
 | OUT pane empty on every channel, frames arrive, all counters fine, PCM exactly 0 | SD block sees the data inputs stuck at 0 (channel block 0x30000900, 5): power-cycle J10 |
-| `from board 64 B` FAIL with `rx_missed` in `ethtool -S` | the PC's NIC (for example RTL8111) cannot take 64-byte frames at line rate; the demo is not affected (6) |
+| `from board 64 B` FAIL with `rx_missed` in `ethtool -S` | the PC's NIC (for example RTL8111) cannot take 64-byte frames at line rate; the demo is not affected; a USB 3 adapter did better (6) |
+| `test`: `FAIL link: 1000/half` on a USB adapter | a `pdm-eth` from before 2026-11-07: the driver (`cdc_ncm`) does not report duplex; rebuild, the line then reads `1000/duplex not reported by the driver` (6) |
 | `make`: `imports.mak: No such file or directory` | new checkout: create `imports.mak` from `imports.mak.default` (4) |
 | IN pane still shows the old source after a change | the panes scroll the last 10 s and a change is heard 0.5 s later; check the dropdown label and that the toolbar shows the same channel (7.1, 7.2) |
 | `rx_missed` rises in `ethtool -S enp129s0` during `test` | NIC interrupt not on its own CPU (2.3): check the affinity |
