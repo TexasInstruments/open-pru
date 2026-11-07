@@ -65,6 +65,14 @@ impl ShmReader {
         Ok(ShmReader { path: path.to_path_buf(), f, ino, n, next: w, overruns: 0, buf: vec![0; BLOCK_BYTES] })
     }
 
+    /// Opens the ring and starts reading at block `next` (tests).
+    #[cfg(test)]
+    pub fn open_at(path: &Path, next: u64) -> io::Result<Self> {
+        let mut r = Self::open(path)?;
+        r.next = next;
+        Ok(r)
+    }
+
     fn written(&self) -> io::Result<u64> {
         let mut w = [0u8; 8];
         self.f.read_exact_at(&mut w, 16)?;

@@ -6,6 +6,7 @@ mod common;
 mod doa;
 mod ghdss;
 mod health;
+mod live;
 mod music;
 mod noise;
 mod pipeline;
@@ -32,6 +33,8 @@ struct Cli {
 enum Cmd {
     /// Run the full pipeline on a folder with mic1.wav .. mic8.wav
     Run(RunArgs),
+    /// Run on the board output of `pdm-eth gui --export-shm NAME`, one fresh run per scene pass (control lines on stdin, JSON text lines on stdout)
+    Live(live::LiveArgs),
     /// Transcribe mono 16 kHz WAV files directly (reference / baseline)
     Asr {
         files: Vec<PathBuf>,
@@ -304,6 +307,7 @@ fn main() -> Result<()> {
             Ok(())
         }
         Cmd::Run(a) => run(a),
+        Cmd::Live(a) => live::run(a),
     }
 }
 

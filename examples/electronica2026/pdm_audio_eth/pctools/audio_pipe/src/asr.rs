@@ -221,3 +221,38 @@ impl AsrWorker {
         out
     }
 }
+
+#[cfg(test)]
+impl Job {
+    pub fn test_final(speaker: usize, t_start: f64, t_speech_end: f64) -> Self {
+        Job { speaker, seg: 0, partial: false, pcm: vec![], t_start, t_speech_end, submitted: Instant::now(), refine_ms: 0.0 }
+    }
+}
+
+#[cfg(test)]
+impl AsrResult {
+    pub fn test_final(speaker: usize, t_start: f64, t_speech_end: f64, text: &str) -> Self {
+        let now = Instant::now();
+        let hyp = Hyp { text: text.into(), accepted: true, ..Default::default() };
+        AsrResult { speaker, seg: 0, partial: false, text: text.into(), hyp, t_start, t_speech_end, submitted: now, done: now, decode_ms: 0.0, refine_ms: 0.0 }
+    }
+}
+
+#[cfg(test)]
+impl AsrWorker {
+    /// A worker without a model: every job comes back accepted as "speaker <n>".
+    pub fn echo() -> Self {
+        let (tx, jrx) = unbounded::<Job>();
+        let (rtx, rx) = unbounded::<AsrResult>();
+        let handle = std::thread::spawn(move || {
+            while let Ok(j) = jrx.recv() {
+                let mut r = AsrResult::test_final(j.speaker, j.t_start, j.t_speech_end, &format!("speaker {}", j.speaker));
+                r.seg = j.seg;
+                if rtx.send(r).is_err() {
+                    return;
+                }
+            }
+        });
+        Self { tx, rx, handle: Some(handle) }
+    }
+}
