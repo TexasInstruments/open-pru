@@ -385,6 +385,14 @@ window and for example audio with speech and music (7.2b).
   (`NetCmd::SetChannel`). Without a running stream, the first choice starts
   one (the pacer starts one lead ahead, as at start-up); later choices
   replace one channel in place, the stream keeps running.
+- **The GUI streams from the start (2026-11-07, user):** `gui` without
+  `--chN` files starts with every channel on its booth clip
+  (`InputSet::gui_start`), so the IN pane shows what the board plays from the
+  first second. It also rewrites the board's clip buffer with the real booth
+  clips: the clip buffer is the input ring (5.1), so a closed GUI leaves its
+  last sources in it, and a GUI that did not stream showed the previous
+  session's leftovers (for example *silence*) as the "booth clips". Before,
+  `gui` without files streamed nothing until the first choice.
 - **Channels nobody chose play their booth clip:** the PC sends that
   channel's clip, so changing one channel does not silence the other seven.
   This also applies to `gui --chN` started with fewer than 8 files (before:

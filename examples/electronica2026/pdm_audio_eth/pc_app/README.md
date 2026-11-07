@@ -31,10 +31,11 @@ panel has one selector per channel: *booth clip* (the board's own clip of
 that channel), *speech*, *music*, *speech + music* (the example files in
 `audio/`, compiled in; origin and licence in `audio/SOURCES.md`), *silence*,
 or *open WAV file...* (the desktop's file dialog; any rate, stereo mixed
-down, scaled to 0.5 FS like `--chN`). A choice plays live, without a
-restart; the first one starts the stream to the board, the channels nobody
-changed play their booth clips. The IN pane names the channel's source. A
-new source starts at its first sample.
+down, scaled to 0.5 FS like `--chN`). The window streams from the start,
+every channel on its booth clip (this also restores the board's clip
+buffer after an earlier session); a choice plays live, without a restart,
+and the channels nobody changed play their booth clips. The IN pane names
+the channel's source. A new source starts at its first sample.
 
 **Capture sets** (synchronized multi-microphone recordings): *open capture
 set...* above the table multi-selects up to 8 mono WAV files of one sample

@@ -154,11 +154,9 @@ enum Cmd {
 fn gui(target: &Target, inputs: &Inputs, lead: u32, export_shm: Option<String>, screenshot: Option<PathBuf>,
        no_vsync: bool) -> Result<(), String> {
     let names = inputs.names();
-    // channels without a --chN file play their booth clip (design 7.2a)
-    let set = inputs.load()?.map(|mut s| {
-        s.fill_with_booth();
-        s
-    });
+    // stream from the start; channels without a --chN file play their booth
+    // clip (design 7.2a)
+    let set = Some(InputSet::gui_start(inputs.load()?));
     let export = match export_shm {
         Some(n) => Some(pdm_eth::seam::ShmExport::create(&n, 256).map_err(|e| format!("/dev/shm/{n}: {e}"))?),
         None => None,

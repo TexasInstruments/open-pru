@@ -390,8 +390,13 @@ $PDM gui --iface enp129s0
   (about 1.08 ms, read on a noise or speech channel), buffered ahead (0.50 s),
   lost / dup / resync (0), UNDERRUN / SD_OVF (0), tx_late (0), PC kernel
   drops (0).
-- At the start no source is chosen: the board plays its own booth clips and
-  the IN pane says "no input stream".
+- At the start every channel is on *booth clip* and the window streams them
+  to the board right away, so the IN pane shows the selected channel's clip
+  next to the OUT pane. This also puts the real booth clips back into the
+  board's clip buffer, which the last session's sources had overwritten (a
+  window closed with ch0 on *silence* used to leave ch0 silent for the next
+  one). Until 2026-11-07 the window streamed nothing until the first choice,
+  and the IN pane said "no input stream".
 
 ### 7.2 Choose audio per channel
 
@@ -406,7 +411,7 @@ The **Sources** table has one dropdown per channel:
 | silence | nothing |
 | open WAV file... | any WAV file (any rate, stereo mixed down), through the desktop's file dialog |
 
-- A choice plays **live**. The first one starts the stream to the board, and
+- A choice plays **live**, in the stream that runs since the start, and
   channels you did not change keep their booth clip.
 - **A new source starts at its first sample. You hear it about 0.5 s later:**
   the PC keeps the board's input buffer 0.5 s ahead.
@@ -524,7 +529,8 @@ channel by channel (expected: -85 to -94 dB residual, no bad 64-frame block).
 | IN pane still shows the old source after a change | the panes scroll the last 10 s and a change is heard 0.5 s later; check the dropdown label and that the toolbar shows the same channel (7.1, 7.2) |
 | `rx_missed` rises in `ethtool -S enp129s0` during `test` | NIC interrupt not on its own CPU (2.3): check the affinity |
 | One ping of about 4 ms | PC-side wake-up; harmless (6) |
-| No latency line in the side panel | no source chosen yet: the latency needs a PC stream (7.2) |
+| No latency line in the side panel | the stream has not started yet (the first second after the start), or a `pdm-eth` from before 2026-11-07 with no source chosen yet: the latency needs a PC stream (7.1) |
+| IN pane says "no input stream" | a `pdm-eth` from before 2026-11-07: rebuild (2.1), or choose a source |
 | Latency shows "-" or jumps | a pure tone on the selected channel matches at many lags: select a speech, music or noise channel |
 | GUI: "board clock" ppm jumps between readings | short-window estimate; known open item, no effect on audio |
 | Window does not redraw while a file dialog is open | by design: the dialog blocks the window, the audio keeps running |

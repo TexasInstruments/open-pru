@@ -212,6 +212,16 @@ impl InputSet {
         }
     }
 
+    /// The GUI's input at launch: the `--chN` files, every other channel on
+    /// its booth clip. The GUI streams from the start (design 7.2a), so the
+    /// IN pane shows what the board plays and the board's clip buffer gets
+    /// the real booth clips again after an earlier session wrote into it.
+    pub fn gui_start(files: Option<InputSet>) -> InputSet {
+        let mut s = files.unwrap_or_default();
+        s.fill_with_booth();
+        s
+    }
+
     /// Give every channel without a file its booth clip (design 7.2a).
     pub fn fill_with_booth(&mut self) {
         let b = booth_clips();
@@ -337,6 +347,24 @@ mod tests {
         std::fs::write(&junk, b"not a wav").unwrap();
         let e = load_channel(&junk).unwrap_err().to_string();
         assert!(e.contains("junk.wav"), "{e}");
+    }
+
+    #[test]
+    fn gui_start_streams_booth_clips_without_files() {
+        let s = InputSet::gui_start(None);
+        for c in 0..8 {
+            assert_eq!(&s.ch[c], &booth_clips()[c], "ch{c} starts on its booth clip");
+        }
+        assert_eq!(s.start, [0; 8]);
+    }
+
+    #[test]
+    fn gui_start_keeps_files_and_fills_the_rest_with_booth_clips() {
+        let mut files = InputSet::default();
+        files.ch[2] = vec![7; 640];
+        let s = InputSet::gui_start(Some(files));
+        assert_eq!(s.ch[2], vec![7; 640]);
+        assert_eq!(&s.ch[3], &booth_clips()[3]);
     }
 
     #[test]
