@@ -47,6 +47,22 @@ struct RunArgs {
     input: PathBuf,
     #[arg(long, default_value = "out")]
     out: PathBuf,
+    /// pace input at real time (measures true end-of-speech -> text latency)
+    #[arg(long)]
+    realtime: bool,
+    /// skip the start-up channel health check
+    #[arg(long)]
+    no_health: bool,
+    /// print per-stage CPU time and state memory (always written to <out>/profile.json)
+    #[arg(long)]
+    profile: bool,
+    #[command(flatten)]
+    p: PipeArgs,
+}
+
+/// Flags that set up the pipeline (shared by `run` and `live`).
+#[derive(Args, Clone)]
+struct PipeArgs {
     #[arg(long, default_value = "models/ggml-large-v3-turbo-q5_0.bin")]
     model: PathBuf,
     /// skip ASR (DSP only)
@@ -57,9 +73,6 @@ struct RunArgs {
     cpu_asr: bool,
     #[arg(long, default_value = "en")]
     language: String,
-    /// pace input at real time (measures true end-of-speech -> text latency)
-    #[arg(long)]
-    realtime: bool,
     /// array radius in metres (Scene Simulator default 5 cm)
     #[arg(long, default_value_t = 0.05)]
     radius: f32,
@@ -76,9 +89,6 @@ struct RunArgs {
     /// microphones to switch off (1-based), e.g. --mics-off 1
     #[arg(long, value_delimiter = ',')]
     mics_off: Vec<usize>,
-    /// skip the start-up channel health check
-    #[arg(long)]
-    no_health: bool,
     /// known ego-noise directions to ignore, e.g. --exclude 180:20 (azimuth:half-width)
     #[arg(long, value_delimiter = ',')]
     exclude: Vec<String>,
@@ -167,9 +177,6 @@ struct RunArgs {
     /// prior/doa: weight of Φego in Φn in frames (the adaptive part remembers ≈100 frames); add/add-doa: gain g on Φego
     #[arg(long, default_value_t = 100.0)]
     ego_weight: f32,
-    /// print per-stage CPU time and state memory (always written to <out>/profile.json)
-    #[arg(long)]
-    profile: bool,
 }
 
 /// Φego(f) = mean x̂ x̂ᴴ over a robot-only take, after the same STFT + WPE as the live path.
@@ -299,44 +306,33 @@ fn main() -> Result<()> {
     }
 }
 
-fn run(a: RunArgs) -> Result<()> {
-    let mut chans = read_mics(&a.input)?;
-    let len = chans[0].len();
-    eprintln!("input: {} x {:.2} s @ {} Hz", M, len as f64 / FS as f64, FS);
-    let mut active = [true; M];
-    for &m in &a.mics_off {
-        anyhow::ensure!((1..=M).contains(&m), "--mics-off {m}: must be 1..{M}");
-        active[m - 1] = false;
-    }
-    if !a.no_health {
-        let h = health::check(&chans, 300);
-        eprintln!(
-            "channel health (adjacent-pair coherence 200-2000 Hz, first 300 ms): {}",
-            h.adj_msc.iter().enumerate().map(|(m, v)| format!("{}-{}:{v:.2}", m + 1, (m + 1) % M + 1)).collect::<Vec<_>>().join(" ")
-        );
-        for &m in &h.bad {
-            eprintln!("  WARNING: mic{} is incoherent with both neighbours (dead / mis-wired / from another recording) -> excluded", m + 1);
-            active[m] = false;
-        }
-    }
-    for m in 0..M {
-        if !active[m] {
-            chans[m].iter_mut().for_each(|v| *v = 0.0);
-        }
-    }
-    let m_eff = active.iter().filter(|&&x| x).count();
-    anyhow::ensure!(m_eff >= 3, "only {m_eff} usable microphones");
-    std::fs::create_dir_all(&a.out)?;
-
-    let asr = if a.no_asr {
+/// The whisper worker (None with --no-asr).
+fn spawn_asr(a: &PipeArgs) -> Result<Option<asr::AsrWorker>> {
+    Ok(if a.no_asr {
         None
     } else {
         let t = Instant::now();
         let w = asr::AsrWorker::spawn(resolve_model(&a.model), !a.cpu_asr, a.language.clone())?;
         eprintln!("ASR ready ({}, {}) in {:.0} ms", a.model.display(), if a.cpu_asr { "CPU" } else { "CUDA" }, t.elapsed().as_secs_f64() * 1e3);
         Some(w)
-    };
+    })
+}
 
+/// Microphones in use: all 8 minus --mics-off.
+fn mics_active(a: &PipeArgs) -> Result<[bool; M]> {
+    let mut active = [true; M];
+    for &m in &a.mics_off {
+        anyhow::ensure!((1..=M).contains(&m), "--mics-off {m}: must be 1..{M}");
+        active[m - 1] = false;
+    }
+    Ok(active)
+}
+
+/// Everything between the health check and the frame loop, except spawning the ASR worker.
+fn build_pipeline(a: &PipeArgs, active: &[bool], asr: Option<asr::AsrWorker>) -> Result<pipeline::Pipeline> {
+    let active: [bool; M] = active.try_into().map_err(|_| anyhow::anyhow!("need {M} mic flags"))?;
+    let m_eff = active.iter().filter(|&&x| x).count();
+    anyhow::ensure!(m_eff >= 3, "only {m_eff} usable microphones");
     let exclude: Vec<(f32, f32)> = a
         .exclude
         .iter()
@@ -421,6 +417,34 @@ fn run(a: RunArgs) -> Result<()> {
         pipe.noise.set_ego(e, a.ego_mode, a.ego_weight);
     }
     pipe.refiner = refiner;
+    Ok(pipe)
+}
+
+fn run(a: RunArgs) -> Result<()> {
+    let mut chans = read_mics(&a.input)?;
+    let len = chans[0].len();
+    eprintln!("input: {} x {:.2} s @ {} Hz", M, len as f64 / FS as f64, FS);
+    let mut active = mics_active(&a.p)?;
+    if !a.no_health {
+        let h = health::check(&chans, 300);
+        eprintln!(
+            "channel health (adjacent-pair coherence 200-2000 Hz, first 300 ms): {}",
+            h.adj_msc.iter().enumerate().map(|(m, v)| format!("{}-{}:{v:.2}", m + 1, (m + 1) % M + 1)).collect::<Vec<_>>().join(" ")
+        );
+        for &m in &h.bad {
+            eprintln!("  WARNING: mic{} is incoherent with both neighbours (dead / mis-wired / from another recording) -> excluded", m + 1);
+            active[m] = false;
+        }
+    }
+    for m in 0..M {
+        if !active[m] {
+            chans[m].iter_mut().for_each(|v| *v = 0.0);
+        }
+    }
+    std::fs::create_dir_all(&a.out)?;
+
+    let asr = spawn_asr(&a.p)?;
+    let mut pipe = build_pipeline(&a.p, &active, asr)?;
 
     // ---- frame loop (append N zeros so the tail is flushed through the synthesis)
     let total_frames = (len + N).div_ceil(H);
@@ -503,7 +527,7 @@ fn run(a: RunArgs) -> Result<()> {
         }));
     }
     std::fs::write(a.out.join("transcript.json"), serde_json::to_string_pretty(&summary)?)?;
-    if a.verbose {
+    if a.p.verbose {
         eprintln!("doa bins: total {} speech {} coherent {}; coherence hist {:?}", pipe.doa.stat[0], pipe.doa.stat[1], pipe.doa.stat[2], pipe.doa.coh_hist);
         for (t, pk) in &pipe.doa_log {
             eprint!("doa {:5.2}s:", (*t + 1) as f64 * H as f64 / FS as f64);
