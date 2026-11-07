@@ -130,6 +130,9 @@ pub fn run_net(mut link: Box<dyn Link>, input: Option<NetInput>, ctl: NetCtl, tx
     let mut sent_in: Vec<(u64, [i16; 8])> = Vec::new();
     let mut input = input;
     let mut aligner = crate::seam::Aligner::new();
+    // the export keeps the last lag found: the meter forgets it over silence
+    // (a playlist gap), and the ring must not get a hole there
+    let mut export_lag: Option<i64> = None;
     let mut last_audio = 0u64;
     let mut last_hello = 0u64;
     let mut last_flush = now_ns();
@@ -226,8 +229,9 @@ pub fn run_net(mut link: Box<dyn Link>, input: Option<NetInput>, ctl: NetCtl, tx
         if now - last_flush > 20_000_000 {
             last_flush = now;
             let frames = out.take_new();
+            export_lag = meter.lag().or(export_lag);
             if let Some(x) = input.as_mut().and_then(|i| i.export.as_mut())
-                && let Some(l) = meter.lag() {
+                && let Some(l) = export_lag {
                     aligner.set_lag(l);
                     aligner.push_in(&sent_in);
                     aligner.push_out(&frames);
@@ -350,6 +354,10 @@ pub struct App {
     pub(crate) tstatus: Option<crate::transcribe::TStatus>,
     /// End of speech to final text of the newest utterance.
     pub(crate) text_latency_ms: Option<f32>,
+    /// The audio_pipe child (--transcribe), output scale per pass slot, transcript log.
+    tpipe: Option<crate::transcribe::TextPipe>,
+    pass_scales: Vec<f32>,
+    tlog: Option<std::fs::File>,
 }
 
 impl App {
@@ -381,6 +389,41 @@ impl App {
             lanes: crate::lanes::Lanes::default(),
             tstatus: None,
             text_latency_ms: None,
+            tpipe: None,
+            pass_scales: Vec::new(),
+            tlog: None,
+        }
+    }
+
+    /// Text lanes from `tp` (`audio_pipe live`); `scales`: board output to file level, by pass slot.
+    pub fn with_transcription(mut self, tp: crate::transcribe::TextPipe, scales: Vec<f32>, log: Option<std::fs::File>) -> Self {
+        self.tstatus = Some(tp.status().clone());
+        self.tpipe = Some(tp);
+        self.pass_scales = scales;
+        self.tlog = log;
+        self
+    }
+
+    fn log_line(&mut self, line: &str) {
+        if let Some(f) = &mut self.tlog {
+            use std::io::Write;
+            if writeln!(f, "{line}").is_err() {
+                self.tlog = None;
+            }
+        }
+    }
+
+    /// New text from audio_pipe, its status.
+    fn poll_text(&mut self) {
+        let Some(tp) = &mut self.tpipe else { return };
+        let lines = tp.poll(Instant::now());
+        self.tstatus = Some(tp.status().clone());
+        for t in lines {
+            if let Ok(j) = serde_json::to_string(&t) {
+                self.log_line(&j);
+            }
+            self.on_text(t);
+            self.dirty = true;
         }
     }
 
@@ -651,9 +694,16 @@ impl App {
                     self.stats = s;
                 }
                 NetMsg::Error(e) => self.error = Some(e),
-                NetMsg::Mark { slot, cycle, .. } => {
-                    if let Some(scene) = self.scenes.get(slot) {
-                        self.pass = Some((scene.clone(), cycle * self.scenes.len() as u64 + slot as u64));
+                NetMsg::Mark { slot, cycle, index } => {
+                    if let Some(scene) = self.scenes.get(slot).cloned() {
+                        let n = cycle * self.scenes.len() as u64 + slot as u64;
+                        self.pass = Some((scene.clone(), n));
+                        let scale = self.pass_scales.get(slot).copied().unwrap_or(0.0);
+                        if let Some(tp) = &mut self.tpipe {
+                            tp.pass_start(Instant::now(), n, &scene, index, scale);
+                            let j = serde_json::json!({"mark": {"pass": n, "scene": scene, "start": index}});
+                            self.log_line(&j.to_string());
+                        }
                     }
                 }
             }
@@ -878,6 +928,7 @@ impl eframe::App for App {
         let ctx = ui.ctx().clone();
         self.drain();
         self.release_input();
+        self.poll_text();
         if let Some(now) = self.now_index() {
             self.lanes.prune(now);
         }
@@ -1084,6 +1135,45 @@ mod tests {
         let (_, marks, _) = run_marks(cfg, 2500);
         let reset = marks.windows(2).position(|w| w[1].2 < w[0].2).expect("indices restart after the reset");
         assert!(marks.len() - reset > 3, "marks stop after the reset: {marks:?}");
+    }
+
+    /// Board indices of the blocks in a shm ring, oldest first.
+    fn ring_indices(name: &str) -> Vec<u64> {
+        let b = std::fs::read(std::path::Path::new("/dev/shm").join(name)).unwrap();
+        let n = u32::from_le_bytes(b[8..12].try_into().unwrap()) as u64;
+        let w = u64::from_le_bytes(b[16..24].try_into().unwrap());
+        let bb = crate::seam::BLOCK_BYTES;
+        (w.saturating_sub(n)..w).map(|k| {
+            let o = 64 + (k % n) as usize * bb;
+            u64::from_le_bytes(b[o..o + 8].try_into().unwrap())
+        }).collect()
+    }
+
+    #[test]
+    fn export_has_no_gap_over_silence() {
+        // 1 s of noise, then 1.5 s of silence on every channel (a playlist gap): the latency
+        // correlation finds nothing over the silence, the export must go on
+        use crate::emulator::{EmuConfig, Emulator};
+        let (tx, rx) = std::sync::mpsc::channel();
+        let link: Box<dyn Link> = Box::new(Emulator::new(EmuConfig::default()));
+        let mut set = InputSet::default();
+        let mut s = 7u32;
+        for c in 0..8 {
+            set.ch[c] = (0..40000).map(|i| if i < 16000 { s = s.wrapping_mul(1_664_525).wrapping_add(1_013_904_223); (s >> 18) as i16 } else { 0 }).collect();
+        }
+        let name = format!("pdm-eth-test-gap-{}", std::process::id());
+        let export = crate::seam::ShmExport::create(&name, 4096).unwrap();
+        let input = NetInput { set, lead: 8000, sel: Arc::new(AtomicUsize::new(0)), export: Some(export), marks: Vec::new() };
+        std::thread::spawn(move || run_net(link, Some(input), NetCtl::idle(), tx, Arc::new(|| {})));
+        let t0 = Instant::now();
+        while t0.elapsed() < Duration::from_millis(6000) {
+            let _ = rx.recv_timeout(Duration::from_millis(50));
+        }
+        let idx = ring_indices(&name);
+        drop(rx); // the net thread ends and removes the ring
+        assert!(idx.len() > 200, "{} blocks", idx.len());
+        let gaps: Vec<(u64, u64)> = idx.windows(2).filter(|w| w[1] != w[0] + 64).map(|w| (w[0], w[1])).collect();
+        assert!(gaps.is_empty(), "export gaps {gaps:?}");
     }
 
     #[test]

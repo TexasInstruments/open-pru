@@ -144,6 +144,9 @@ enum Cmd {
         /// implies --no-vsync; under Wayland run it with WAYLAND_DISPLAY unset)
         #[arg(long)]
         screenshot: Option<PathBuf>,
+        /// Seconds after the start for --screenshot
+        #[arg(long, default_value_t = 5.0)]
+        screenshot_after: f64,
         /// Draw without waiting for vsync (a hidden window is otherwise
         /// throttled by the compositor)
         #[arg(long)]
@@ -152,17 +155,42 @@ enum Cmd {
         /// played in name order, each followed by 1 s of silence, looped
         #[arg(long, conflicts_with_all = ["ch0", "ch1", "ch2", "ch3", "ch4", "ch5", "ch6", "ch7", "set"])]
         playlist: Option<PathBuf>,
+        /// Per-talker text lanes: run this audio_pipe binary as `BIN live`
+        /// on the board output (needs --playlist; exports /dev/shm/pdm-eth-<pid>
+        /// unless --export-shm names the ring)
+        #[arg(long, value_name = "BIN")]
+        transcribe: Option<PathBuf>,
+        /// Append every text line and pass start (JSON lines) to this file
+        /// (input of booth_curate.py)
+        #[arg(long, value_name = "FILE")]
+        transcript_log: Option<PathBuf>,
     },
 }
 
+/// The --transcribe settings of the window.
+struct Transcribe {
+    bin: Option<PathBuf>,
+    log: Option<PathBuf>,
+    screenshot_after: f64,
+}
+
 fn gui(target: &Target, inputs: &Inputs, lead: u32, export_shm: Option<String>, screenshot: Option<PathBuf>,
-       no_vsync: bool, playlist: Option<PathBuf>) -> Result<(), String> {
+       no_vsync: bool, playlist: Option<PathBuf>, tr: Transcribe) -> Result<(), String> {
+    if tr.bin.is_some() && playlist.is_none() {
+        return Err("--transcribe needs --playlist".into());
+    }
     let mut names = inputs.names();
+    let shot_after = tr.screenshot_after.max(0.0);
+    let mut scales = Vec::new();
     let (set, marks, scenes) = match &playlist {
         Some(dir) => {
             let pl = pdm_eth::playlist::load_playlist(dir).map_err(|e| e.to_string())?;
             eprintln!("playlist {}: {} scenes, loop {:.1} s", dir.display(), pl.passes.len(), pl.total as f64 / 16000.0);
-            names = std::array::from_fn(|_| Some(format!("playlist {}", dir.display())));
+            // the folder name only: a long label pushes the side panel out of the window
+            let short = dir.canonicalize().ok().and_then(|d| d.file_name().map(|n| n.to_string_lossy().into_owned()))
+                .unwrap_or_else(|| dir.display().to_string());
+            names = std::array::from_fn(|_| Some(format!("playlist {short}")));
+            scales = pl.passes.iter().map(|p| p.scale).collect();
             (pl.set, pl.passes.iter().map(|p| p.offset).collect(), pl.passes.iter().map(|p| p.scene.clone()).collect())
         }
         // stream from the start; channels without a --chN file play their
@@ -170,8 +198,25 @@ fn gui(target: &Target, inputs: &Inputs, lead: u32, export_shm: Option<String>, 
         None => (InputSet::gui_start(inputs.load()?), Vec::new(), Vec::new()),
     };
     let set = Some(set);
-    let export = match export_shm {
-        Some(n) => Some(pdm_eth::seam::ShmExport::create(&n, 256).map_err(|e| format!("/dev/shm/{n}: {e}"))?),
+    // the text needs a ring audio_pipe can lag behind by a GPU stall: 1024 blocks (4 s)
+    let (export_shm, blocks) = match (&tr.bin, export_shm) {
+        (Some(_), n) => (Some(n.unwrap_or_else(|| format!("pdm-eth-{}", std::process::id()))), 1024),
+        (None, n) => (n, 256),
+    };
+    let export = match &export_shm {
+        Some(n) => Some(pdm_eth::seam::ShmExport::create(n, blocks).map_err(|e| format!("/dev/shm/{n}: {e}"))?),
+        None => None,
+    };
+    let text = match &tr.bin {
+        Some(bin) => {
+            let argv = vec![bin.display().to_string(), "live".into(), "--shm".into(), export_shm.clone().unwrap()];
+            let log = match &tr.log {
+                Some(p) => Some(std::fs::OpenOptions::new().create(true).append(true).open(p)
+                    .map_err(|e| format!("{}: {e}", p.display()))?),
+                None => None,
+            };
+            Some((pdm_eth::transcribe::TextPipe::new(argv), log))
+        }
         None => None,
     };
     let no_vsync = no_vsync || screenshot.is_some();
@@ -208,10 +253,14 @@ fn gui(target: &Target, inputs: &Inputs, lead: u32, export_shm: Option<String>, 
                 }
                 pdm_eth::ui::run_net(link, input, ctl, tx, repaint)
             });
-            let app = pdm_eth::ui::App::new(rx, source).with_selection(sel).with_commands(cmd_tx).with_playlist(scenes)
+            let mut app = pdm_eth::ui::App::new(rx, source).with_selection(sel).with_commands(cmd_tx).with_playlist(scenes);
+            if let Some((tp, log)) = text {
+                app = app.with_transcription(tp, scales, log);
+            }
+            let app = app
                 .with_sources(names.map(|n| n.map_or(pdm_eth::sources::Source::Booth, pdm_eth::sources::Source::File)));
             Ok(Box::new(match screenshot {
-                Some(p) => app.with_screenshot(p, Duration::from_secs(5)),
+                Some(p) => app.with_screenshot(p, Duration::from_secs_f64(shot_after)),
                 None => app,
             }))
         }),
@@ -261,7 +310,9 @@ fn main() -> ExitCode {
             }
             if all { ExitCode::SUCCESS } else { ExitCode::FAILURE }
         }
-        Cmd::Gui { target, inputs, lead, export_shm, screenshot, no_vsync, playlist } => match gui(&target, &inputs, lead, export_shm, screenshot, no_vsync, playlist) {
+        Cmd::Gui { target, inputs, lead, export_shm, screenshot, screenshot_after, no_vsync, playlist, transcribe, transcript_log } =>
+            match gui(&target, &inputs, lead, export_shm, screenshot, no_vsync, playlist,
+                      Transcribe { bin: transcribe, log: transcript_log, screenshot_after }) {
             Ok(()) => ExitCode::SUCCESS,
             Err(e) => {
                 eprintln!("error: {e}");

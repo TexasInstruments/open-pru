@@ -21,7 +21,7 @@ pub const MAX_FAILS: u32 = 3;
 pub const GOOD_RUN: Duration = Duration::from_secs(60);
 
 /// One final utterance from audio_pipe; `start`/`end` are board indices.
-#[derive(Clone, Debug, PartialEq, serde::Deserialize)]
+#[derive(Clone, Debug, PartialEq, serde::Deserialize, serde::Serialize)]
 pub struct TextLine {
     pub pass: u64,
     pub scene: String,

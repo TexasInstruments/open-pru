@@ -196,6 +196,7 @@ impl Live {
     fn begin_pass(&mut self, q: PassStart) -> Result<()> {
         self.end_pass(true);
         let pipe = crate::build_pipeline(&self.p, &self.active, self.asr.take())?;
+        eprintln!("live: pass {} ({}) from board index {}", q.pass, q.scene, q.start);
         self.pipe = Some(pipe);
         self.cur = Some(q);
         self.fill = 0;
@@ -219,6 +220,10 @@ impl Live {
                 }
             }
             pipe = self.pipe.take().unwrap();
+        }
+        if let Some(c) = &self.cur {
+            eprintln!("live: pass {} ended{}: {} frames, {} streams, {} of {} results", c.pass, if flush { "" } else { " (dropped)" },
+                      pipe.t, pipe.streams.len(), self.received, pipe.jobs_sent);
         }
         self.discard += pipe.jobs_sent.saturating_sub(self.received);
         self.asr = pipe.asr.take();

@@ -1,0 +1,15 @@
+// SPDX-License-Identifier: BSD-3-Clause
+// Copyright (C) 2026 Texas Instruments Incorporated - http://www.ti.com/
+
+//! Command-line checks that need no window and no board.
+
+#[test]
+fn transcribe_needs_playlist() {
+    let out = std::process::Command::new(env!("CARGO_BIN_EXE_pdm-eth"))
+        .args(["gui", "--emulator", "--transcribe", "/bin/true"])
+        .output()
+        .unwrap();
+    assert!(!out.status.success());
+    let err = String::from_utf8_lossy(&out.stderr);
+    assert!(err.contains("--transcribe needs --playlist"), "{err}");
+}
