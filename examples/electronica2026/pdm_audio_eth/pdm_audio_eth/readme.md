@@ -12,7 +12,10 @@ over Gigabit Ethernet, in both directions, with PRU firmware only:
 - ICSSG1 PRU0 sends every finished PCM half to the PC;
 - the PC application `pdm-eth` (in [../pc_app](../pc_app/README.md)) shows the
   input and the output spectrograms side by side, in real time, and captures
-  both to WAV files.
+  both to WAV files;
+- `pdm-eth stream --export-shm` hands the time-aligned input and output to
+  [../pctools/audio_pipe](../pctools/audio_pipe/README.md), the 8-mic
+  front-end (WPE, localization, per-talker beamforming) with per-talker ASR.
 
 The same chain in the pru-simulator takes about 11 minutes per second of
 audio. The R5F (r5fss0-0, FreeRTOS) only configures ICSSG0, ICSSG1, the pins,
@@ -222,4 +225,6 @@ examples/electronica2026/pdm_audio_eth/
     tools/                    make_clip_buffer.py (--frames, default 16384), gen_fir_coefs.py, check_icssg0_copy.sh
     clips/                    booth clips (as pdm_audio)
   pc_app/                     Rust crate pdm_eth, binary pdm-eth
+  pctools/
+    audio_pipe/               Rust crate audio_pipe: 8-mic front-end + whisper ASR, board benchmark (tools/board_bench.py)
 ```
