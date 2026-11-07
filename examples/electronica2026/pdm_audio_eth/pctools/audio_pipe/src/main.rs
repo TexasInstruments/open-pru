@@ -9,6 +9,7 @@ mod health;
 mod music;
 mod noise;
 mod pipeline;
+mod shm;
 mod refine;
 mod sep;
 mod stft;
