@@ -48,7 +48,7 @@ variables above are only needed for the step-by-step commands.
 
 | Item | Used here |
 | ---- | --------- |
-| Board | LP-AM243 Rev A, 5 V / 3 A USB-C supply on J10, USB cable to the on-board XDS110 (JTAG and console) |
+| Board | LP-AM243 Rev A (an E3 board works too, see 3), 5 V / 3 A USB-C supply on J10, USB cable to the on-board XDS110 (JTAG and console) |
 | Jumpers | 9 short female-female jumper wires (PDM clock + 8 data lines) |
 | Ethernet | one cable from the PC straight to the LP's RJ45 **J18** (ICSSG1 port 1, RGMII2); no switch |
 | PC | Ubuntu 26.04, a Gigabit NIC dedicated to the board (here a Realtek RTL8125, `enp129s0`) |
@@ -181,7 +181,12 @@ for n in $(awk '$NF=="enp129s0"{sub(":","",$1);print $1}' /proc/interrupts); do
 **Before power-up:**
 
 - **SW6 in the default position, LD17 off.** The SD5 to SD7 data paths and
-  PRU1_GPO16 go through switches that SW6 controls.
+  PRU1_GPO16 go through switches that SW6 controls. This applies to Rev A
+  only: **an E3 board has no SW6, LD17 or TMUX1574 switches** (Rev A added
+  them for the BP servo board), and there these paths go straight to the
+  header. The 18 pins of the jumper table below are routed the same on E3 and
+  Rev A (schematics PROC109E3 and PROC109A, SPRR433D). The demo runs on an E3
+  with this table (2026-11-07).
 - **No BoosterPack plugged in.** The jumpers use the BoosterPack header pins.
 - **Boot switches set to NO BOOT** (MCU+ SDK docs, "EVM Setup", AM243X-LP).
   The R5F application sets up the SoC from SysConfig; no init script is
@@ -229,6 +234,17 @@ PRU0) and the R5F application, which embeds them:
 The `SYSCFG_NODE` and SDK overrides are only needed when `imports.mak` does
 not point at your tools.
 
+**On a new PC:** a fresh checkout has no `imports.mak`, and `make` stops with
+`../../../../imports.mak: No such file or directory`. Copy
+`imports.mak.default` at the open-pru root to `imports.mak` (git ignores it)
+and set the paths of your tools: `CCS_PATH` (for example
+`$(TOOLS_PATH)/ccs2101/ccs`), `CGT_TI_PRU_PATH`
+(`$(CCS_PATH)/tools/compiler/ti-cgt_pru_2.3.3.LTS`), `CGT_TI_ARM_CLANG_PATH`
+(`$(CCS_PATH)/tools/compiler/ti-cgt-armllvm_5.1.1.LTS`), `MCU_PLUS_SDK_PATH`
+(`$(TOOLS_PATH)/mcu_plus_sdk_am243x_12_01_00_33`) and `SYSCFG_PATH`
+(`$(TOOLS_PATH)/sysconfig_1.28.1`). The defaults in `imports.mak.default`
+(ccs1280, SysConfig 1.21.2) are older tools.
+
 **Or with CCS:** File > Import Projects, import the six project specs:
 
 ```
@@ -273,6 +289,24 @@ RTU1 and PRU1 must start together.
 **Reset:** SW1 (MCU PORZ) resets the SoC. Then reconnect CCS (JTAG does not
 survive the reset) and run the R5F again.
 
+**Power-cycle when in doubt.** SW1 and reloading the R5F do not always bring
+the board back to a clean state. On an E3 board (2026-11-07), after other demos
+and several reloads, two failures survived SW1 and only went away after
+removing the J10 supply for about 10 s:
+
+- RTU1 never ran a batch: header BATCH_COUNT, RTU1_FRAME_POS, RTU1_LOOPS and
+  HALF_SEQ all 0, the board sent no audio frames, although the console printed
+  both lines;
+- every core ran and every counter rose, but all eight channels decoded to
+  exactly 0. PRU0's SD block saw the data inputs stuck at 0 (channel block at
+  0x30000900: DC estimate at +0x1C about -2^23, delay line all 0xFFF94000 =
+  -96^3/2), while a logic analyser showed real PDM on BP.67 and BP.32.
+
+The cause was not found. Pin mux, pads, GPCFG0 and the SD set-up read as
+designed. So: before a booth day, after another demo, or when the output stays
+silent, **unplug J10 for 10 s**, then reconnect CCS to `MAIN_Cortex_R5_0_0`
+only, load and run.
+
 ## 6. Check the Ethernet link
 
 ```
@@ -294,6 +328,16 @@ PASS from board 64 B: 4464286/4464286 frames, 1.459 Mframes/s (98 % of line rate
 A single ping of about 4 ms is the PC, not the board: the board turnaround
 stays below 33 µs. The first run after power-up takes a few seconds longer
 (link training).
+
+**The 64-byte test depends on the PC's NIC.** On a PC with a Realtek
+RTL8111/8168 (r8169 driver, `enp3s0`, receive ring at most 256 frames,
+2026-11-07), `from board 64 B` FAILs: 1600086/4464286 frames, 46152 counted in
+`rx_missed`, the rest not counted by the NIC. A single ping may also be lost
+(9999/10000). The full-size tests pass at 984 Mbit/s with 0 gaps there, and the
+demo itself works: the audio uses full-size frames at a few Mbit/s. Section
+2.3 (CPU isolation) only helps the 64-byte case. 98 % of line rate needs a
+NIC like the RTL8125. Do not run `test` while the GUI is open: both use the
+same NIC, and `test` then reports losses.
 
 ## 7. Run the demo
 
@@ -472,7 +516,12 @@ channel by channel (expected: -85 to -94 dB residual, no bad 64-frame block).
 | `raw socket on enp129s0 needs CAP_NET_RAW: run sudo setcap ...` | `setcap` missing after a build (2.1); `getcap $PDM` |
 | `ethtool`: no link, console `link DOWN` | cable not in J18, board not running, or the NIC is down (`ip link set enp129s0 up`) |
 | Board loaded but numbers do not change after a firmware edit | CCS loaded the old image: re-import **and build** (4) |
-| PRU1/RTU1 stuck, no audio, BATCH_COUNT frozen | a single core was restarted: run the R5F again (5) |
+| PRU1/RTU1 stuck, no audio, BATCH_COUNT frozen | a single core was restarted: run the R5F again (5). Still 0 after that: power-cycle J10 (5) |
+| `capture` writes 0 frames, NIC receives 0 frames/s, `test` passes | the ICSSG0 chain is not producing PCM (HALF_SEQ at 0x30010018 stays 0): power-cycle J10 (5) |
+| OUT pane empty on every channel, frames arrive, all counters fine, PCM exactly 0 | SD block sees the data inputs stuck at 0 (channel block 0x30000900, 5): power-cycle J10 |
+| `from board 64 B` FAIL with `rx_missed` in `ethtool -S` | the PC's NIC (for example RTL8111) cannot take 64-byte frames at line rate; the demo is not affected (6) |
+| `make`: `imports.mak: No such file or directory` | new checkout: create `imports.mak` from `imports.mak.default` (4) |
+| IN pane still shows the old source after a change | the panes scroll the last 10 s and a change is heard 0.5 s later; check the dropdown label and that the toolbar shows the same channel (7.1, 7.2) |
 | `rx_missed` rises in `ethtool -S enp129s0` during `test` | NIC interrupt not on its own CPU (2.3): check the affinity |
 | One ping of about 4 ms | PC-side wake-up; harmless (6) |
 | No latency line in the side panel | no source chosen yet: the latency needs a PC stream (7.2) |
@@ -480,7 +529,7 @@ channel by channel (expected: -85 to -94 dB residual, no bad 64-frame block).
 | GUI: "board clock" ppm jumps between readings | short-window estimate; known open item, no effect on audio |
 | Window does not redraw while a file dialog is open | by design: the dialog blocks the window, the audio keeps running |
 | Spectrogram of a channel flat or noise, counters fine | that channel's data jumper (3) |
-| Channels 4 to 7 flat, 0 to 3 fine | SW6 not in default, or a BoosterPack plugged in (3) |
+| Channels 4 to 7 flat, 0 to 3 fine | SW6 not in default (Rev A only), or a BoosterPack plugged in (3) |
 
 ## 10. Switching to another demo
 
