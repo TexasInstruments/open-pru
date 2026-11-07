@@ -10,7 +10,7 @@ use clap::{Args, Parser, Subcommand};
 use pdm_eth::emulator::{EmuConfig, Emulator};
 use pdm_eth::ethtest::{self, TestConfig};
 use pdm_eth::link::{link_info, AfPacketLink, Link};
-use pdm_eth::wavin::{load_channel, InputSet};
+use pdm_eth::wavin::{load_channel, load_set_on, InputSet};
 use pdm_eth::rx::WavCapture;
 
 /// PC application of the pdm_audio_eth demo (LP-AM243 PDM audio over Gigabit Ethernet).
@@ -51,6 +51,12 @@ struct Inputs {
     ch6: Option<PathBuf>,
     #[arg(long)]
     ch7: Option<PathBuf>,
+    /// Load the --chN files as one capture set: one gain for all (the set's
+    /// loudest sample maps to 0.5 FS), trimmed to the shortest, so the level
+    /// differences between the microphones are kept. Without it every file
+    /// is scaled to 0.5 FS on its own.
+    #[arg(long)]
+    set: bool,
 }
 
 impl Inputs {
@@ -64,6 +70,11 @@ impl Inputs {
         let files = [&self.ch0, &self.ch1, &self.ch2, &self.ch3, &self.ch4, &self.ch5, &self.ch6, &self.ch7];
         if files.iter().all(|f| f.is_none()) {
             return Ok(None);
+        }
+        if self.set {
+            let on: Vec<(usize, PathBuf)> =
+                files.iter().enumerate().filter_map(|(c, f)| f.as_ref().map(|p| (c, p.to_path_buf()))).collect();
+            return load_set_on(&on).map(Some).map_err(|e| e.to_string());
         }
         let mut set = InputSet::default();
         for (c, f) in files.iter().enumerate() {
@@ -111,6 +122,10 @@ enum Cmd {
         /// Frames the PC stays ahead of RTU1 (8000 = 0.5 s)
         #[arg(long, default_value_t = 8000)]
         lead: u32,
+        /// Export aligned input/output blocks to /dev/shm/NAME (processing
+        /// seam; a ring of STREAM_SHM_BLOCKS blocks = 16 s)
+        #[arg(long)]
+        export_shm: Option<String>,
     },
     /// Live window: spectrograms and numbers (layout C)
     Gui {
@@ -242,7 +257,7 @@ fn main() -> ExitCode {
                 ExitCode::from(2)
             }
         },
-        Cmd::Stream { target, inputs, capture, lead } => {
+        Cmd::Stream { target, inputs, capture, lead, export_shm } => {
             let set = match inputs.load() {
                 Ok(Some(s)) => s,
                 Ok(None) => {
@@ -261,7 +276,17 @@ fn main() -> ExitCode {
                     return ExitCode::from(2);
                 }
             };
-            match pdm_eth::session::stream(link.as_mut(), &set, capture.as_deref(), lead) {
+            let mut export = match &export_shm {
+                Some(n) => match pdm_eth::seam::ShmExport::create(n, pdm_eth::session::STREAM_SHM_BLOCKS) {
+                    Ok(x) => Some(x),
+                    Err(e) => {
+                        eprintln!("error: /dev/shm/{n}: {e}");
+                        return ExitCode::from(2);
+                    }
+                },
+                None => None,
+            };
+            match pdm_eth::session::stream(link.as_mut(), &set, capture.as_deref(), lead, export.as_mut()) {
                 Ok(r) => {
                     println!("sent {} blocks ({} frames of {}); underruns {} overwrite_blocked {} restarts {}",
                              r.sent_blocks, r.sent_frames, set.frames(), r.underruns, r.overwrite_blocked, r.restarts);
@@ -269,6 +294,15 @@ fn main() -> ExitCode {
                     println!("output lost {} duplicates {} resyncs {}; board: rx_audio {} last_in_end {} underrun {} sd_ovf {} tx_late {}",
                              r.lost, r.duplicates, r.resyncs, st.rx_audio, st.last_in_end, st.underrun_count,
                              st.sd_ovf_count, st.tx_late);
+                    match r.lag {
+                        Some(l) => println!("lag {l} frames (output index k carries input index k + lag), board audio latency {}",
+                                            r.latency_ms.map_or("-".into(), |v| format!("{v:.2} ms"))),
+                        None => println!("lag not found (input and output did not correlate)"),
+                    }
+                    if let Some(n) = &export_shm {
+                        println!("exported {} aligned blocks to /dev/shm/{n}, first board index {}", r.exported_blocks,
+                                 r.first_index.map_or("-".into(), |v| v.to_string()));
+                    }
                     ExitCode::SUCCESS
                 }
                 Err(e) => {

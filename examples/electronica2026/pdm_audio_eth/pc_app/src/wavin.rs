@@ -126,6 +126,23 @@ pub fn load_set(paths: &[std::path::PathBuf]) -> Result<CaptureSet, WavError> {
     Ok(CaptureSet { ch, frames, trimmed })
 }
 
+/// Files for some of the 8 channels loaded as one capture set ([`load_set`]:
+/// one gain, trimmed to the shortest), each on the channel given with it.
+/// For multi-microphone recordings, where the level differences between the
+/// channels are part of the signal (`--set` on the command line).
+pub fn load_set_on(files: &[(usize, std::path::PathBuf)]) -> Result<InputSet, WavError> {
+    if let Some((c, _)) = files.iter().find(|(c, _)| *c >= 8) {
+        return Err(WavError(format!("channel {c}: the board has channels 0 to 7")));
+    }
+    let paths: Vec<_> = files.iter().map(|(_, p)| p.clone()).collect();
+    let s = load_set(&paths)?;
+    let mut set = InputSet::default();
+    for ((c, _), x) in files.iter().zip(s.ch) {
+        set.ch[*c] = x;
+    }
+    Ok(set)
+}
+
 /// Windowed-sinc resampler: 64 taps, Hann window, cutoff at 0.9 of the
 /// lower Nyquist frequency.
 pub fn resample(x: &[f32], fin: u32, fout: u32) -> Vec<f32> {
@@ -395,6 +412,24 @@ mod tests {
         assert!(e.contains("stereo.wav") && e.contains("mono"), "{e}");
         let e = load_set(&vec![a; 9]).unwrap_err().to_string();
         assert!(e.contains("8"), "{e}");
+    }
+
+    #[test]
+    fn set_on_channels_keeps_level_ratio_and_places_each_file() {
+        let d = tempfile::tempdir().unwrap();
+        let a = d.path().join("mic1.wav");
+        let b = d.path().join("mic2.wav");
+        mono16(&a, RATE, &vec![0.1; 500]);
+        mono16(&b, RATE, &vec![0.4; 520]);
+        let s = load_set_on(&[(2, a.clone()), (5, b.clone())]).unwrap();
+        assert_eq!(s.ch[5][0], 16384, "loudest of the set = 0.5 FS");
+        assert!((s.ch[2][0] - 4096).abs() <= 1, "{}", s.ch[2][0]); // 0.1 / 0.4 of it, not 0.5 FS
+        assert_eq!((s.ch[2].len(), s.ch[5].len()), (500, 500));
+        assert!(s.ch.iter().enumerate().all(|(c, x)| c == 2 || c == 5 || x.is_empty()));
+        // per file (load_channel) both would be 0.5 FS
+        assert_eq!(load_channel(&a).unwrap()[0], 16384);
+        let e = load_set_on(&[(8, a)]).unwrap_err().to_string();
+        assert!(e.contains("channel 8"), "{e}");
     }
 
     #[test]
