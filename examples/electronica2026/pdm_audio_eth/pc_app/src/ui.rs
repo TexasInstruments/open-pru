@@ -96,6 +96,9 @@ fn speaker_toggle(ui: &mut egui::Ui, on: bool, size: f32) -> egui::Response {
     resp
 }
 
+/// Most channel audio handed to the player per frame (0.15 s at 16 kHz).
+const LISTEN_MAX: usize = 2400;
+
 /// What the PC's audio output plays.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum Listen {
@@ -124,7 +127,7 @@ pub enum NetCmd {
     SetSet { chans: Vec<(usize, Vec<i16>)> },
     /// A new playlist (an opened scene): all 8 channels and the pass starts
     /// (loop offsets); it plays from its first frame with the next block.
-    SetPlaylist { set: InputSet, marks: Vec<usize> },
+    SetPlaylist { set: InputSet, marks: Vec<usize>, generation: u64 },
 }
 
 /// What the network thread needs to start a stream later (on a source choice).
@@ -153,8 +156,9 @@ pub enum NetMsg {
     Stats(NetStats),
     Error(String),
     /// The frame at loop offset `marks[slot]` went to the board with board
-    /// index `index`, in loop number `cycle` (from 0).
-    Mark { slot: usize, cycle: u64, index: u64 },
+    /// index `index`, in loop number `cycle` (from 0), of playlist number
+    /// `generation` (0 = the start-up playlist, +1 per `SetPlaylist`).
+    Mark { slot: usize, cycle: u64, index: u64, generation: u64 },
 }
 
 fn hello(link: &mut dyn Link) -> std::io::Result<()> {
@@ -177,6 +181,8 @@ pub fn run_net(mut link: Box<dyn Link>, input: Option<NetInput>, ctl: NetCtl, tx
     let (mut pos, mut seq) = (0u64, 0u32);
     let mut win_in: VecDeque<u64> = VecDeque::new();
     let mut sent_in: Vec<(u64, [i16; 8])> = Vec::new();
+    // playlist number of the marks (NetCmd::SetPlaylist)
+    let mut generation = 0u64;
     let mut input = input;
     let mut aligner = crate::seam::Aligner::new();
     // the export keeps the last lag found: the meter forgets it over silence
@@ -202,11 +208,12 @@ pub fn run_net(mut link: Box<dyn Link>, input: Option<NetInput>, ctl: NetCtl, tx
                         inp.set.set_channel(ch, samples, pos);
                     }
                 }
-                NetCmd::SetPlaylist { mut set, marks } => {
+                NetCmd::SetPlaylist { mut set, marks, generation: g } => {
                     for c in 0..8 {
                         inp.set.set_channel(c, std::mem::take(&mut set.ch[c]), pos);
                     }
                     inp.marks = marks;
+                    generation = g;
                 }
             }
         }
@@ -254,7 +261,7 @@ pub fn run_net(mut link: Box<dyn Link>, input: Option<NetInput>, ctl: NetCtl, tx
                     if !inp.marks.is_empty() && total > 0 {
                         let rel = p.saturating_sub(inp.set.start[0]);
                         if let Some(slot) = inp.marks.iter().position(|&m| m as u64 == rel % total) {
-                            let m = NetMsg::Mark { slot, cycle: rel / total, index: first as u64 + k as u64 };
+                            let m = NetMsg::Mark { slot, cycle: rel / total, index: first as u64 + k as u64, generation };
                             if tx.send(m).is_err() {
                                 return;
                             }
@@ -421,6 +428,11 @@ pub struct App {
     player_failed: bool,
     /// Board output x this = the current pass's file level (playlist).
     cur_scale: Option<f32>,
+    /// Playlist number (marks of an older one are ignored) and, after "open
+    /// scene…", the board index from which text belongs to the new scene
+    /// (u64::MAX until its first mark arrives).
+    generation: u64,
+    text_from: Option<u64>,
 }
 
 impl App {
@@ -460,6 +472,8 @@ impl App {
             player_cmd: crate::player::player_cmd(),
             player_failed: false,
             cur_scale: None,
+            generation: 0,
+            text_from: None,
         }
     }
 
@@ -497,6 +511,9 @@ impl App {
 
     /// A final utterance from audio_pipe.
     pub(crate) fn on_text(&mut self, t: crate::transcribe::TextLine) {
+        if self.text_from.is_some_and(|from| t.start < from) {
+            return; // the replaced scene's last (flushed, cut) sentences
+        }
         self.text_latency_ms = Some(t.latency_ms);
         self.lanes.add(t);
     }
@@ -660,7 +677,12 @@ impl App {
     }
 
     fn listen_label(&self) -> String {
-        let dead = self.player_failed || matches!(self.listen, Listen::Channel(_)) && self.player.as_ref().is_none_or(|p| !p.alive());
+        let dead = self.player_failed || match self.listen {
+            Listen::Channel(_) => self.player.as_ref().is_none_or(|p| !p.alive()),
+            // talker audio needs a running audio_pipe whose player works
+            Listen::Talker(_) => self.tpipe.as_ref().is_none_or(|tp| matches!(tp.status(), crate::transcribe::TStatus::Off(_)) || tp.listen_ok() == Some(false)),
+            Listen::Off => false,
+        };
         match self.listen {
             Listen::Off => "off".into(),
             _ if dead => "audio output unavailable".into(),
@@ -686,7 +708,9 @@ impl App {
         let pass = &pl.passes[0];
         let (name, scale) = (pass.scene.clone(), pass.scale);
         if let Some(c) = &self.cmds
-            && c.send(NetCmd::SetPlaylist { set: pl.set, marks: vec![0] }).is_ok() {
+            && c.send(NetCmd::SetPlaylist { set: pl.set, marks: vec![0], generation: self.generation + 1 }).is_ok() {
+                self.generation += 1;
+                self.text_from = Some(u64::MAX);
                 self.scenes = vec![name.clone()];
                 self.pass_scales = vec![scale];
                 self.pass = None;
@@ -827,6 +851,16 @@ impl App {
     }
 
     fn drain(&mut self) {
+        let mut heard: Vec<i16> = Vec::new();
+        self.drain_msgs(&mut heard);
+        // after a stall only the newest LISTEN_MAX goes to the player: late sound would stay late
+        if let Some(p) = &self.player
+            && !heard.is_empty() {
+                p.push(&heard[heard.len().saturating_sub(LISTEN_MAX)..]);
+            }
+    }
+
+    fn drain_msgs(&mut self, heard: &mut Vec<i16>) {
         while let Ok(m) = self.rx.try_recv() {
             match m {
                 NetMsg::Out(v) => {
@@ -837,9 +871,8 @@ impl App {
                     if let Some((k, _)) = v.last() {
                         self.out_newest = Some(*k);
                     }
-                    if let (Listen::Channel(c), Some(p)) = (self.listen, &self.player) {
-                        let x: Vec<i16> = v.iter().map(|(_, f)| channel_sample(f[c], self.cur_scale)).collect();
-                        p.push(&x);
+                    if let Listen::Channel(c) = self.listen {
+                        heard.extend(v.iter().map(|(_, f)| channel_sample(f[c], self.cur_scale)));
                     }
                     for (c, sp) in self.out.iter_mut().enumerate() {
                         let x: Vec<f32> = v.iter().map(|(_, f)| f[c] as f32).collect();
@@ -868,7 +901,13 @@ impl App {
                     self.stats = s;
                 }
                 NetMsg::Error(e) => self.error = Some(e),
-                NetMsg::Mark { slot, cycle, index } => {
+                NetMsg::Mark { slot, cycle, index, generation } => {
+                    if generation != self.generation {
+                        continue; // a mark of the playlist that was replaced
+                    }
+                    if self.text_from == Some(u64::MAX) {
+                        self.text_from = Some(index); // the opened scene's first frame on the board
+                    }
                     if let Some(scene) = self.scenes.get(slot).cloned() {
                         let n = cycle * self.scenes.len() as u64 + slot as u64;
                         self.pass = Some((scene.clone(), n));
@@ -1316,7 +1355,7 @@ mod tests {
         let (mut marks, mut ins) = (Vec::new(), std::collections::HashMap::new());
         while t0.elapsed() < Duration::from_millis(ms) {
             match rx.recv_timeout(Duration::from_millis(50)) {
-                Ok(NetMsg::Mark { slot, cycle, index }) => marks.push((slot, cycle, index)),
+                Ok(NetMsg::Mark { slot, cycle, index, .. }) => marks.push((slot, cycle, index)),
                 Ok(NetMsg::In(v)) => ins.extend(v),
                 _ => {}
             }
@@ -1394,7 +1433,7 @@ mod tests {
     fn mark_names_scene_and_pass() {
         let (tx, rx) = std::sync::mpsc::channel();
         let mut app = App::new(rx, "test".into()).with_playlist(vec!["a".into(), "b".into()]);
-        tx.send(NetMsg::Mark { slot: 1, cycle: 2, index: 123 }).unwrap();
+        tx.send(NetMsg::Mark { slot: 1, cycle: 2, index: 123, generation: 0 }).unwrap();
         app.drain();
         assert_eq!(app.pass, Some(("b".to_string(), 5)));
         assert_eq!(app.in_label(0), "ch0 IN (PC): b (pass 5)");
@@ -1485,7 +1524,7 @@ mod tests {
                                                      text: "Hi.".into(), latency_ms: 500.0 });
         app.open_scene(&p);
         match crx.try_recv().expect("a command") {
-            NetCmd::SetPlaylist { set, marks } => {
+            NetCmd::SetPlaylist { set, marks, .. } => {
                 assert_eq!(marks, vec![0]);
                 assert_eq!(set.ch[0].len(), 1000 + crate::playlist::GAP_FRAMES);
             }
@@ -1495,6 +1534,46 @@ mod tests {
         assert_eq!(app.pass_scales.len(), 1);
         assert!(app.lanes.lanes.is_empty());
         assert!(app.error.is_none());
+    }
+
+    fn text_at(start: u64) -> crate::transcribe::TextLine {
+        crate::transcribe::TextLine { pass: 0, scene: "x".into(), speaker: 0, az: 30.0, start, end: start + 16000, text: "Hi.".into(), latency_ms: 500.0 }
+    }
+
+    #[test]
+    fn stale_marks_after_open_scene_are_ignored() {
+        // marks of the old playlist still queued (e.g. while the file dialog was open) are not the new scene's
+        let d = tempfile::tempdir().unwrap();
+        let p = scene8(d.path(), "myscene");
+        let (tx, rx) = std::sync::mpsc::channel();
+        let (ctx, _crx) = std::sync::mpsc::channel();
+        let mut app = App::new(rx, "test".into()).with_commands(ctx).with_playlist(vec!["factory_a".into(), "factory_b".into()]);
+        app.open_scene(&p);
+        tx.send(NetMsg::Mark { slot: 0, cycle: 3, index: 100, generation: 0 }).unwrap();
+        app.drain();
+        assert_eq!(app.pass, None, "an old-playlist mark");
+        tx.send(NetMsg::Mark { slot: 0, cycle: 0, index: 500, generation: 1 }).unwrap();
+        app.drain();
+        assert_eq!(app.pass, Some(("myscene".to_string(), 0)));
+    }
+
+    #[test]
+    fn old_scene_text_after_open_scene_is_dropped() {
+        // the old pass is flushed when audio_pipe sees the new mark: its (cut) sentences must not fill the new lanes
+        let d = tempfile::tempdir().unwrap();
+        let p = scene8(d.path(), "myscene");
+        let (tx, rx) = std::sync::mpsc::channel();
+        let (ctx, _crx) = std::sync::mpsc::channel();
+        let mut app = App::new(rx, "test".into()).with_commands(ctx).with_playlist(vec!["factory_a".into()]);
+        app.open_scene(&p);
+        app.on_text(text_at(50));
+        assert!(app.lanes.lanes.is_empty(), "text before the new scene's first mark");
+        tx.send(NetMsg::Mark { slot: 0, cycle: 0, index: 500, generation: 1 }).unwrap();
+        app.drain();
+        app.on_text(text_at(400));
+        assert!(app.lanes.lanes.is_empty(), "old audio, before the new scene started");
+        app.on_text(text_at(600));
+        assert_eq!(app.lanes.lanes.len(), 1);
     }
 
     #[test]
@@ -1549,6 +1628,31 @@ mod tests {
     }
 
     #[test]
+    fn channel_backlog_is_dropped_not_played_late() {
+        // after the UI thread stalled (file dialog, hidden window) the backlog would put the sound seconds behind
+        let d = tempfile::tempdir().unwrap();
+        let f = d.path().join("out.raw");
+        let (tx, rx) = std::sync::mpsc::channel();
+        let mut app = App::new(rx, "test".into()).with_player_cmd(vec!["/bin/sh".into(), "-c".into(), format!("exec cat > {}", f.display())]);
+        app.set_listen(Listen::Channel(0));
+        for m in 0..100u64 {
+            tx.send(NetMsg::Out((0..320).map(|k| (m * 320 + k, [256 * 100; 8])).collect())).unwrap(); // 2 s
+        }
+        app.drain();
+        app.player.take().unwrap().close();
+        let n = std::fs::metadata(&f).unwrap().len();
+        assert!(n > 0 && n <= 2 * 2400, "{n} bytes: only the newest 0.15 s");
+    }
+
+    #[test]
+    fn talker_without_transcription_says_unavailable() {
+        let (_tx, rx) = std::sync::mpsc::channel();
+        let mut app = App::new(rx, "test".into());
+        app.set_listen(Listen::Talker(30.0));
+        assert_eq!(line(&app, "listening").as_deref(), Some("audio output unavailable"));
+    }
+
+    #[test]
     fn missing_player_says_unavailable() {
         let (tx, rx) = std::sync::mpsc::channel();
         let mut app = App::new(rx, "test".into()).with_player_cmd(vec!["/no/such/player".into()]);
@@ -1570,7 +1674,11 @@ mod tests {
         fr[2] = 256 * 1000; // 24-bit board output; no playlist: >> 8
         tx.send(NetMsg::Out((0..64).map(|k| (k, fr)).collect())).unwrap();
         app.drain();
-        app.set_listen(Listen::Off);
+        app.set_listen(Listen::Off); // the player finishes in the background
+        let t0 = Instant::now();
+        while std::fs::metadata(&f).map_or(0, |m| m.len()) < 128 && t0.elapsed() < Duration::from_secs(2) {
+            std::thread::sleep(Duration::from_millis(5));
+        }
         let b = std::fs::read(&f).unwrap();
         assert_eq!(b.len(), 128);
         assert_eq!(i16::from_le_bytes([b[0], b[1]]), 1000);

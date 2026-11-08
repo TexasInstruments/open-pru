@@ -61,26 +61,46 @@ impl Player {
     }
 }
 
-impl Drop for Player {
-    fn drop(&mut self) {
-        use std::time::{Duration, Instant};
+impl Player {
+    /// Ends the player and waits (at most ~0.2 s) until it has played what was queued.
+    pub fn close(mut self) {
+        let (child, writer) = self.take_parts();
+        finish(child, writer);
+    }
+
+    fn take_parts(&mut self) -> (Arc<Mutex<Child>>, Option<std::thread::JoinHandle<()>>) {
         drop(self.tx.take()); // the writer sends what is queued, then closes stdin
-        let t0 = Instant::now();
-        let done = |w: &Option<std::thread::JoinHandle<()>>| w.as_ref().is_none_or(|w| w.is_finished());
-        while !done(&self.writer) && t0.elapsed() < Duration::from_millis(100) {
+        (self.child.clone(), self.writer.take())
+    }
+}
+
+/// Lets the player finish after its input ended (bounded), then stops it. The
+/// writer is not joined: a grandchild may still hold the pipe; its write fails
+/// (and the thread ends) once the pipe closes.
+fn finish(child: Arc<Mutex<Child>>, writer: Option<std::thread::JoinHandle<()>>) {
+    use std::time::{Duration, Instant};
+    let t0 = Instant::now();
+    while writer.as_ref().is_some_and(|w| !w.is_finished()) && t0.elapsed() < Duration::from_millis(100) {
+        std::thread::sleep(Duration::from_millis(2));
+    }
+    if let Ok(mut c) = child.lock() {
+        while matches!(c.try_wait(), Ok(None)) && t0.elapsed() < Duration::from_millis(200) {
             std::thread::sleep(Duration::from_millis(2));
         }
-        if let Ok(mut c) = self.child.lock() {
-            // a player that is still busy after its input ended (or stalled) is stopped
-            while matches!(c.try_wait(), Ok(None)) && t0.elapsed() < Duration::from_millis(200) {
-                std::thread::sleep(Duration::from_millis(2));
-            }
-            let _ = c.kill();
-            let _ = c.wait();
+        let _ = c.kill();
+        let _ = c.wait();
+    }
+}
+
+impl Drop for Player {
+    /// Never waits: switching or stopping the source happens on the UI thread
+    /// (and on audio_pipe's reader loop); the player is finished in the background.
+    fn drop(&mut self) {
+        if self.tx.is_none() {
+            return; // closed already
         }
-        // the writer is not joined: a grandchild may still hold the pipe; its
-        // write fails (and the thread ends) once the pipe closes
-        drop(self.writer.take());
+        let (child, writer) = self.take_parts();
+        std::thread::spawn(move || finish(child, writer));
     }
 }
 
@@ -100,7 +120,7 @@ mod tests {
         let p = Player::spawn(&sh(&format!("cat > {}", f.display()))).unwrap();
         let x: Vec<i16> = (0..1000).map(|i| (i * 7 - 3000) as i16).collect();
         p.push(&x);
-        drop(p);
+        p.close();
         let b = std::fs::read(&f).unwrap();
         assert_eq!(b.len(), 2000);
         let back: Vec<i16> = b.chunks(2).map(|c| i16::from_le_bytes([c[0], c[1]])).collect();
@@ -128,7 +148,17 @@ mod tests {
         std::thread::sleep(Duration::from_millis(50));
         let t0 = Instant::now();
         drop(p);
-        assert!(t0.elapsed() < Duration::from_millis(500), "{:?}", t0.elapsed());
+        assert!(t0.elapsed() < Duration::from_millis(20), "{:?}", t0.elapsed());
+    }
+
+    #[test]
+    fn dropping_a_healthy_player_is_quick() {
+        // a listen-off click must not freeze the spectrograms while aplay drains
+        let p = Player::spawn(&sh("exec sleep 5")).unwrap();
+        p.push(&[0; 1600]);
+        let t0 = Instant::now();
+        drop(p);
+        assert!(t0.elapsed() < Duration::from_millis(20), "{:?}", t0.elapsed());
     }
 
     #[test]

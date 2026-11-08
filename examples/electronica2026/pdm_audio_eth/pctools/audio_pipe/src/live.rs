@@ -89,9 +89,11 @@ pub struct Tap {
 }
 
 impl Tap {
-    /// Starts at the stream's current end: its replayed history is not played.
+    /// Starts `TAP_LOOKBACK` before the stream's current end (not earlier than
+    /// its first sample): a stream is born 0.1-0.2 s after its talker started,
+    /// so this keeps the first syllable without replaying all its history.
     pub fn new(id: usize, origin: i64, pcm: &[f32]) -> Self {
-        Tap { id, upto: origin + pcm.len() as i64 }
+        Tap { id, upto: (origin + pcm.len() as i64 - TAP_LOOKBACK).max(origin) }
     }
 
     /// The samples after the last take.
@@ -101,6 +103,9 @@ impl Tap {
         &pcm[a..]
     }
 }
+
+/// History played when a talker's stream is chosen (0.3 s).
+const TAP_LOOKBACK: i64 = 4800;
 
 /// Talker audio gain to the player (the separated stream is quiet), then a
 /// soft limit at 0.95 FS (tanh) instead of clipping.
@@ -185,12 +190,28 @@ impl Live {
             self.player = None;
         } else if self.player.as_ref().is_none_or(|p| !p.alive()) {
             self.player = match crate::player::Player::spawn(&self.player_cmd) {
-                Ok(p) => Some(p),
+                Ok(p) => {
+                    self.out.push(serde_json::json!({"listen": "ok"}).to_string());
+                    Some(p)
+                }
                 Err(e) => {
-                    eprintln!("live: audio output unavailable ({}): {e}", self.player_cmd.join(" "));
+                    let d = format!("{}: {e}", self.player_cmd.join(" "));
+                    eprintln!("live: audio output unavailable ({d})");
+                    self.out.push(serde_json::json!({"listen": "unavailable", "detail": d}).to_string());
                     None
                 }
             };
+        } else {
+            self.out.push(serde_json::json!({"listen": "ok"}).to_string());
+        }
+    }
+
+    /// A talker player that has died is reported and dropped (the GUI's next choice starts a new one).
+    pub fn check_player(&mut self) {
+        if self.player.as_ref().is_some_and(|p| !p.alive()) {
+            self.player = None;
+            eprintln!("live: audio output ended");
+            self.out.push(serde_json::json!({"listen": "unavailable", "detail": "the player exited"}).to_string());
         }
     }
 
@@ -298,6 +319,7 @@ impl Live {
                 }
                 let hops: Vec<&[f32]> = self.hop.iter().map(|v| v.as_slice()).collect();
                 pipe.process(&hops);
+                self.check_player();
                 self.feed_listen();
             }
         }
@@ -647,15 +669,19 @@ mod tests {
     }
 
     #[test]
-    fn tap_skips_history_and_takes_new() {
-        let pcm: Vec<f32> = (0..1300).map(|i| i as f32).collect();
-        let mut t = Tap::new(7, 0, &pcm[..1000]);
-        assert_eq!(t.upto, 1000);
-        assert!(t.take(0, &pcm[..1000]).is_empty());
+    fn tap_plays_the_last_300_ms_of_history_then_new() {
+        // a stream is born 0.1-0.2 s after its talker started: 0.3 s of its history keeps the first syllable
+        let pcm: Vec<f32> = (0..10_000).map(|i| i as f32).collect();
+        let mut t = Tap::new(7, 0, &pcm[..8000]);
+        assert_eq!(t.upto, 8000 - 4800);
+        assert_eq!(t.take(0, &pcm[..8000]).len(), 4800);
         let x = t.take(0, &pcm);
-        assert_eq!(x.len(), 300);
-        assert_eq!(x[0], 1000.0);
+        assert_eq!(x.len(), 2000);
+        assert_eq!(x[0], 8000.0);
         assert!(t.take(0, &pcm).is_empty());
+        // a stream younger than 0.3 s: from its first sample
+        let t = Tap::new(8, 500, &pcm[..1000]);
+        assert_eq!(t.upto, 500);
     }
 
     #[test]
@@ -701,7 +727,16 @@ mod tests {
             }
             l.on_read(Read::Block(Block { index: b * 64, out })).unwrap();
         }
-        l.listen(None); // drops the player: the file is complete
+        l.listen(None); // the player finishes in the background: wait until the file stops growing
+        let mut last = u64::MAX;
+        for _ in 0..100 {
+            std::thread::sleep(std::time::Duration::from_millis(20));
+            let n = std::fs::metadata(&f).map_or(0, |m| m.len());
+            if n == last {
+                break;
+            }
+            last = n;
+        }
         if let Ok(keep) = std::env::var("LISTEN_KEEP") {
             let _ = std::fs::copy(&f, keep);
         }
@@ -713,6 +748,28 @@ mod tests {
         eprintln!("talker audio: {:.1} s, rms {rms:.4}, peak {:.3}, clipped {clipped}", x.len() as f32 / 16000.0, x.iter().fold(0f32, |m, v| m.max(v.abs())));
         assert!(rms > 0.005, "talker audio rms {rms}");
         assert!(clipped < x.len() / 1000, "{clipped} clipped samples");
+    }
+
+    #[test]
+    fn listen_reports_the_audio_output() {
+        let mut l = Live::new(args(&["--no-asr"]), None).unwrap();
+        l.player_cmd = vec!["/no/such/player".into()];
+        l.listen(Some(30.0));
+        assert!(l.out.iter().any(|s| s.contains(r#""listen":"unavailable""#)), "{:?}", l.out);
+        l.player_cmd = vec!["/bin/sh".into(), "-c".into(), "exec cat > /dev/null".into()];
+        l.listen(Some(30.0));
+        assert!(l.out.last().unwrap().contains(r#""listen":"ok""#), "{:?}", l.out);
+        // a player that dies is reported (and dropped: the next choice starts a new one)
+        l.listen(None);
+        l.player_cmd = vec!["/bin/sh".into(), "-c".into(), "exit 0".into()];
+        l.listen(Some(31.0));
+        let t0 = std::time::Instant::now();
+        while l.player.is_some() && t0.elapsed() < std::time::Duration::from_secs(2) {
+            l.check_player();
+            std::thread::sleep(std::time::Duration::from_millis(10));
+        }
+        assert!(l.player.is_none());
+        assert!(l.out.last().unwrap().contains(r#""listen":"unavailable""#), "{:?}", l.out);
     }
 
     #[test]

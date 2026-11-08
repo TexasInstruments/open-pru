@@ -61,6 +61,8 @@ impl std::fmt::Display for TStatus {
 pub enum Parsed {
     Text(TextLine),
     Status(TStatus),
+    /// `{"listen":"ok"|"unavailable"}`: audio_pipe's talker audio output works or not.
+    Listen(bool),
 }
 
 /// A line of audio_pipe's stdout; anything else than a text or status line is None.
@@ -70,6 +72,13 @@ pub fn parse_line(s: &str) -> Option<Parsed> {
         return Some(Parsed::Text(t));
     }
     let v: serde_json::Value = serde_json::from_str(s).ok()?;
+    if let Some(l) = v.get("listen").and_then(|l| l.as_str()) {
+        return match l {
+            "ok" => Some(Parsed::Listen(true)),
+            "unavailable" => Some(Parsed::Listen(false)),
+            _ => None,
+        };
+    }
     let st = match v.get("status")?.as_str()? {
         "waiting" => TStatus::Waiting,
         "running" => TStatus::Running,
@@ -94,12 +103,14 @@ pub struct TextPipe {
     status: TStatus,
     /// Talker listening: the azimuth audio_pipe plays (sent again after a restart).
     listen_az: Option<f32>,
+    /// audio_pipe's answer to the current talker choice (None = none yet).
+    listen_ok: Option<bool>,
 }
 
 impl TextPipe {
     /// `cmd`: argv of `audio_pipe live --shm NAME ...`; started at the first pass start.
     pub fn new(cmd: Vec<String>) -> Self {
-        TextPipe { cmd, run: None, last_start: None, fails: 0, status: TStatus::Starting, listen_az: None }
+        TextPipe { cmd, run: None, last_start: None, fails: 0, status: TStatus::Starting, listen_az: None, listen_ok: None }
     }
 
     pub fn status(&self) -> &TStatus {
@@ -160,11 +171,17 @@ impl TextPipe {
     /// Talker listening: audio_pipe plays the stream nearest `az`, or stops (None).
     pub fn listen(&mut self, az: Option<f32>) {
         self.listen_az = az;
+        self.listen_ok = None;
         self.send(serde_json::json!({"listen_az": az}));
     }
 
     pub fn listening(&self) -> Option<f32> {
         self.listen_az
+    }
+
+    /// Whether audio_pipe can play the chosen talker (None: no answer yet).
+    pub fn listen_ok(&self) -> Option<bool> {
+        self.listen_ok
     }
 
     fn failed(&mut self, reason: String) {
@@ -195,9 +212,11 @@ impl TextPipe {
     pub fn poll(&mut self, now: Instant) -> Vec<TextLine> {
         let mut v = Vec::new();
         let Some(r) = &mut self.run else { return v };
+        let listen_ok = &mut self.listen_ok;
         let mut take = |p: Parsed, status: &mut TStatus| match p {
             Parsed::Text(t) => v.push(t),
             Parsed::Status(s) => *status = s,
+            Parsed::Listen(ok) => *listen_ok = Some(ok),
         };
         while let Ok(p) = r.rx.try_recv() {
             take(p, &mut self.status);
@@ -318,6 +337,25 @@ mod tests {
         assert_eq!(c.matches(r#""listen_az":211"#).count(), 2, "{c}");
         tp.listen(None);
         assert_eq!(tp.listening(), None);
+    }
+
+    #[test]
+    fn talker_audio_state_is_parsed_and_kept() {
+        assert!(matches!(parse_line(r#"{"listen":"unavailable","detail":"aplay: no device"}"#), Some(Parsed::Listen(false))));
+        assert!(matches!(parse_line(r#"{"listen":"ok"}"#), Some(Parsed::Listen(true))));
+        let d = tempfile::tempdir().unwrap();
+        let mut tp = TextPipe::new(script(d.path(), "c", "echo '{\"listen\":\"unavailable\",\"detail\":\"x\"}'\nsleep 2"));
+        let now = Instant::now();
+        tp.pass_start(now, 1, "a", 0, 1.0);
+        tp.listen(Some(30.0));
+        let t0 = Instant::now();
+        while tp.listen_ok().is_none() && t0.elapsed() < Duration::from_secs(2) {
+            tp.poll(now);
+            std::thread::sleep(Duration::from_millis(10));
+        }
+        assert_eq!(tp.listen_ok(), Some(false));
+        tp.listen(None);
+        assert_eq!(tp.listen_ok(), None, "a new choice forgets the old answer");
     }
 
     #[test]
