@@ -586,6 +586,60 @@ Every scene must say `PASS` (its last 5 passes word for word right, no text
 on any other direction). Drop or fix a scene that fails:
 a wrong sentence on screen is worse than none.
 
+### 7.9 Video: typed scene to transcript and listening
+
+One take that explains the demo: type what the workers say in the Scene
+Simulator, open the scene in the window, read the transcript and listen to
+the noisy capture and to one separated talker. Design and plan:
+`docs/2026-11-08-video-demo-{design,plan}.md`.
+
+**Once per PC** (as 7.8, plus the Scene Simulator checkout):
+
+```
+cd ~/GitHub/scenes && git checkout video-demo-kokoro   # Kokoro voices + Factory (booth)
+```
+
+**The page:** typed speech needs the page served, not opened as a file:
+
+```
+cd ~/GitHub/scenes/web && python3 -m http.server 8000   # then http://localhost:8000/robot_acoustic.html
+```
+
+The first Kokoro sentence downloads the voice model from Hugging Face (about
+90 MB) and the browser keeps it: do one sentence online before filming.
+After that a sentence takes about 5 s on the CPU.
+
+**The take:**
+
+1. Click **Factory (booth)**: the booth hall (press at 150°) with four
+   workers on typed text, Kokoro voices.
+2. Type each worker's sentence. Use sentences from
+   `pctools/audio_pipe/tools/video_sentences.md`: only those were checked on
+   the board, word for word right in their slot.
+3. **Download .zip**.
+4. In the window (`pdm-eth-demo`, booth playlist running): **open scene…**
+   and pick the zip (or **open scene folder…** for the unpacked folder). It
+   loops in place of the booth playlist, transcribed the same way, until
+   the window is restarted. The first pass after opening is transcribed
+   too; text appears about 0.5 s after each worker stops.
+5. **Listen** (one source at a time, the same choice again = off; the side
+   line "listening" says what plays):
+   - the speaker icon after a channel button: that channel's board output,
+     the noisy mic capture, in step with the spectrogram;
+   - a lane's label (colour dot, number, direction): that worker's
+     separated stream from audio_pipe, about 0.3 s behind the picture.
+
+   Sound goes to the PC's default output (`aplay`; `PDM_PLAYER` sets another
+   player command). "audio output unavailable": no player or no device; the
+   rest of the window carries on.
+
+**Readable on the booth screen:** `PDM_UI_SCALE=1.75 pdm-eth-demo` (or
+`--ui-scale`) scales the whole window; try 1.5 to 2.0 on a 32" 4K monitor.
+The top bar and the transcript are larger than before at any scale.
+
+To start already listening (screen recording without a click):
+`pdm-eth-demo --listen ch0` or `--listen az30` (the talker nearest 30°).
+
 ## 8. Booth talking points
 
 - **Real time vs simulation:** the same eight-channel PDM chain runs in the
