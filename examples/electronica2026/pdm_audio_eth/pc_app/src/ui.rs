@@ -433,6 +433,18 @@ pub struct App {
     /// (u64::MAX until its first mark arrives).
     generation: u64,
     text_from: Option<u64>,
+    /// A file dialog open on its own thread (the window keeps running), and
+    /// what its answer is for.
+    pick: Option<(Pick, Receiver<Option<Vec<std::path::PathBuf>>>)>,
+}
+
+/// What an open file dialog is choosing.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub(crate) enum Pick {
+    SceneZip,
+    SceneFolder,
+    CaptureSet,
+    Wav(usize),
 }
 
 impl App {
@@ -468,6 +480,7 @@ impl App {
             pass_scales: Vec::new(),
             tlog: None,
             listen: Listen::Off,
+            pick: None,
             player: None,
             player_cmd: crate::player::player_cmd(),
             player_failed: false,
@@ -721,6 +734,58 @@ impl App {
             }
     }
 
+    /// Open the file dialog for `what` on its own thread: rfd's dialogs block
+    /// until they close, and on the UI thread they froze the window (and a
+    /// dialog behind it looked like a hang). One dialog at a time.
+    fn start_pick(&mut self, what: Pick, ctx: &egui::Context) {
+        if self.pick.is_some() {
+            return;
+        }
+        let (tx, rx) = std::sync::mpsc::channel();
+        let ctx = ctx.clone();
+        std::thread::spawn(move || {
+            let d = rfd::FileDialog::new();
+            let r = match what {
+                Pick::SceneZip => d.set_title("Scene Simulator zip").add_filter("zip", &["zip", "ZIP"]).pick_file().map(|p| vec![p]),
+                Pick::SceneFolder => d.set_title("Scene folder").pick_folder().map(|p| vec![p]),
+                Pick::CaptureSet => d.set_title("Capture set: up to 8 mono WAV files").add_filter("WAV audio", &["wav", "WAV"]).pick_files(),
+                Pick::Wav(c) => d.set_title(format!("WAV file for ch{c}")).add_filter("WAV audio", &["wav", "WAV"]).pick_file().map(|p| vec![p]),
+            };
+            let _ = tx.send(r);
+            ctx.request_repaint();
+        });
+        self.begin_pick(what, rx);
+    }
+
+    /// Wait for the answer of a dialog for `what` on `rx` (see `poll_pick`).
+    pub(crate) fn begin_pick(&mut self, what: Pick, rx: Receiver<Option<Vec<std::path::PathBuf>>>) {
+        self.pick = Some((what, rx));
+    }
+
+    /// A file dialog is open.
+    pub(crate) fn picking(&self) -> bool {
+        self.pick.is_some()
+    }
+
+    /// Take up the open dialog's answer, if it has one: open what was picked;
+    /// cancelled (or the dialog thread gone) changes nothing.
+    pub(crate) fn poll_pick(&mut self) {
+        let Some((what, rx)) = &self.pick else { return };
+        let what = *what;
+        let got = match rx.try_recv() {
+            Ok(r) => r,
+            Err(std::sync::mpsc::TryRecvError::Empty) => return,
+            Err(std::sync::mpsc::TryRecvError::Disconnected) => None,
+        };
+        self.pick = None;
+        let Some(mut paths) = got.filter(|p| !p.is_empty()) else { return };
+        match what {
+            Pick::SceneZip | Pick::SceneFolder => self.open_scene(&paths.swap_remove(0)),
+            Pick::CaptureSet => self.choose_set(paths),
+            Pick::Wav(c) => self.choose_file(c, &paths.swap_remove(0)),
+        }
+    }
+
     /// Load up to 8 mono files as one capture set onto ch0, ch1, ... in file
     /// name order (design 7.2a); a set that does not load changes nothing.
     pub fn choose_set(&mut self, mut paths: Vec<std::path::PathBuf>) {
@@ -755,28 +820,26 @@ impl App {
         ui.label(egui::RichText::new("Sources").size(LABEL_PX).color(LABEL_COLOUR));
         if !self.scenes.is_empty() {
             ui.horizontal(|ui| {
-                if ui.button("open scene…").on_hover_text("A Scene Simulator zip: loops in place of the playlist, transcribed").clicked()
-                    && let Some(p) = rfd::FileDialog::new().set_title("Scene Simulator zip").add_filter("zip", &["zip", "ZIP"]).pick_file() {
-                        self.open_scene(&p);
-                    }
-                if ui.button("open scene folder…").on_hover_text("A folder with mic1..8.wav (or mics/mic1..8.wav)").clicked()
-                    && let Some(p) = rfd::FileDialog::new().set_title("Scene folder").pick_folder() {
-                        self.open_scene(&p);
-                    }
+                let free = !self.picking();
+                if ui.add_enabled(free, egui::Button::new("open scene…")).on_hover_text("A Scene Simulator zip: loops in place of the playlist, transcribed").clicked() {
+                    self.start_pick(Pick::SceneZip, ui.ctx());
+                }
+                if ui.add_enabled(free, egui::Button::new("open scene folder…")).on_hover_text("A folder with mic1..8.wav (or mics/mic1..8.wav)").clicked() {
+                    self.start_pick(Pick::SceneFolder, ui.ctx());
+                }
             });
+            if self.picking() {
+                ui.label(egui::RichText::new("file dialog open (it may be behind this window)").size(LABEL_PX).color(LABEL_COLOUR));
+            }
             ui.label(egui::RichText::new("playlist: sources are locked").size(LABEL_PX));
             ui.disable();
         }
-        if ui.button("open capture set...")
+        if ui.add_enabled(!self.picking(), egui::Button::new("open capture set..."))
             .on_hover_text("Up to 8 mono WAV files of one sample rate: sorted by name onto ch0, ch1, ..., \
                             started on the same sample, trimmed to the shortest, one gain for the set")
             .clicked()
-            && let Some(p) = rfd::FileDialog::new()
-                .set_title("Capture set: up to 8 mono WAV files")
-                .add_filter("WAV audio", &["wav", "WAV"])
-                .pick_files()
         {
-            self.choose_set(p);
+            self.start_pick(Pick::CaptureSet, ui.ctx());
         }
         if let Some(i) = &self.set_info {
             ui.label(egui::RichText::new(format!("capture set: {i}")).size(LABEL_PX));
@@ -804,15 +867,7 @@ impl App {
         });
         match pick {
             Some((c, Some(src))) => self.set_source(c, src),
-            Some((c, None)) => {
-                if let Some(p) = rfd::FileDialog::new()
-                    .set_title(format!("WAV file for ch{c}"))
-                    .add_filter("WAV audio", &["wav", "WAV"])
-                    .pick_file()
-                {
-                    self.choose_file(c, &p);
-                }
-            }
+            Some((c, None)) => self.start_pick(Pick::Wav(c), ui.ctx()),
             None => {}
         }
     }
@@ -1157,6 +1212,7 @@ fn pane(ui: &mut egui::Ui, h: f32, tex: &Option<TextureHandle>, label: &str, emp
 impl eframe::App for App {
     fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
         let ctx = ui.ctx().clone();
+        self.poll_pick();
         self.drain();
         self.release_input();
         self.poll_text();
@@ -1534,6 +1590,45 @@ mod tests {
         assert_eq!(app.pass_scales.len(), 1);
         assert!(app.lanes.lanes.is_empty());
         assert!(app.error.is_none());
+    }
+
+    #[test]
+    fn a_picked_scene_folder_opens_when_the_dialog_answers() {
+        // the dialog runs off the UI thread; its answer arrives on a channel and is taken up by poll_pick
+        let d = tempfile::tempdir().unwrap();
+        let p = scene8(d.path(), "picked");
+        let (_tx, rx) = std::sync::mpsc::channel();
+        let (ctx, crx) = std::sync::mpsc::channel();
+        let mut app = App::new(rx, "test".into()).with_commands(ctx).with_playlist(vec!["factory_a".into()]);
+        let (ptx, prx) = std::sync::mpsc::channel();
+        app.begin_pick(Pick::SceneFolder, prx);
+        app.poll_pick();
+        assert!(app.picking(), "no answer yet: still picking");
+        assert!(crx.try_recv().is_err());
+        ptx.send(Some(vec![p])).unwrap();
+        app.poll_pick();
+        assert!(!app.picking());
+        assert!(matches!(crx.try_recv(), Ok(NetCmd::SetPlaylist { .. })));
+        assert_eq!(app.scenes, vec!["picked".to_string()]);
+    }
+
+    #[test]
+    fn a_cancelled_or_dead_dialog_changes_nothing() {
+        let (_tx, rx) = std::sync::mpsc::channel();
+        let (ctx, crx) = std::sync::mpsc::channel();
+        let mut app = App::new(rx, "test".into()).with_commands(ctx).with_playlist(vec!["factory_a".into()]);
+        let (ptx, prx) = std::sync::mpsc::channel();
+        app.begin_pick(Pick::SceneZip, prx);
+        ptx.send(None).unwrap();
+        app.poll_pick();
+        assert!(!app.picking());
+        let (ptx, prx) = std::sync::mpsc::channel::<Option<Vec<std::path::PathBuf>>>();
+        app.begin_pick(Pick::SceneZip, prx);
+        drop(ptx); // the dialog thread died
+        app.poll_pick();
+        assert!(!app.picking());
+        assert!(crx.try_recv().is_err());
+        assert_eq!(app.scenes, vec!["factory_a".to_string()]);
     }
 
     fn text_at(start: u64) -> crate::transcribe::TextLine {
