@@ -515,6 +515,77 @@ channel by channel (expected: -85 to -94 dB residual, no bad 64-frame block).
 | 0x30090010 | ICSSG1 RX counters | RX_BAD 0, RX_FOREIGN 0 |
 | 0x700C0000, 0x40000 bytes | clip buffer | unchanged by `test`: save it and run `python3 $DEMO/pdm_audio_eth/tools/compare_clip_dump.py DUMP` |
 
+### 7.8 Booth transcripts (who said what, live)
+
+The window can loop curated factory scenes and show, under the spectrograms,
+what each person said: one text lane per talker, recognised live from the
+**board's output** by `pctools/audio_pipe` (8-mic front-end + whisper on the
+GPU). Design: `docs/2026-11-07-booth-transcripts-design.md`.
+
+**Once per PC:**
+
+```
+# the whisper model (about 0.6 GB)
+curl -L -o $DEMO/pctools/audio_pipe/models/ggml-large-v3-turbo-q5_0.bin \
+  https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-large-v3-turbo-q5_0.bin
+# the booth scenes (node + the Scene Simulator checkout as $SCENE_ROOT/scenes)
+SCENE_ROOT=~/GitHub/audio_pipe_scenes $DEMO/pctools/audio_pipe/tools/make_booth_scenes.sh
+```
+
+The scenes go to `pc_app/audio/booth/` (not in git: two of the voices come
+from the Scene Simulator, whose licence is not documented).
+
+**Start:** `PDM_IFACE=enx9c69d3c13719 pdm-eth-demo` (or `enp129s0`). With
+`pc_app/audio/booth/` present the launcher builds audio_pipe (CUDA), loops
+the scenes (each followed by 1 s of silence) and starts the transcription;
+the text and pass starts are logged to `~/pdm-eth-booth.log`. Another
+playlist: `PDM_PLAYLIST=<dir>`.
+
+**What the visitor sees:** the IN pane names the scene and pass. About 0.5 s
+after a talker stops, the sentence appears in that talker's lane (colour dot,
+number, direction), placed where it was spoken, and scrolls left with the
+spectrograms. Only final text is shown. The first pass after the start (or
+after a restart of audio_pipe) has no text: the model is still loading.
+
+**Side panel, "transcription":**
+
+| Shows | Meaning | Do |
+|---|---|---|
+| running | text comes | nothing |
+| starting | audio_pipe (re)starting; text from the next pass on | nothing; it restarts itself at most every 10 s |
+| fell behind, rejoining | audio_pipe missed audio (GPU stall), skips the rest of this pass | nothing; if it repeats, close other GPU programs |
+| off: audio_pipe not found | not built | run without `PDM_NO_BUILD`, or build `pctools/audio_pipe` |
+| off: audio_pipe exited (...) (3 failed starts) | crashes at start (model missing, no GPU) | read the terminal, fix, restart the demo |
+
+"text latency" is end of speech to text on screen for the newest sentence
+(0.48-0.71 s on the board, median 0.54 s).
+
+While the playlist runs, the Sources table is locked (greyed): nothing can be
+mixed into a scene that is being transcribed.
+
+**Soak, 2026-11-08** (1 h on the board, `enx9c69d3c13719`, factory_a and
+factory_b, 347 passes): 345 passes had every talker word for word right; twice
+worker A's sentence lost its start ("Box to station four." instead of "Please
+bring the red toolbox to station 4."), nothing else wrong and no text on any
+other direction. No overruns, no restarts; memory flat (window 229 to 239 MB,
+audio_pipe 466 to 467 MB); text latency 0.48-0.71 s over 1392 sentences.
+
+**One sender:** only one `pdm-eth` may feed the board. A `stream` or
+`board_bench.py` run while the window is open gets the booth clips back.
+
+**Re-check the scenes** (after changing them, or on a new PC): remove
+`~/pdm-eth-booth.log` (the launcher appends to it, and the checker would mix
+the runs), run the window on the board with the playlist for at least 6 passes
+per scene, then
+
+```
+python3 $DEMO/pctools/audio_pipe/tools/booth_curate.py ~/pdm-eth-booth.log $DEMO/pc_app/audio/booth
+```
+
+Every scene must say `PASS` (its last 5 passes word for word right, no text
+on any other direction). Drop or fix a scene that fails:
+a wrong sentence on screen is worse than none.
+
 ## 8. Booth talking points
 
 - **Real time vs simulation:** the same eight-channel PDM chain runs in the
