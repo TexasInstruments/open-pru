@@ -463,7 +463,7 @@ impl App {
             Some(_) => None,
         };
         if let Some(m) = msg {
-            painter.text(img.center(), egui::Align2::CENTER_CENTER, m, egui::FontId::proportional(16.0), grey);
+            painter.text(img.center(), egui::Align2::CENTER_CENTER, m, egui::FontId::proportional(LANE_MSG_PX), grey);
             return;
         }
         let Some(now) = self.now_index() else { return };
@@ -476,15 +476,16 @@ impl App {
             }
             let c = crate::lanes::palette(lane.colour);
             painter.text(pos2(resp.rect.left() + 2.0, top + LANE_H / 2.0), egui::Align2::LEFT_CENTER,
-                         format!("● {} · {:.0}°", lane.label, lane.az), egui::FontId::proportional(12.0), c);
+                         format!("● {} · {:.0}°", lane.label, lane.az), egui::FontId::proportional(LANE_LABEL_PX), c);
             let fill = Color32::from_rgb((c.r() as f32 * 0.5) as u8, (c.g() as f32 * 0.5) as u8, (c.b() as f32 * 0.5) as u8);
             for t in &lane.items {
                 let x0 = time_x(img.left(), img.right(), secs(t.start));
                 let x1 = time_x(img.left(), img.right(), secs(t.end));
-                let g = painter.layout_no_wrap(t.text.clone(), egui::FontId::proportional(14.0), Color32::WHITE);
+                let g = painter.layout_no_wrap(t.text.clone(), egui::FontId::proportional(LANE_TEXT_PX), Color32::WHITE);
                 let w = (g.size().x + 16.0).max(x1 - x0);
-                let r = Rect::from_min_max(pos2(x0, top + 3.0), pos2(x0 + w, top + LANE_H - 3.0));
-                clip.rect_filled(r, 9.0, fill);
+                let x0 = chip_x(x0, w, img.right());
+                let r = Rect::from_min_max(pos2(x0, top + 4.0), pos2(x0 + w, top + LANE_H - 4.0));
+                clip.rect_filled(r, r.height() / 2.0, fill);
                 clip.galley(pos2(x0 + 8.0, r.center().y - g.size().y / 2.0), g, Color32::WHITE);
             }
         }
@@ -816,8 +817,24 @@ pub fn save_png(path: &std::path::Path, img: &ColorImage) -> std::io::Result<()>
     w.write_image_data(&data).map_err(std::io::Error::other)
 }
 
-/// Height of one text lane.
-const LANE_H: f32 = 26.0;
+/// Height of one text lane, and its fonts (readable on a 32" 4K screen).
+const LANE_H: f32 = 40.0;
+const LANE_LABEL_PX: f32 = 18.0;
+const LANE_TEXT_PX: f32 = 21.0;
+const LANE_MSG_PX: f32 = 22.0;
+/// Top-bar text (title, channel buttons, source, view switch).
+const TOP_PX: f32 = 20.0;
+
+/// Left edge of a sentence box `w` wide that starts at `x0`: pulled left so
+/// it ends at the pane's right edge rather than being cut off there.
+fn chip_x(x0: f32, w: f32, right: f32) -> f32 {
+    x0.min(right - w)
+}
+
+/// The window's zoom factor: `--ui-scale`, else `PDM_UI_SCALE`, else 1.0; 0.5 to 4.
+pub fn ui_scale(flag: Option<f32>, env: Option<&str>) -> f32 {
+    flag.or_else(|| env.and_then(|e| e.trim().parse().ok())).filter(|v: &f32| v.is_finite()).unwrap_or(1.0).clamp(0.5, 4.0)
+}
 
 /// Side-panel line titles: readable at booth distance (were egui `small().weak()`).
 const LABEL_PX: f32 = 15.0;
@@ -945,12 +962,13 @@ impl eframe::App for App {
         let fps = self.fps();
         self.update_textures(&ctx);
         egui::Panel::top("toolbar").show(ui, |ui| {
-            ui.horizontal(|ui| {
-                ui.strong("PDM audio over Ethernet");
+            ui.horizontal_wrapped(|ui| {
+                let big = |t: &str| egui::RichText::new(t).size(TOP_PX);
+                ui.label(big("PDM audio over Ethernet").strong());
                 ui.separator();
-                ui.label("channel");
+                ui.label(big("channel"));
                 for c in 0..8 {
-                    if ui.selectable_label(self.sel == c, format!("ch{c}")).clicked() && self.sel != c {
+                    if ui.selectable_label(self.sel == c, big(&format!("ch{c}"))).clicked() && self.sel != c {
                         self.sel = c;
                         self.dirty = true;
                         if let Some(s) = &self.sel_shared {
@@ -959,13 +977,23 @@ impl eframe::App for App {
                     }
                 }
                 ui.separator();
-                ui.label(&self.source);
+                ui.label(big(&self.source));
                 if let Some(e) = &self.error {
-                    ui.colored_label(Color32::RED, e);
+                    ui.colored_label(Color32::RED, big(e));
+                }
+                // the view switch sits at the right when it fits, else it wraps onto a second row
+                let views = |ui: &mut egui::Ui| {
+                    ui.add_enabled(false, egui::Button::new(big("booth view"))).on_disabled_hover_text("for the real-mic project");
+                    let _ = ui.selectable_label(true, big("engineering"));
+                };
+                if ui.max_rect().right() - ui.cursor().min.x < TOP_PX * 15.0 {
+                    ui.separator();
+                    let _ = ui.selectable_label(true, big("engineering"));
+                    ui.add_enabled(false, egui::Button::new(big("booth view"))).on_disabled_hover_text("for the real-mic project");
+                    return;
                 }
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                    ui.add_enabled(false, egui::Button::new("booth view")).on_disabled_hover_text("for the real-mic project");
-                    let _ = ui.selectable_label(true, "engineering");
+                    views(ui);
                 });
             });
         });
@@ -1242,6 +1270,22 @@ mod tests {
         }
         assert_eq!(app.sources[5], Source::File("song.wav".into()));
         assert!(app.error.is_none());
+    }
+
+    #[test]
+    fn chip_stays_inside_the_pane() {
+        // a new sentence is wider than its time span: it is pulled left, not clipped at "now"
+        assert_eq!(chip_x(900.0, 300.0, 1000.0), 700.0);
+        assert_eq!(chip_x(500.0, 300.0, 1000.0), 500.0);
+    }
+
+    #[test]
+    fn ui_scale_flag_env_default() {
+        assert_eq!(ui_scale(Some(1.75), Some("2")), 1.75);
+        assert_eq!(ui_scale(None, Some("2")), 2.0);
+        assert_eq!(ui_scale(None, Some("x")), 1.0);
+        assert_eq!(ui_scale(None, None), 1.0);
+        assert_eq!(ui_scale(Some(9.0), None), 4.0);
     }
 
     #[test]

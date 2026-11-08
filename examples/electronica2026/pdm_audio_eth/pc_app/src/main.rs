@@ -164,6 +164,10 @@ enum Cmd {
         /// (input of booth_curate.py)
         #[arg(long, value_name = "FILE")]
         transcript_log: Option<PathBuf>,
+        /// Scale the whole window (egui zoom), e.g. 1.5-2.0 on a 32" 4K
+        /// screen; default PDM_UI_SCALE, else 1.0; 0.5 to 4
+        #[arg(long, value_name = "F")]
+        ui_scale: Option<f32>,
     },
 }
 
@@ -172,6 +176,8 @@ struct Transcribe {
     bin: Option<PathBuf>,
     log: Option<PathBuf>,
     screenshot_after: f64,
+    /// egui zoom factor (pdm_eth::ui::ui_scale)
+    ui_scale: f32,
 }
 
 fn gui(target: &Target, inputs: &Inputs, lead: u32, export_shm: Option<String>, screenshot: Option<PathBuf>,
@@ -181,6 +187,7 @@ fn gui(target: &Target, inputs: &Inputs, lead: u32, export_shm: Option<String>, 
     }
     let mut names = inputs.names();
     let shot_after = tr.screenshot_after.max(0.0);
+    let ui_scale = tr.ui_scale;
     let mut scales = Vec::new();
     let (set, marks, scenes) = match &playlist {
         Some(dir) => {
@@ -246,6 +253,7 @@ fn gui(target: &Target, inputs: &Inputs, lead: u32, export_shm: Option<String>, 
             let (cmd_tx, cmd_rx) = std::sync::mpsc::channel();
             let ctl = pdm_eth::ui::NetCtl { cmds: cmd_rx, lead, sel: sel.clone() };
             let ctx = cc.egui_ctx.clone();
+            ctx.set_zoom_factor(ui_scale);
             let repaint: std::sync::Arc<dyn Fn() + Send + Sync> = std::sync::Arc::new(move || ctx.request_repaint());
             std::thread::spawn(move || {
                 if let Some(i) = &pin_iface {
@@ -310,9 +318,10 @@ fn main() -> ExitCode {
             }
             if all { ExitCode::SUCCESS } else { ExitCode::FAILURE }
         }
-        Cmd::Gui { target, inputs, lead, export_shm, screenshot, screenshot_after, no_vsync, playlist, transcribe, transcript_log } =>
+        Cmd::Gui { target, inputs, lead, export_shm, screenshot, screenshot_after, no_vsync, playlist, transcribe, transcript_log, ui_scale } =>
             match gui(&target, &inputs, lead, export_shm, screenshot, no_vsync, playlist,
-                      Transcribe { bin: transcribe, log: transcript_log, screenshot_after }) {
+                      Transcribe { bin: transcribe, log: transcript_log, screenshot_after,
+                                   ui_scale: pdm_eth::ui::ui_scale(ui_scale, std::env::var("PDM_UI_SCALE").ok().as_deref()) }) {
             Ok(()) => ExitCode::SUCCESS,
             Err(e) => {
                 eprintln!("error: {e}");

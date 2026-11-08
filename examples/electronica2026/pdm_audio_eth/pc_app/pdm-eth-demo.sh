@@ -21,6 +21,7 @@
 #   PDM_IFACE=enp5s0 pdm-eth-demo      another NIC
 #   PDM_NO_BUILD=1 pdm-eth-demo        skip the cargo build step
 #   PDM_PLAYLIST=~/scenes pdm-eth-demo another booth playlist folder
+#   PDM_UI_SCALE=1.75 pdm-eth-demo   larger window text (32" 4K booth screen)
 #
 # Install once (works via the symlink, it resolves its own location):
 #   ln -sf "$(readlink -f pdm-eth-demo.sh)" ~/.local/bin/pdm-eth-demo
