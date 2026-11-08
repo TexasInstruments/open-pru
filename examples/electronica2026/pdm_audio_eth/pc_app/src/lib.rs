@@ -12,6 +12,7 @@ pub mod pacing;
 pub mod playlist;
 pub mod proto;
 pub mod rx;
+pub mod scenezip;
 pub mod seam;
 pub mod session;
 pub mod sources;

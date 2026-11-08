@@ -155,8 +155,12 @@ enum Cmd {
         /// played in name order, each followed by 1 s of silence, looped
         #[arg(long, conflicts_with_all = ["ch0", "ch1", "ch2", "ch3", "ch4", "ch5", "ch6", "ch7", "set"])]
         playlist: Option<PathBuf>,
+        /// One scene looped as a playlist: a Scene Simulator zip, or a folder
+        /// with mic1..8.wav (or mics/mic1..8.wav)
+        #[arg(long, value_name = "PATH", conflicts_with_all = ["ch0", "ch1", "ch2", "ch3", "ch4", "ch5", "ch6", "ch7", "set", "playlist"])]
+        scene: Option<PathBuf>,
         /// Per-talker text lanes: run this audio_pipe binary as `BIN live`
-        /// on the board output (needs --playlist; exports /dev/shm/pdm-eth-<pid>
+        /// on the board output (needs --playlist or --scene; exports /dev/shm/pdm-eth-<pid>
         /// unless --export-shm names the ring)
         #[arg(long, value_name = "BIN")]
         transcribe: Option<PathBuf>,
@@ -181,22 +185,26 @@ struct Transcribe {
 }
 
 fn gui(target: &Target, inputs: &Inputs, lead: u32, export_shm: Option<String>, screenshot: Option<PathBuf>,
-       no_vsync: bool, playlist: Option<PathBuf>, tr: Transcribe) -> Result<(), String> {
-    if tr.bin.is_some() && playlist.is_none() {
-        return Err("--transcribe needs --playlist".into());
+       no_vsync: bool, playlist: Option<PathBuf>, scene: Option<PathBuf>, tr: Transcribe) -> Result<(), String> {
+    if tr.bin.is_some() && playlist.is_none() && scene.is_none() {
+        return Err("--transcribe needs --playlist or --scene".into());
     }
     let mut names = inputs.names();
     let shot_after = tr.screenshot_after.max(0.0);
     let ui_scale = tr.ui_scale;
     let mut scales = Vec::new();
-    let (set, marks, scenes) = match &playlist {
+    let is_scene = scene.is_some();
+    let (set, marks, scenes) = match playlist.as_ref().or(scene.as_ref()) {
         Some(dir) => {
-            let pl = pdm_eth::playlist::load_playlist(dir).map_err(|e| e.to_string())?;
+            let pl = if is_scene { pdm_eth::playlist::load_scene(dir) } else { pdm_eth::playlist::load_playlist(dir) }
+                .map_err(|e| e.to_string())?;
             eprintln!("playlist {}: {} scenes, loop {:.1} s", dir.display(), pl.passes.len(), pl.total as f64 / 16000.0);
             // the folder name only: a long label pushes the side panel out of the window
             let short = dir.canonicalize().ok().and_then(|d| d.file_name().map(|n| n.to_string_lossy().into_owned()))
                 .unwrap_or_else(|| dir.display().to_string());
-            names = std::array::from_fn(|_| Some(format!("playlist {short}")));
+            let short = if is_scene { pl.passes[0].scene.clone() } else { short };
+            let kind = if is_scene { "scene" } else { "playlist" };
+            names = std::array::from_fn(|_| Some(format!("{kind} {short}")));
             scales = pl.passes.iter().map(|p| p.scale).collect();
             (pl.set, pl.passes.iter().map(|p| p.offset).collect(), pl.passes.iter().map(|p| p.scene.clone()).collect())
         }
@@ -318,8 +326,8 @@ fn main() -> ExitCode {
             }
             if all { ExitCode::SUCCESS } else { ExitCode::FAILURE }
         }
-        Cmd::Gui { target, inputs, lead, export_shm, screenshot, screenshot_after, no_vsync, playlist, transcribe, transcript_log, ui_scale } =>
-            match gui(&target, &inputs, lead, export_shm, screenshot, no_vsync, playlist,
+        Cmd::Gui { target, inputs, lead, export_shm, screenshot, screenshot_after, no_vsync, playlist, scene, transcribe, transcript_log, ui_scale } =>
+            match gui(&target, &inputs, lead, export_shm, screenshot, no_vsync, playlist, scene,
                       Transcribe { bin: transcribe, log: transcript_log, screenshot_after,
                                    ui_scale: pdm_eth::ui::ui_scale(ui_scale, std::env::var("PDM_UI_SCALE").ok().as_deref()) }) {
             Ok(()) => ExitCode::SUCCESS,

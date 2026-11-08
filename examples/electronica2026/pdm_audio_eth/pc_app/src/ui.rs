@@ -76,6 +76,9 @@ pub enum NetCmd {
     SetChannel { ch: usize, samples: Vec<i16> },
     /// A capture set: all its channels start on the same sample.
     SetSet { chans: Vec<(usize, Vec<i16>)> },
+    /// A new playlist (an opened scene): all 8 channels and the pass starts
+    /// (loop offsets); it plays from its first frame with the next block.
+    SetPlaylist { set: InputSet, marks: Vec<usize> },
 }
 
 /// What the network thread needs to start a stream later (on a source choice).
@@ -152,6 +155,12 @@ pub fn run_net(mut link: Box<dyn Link>, input: Option<NetInput>, ctl: NetCtl, tx
                     for (ch, samples) in chans {
                         inp.set.set_channel(ch, samples, pos);
                     }
+                }
+                NetCmd::SetPlaylist { mut set, marks } => {
+                    for c in 0..8 {
+                        inp.set.set_channel(c, std::mem::take(&mut set.ch[c]), pos);
+                    }
+                    inp.marks = marks;
                 }
             }
         }
@@ -475,8 +484,6 @@ impl App {
                 painter.line_segment([pos2(img.left(), top), pos2(img.right(), top)], (1.0, Color32::from_rgb(35, 38, 46)));
             }
             let c = crate::lanes::palette(lane.colour);
-            painter.text(pos2(resp.rect.left() + 2.0, top + LANE_H / 2.0), egui::Align2::LEFT_CENTER,
-                         format!("● {} · {:.0}°", lane.label, lane.az), egui::FontId::proportional(LANE_LABEL_PX), c);
             let fill = Color32::from_rgb((c.r() as f32 * 0.5) as u8, (c.g() as f32 * 0.5) as u8, (c.b() as f32 * 0.5) as u8);
             for t in &lane.items {
                 let x0 = time_x(img.left(), img.right(), secs(t.start));
@@ -488,6 +495,11 @@ impl App {
                 clip.rect_filled(r, r.height() / 2.0, fill);
                 clip.galley(pos2(x0 + 8.0, r.center().y - g.size().y / 2.0), g, Color32::WHITE);
             }
+            // the label last, on its own backing: a sentence box scrolling left must not cover it
+            let lg = painter.layout_no_wrap(format!("● {} · {:.0}°", lane.label, lane.az), egui::FontId::proportional(LANE_LABEL_PX), c);
+            let lr = Rect::from_min_size(pos2(resp.rect.left(), top + (LANE_H - lg.size().y) / 2.0 - 2.0), lg.size() + vec2(8.0, 4.0));
+            painter.rect_filled(lr, 4.0, Color32::from_rgb(17, 19, 24));
+            painter.galley(lr.min + vec2(2.0, 2.0), lg, c);
         }
     }
 
@@ -548,6 +560,31 @@ impl App {
         }
     }
 
+    /// Opens a Scene Simulator scene (zip or folder) in place of the playlist:
+    /// it loops as a one-scene playlist, transcribed like the booth scenes. A
+    /// scene that does not load shows an error and changes nothing.
+    pub fn open_scene(&mut self, path: &std::path::Path) {
+        let pl = match crate::playlist::load_scene(path) {
+            Ok(p) => p,
+            Err(e) => {
+                self.error = Some(e.to_string());
+                return;
+            }
+        };
+        let pass = &pl.passes[0];
+        let (name, scale) = (pass.scene.clone(), pass.scale);
+        if let Some(c) = &self.cmds
+            && c.send(NetCmd::SetPlaylist { set: pl.set, marks: vec![0] }).is_ok() {
+                self.scenes = vec![name.clone()];
+                self.pass_scales = vec![scale];
+                self.pass = None;
+                self.lanes = Default::default();
+                self.source = format!("scene {name}");
+                self.error = None;
+                self.dirty = true;
+            }
+    }
+
     /// Load up to 8 mono files as one capture set onto ch0, ch1, ... in file
     /// name order (design 7.2a); a set that does not load changes nothing.
     pub fn choose_set(&mut self, mut paths: Vec<std::path::PathBuf>) {
@@ -581,6 +618,16 @@ impl App {
     fn sources_table(&mut self, ui: &mut egui::Ui) {
         ui.label(egui::RichText::new("Sources").size(LABEL_PX).color(LABEL_COLOUR));
         if !self.scenes.is_empty() {
+            ui.horizontal(|ui| {
+                if ui.button("open scene…").on_hover_text("A Scene Simulator zip: loops in place of the playlist, transcribed").clicked()
+                    && let Some(p) = rfd::FileDialog::new().set_title("Scene Simulator zip").add_filter("zip", &["zip", "ZIP"]).pick_file() {
+                        self.open_scene(&p);
+                    }
+                if ui.button("open scene folder…").on_hover_text("A folder with mic1..8.wav (or mics/mic1..8.wav)").clicked()
+                    && let Some(p) = rfd::FileDialog::new().set_title("Scene folder").pick_folder() {
+                        self.open_scene(&p);
+                    }
+            });
             ui.label(egui::RichText::new("playlist: sources are locked").size(LABEL_PX));
             ui.disable();
         }
@@ -1267,6 +1314,7 @@ mod tests {
                 assert_eq!(samples.iter().map(|v| v.unsigned_abs()).max(), Some(16384)); // 0.5 FS
             }
             NetCmd::SetSet { .. } => panic!("one file is not a set"),
+            NetCmd::SetPlaylist { .. } => panic!("not a playlist"),
         }
         assert_eq!(app.sources[5], Source::File("song.wav".into()));
         assert!(app.error.is_none());
@@ -1286,6 +1334,51 @@ mod tests {
         assert_eq!(ui_scale(None, Some("x")), 1.0);
         assert_eq!(ui_scale(None, None), 1.0);
         assert_eq!(ui_scale(Some(9.0), None), 4.0);
+    }
+
+    /// A scene folder `name` with mic1..8.wav (16 kHz, 1000 frames).
+    fn scene8(dir: &std::path::Path, name: &str) -> std::path::PathBuf {
+        let d = dir.join(name);
+        std::fs::create_dir_all(&d).unwrap();
+        for m in 1..=8 {
+            wav16(&d.join(format!("mic{m}.wav")), 1000);
+        }
+        d
+    }
+
+    #[test]
+    fn open_scene_replaces_the_playlist() {
+        let d = tempfile::tempdir().unwrap();
+        let p = scene8(d.path(), "myscene");
+        let (_tx, rx) = std::sync::mpsc::channel();
+        let (ctx, crx) = std::sync::mpsc::channel();
+        let mut app = App::new(rx, "test".into()).with_commands(ctx).with_playlist(vec!["factory_a".into(), "factory_b".into()]);
+        app.lanes.add(crate::transcribe::TextLine { pass: 1, scene: "factory_a".into(), speaker: 0, az: 30.0, start: 0, end: 16000,
+                                                     text: "Hi.".into(), latency_ms: 500.0 });
+        app.open_scene(&p);
+        match crx.try_recv().expect("a command") {
+            NetCmd::SetPlaylist { set, marks } => {
+                assert_eq!(marks, vec![0]);
+                assert_eq!(set.ch[0].len(), 1000 + crate::playlist::GAP_FRAMES);
+            }
+            _ => panic!("not a playlist"),
+        }
+        assert_eq!(app.scenes, vec!["myscene".to_string()]);
+        assert_eq!(app.pass_scales.len(), 1);
+        assert!(app.lanes.lanes.is_empty());
+        assert!(app.error.is_none());
+    }
+
+    #[test]
+    fn open_bad_scene_changes_nothing() {
+        let d = tempfile::tempdir().unwrap();
+        let (_tx, rx) = std::sync::mpsc::channel();
+        let (ctx, crx) = std::sync::mpsc::channel();
+        let mut app = App::new(rx, "test".into()).with_commands(ctx).with_playlist(vec!["factory_a".into()]);
+        app.open_scene(d.path());
+        assert!(crx.try_recv().is_err());
+        assert_eq!(app.scenes, vec!["factory_a".to_string()]);
+        assert!(app.error.is_some());
     }
 
     #[test]
@@ -1328,12 +1421,14 @@ mod tests {
         match crx.try_recv().expect("a command") {
             NetCmd::SetChannel { ch, samples } => assert_eq!((ch, samples.len()), (4, 480_000)),
             NetCmd::SetSet { .. } => panic!("one source is not a set"),
+            NetCmd::SetPlaylist { .. } => panic!("not a playlist"),
         }
         assert_eq!(app.sources[4], Source::Music);
         app.set_source(4, Source::Booth);
         match crx.try_recv().expect("a command") {
             NetCmd::SetChannel { ch, samples } => assert_eq!(samples, crate::wavin::booth_clips()[ch]),
             NetCmd::SetSet { .. } => panic!("one source is not a set"),
+            NetCmd::SetPlaylist { .. } => panic!("not a playlist"),
         }
     }
 
@@ -1403,6 +1498,7 @@ mod tests {
                 assert_eq!(v, vec![(0, 900), (1, 900)], "trimmed to the shortest");
             }
             NetCmd::SetChannel { .. } => panic!("a set goes as one command"),
+            NetCmd::SetPlaylist { .. } => panic!("a set is not a playlist"),
         }
         assert_eq!(app.sources[0].label(), "mic_a.wav (set)");
         assert_eq!(app.sources[1].label(), "mic_b.wav (set)");
