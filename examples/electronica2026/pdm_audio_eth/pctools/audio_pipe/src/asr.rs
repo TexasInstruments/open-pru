@@ -241,6 +241,13 @@ impl AsrResult {
 #[cfg(test)]
 impl AsrWorker {
     /// A worker without a model: every job comes back accepted as "speaker <n>".
+    /// A worker whose thread has stopped (as after a panic).
+    pub fn dead() -> Self {
+        let (tx, _jrx) = unbounded::<Job>();
+        let (_rtx, rx) = unbounded::<AsrResult>();
+        AsrWorker { tx, rx, handle: None }
+    }
+
     pub fn echo() -> Self {
         let (tx, jrx) = unbounded::<Job>();
         let (rtx, rx) = unbounded::<AsrResult>();

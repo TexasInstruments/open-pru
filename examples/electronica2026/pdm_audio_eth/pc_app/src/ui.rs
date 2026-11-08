@@ -517,6 +517,9 @@ impl App {
     }
 
     fn send_channel(&mut self, ch: usize, samples: Vec<i16>, src: Source) {
+        if !self.scenes.is_empty() {
+            return; // a playlist runs: its scenes are transcribed, nothing may be mixed in
+        }
         if let Some(c) = &self.cmds
             && c.send(NetCmd::SetChannel { ch, samples }).is_ok() {
                 self.sources[ch] = src;
@@ -547,6 +550,9 @@ impl App {
     /// Load up to 8 mono files as one capture set onto ch0, ch1, ... in file
     /// name order (design 7.2a); a set that does not load changes nothing.
     pub fn choose_set(&mut self, mut paths: Vec<std::path::PathBuf>) {
+        if !self.scenes.is_empty() {
+            return; // a playlist runs (see send_channel)
+        }
         paths.sort_by(|a, b| a.file_name().cmp(&b.file_name()));
         let set = match crate::wavin::load_set(&paths) {
             Ok(s) => s,
@@ -573,6 +579,10 @@ impl App {
     /// The "Sources" table: one selector per channel.
     fn sources_table(&mut self, ui: &mut egui::Ui) {
         ui.label(egui::RichText::new("Sources").size(LABEL_PX).color(LABEL_COLOUR));
+        if !self.scenes.is_empty() {
+            ui.label(egui::RichText::new("playlist: sources are locked").size(LABEL_PX));
+            ui.disable();
+        }
         if ui.button("open capture set...")
             .on_hover_text("Up to 8 mono WAV files of one sample rate: sorted by name onto ch0, ch1, ..., \
                             started on the same sample, trimmed to the shortest, one gain for the set")
@@ -964,7 +974,7 @@ impl eframe::App for App {
             egui::ScrollArea::vertical().show(ui, |ui| {
                 ui.add_space(6.0);
                 if self.cmds.is_some() {
-                    self.sources_table(ui);
+                    ui.scope(|ui| self.sources_table(ui)); // its disable() stays inside
                     ui.separator();
                 }
                 for (k, v) in self.side_lines(fps) {
@@ -1170,7 +1180,8 @@ mod tests {
             let _ = rx.recv_timeout(Duration::from_millis(50));
         }
         let idx = ring_indices(&name);
-        drop(rx); // the net thread ends and removes the ring
+        drop(rx);
+        let _ = std::fs::remove_file(format!("/dev/shm/{name}")); // the test may exit before the net thread drops it
         assert!(idx.len() > 200, "{} blocks", idx.len());
         let gaps: Vec<(u64, u64)> = idx.windows(2).filter(|w| w[1] != w[0] + 64).map(|w| (w[0], w[1])).collect();
         assert!(gaps.is_empty(), "export gaps {gaps:?}");
@@ -1231,6 +1242,23 @@ mod tests {
         }
         assert_eq!(app.sources[5], Source::File("song.wav".into()));
         assert!(app.error.is_none());
+    }
+
+    #[test]
+    fn playlist_locks_the_sources() {
+        // a visitor click must not mix another signal into a scene that is being transcribed
+        let d = tempfile::tempdir().unwrap();
+        let p = d.path().join("song.wav");
+        wav16(&p, 1000);
+        let (_tx, rx) = std::sync::mpsc::channel();
+        let (ctx, crx) = std::sync::mpsc::channel();
+        let mut app = App::new(rx, "test".into()).with_commands(ctx).with_playlist(vec!["factory_a".into()]);
+        let before = app.sources.clone();
+        app.choose_file(2, &p);
+        app.set_source(3, BUILTIN[0].clone());
+        app.choose_set(vec![p.clone()]);
+        assert!(crx.try_recv().is_err(), "no source command while a playlist runs");
+        assert_eq!(app.sources, before);
     }
 
     #[test]

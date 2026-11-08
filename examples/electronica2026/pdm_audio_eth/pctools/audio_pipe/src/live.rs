@@ -61,6 +61,8 @@ pub fn text_line(pass: &PassStart, r: &AsrResult, az: f32, latency_ms: f32) -> S
 const MAX_FILL: u64 = 8;
 /// Longest wait for the last utterances of a pass at its end.
 const FLUSH_WAIT: Duration = Duration::from_secs(3);
+/// A pass start further ahead of the reader than this (10 s) is stale (from before a board reset).
+const MAX_AHEAD: u64 = 10 * FS as u64;
 
 pub struct Live {
     p: PipeArgs,
@@ -83,6 +85,8 @@ pub struct Live {
     status: String,
     /// JSON lines for stdout
     pub out: Vec<String>,
+    /// The whisper thread has stopped (its result channel is closed).
+    asr_dead: bool,
 }
 
 impl Live {
@@ -105,6 +109,7 @@ impl Live {
             times: VecDeque::new(),
             status: String::new(),
             out: Vec::new(),
+            asr_dead: false,
         };
         l.set_status("waiting", "no pass started yet");
         Ok(l)
@@ -124,6 +129,10 @@ impl Live {
                 eprintln!("live: pass {} start {} is behind the reader ({n}), skipped", ps.pass, ps.start);
                 return;
             }
+            if ps.start > n + MAX_AHEAD {
+                eprintln!("live: pass {} start {} is far ahead of the reader ({n}), skipped", ps.pass, ps.start);
+                return;
+            }
         }
         let i = self.pending.iter().position(|q| q.start > ps.start).unwrap_or(self.pending.len());
         self.pending.insert(i, ps);
@@ -141,7 +150,11 @@ impl Live {
                             }
                         } else {
                             self.drop_pass(&format!("board index jumped from {n} to {}", b.index));
-                            self.pending.retain(|q| q.start >= b.index);
+                            if b.index < n {
+                                self.pending.clear(); // board reset: queued starts belong to the old index range
+                            } else {
+                                self.pending.retain(|q| q.start >= b.index);
+                            }
                         }
                     }
                 }
@@ -159,6 +172,14 @@ impl Live {
             }
         }
         self.poll();
+        self.check()
+    }
+
+    /// An error once the whisper thread has stopped: the process must exit so the GUI restarts it.
+    pub fn check(&self) -> Result<()> {
+        if self.asr_dead {
+            anyhow::bail!("the whisper thread stopped");
+        }
         Ok(())
     }
 
@@ -252,7 +273,15 @@ impl Live {
         };
         let Some(rx) = rx else { return false };
         let mut any = false;
-        while let Ok(r) = rx.try_recv() {
+        loop {
+            let r = match rx.try_recv() {
+                Ok(r) => r,
+                Err(crossbeam_channel::TryRecvError::Empty) => break,
+                Err(crossbeam_channel::TryRecvError::Disconnected) => {
+                    self.asr_dead = true;
+                    break;
+                }
+            };
             any = true;
             if self.discard > 0 {
                 self.discard -= 1;
@@ -334,6 +363,7 @@ pub fn run(a: LiveArgs) -> Result<()> {
             Some(r) => match r.next() {
                 Ok(Read::Empty) => {
                     live.poll();
+                    live.check()?;
                     true
                 }
                 Ok(x) => {
@@ -473,6 +503,39 @@ mod tests {
         l.control(ps(3, 64 * 201));
         l.on_read(zero_block(64 * 201)).unwrap();
         assert!(l.out.iter().all(|s| !s.contains("\"text\"")), "{:?}", l.out);
+    }
+
+    #[test]
+    fn stale_start_after_board_reset_is_dropped() {
+        // a start queued before a board reset must not fire when the new index reaches it
+        let mut l = Live::new(args(&["--no-asr"]), None).unwrap();
+        l.control(ps(1, 64 * 500));
+        l.on_read(zero_block(64 * 500)).unwrap();
+        l.control(ps(2, 64 * 600)); // queued, its block never comes
+        l.on_read(zero_block(64 * 10)).unwrap(); // board reset: index goes back
+        assert!(l.pipe.is_none());
+        for b in 11..=610 {
+            l.on_read(zero_block(64 * b)).unwrap();
+        }
+        assert!(l.pipe.is_none(), "the stale pass 2 start must not begin a pass");
+    }
+
+    #[test]
+    fn start_far_ahead_of_the_reader_is_ignored() {
+        let mut l = Live::new(args(&["--no-asr"]), None).unwrap();
+        l.on_read(zero_block(0)).unwrap();
+        l.control(ps(1, 64 + 11 * FS as u64)); // more than 10 s ahead: stale
+        assert!(l.pending.is_empty());
+        l.control(ps(2, 64 + 2 * FS as u64));
+        assert_eq!(l.pending.len(), 1);
+    }
+
+    #[test]
+    fn dead_whisper_thread_is_an_error() {
+        // the process must exit so the GUI restarts it, not sit at "running" without text
+        let mut l = Live::new(args(&["--no-asr"]), Some(crate::asr::AsrWorker::dead())).unwrap();
+        l.control(ps(1, 0));
+        assert!(l.on_read(zero_block(0)).is_err());
     }
 
     #[test]
