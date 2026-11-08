@@ -35,3 +35,14 @@ fn missing_scene_is_an_error() {
     let err = String::from_utf8_lossy(&out.stderr);
     assert!(err.contains("/no/such/scene.zip"), "{err}");
 }
+
+#[test]
+fn listen_takes_a_channel() {
+    let out = std::process::Command::new(env!("CARGO_BIN_EXE_pdm-eth"))
+        .args(["gui", "--emulator", "--listen", "ch9"])
+        .output()
+        .unwrap();
+    assert!(!out.status.success());
+    let err = String::from_utf8_lossy(&out.stderr);
+    assert!(err.contains("ch0 to ch7"), "{err}");
+}

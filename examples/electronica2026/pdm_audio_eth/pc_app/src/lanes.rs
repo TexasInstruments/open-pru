@@ -33,7 +33,7 @@ pub struct Lanes {
     pub lanes: Vec<Lane>,
 }
 
-fn ang_dist(a: f32, b: f32) -> f32 {
+pub fn ang_dist(a: f32, b: f32) -> f32 {
     let d = (a - b).rem_euclid(360.0);
     d.min(360.0 - d)
 }

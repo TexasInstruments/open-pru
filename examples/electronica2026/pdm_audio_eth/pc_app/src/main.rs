@@ -172,7 +172,15 @@ enum Cmd {
         /// screen; default PDM_UI_SCALE, else 1.0; 0.5 to 4
         #[arg(long, value_name = "F")]
         ui_scale: Option<f32>,
+        /// Start with this channel's board output on the PC's audio output
+        /// (ch0 to ch7; the speaker toggles in the top bar change it)
+        #[arg(long, value_name = "chN", value_parser = parse_listen)]
+        listen: Option<usize>,
     },
+}
+
+fn parse_listen(s: &str) -> Result<usize, String> {
+    s.strip_prefix("ch").and_then(|n| n.parse().ok()).filter(|&c: &usize| c < 8).ok_or_else(|| format!("{s}: ch0 to ch7"))
 }
 
 /// The --transcribe settings of the window.
@@ -182,6 +190,8 @@ struct Transcribe {
     screenshot_after: f64,
     /// egui zoom factor (pdm_eth::ui::ui_scale)
     ui_scale: f32,
+    /// --listen: channel heard from the start
+    listen: Option<usize>,
 }
 
 fn gui(target: &Target, inputs: &Inputs, lead: u32, export_shm: Option<String>, screenshot: Option<PathBuf>,
@@ -192,6 +202,7 @@ fn gui(target: &Target, inputs: &Inputs, lead: u32, export_shm: Option<String>, 
     let mut names = inputs.names();
     let shot_after = tr.screenshot_after.max(0.0);
     let ui_scale = tr.ui_scale;
+    let listen = tr.listen;
     let mut scales = Vec::new();
     let is_scene = scene.is_some();
     let (set, marks, scenes) = match playlist.as_ref().or(scene.as_ref()) {
@@ -273,6 +284,9 @@ fn gui(target: &Target, inputs: &Inputs, lead: u32, export_shm: Option<String>, 
             if let Some((tp, log)) = text {
                 app = app.with_transcription(tp, scales, log);
             }
+            if let Some(c) = listen {
+                app.set_listen(pdm_eth::ui::Listen::Channel(c));
+            }
             let app = app
                 .with_sources(names.map(|n| n.map_or(pdm_eth::sources::Source::Booth, pdm_eth::sources::Source::File)));
             Ok(Box::new(match screenshot {
@@ -326,10 +340,10 @@ fn main() -> ExitCode {
             }
             if all { ExitCode::SUCCESS } else { ExitCode::FAILURE }
         }
-        Cmd::Gui { target, inputs, lead, export_shm, screenshot, screenshot_after, no_vsync, playlist, scene, transcribe, transcript_log, ui_scale } =>
+        Cmd::Gui { target, inputs, lead, export_shm, screenshot, screenshot_after, no_vsync, playlist, scene, transcribe, transcript_log, ui_scale, listen } =>
             match gui(&target, &inputs, lead, export_shm, screenshot, no_vsync, playlist, scene,
                       Transcribe { bin: transcribe, log: transcript_log, screenshot_after,
-                                   ui_scale: pdm_eth::ui::ui_scale(ui_scale, std::env::var("PDM_UI_SCALE").ok().as_deref()) }) {
+                                   ui_scale: pdm_eth::ui::ui_scale(ui_scale, std::env::var("PDM_UI_SCALE").ok().as_deref()), listen }) {
             Ok(()) => ExitCode::SUCCESS,
             Err(e) => {
                 eprintln!("error: {e}");

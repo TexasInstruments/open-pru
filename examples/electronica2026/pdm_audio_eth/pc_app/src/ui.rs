@@ -69,6 +69,52 @@ pub struct NetInput {
     pub marks: Vec<usize>,
 }
 
+/// A speaker icon button `size` high; `on` = highlighted with sound waves.
+fn speaker_toggle(ui: &mut egui::Ui, on: bool, size: f32) -> egui::Response {
+    let (r, resp) = ui.allocate_exact_size(vec2(size, size), Sense::click());
+    let v = ui.style().interact_selectable(&resp, on);
+    let p = ui.painter();
+    if on || resp.hovered() {
+        p.rect_filled(r, 4.0, v.weak_bg_fill);
+    }
+    let c = v.fg_stroke.color;
+    let (x, y, u) = (r.left() + size * 0.18, r.center().y, size / 10.0);
+    p.rect_filled(Rect::from_min_max(pos2(x, y - 1.4 * u), pos2(x + 1.8 * u, y + 1.4 * u)), 0.0, c);
+    p.add(egui::Shape::convex_polygon(
+        vec![pos2(x + 1.8 * u, y - 1.4 * u), pos2(x + 4.2 * u, y - 3.4 * u), pos2(x + 4.2 * u, y + 3.4 * u), pos2(x + 1.8 * u, y + 1.4 * u)],
+        c, egui::Stroke::NONE));
+    if on {
+        for k in [1.0f32, 2.0] {
+            let rad = (1.6 + 1.4 * k) * u;
+            let pts: Vec<_> = (-4..=4).map(|i| {
+                let a = i as f32 * 0.16;
+                pos2(x + 4.6 * u + rad * a.cos() - 1.4 * u, y + rad * a.sin())
+            }).collect();
+            p.add(egui::Shape::line(pts, egui::Stroke::new(u * 0.8, c)));
+        }
+    }
+    resp
+}
+
+/// What the PC's audio output plays.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub enum Listen {
+    Off,
+    /// The board output of one channel (the noisy mic capture).
+    Channel(usize),
+    /// The separated stream of the talker nearest this azimuth (audio_pipe).
+    Talker(f32),
+}
+
+/// One board output sample (24 bit) for the player: at the scene's file
+/// level x 0.9 FS when the pass scale is known, else the top 16 bits.
+fn channel_sample(x: i32, scale: Option<f32>) -> i16 {
+    match scale {
+        Some(s) if s > 0.0 => (x as f32 * s * 32767.0 * 0.9).clamp(-32768.0, 32767.0) as i16,
+        _ => (x >> 8).clamp(-32768, 32767) as i16,
+    }
+}
+
 /// UI -> network thread.
 pub enum NetCmd {
     /// New samples for one channel (the source selector, 16 kHz, 0.5 FS);
@@ -367,6 +413,14 @@ pub struct App {
     tpipe: Option<crate::transcribe::TextPipe>,
     pass_scales: Vec<f32>,
     tlog: Option<std::fs::File>,
+    /// What is played on the PC's audio output (one source at a time).
+    pub(crate) listen: Listen,
+    player: Option<crate::player::Player>,
+    player_cmd: Vec<String>,
+    /// The player could not start (missing, no device).
+    player_failed: bool,
+    /// Board output x this = the current pass's file level (playlist).
+    cur_scale: Option<f32>,
 }
 
 impl App {
@@ -401,6 +455,11 @@ impl App {
             tpipe: None,
             pass_scales: Vec::new(),
             tlog: None,
+            listen: Listen::Off,
+            player: None,
+            player_cmd: crate::player::player_cmd(),
+            player_failed: false,
+            cur_scale: None,
         }
     }
 
@@ -557,6 +616,41 @@ impl App {
                 self.send_channel(ch, x, Source::File(name));
             }
             Err(e) => self.error = Some(e.to_string()),
+        }
+    }
+
+    /// The player command (tests: a fake player).
+    pub fn with_player_cmd(mut self, cmd: Vec<String>) -> Self {
+        self.player_cmd = cmd;
+        self
+    }
+
+    /// Chooses what to hear; the active choice again = off. Channel audio is
+    /// played here, talker audio by audio_pipe.
+    pub fn set_listen(&mut self, l: Listen) {
+        let l = if l == self.listen { Listen::Off } else { l };
+        if !matches!(l, Listen::Channel(_)) {
+            self.player = None;
+        }
+        self.player_failed = false;
+        if let Listen::Channel(_) = l
+            && self.player.as_ref().is_none_or(|p| !p.alive()) {
+                self.player = crate::player::Player::spawn(&self.player_cmd).ok();
+                self.player_failed = self.player.is_none();
+            }
+        self.listen = l;
+    }
+
+    fn listen_label(&self) -> String {
+        let dead = self.player_failed || matches!(self.listen, Listen::Channel(_)) && self.player.as_ref().is_none_or(|p| !p.alive());
+        match self.listen {
+            Listen::Off => "off".into(),
+            _ if dead => "audio output unavailable".into(),
+            Listen::Channel(c) => format!("ch{c} board out"),
+            Listen::Talker(az) => match self.lanes.lanes.iter().find(|l| crate::lanes::ang_dist(l.az, az) <= crate::lanes::REUSE_DEG) {
+                Some(l) => format!("talker {} · {:.0}°", l.label, l.az),
+                None => format!("talker · {az:.0}°"),
+            },
         }
     }
 
@@ -725,6 +819,10 @@ impl App {
                     if let Some((k, _)) = v.last() {
                         self.out_newest = Some(*k);
                     }
+                    if let (Listen::Channel(c), Some(p)) = (self.listen, &self.player) {
+                        let x: Vec<i16> = v.iter().map(|(_, f)| channel_sample(f[c], self.cur_scale)).collect();
+                        p.push(&x);
+                    }
                     for (c, sp) in self.out.iter_mut().enumerate() {
                         let x: Vec<f32> = v.iter().map(|(_, f)| f[c] as f32).collect();
                         sp.push(&x);
@@ -757,6 +855,7 @@ impl App {
                         let n = cycle * self.scenes.len() as u64 + slot as u64;
                         self.pass = Some((scene.clone(), n));
                         let scale = self.pass_scales.get(slot).copied().unwrap_or(0.0);
+                        self.cur_scale = Some(scale);
                         if let Some(tp) = &mut self.tpipe {
                             tp.pass_start(Instant::now(), n, &scene, index, scale);
                             let j = serde_json::json!({"mark": {"pass": n, "scene": scene, "start": index}});
@@ -838,6 +937,7 @@ impl App {
             // high up: the panel scrolls, these must be visible at the booth
             ("transcription".into(), self.tstatus.as_ref().map_or("off".into(), |t| t.to_string())),
             ("text latency".into(), self.text_latency_ms.map_or("—".into(), |m| format!("{m:.0} ms"))),
+            ("listening".into(), self.listen_label()),
         ];
         v.extend(self.extra.iter().cloned());
         v.extend([
@@ -1021,6 +1121,12 @@ impl eframe::App for App {
                         if let Some(s) = &self.sel_shared {
                             s.store(c, Ordering::Relaxed);
                         }
+                    }
+                    let on = self.listen == Listen::Channel(c);
+                    if speaker_toggle(ui, on, TOP_PX * 1.3)
+                        .on_hover_text(format!("hear ch{c} (board output); again = off"))
+                        .clicked() {
+                        self.set_listen(Listen::Channel(c));
                     }
                 }
                 ui.separator();
@@ -1379,6 +1485,54 @@ mod tests {
         assert!(crx.try_recv().is_err());
         assert_eq!(app.scenes, vec!["factory_a".to_string()]);
         assert!(app.error.is_some());
+    }
+
+    fn line(app: &App, k: &str) -> Option<String> {
+        app.side_lines(60.0).into_iter().find(|(a, _)| a == k).map(|(_, v)| v)
+    }
+
+    #[test]
+    fn listen_channel_switches_and_toggles() {
+        let (_tx, rx) = std::sync::mpsc::channel();
+        let mut app = App::new(rx, "test".into()).with_player_cmd(vec!["/bin/sh".into(), "-c".into(), "cat > /dev/null".into()]);
+        assert_eq!(line(&app, "listening").as_deref(), Some("off"));
+        app.set_listen(Listen::Channel(3));
+        assert_eq!(app.listen, Listen::Channel(3));
+        assert_eq!(line(&app, "listening").as_deref(), Some("ch3 board out"));
+        app.set_listen(Listen::Channel(3));
+        assert_eq!(app.listen, Listen::Off);
+        app.set_listen(Listen::Channel(3));
+        app.set_listen(Listen::Channel(5));
+        assert_eq!(app.listen, Listen::Channel(5));
+        assert_eq!(line(&app, "listening").as_deref(), Some("ch5 board out"));
+    }
+
+    #[test]
+    fn missing_player_says_unavailable() {
+        let (tx, rx) = std::sync::mpsc::channel();
+        let mut app = App::new(rx, "test".into()).with_player_cmd(vec!["/no/such/player".into()]);
+        app.set_listen(Listen::Channel(0));
+        assert_eq!(line(&app, "listening").as_deref(), Some("audio output unavailable"));
+        tx.send(NetMsg::Out((0..64).map(|k| (k, [1000; 8])).collect())).unwrap();
+        app.drain(); // no panic, nothing else changes
+        assert!(app.out_newest.is_some());
+    }
+
+    #[test]
+    fn channel_audio_goes_to_the_player() {
+        let d = tempfile::tempdir().unwrap();
+        let f = d.path().join("out.raw");
+        let (tx, rx) = std::sync::mpsc::channel();
+        let mut app = App::new(rx, "test".into()).with_player_cmd(vec!["/bin/sh".into(), "-c".into(), format!("cat > {}", f.display())]);
+        app.set_listen(Listen::Channel(2));
+        let mut fr = [0i32; 8];
+        fr[2] = 256 * 1000; // 24-bit board output; no playlist: >> 8
+        tx.send(NetMsg::Out((0..64).map(|k| (k, fr)).collect())).unwrap();
+        app.drain();
+        app.set_listen(Listen::Off);
+        let b = std::fs::read(&f).unwrap();
+        assert_eq!(b.len(), 128);
+        assert_eq!(i16::from_le_bytes([b[0], b[1]]), 1000);
     }
 
     #[test]
