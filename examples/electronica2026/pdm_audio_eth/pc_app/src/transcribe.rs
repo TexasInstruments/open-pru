@@ -92,12 +92,14 @@ pub struct TextPipe {
     last_start: Option<Instant>,
     fails: u32,
     status: TStatus,
+    /// Talker listening: the azimuth audio_pipe plays (sent again after a restart).
+    listen_az: Option<f32>,
 }
 
 impl TextPipe {
     /// `cmd`: argv of `audio_pipe live --shm NAME ...`; started at the first pass start.
     pub fn new(cmd: Vec<String>) -> Self {
-        TextPipe { cmd, run: None, last_start: None, fails: 0, status: TStatus::Starting }
+        TextPipe { cmd, run: None, last_start: None, fails: 0, status: TStatus::Starting, listen_az: None }
     }
 
     pub fn status(&self) -> &TStatus {
@@ -141,6 +143,28 @@ impl TextPipe {
         let stdin = child.stdin.take();
         self.run = Some(Run { child, stdin, rx, started: now });
         self.status = TStatus::Starting;
+        if self.listen_az.is_some() {
+            self.send(serde_json::json!({"listen_az": self.listen_az}));
+        }
+    }
+
+    /// One control line to the child (a failed write: the child is gone; poll notices).
+    fn send(&mut self, line: serde_json::Value) {
+        if let Some(r) = &mut self.run
+            && let Some(w) = &mut r.stdin
+            && writeln!(w, "{line}").and_then(|_| w.flush()).is_err() {
+                r.stdin = None;
+            }
+    }
+
+    /// Talker listening: audio_pipe plays the stream nearest `az`, or stops (None).
+    pub fn listen(&mut self, az: Option<f32>) {
+        self.listen_az = az;
+        self.send(serde_json::json!({"listen_az": az}));
+    }
+
+    pub fn listening(&self) -> Option<f32> {
+        self.listen_az
     }
 
     fn failed(&mut self, reason: String) {
@@ -164,13 +188,7 @@ impl TextPipe {
             }
             self.start(now);
         }
-        if let Some(r) = &mut self.run
-            && let Some(w) = &mut r.stdin {
-                let line = serde_json::json!({"pass": pass, "scene": scene, "start": start, "scale": scale});
-                if writeln!(w, "{line}").and_then(|_| w.flush()).is_err() {
-                    r.stdin = None; // the child is gone; poll notices
-                }
-            }
+        self.send(serde_json::json!({"pass": pass, "scene": scene, "start": start, "scale": scale}));
     }
 
     /// New text lines; notices a child that exited (non-blocking).
@@ -281,6 +299,25 @@ mod tests {
         std::thread::sleep(Duration::from_millis(200));
         let more = tp.poll(now);
         assert_eq!(v.len() + more.len(), 2);
+    }
+
+    #[test]
+    fn listen_is_sent_and_resent_after_restart() {
+        let d = tempfile::tempdir().unwrap();
+        let ctl = d.path().join("ctl");
+        // copies its stdin lines for 0.5 s, then exits
+        let body = format!("timeout 0.5 cat >> {}\nexit 0", ctl.display());
+        let mut tp = TextPipe::new(script(d.path(), "c", &body));
+        let t0 = Instant::now();
+        tp.pass_start(t0, 1, "a", 1000, 0.5);
+        tp.listen(Some(211.0));
+        poll_until(&mut tp, t0, |tp, _| !tp.running());
+        tp.pass_start(t0 + Duration::from_secs(11), 2, "a", 2000, 0.5); // restarted: the choice is sent again
+        poll_until(&mut tp, t0 + Duration::from_secs(11), |tp, _| !tp.running());
+        let c = std::fs::read_to_string(&ctl).unwrap();
+        assert_eq!(c.matches(r#""listen_az":211"#).count(), 2, "{c}");
+        tp.listen(None);
+        assert_eq!(tp.listening(), None);
     }
 
     #[test]

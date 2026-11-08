@@ -64,6 +64,52 @@ const FLUSH_WAIT: Duration = Duration::from_secs(3);
 /// A pass start further ahead of the reader than this (10 s) is stale (from before a board reset).
 const MAX_AHEAD: u64 = 10 * FS as u64;
 
+/// `{"listen_az": deg}` / `{"listen_az": null}` from the GUI: which talker to play.
+pub fn handle_listen(line: &str) -> Option<Option<f32>> {
+    let v: serde_json::Value = serde_json::from_str(line.trim()).ok()?;
+    match v.as_object()?.get("listen_az")? {
+        serde_json::Value::Null => Some(None),
+        x => x.as_f64().map(|a| Some(a as f32)),
+    }
+}
+
+/// The stream nearest `az` (circular distance at most 20°, the GUI's lane rule).
+pub fn choose(streams: &[(usize, f32)], az: f32) -> Option<usize> {
+    let d = |a: f32| {
+        let x = (a - az).rem_euclid(360.0);
+        x.min(360.0 - x)
+    };
+    streams.iter().filter(|(_, a)| d(*a) <= 20.0).min_by(|x, y| d(x.1).total_cmp(&d(y.1))).map(|(id, _)| *id)
+}
+
+/// Read position in one stream's separated output (`pcm` from input sample `origin`).
+pub struct Tap {
+    pub id: usize,
+    pub upto: i64,
+}
+
+impl Tap {
+    /// Starts at the stream's current end: its replayed history is not played.
+    pub fn new(id: usize, origin: i64, pcm: &[f32]) -> Self {
+        Tap { id, upto: origin + pcm.len() as i64 }
+    }
+
+    /// The samples after the last take.
+    pub fn take<'a>(&mut self, origin: i64, pcm: &'a [f32]) -> &'a [f32] {
+        let a = (self.upto - origin).clamp(0, pcm.len() as i64) as usize;
+        self.upto = origin + pcm.len() as i64;
+        &pcm[a..]
+    }
+}
+
+/// Talker audio gain to the player (the separated stream is quiet), then a
+/// soft limit at 0.95 FS (tanh) instead of clipping.
+const LISTEN_GAIN: f32 = 4.0;
+
+fn listen_sample(v: f32) -> i16 {
+    ((v * LISTEN_GAIN).tanh() * 0.95 * 32767.0) as i16
+}
+
 pub struct Live {
     p: PipeArgs,
     active: [bool; M],
@@ -87,6 +133,11 @@ pub struct Live {
     pub out: Vec<String>,
     /// The whisper thread has stopped (its result channel is closed).
     asr_dead: bool,
+    /// Talker listening: azimuth asked for by the GUI, the chosen stream, the player.
+    listen_az: Option<f32>,
+    tap: Option<Tap>,
+    player: Option<crate::player::Player>,
+    player_cmd: Vec<String>,
 }
 
 impl Live {
@@ -110,6 +161,10 @@ impl Live {
             status: String::new(),
             out: Vec::new(),
             asr_dead: false,
+            listen_az: None,
+            tap: None,
+            player: None,
+            player_cmd: crate::player::player_cmd(),
         };
         l.set_status("waiting", "no pass started yet");
         Ok(l)
@@ -119,6 +174,40 @@ impl Live {
         if self.status != s {
             self.status = s.to_string();
             self.out.push(serde_json::json!({"status": s, "detail": detail}).to_string());
+        }
+    }
+
+    /// The GUI's talker choice: play the stream nearest `az`, or stop.
+    pub fn listen(&mut self, az: Option<f32>) {
+        self.listen_az = az;
+        self.tap = None;
+        if az.is_none() {
+            self.player = None;
+        } else if self.player.as_ref().is_none_or(|p| !p.alive()) {
+            self.player = match crate::player::Player::spawn(&self.player_cmd) {
+                Ok(p) => Some(p),
+                Err(e) => {
+                    eprintln!("live: audio output unavailable ({}): {e}", self.player_cmd.join(" "));
+                    None
+                }
+            };
+        }
+    }
+
+    /// After a hop: new samples of the chosen talker's stream to the player.
+    fn feed_listen(&mut self) {
+        let (Some(az), Some(pipe), Some(player)) = (self.listen_az, &self.pipe, &self.player) else { return };
+        if self.tap.as_ref().is_none_or(|t| !pipe.streams.iter().any(|s| s.id == t.id)) {
+            let st: Vec<(usize, f32)> = pipe.streams.iter().map(|s| (s.id, s.az)).collect();
+            self.tap = choose(&st, az).and_then(|id| pipe.streams.iter().find(|s| s.id == id)).map(|s| Tap::new(s.id, s.origin, &s.pcm));
+            return;
+        }
+        let t = self.tap.as_mut().unwrap();
+        if let Some(s) = pipe.streams.iter().find(|s| s.id == t.id) {
+            let x: Vec<i16> = t.take(s.origin, &s.pcm).iter().map(|&v| listen_sample(v)).collect();
+            if !x.is_empty() {
+                player.push(&x);
+            }
         }
     }
 
@@ -209,6 +298,7 @@ impl Live {
                 }
                 let hops: Vec<&[f32]> = self.hop.iter().map(|v| v.as_slice()).collect();
                 pipe.process(&hops);
+                self.feed_listen();
             }
         }
         Ok(())
@@ -219,6 +309,7 @@ impl Live {
         let pipe = crate::build_pipeline(&self.p, &self.active, self.asr.take())?;
         eprintln!("live: pass {} ({}) from board index {}", q.pass, q.scene, q.start);
         self.pipe = Some(pipe);
+        self.tap = None; // stream ids are new each pass
         self.cur = Some(q);
         self.fill = 0;
         self.set_status("running", "");
@@ -325,9 +416,10 @@ pub fn run(a: LiveArgs) -> Result<()> {
     loop {
         loop {
             match rx.try_recv() {
-                Ok(l) => match handle_control(&l) {
-                    Some(ps) => live.control(ps),
-                    None => eprintln!("live: control line ignored: {}", l.trim()),
+                Ok(l) => match (handle_listen(&l), handle_control(&l)) {
+                    (Some(az), _) => live.listen(az),
+                    (None, Some(ps)) => live.control(ps),
+                    (None, None) => eprintln!("live: control line ignored: {}", l.trim()),
                 },
                 Err(crossbeam_channel::TryRecvError::Empty) => break,
                 Err(crossbeam_channel::TryRecvError::Disconnected) => {
@@ -536,6 +628,91 @@ mod tests {
         let mut l = Live::new(args(&["--no-asr"]), Some(crate::asr::AsrWorker::dead())).unwrap();
         l.control(ps(1, 0));
         assert!(l.on_read(zero_block(0)).is_err());
+    }
+
+    #[test]
+    fn listen_line_parses() {
+        assert_eq!(handle_listen(r#"{"listen_az":211.5}"#), Some(Some(211.5)));
+        assert_eq!(handle_listen(r#"{"listen_az":null}"#), Some(None));
+        assert_eq!(handle_listen(r#"{"pass":1,"scene":"a","start":0,"scale":1.0}"#), None);
+        assert_eq!(handle_listen("garbage"), None);
+    }
+
+    #[test]
+    fn choose_nearest_within_20_deg() {
+        let st = [(1, 30.0), (2, 212.0), (3, 355.0)];
+        assert_eq!(choose(&st, 5.0), Some(3));
+        assert_eq!(choose(&st, 211.0), Some(2));
+        assert_eq!(choose(&st, 120.0), None);
+    }
+
+    #[test]
+    fn tap_skips_history_and_takes_new() {
+        let pcm: Vec<f32> = (0..1300).map(|i| i as f32).collect();
+        let mut t = Tap::new(7, 0, &pcm[..1000]);
+        assert_eq!(t.upto, 1000);
+        assert!(t.take(0, &pcm[..1000]).is_empty());
+        let x = t.take(0, &pcm);
+        assert_eq!(x.len(), 300);
+        assert_eq!(x[0], 1000.0);
+        assert!(t.take(0, &pcm).is_empty());
+    }
+
+    #[test]
+    fn listen_survives_pass_change() {
+        let d = tempfile::tempdir().unwrap();
+        let f = d.path().join("out.raw");
+        let mut l = Live::new(args(&["--no-asr"]), None).unwrap();
+        l.player_cmd = vec!["/bin/sh".into(), "-c".into(), format!("cat > {}", f.display())];
+        l.listen(Some(30.0));
+        l.control(ps(1, 0));
+        for b in 0..200 {
+            l.on_read(zero_block(b * 64)).unwrap();
+        }
+        l.control(ps(2, 200 * 64));
+        l.on_read(zero_block(200 * 64)).unwrap();
+        assert!(l.tap.is_none(), "a new pass chooses its stream again");
+        for b in 201..300 {
+            l.on_read(zero_block(b * 64)).unwrap();
+        }
+        l.listen(None);
+        assert!(l.player.is_none());
+    }
+
+    #[test]
+    fn listen_plays_the_chosen_talker_on_a_scene() {
+        let Ok(root) = std::env::var("SCENE_ROOT") else {
+            eprintln!("SCENE_ROOT unset: listen_plays_the_chosen_talker_on_a_scene skipped");
+            return;
+        };
+        let chans = crate::common::read_mics(&std::path::Path::new(&root).join("audio_wav_factory_4workers_9s5_b270_f150")).unwrap();
+        let d = tempfile::tempdir().unwrap();
+        let f = d.path().join("out.raw");
+        let mut l = Live::new(args(&["--no-asr"]), None).unwrap();
+        l.player_cmd = vec!["/bin/sh".into(), "-c".into(), format!("exec cat > {}", f.display())];
+        l.listen(Some(30.0)); // the male talker
+        l.control(PassStart { pass: 1, scene: "s".into(), start: 0, scale: 1.0 / (256.0 * 16384.0) });
+        for b in 0..(chans[0].len() / 64) as u64 {
+            let mut out = [[0i32; 8]; 64];
+            for (fr, row) in out.iter_mut().enumerate() {
+                for c in 0..8 {
+                    row[c] = (chans[c][b as usize * 64 + fr] * 256.0 * 16384.0).round() as i32;
+                }
+            }
+            l.on_read(Read::Block(Block { index: b * 64, out })).unwrap();
+        }
+        l.listen(None); // drops the player: the file is complete
+        if let Ok(keep) = std::env::var("LISTEN_KEEP") {
+            let _ = std::fs::copy(&f, keep);
+        }
+        let b = std::fs::read(&f).unwrap();
+        let x: Vec<f32> = b.chunks(2).map(|c| i16::from_le_bytes([c[0], c[1]]) as f32 / 32768.0).collect();
+        let rms = (x.iter().map(|v| v * v).sum::<f32>() / x.len().max(1) as f32).sqrt();
+        assert!(x.len() > 16000 * 5, "{} samples of talker audio", x.len());
+        let clipped = x.iter().filter(|v| v.abs() > 0.999).count();
+        eprintln!("talker audio: {:.1} s, rms {rms:.4}, peak {:.3}, clipped {clipped}", x.len() as f32 / 16000.0, x.iter().fold(0f32, |m, v| m.max(v.abs())));
+        assert!(rms > 0.005, "talker audio rms {rms}");
+        assert!(clipped < x.len() / 1000, "{clipped} clipped samples");
     }
 
     #[test]

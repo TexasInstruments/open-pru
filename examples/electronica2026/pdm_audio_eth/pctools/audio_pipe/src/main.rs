@@ -7,6 +7,7 @@ mod doa;
 mod ghdss;
 mod health;
 mod live;
+mod player;
 mod music;
 mod noise;
 mod pipeline;

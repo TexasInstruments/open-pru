@@ -46,3 +46,14 @@ fn listen_takes_a_channel() {
     let err = String::from_utf8_lossy(&out.stderr);
     assert!(err.contains("ch0 to ch7"), "{err}");
 }
+
+#[test]
+fn listen_takes_a_talker_direction() {
+    let out = std::process::Command::new(env!("CARGO_BIN_EXE_pdm-eth"))
+        .args(["gui", "--emulator", "--listen", "az400"])
+        .output()
+        .unwrap();
+    assert!(!out.status.success());
+    let err = String::from_utf8_lossy(&out.stderr);
+    assert!(err.contains("az0 to az359"), "{err}");
+}

@@ -172,15 +172,21 @@ enum Cmd {
         /// screen; default PDM_UI_SCALE, else 1.0; 0.5 to 4
         #[arg(long, value_name = "F")]
         ui_scale: Option<f32>,
-        /// Start with this channel's board output on the PC's audio output
-        /// (ch0 to ch7; the speaker toggles in the top bar change it)
-        #[arg(long, value_name = "chN", value_parser = parse_listen)]
-        listen: Option<usize>,
+        /// Start listening: chN = that channel's board output (ch0 to ch7),
+        /// azD = the talker nearest D degrees (needs --transcribe); the speaker
+        /// toggles and lane labels change it
+        #[arg(long, value_name = "chN|azD", value_parser = parse_listen)]
+        listen: Option<pdm_eth::ui::Listen>,
     },
 }
 
-fn parse_listen(s: &str) -> Result<usize, String> {
-    s.strip_prefix("ch").and_then(|n| n.parse().ok()).filter(|&c: &usize| c < 8).ok_or_else(|| format!("{s}: ch0 to ch7"))
+fn parse_listen(s: &str) -> Result<pdm_eth::ui::Listen, String> {
+    if let Some(n) = s.strip_prefix("az") {
+        return n.parse().ok().filter(|a: &f32| (0.0..360.0).contains(a)).map(pdm_eth::ui::Listen::Talker)
+            .ok_or_else(|| format!("{s}: az0 to az359"));
+    }
+    s.strip_prefix("ch").and_then(|n| n.parse().ok()).filter(|&c: &usize| c < 8).map(pdm_eth::ui::Listen::Channel)
+        .ok_or_else(|| format!("{s}: ch0 to ch7 or az0 to az359"))
 }
 
 /// The --transcribe settings of the window.
@@ -190,8 +196,8 @@ struct Transcribe {
     screenshot_after: f64,
     /// egui zoom factor (pdm_eth::ui::ui_scale)
     ui_scale: f32,
-    /// --listen: channel heard from the start
-    listen: Option<usize>,
+    /// --listen: heard from the start
+    listen: Option<pdm_eth::ui::Listen>,
 }
 
 fn gui(target: &Target, inputs: &Inputs, lead: u32, export_shm: Option<String>, screenshot: Option<PathBuf>,
@@ -284,8 +290,8 @@ fn gui(target: &Target, inputs: &Inputs, lead: u32, export_shm: Option<String>, 
             if let Some((tp, log)) = text {
                 app = app.with_transcription(tp, scales, log);
             }
-            if let Some(c) = listen {
-                app.set_listen(pdm_eth::ui::Listen::Channel(c));
+            if let Some(l) = listen {
+                app.set_listen(l);
             }
             let app = app
                 .with_sources(names.map(|n| n.map_or(pdm_eth::sources::Source::Booth, pdm_eth::sources::Source::File)));

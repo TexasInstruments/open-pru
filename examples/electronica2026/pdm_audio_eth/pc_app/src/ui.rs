@@ -515,8 +515,9 @@ impl App {
         }
     }
 
-    /// The text lanes, on the panes' time axis.
-    fn draw_lanes(&self, ui: &mut egui::Ui, h: f32) {
+    /// The text lanes, on the panes' time axis; returns the azimuth of a lane
+    /// whose label was clicked (= listen to that talker).
+    fn draw_lanes(&self, ui: &mut egui::Ui, h: f32) -> Option<f32> {
         let (resp, painter) = ui.allocate_painter(vec2(ui.available_width(), h), Sense::hover());
         let img = image_rect(resp.rect);
         painter.rect_filled(img, 2.0, Color32::from_rgb(17, 19, 24));
@@ -532,9 +533,10 @@ impl App {
         };
         if let Some(m) = msg {
             painter.text(img.center(), egui::Align2::CENTER_CENTER, m, egui::FontId::proportional(LANE_MSG_PX), grey);
-            return;
+            return None;
         }
-        let Some(now) = self.now_index() else { return };
+        let Some(now) = self.now_index() else { return None };
+        let mut clicked = None;
         let clip = painter.with_clip_rect(img);
         let secs = |i: u64| now.saturating_sub(i) as f32 / 16000.0;
         for (row, lane) in self.lanes.lanes.iter().enumerate() {
@@ -557,9 +559,19 @@ impl App {
             // the label last, on its own backing: a sentence box scrolling left must not cover it
             let lg = painter.layout_no_wrap(format!("● {} · {:.0}°", lane.label, lane.az), egui::FontId::proportional(LANE_LABEL_PX), c);
             let lr = Rect::from_min_size(pos2(resp.rect.left(), top + (LANE_H - lg.size().y) / 2.0 - 2.0), lg.size() + vec2(8.0, 4.0));
-            painter.rect_filled(lr, 4.0, Color32::from_rgb(17, 19, 24));
+            let hit = ui.interact(lr, ui.scope_id().with(("lane", lane.label)), Sense::click())
+                .on_hover_text("hear this talker (separated stream); again = off");
+            let on = matches!(self.listen, Listen::Talker(a) if crate::lanes::ang_dist(a, lane.az) <= crate::lanes::REUSE_DEG);
+            painter.rect_filled(lr, 4.0, if on || hit.hovered() { Color32::from_rgb(45, 50, 62) } else { Color32::from_rgb(17, 19, 24) });
+            if on {
+                painter.rect_stroke(lr, 4.0, egui::Stroke::new(1.5, Color32::WHITE), egui::StrokeKind::Inside);
+            }
             painter.galley(lr.min + vec2(2.0, 2.0), lg, c);
+            if hit.clicked() {
+                clicked = Some(lane.az);
+            }
         }
+        clicked
     }
 
     /// Scene names of the playlist (`--playlist`), in pass-slot order.
@@ -637,6 +649,12 @@ impl App {
             && self.player.as_ref().is_none_or(|p| !p.alive()) {
                 self.player = crate::player::Player::spawn(&self.player_cmd).ok();
                 self.player_failed = self.player.is_none();
+            }
+        // talker audio comes from audio_pipe: tell it what to play (None = stop)
+        let az = if let Listen::Talker(a) = l { Some(a) } else { None };
+        if let Some(tp) = &mut self.tpipe
+            && tp.listening() != az {
+                tp.listen(az);
             }
         self.listen = l;
     }
@@ -1176,7 +1194,11 @@ impl eframe::App for App {
             pane(ui, h, &self.tex[1], &format!("ch{c} OUT (board, PDM round trip)"), "waiting for the board",
                  Scale::Level(o.0, o.1));
             pane(ui, 40.0, &self.tex[2], "difference IN - OUT", "", Scale::Diff);
-            self.draw_lanes(ui, lanes_h);
+            if let Some(az) = self.draw_lanes(ui, lanes_h) {
+                // the same talker again = off (set_listen toggles on an equal value)
+                let same = matches!(self.listen, Listen::Talker(a) if crate::lanes::ang_dist(a, az) <= crate::lanes::REUSE_DEG);
+                self.set_listen(if same { self.listen } else { Listen::Talker(az) });
+            }
             time_axis(ui);
         });
         self.screenshot(&ctx);
@@ -1505,6 +1527,25 @@ mod tests {
         app.set_listen(Listen::Channel(5));
         assert_eq!(app.listen, Listen::Channel(5));
         assert_eq!(line(&app, "listening").as_deref(), Some("ch5 board out"));
+    }
+
+    #[test]
+    fn talker_and_channel_exclude_each_other() {
+        let (_tx, rx) = std::sync::mpsc::channel();
+        let tp = crate::transcribe::TextPipe::new(vec!["/bin/true".into()]);
+        let mut app = App::new(rx, "test".into()).with_player_cmd(vec!["/bin/sh".into(), "-c".into(), "cat > /dev/null".into()])
+            .with_transcription(tp, vec![1.0], None);
+        app.set_listen(Listen::Channel(2));
+        assert!(app.player.is_some());
+        app.set_listen(Listen::Talker(211.0));
+        assert!(app.player.is_none(), "the window's channel player stops");
+        assert_eq!(app.listen, Listen::Talker(211.0));
+        assert_eq!(app.tpipe.as_ref().unwrap().listening(), Some(211.0));
+        app.set_listen(Listen::Channel(2));
+        assert_eq!(app.tpipe.as_ref().unwrap().listening(), None, "audio_pipe stops the talker");
+        app.set_listen(Listen::Talker(30.0));
+        app.set_listen(Listen::Talker(30.0));
+        assert_eq!((app.listen, app.tpipe.as_ref().unwrap().listening()), (Listen::Off, None));
     }
 
     #[test]
