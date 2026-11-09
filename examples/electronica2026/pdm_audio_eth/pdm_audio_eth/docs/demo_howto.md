@@ -535,11 +535,31 @@ SCENE_ROOT=~/GitHub/audio_pipe_scenes $DEMO/pctools/audio_pipe/tools/make_booth_
 The scenes go to `pc_app/audio/booth/` (not in git: two of the voices come
 from the Scene Simulator, whose licence is not documented).
 
+**Use a current Scene Simulator.** The scenes were checked on the board with
+the Scene Simulator from GitHub (`accio-sunshine/scenes`, 2026-11-08 or
+later). An older engine renders different audio: on 2026-11-09 a checkout from
+2026-10-12 gave the right text for three talkers, but worker A came out wrong
+or not at all on every pass. `make_booth_scenes.sh` therefore stops when
+`$SCENE_ROOT/scenes` is older than commit `20f157b` (or is not a git
+checkout). Clone it fresh for the booth scenes, rather than reusing an older
+copy or mirror:
+
+```
+git clone https://github.com/accio-sunshine/scenes ~/GitHub/audio_pipe_scenes/scenes   # or git pull there
+```
+
 **Start:** `PDM_IFACE=enx9c69d3c13719 pdm-eth-demo` (or `enp129s0`). With
 `pc_app/audio/booth/` present the launcher builds audio_pipe (CUDA), loops
 the scenes (each followed by 1 s of silence) and starts the transcription;
 the text and pass starts are logged to `~/pdm-eth-booth.log`. Another
 playlist: `PDM_PLAYLIST=<dir>`.
+
+**Keep the window in front.** The window passes the pass starts to
+audio_pipe while it draws. Covered by another window or on another workspace,
+it is not drawn, and the starts arrive late in a burst: audio_pipe skips those
+passes ("pass N start ... is behind the reader, skipped") and the lanes stay
+empty for minutes (2026-11-09, twice, while other windows were in front). Put
+the window full screen on the booth monitor and leave it there.
 
 **What the visitor sees:** the IN pane names the scene and pass. About 0.5 s
 after a talker stops, the sentence appears in that talker's lane (colour dot,
@@ -640,6 +660,44 @@ The top bar and the transcript are larger than before at any scale.
 To start already listening (screen recording without a click):
 `pdm-eth-demo --listen ch0` or `--listen az30` (the talker nearest 30°).
 
+### 7.10 Record a short clip with sound
+
+The GNOME screenshot tool's screen recorder records no sound.
+`pc_app/record_screen.py` records the screen and everything played on the
+default audio output (the listening of 7.9) into one MP4. Picture and sound
+come from the same pipeline, so they stay in sync, and no dialog asks
+what to share.
+
+**Install once** (like the launcher):
+
+```
+ln -sf $DEMO/pc_app/record_screen.py ~/.local/bin/record-screen
+```
+
+**Record:**
+
+```
+pdm-eth-demo --listen ch0          # demo running, sound on (or click a speaker icon / lane label)
+record-screen 10 ~/Videos/booth.mp4   # in another terminal: 10 s, then it stops by itself
+```
+
+- It records the whole screen at its full size (3840×2160 on a 4K monitor),
+  30 fps, H.264 (NVENC when there is an NVIDIA GPU) and AAC 192 kbit/s,
+  about 17 MB for 10 s at 4K. Maximise the demo window first; anything else
+  on the screen (terminals, chat) is in the video too.
+- Whatever plays on the default output is recorded too, so silence other
+  programs. Change the default output and the recording follows it.
+- To cut it down to the window afterwards (x, y, width and height in screen
+  pixels, from a frame of the video):
+
+  ```
+  ffmpeg -i booth.mp4 -vf "crop=W:H:X:Y" -c:v libx264 -crf 16 -pix_fmt yuv420p -c:a copy booth_window.mp4
+  ```
+
+- Needs GNOME Shell on Wayland (tested with 50.1), GStreamer with the good,
+  bad, ugly and libav plugins, and `wpctl`. GNOME stops the recording if
+  `record-screen` is killed early. The file is then unfinished.
+
 ## 8. Booth talking points
 
 - **Real time vs simulation:** the same eight-channel PDM chain runs in the
@@ -687,6 +745,10 @@ To start already listening (screen recording without a click):
 | Latency shows "-" or jumps | a pure tone on the selected channel matches at many lags: select a speech, music or noise channel |
 | GUI: "board clock" ppm jumps between readings | short-window estimate; known open item, no effect on audio |
 | Window does not redraw while a file dialog is open | by design: the dialog blocks the window, the audio keeps running |
+| Booth lanes empty for minutes, terminal: `pass N start ... is behind the reader, skipped` | the window was covered or on another workspace, so it passed the pass starts on late: keep it in front, full screen (7.8) |
+| `booth_curate.py` FAIL on a new PC: one talker (worker A) wrong or missing on every pass | booth scenes rendered with an old Scene Simulator: clone it from GitHub and render them again (7.8) |
+| `make_booth_scenes: the Scene Simulator in ... is older than 20f157b` | as above: `git pull` there, or clone `accio-sunshine/scenes` (7.8) |
+| Screen recording has no sound | the GNOME screenshot recorder never records sound: use `record-screen` (7.10) |
 | Spectrogram of a channel flat or noise, counters fine | that channel's data jumper (3) |
 | Channels 4 to 7 flat, 0 to 3 fine | SW6 not in default (Rev A only), or a BoosterPack plugged in (3) |
 

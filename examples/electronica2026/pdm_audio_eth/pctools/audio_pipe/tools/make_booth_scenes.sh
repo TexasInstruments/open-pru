@@ -20,6 +20,24 @@ OUT=${BOOTH_OUT:-$(readlink -f "$HERE/../../../pc_app")/audio/booth}
 V=$HERE/voices
 : "${SCENE_ROOT:?set SCENE_ROOT to the folder that holds scenes/web}"
 
+# The scenes were checked on the board with the Scene Simulator at 20f157b
+# (2026-11-08, Kokoro voices + Factory booth) or later. An older engine renders
+# different audio: with a 2026-10-12 checkout worker A came out wrong on every
+# pass (2026-11-09). BOOTH_ANY_SIM=1 renders with any checkout.
+SIM_MIN=20f157b
+SIM=$SCENE_ROOT/scenes
+if [ "${BOOTH_ANY_SIM:-0}" != 1 ]; then
+    if ! git -C "$SIM" rev-parse -q --verify HEAD >/dev/null 2>&1; then
+        echo "make_booth_scenes: $SIM is not a git checkout, cannot check its version (BOOTH_ANY_SIM=1 to render anyway)" >&2
+        exit 1
+    fi
+    if ! git -C "$SIM" merge-base --is-ancestor "$SIM_MIN" HEAD 2>/dev/null; then
+        echo "make_booth_scenes: the Scene Simulator in $SIM ($(git -C "$SIM" log -1 --format='%h %cs' HEAD)) is older than $SIM_MIN (2026-11-08)." >&2
+        echo "  Use a current clone: git clone https://github.com/accio-sunshine/scenes \$SCENE_ROOT/scenes (or git pull there)." >&2
+        exit 1
+    fi
+fi
+
 # talker <id> <voice> <az> <dist m> <dB> <start s> [reference text, for a replaced clip]
 talker() {
     printf '{"id":"%s","voice":"%s","az":%s,"el":0,"dist":%s,"db":%s,"start":%s,"target":true' "$1" "$2" "$3" "$4" "$5" "$6"
