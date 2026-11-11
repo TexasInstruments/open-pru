@@ -43,7 +43,7 @@ jobs:
     # MCU+ SDKs are intentionally omitted — each ccs-build job installs
     # only the SDK it needs, keeping the shared cache small.
     name: Install shared toolchain
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
 
     steps:
       - name: Install OS dependencies
@@ -150,7 +150,7 @@ jobs:
   ccs-build:
     name: CCS Build (${{ matrix.device }})
     needs: [install-toolchain]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
 
     strategy:
       fail-fast: false
