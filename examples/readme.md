@@ -10,6 +10,18 @@ This directory contains example PRU projects.
 custom_frequency_generator
 * Generate a square wave with a configurable average clock frequency
 
+electronica2026/pdm_audio/pdm_audio
+* 8-channel PDM microphone chain on one board: RTU1 modulators and PRU1 PDM
+  clock and data pins, jumpered back to PRU0 sigma-delta inputs that decode
+  PCM into a ping-pong buffer in shared RAM. Ported from TI's pru-simulator to
+  AM243x LP at 333 MHz
+
+electronica2026/pdm_audio_eth/pdm_audio_eth
+* The pdm_audio chain connected to a PC over Gigabit Ethernet on ICSSG1 (PRUs
+  only): the PC streams WAV files into the modulators and gets the 8-channel
+  PCM back, with a Rust PC application (Ethernet test, live input/output
+  spectrograms, capture) in electronica2026/pdm_audio_eth/pc_app
+
 empty
 * The empty project can be used for PRU firmware development in assembly
 
@@ -83,6 +95,9 @@ For more information about the PRU features on each processor, refer to app note
 | Project                         | am243x | am261x | am263px | am263x | am62x | am64x |
 | ------------------------------- | ------ | ------ | ------- | ------ | ----- | ----- |
 | custom_frequency_generator      | Y      | Yport  | Yport   | Yport  | Yport | Yport |
+| electronica2026/                                                                     |
+| pdm_audio/pdm_audio             | Y      | Yport  | Yport   | Yport  | Yport | Yport |
+| pdm_audio_eth/pdm_audio_eth     | Y      | Yport  | Yport   | Yport  | Yport | Yport |
 | empty                           | Y      | Y      | Y       | Y      | Y     | Y     |
 | empty_c                         | Y      | Y      | Y       | Y      | Y     | Y     |
 | fft/                                                                                 |

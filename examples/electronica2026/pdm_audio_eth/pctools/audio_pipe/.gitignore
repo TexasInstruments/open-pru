@@ -1,0 +1,7 @@
+target/
+models/
+out*/
+tools/testdata/
+py/.venv/
+py/pretrained/
+py/__pycache__/
