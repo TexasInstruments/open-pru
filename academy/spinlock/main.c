@@ -1,6 +1,6 @@
 /*
  * SPDX-License-Identifier: BSD-3-Clause
- * Copyright (C) 2024-2026 Texas Instruments Incorporated - http://www.ti.com/
+ * Copyright (C) 2026 Texas Instruments Incorporated - http://www.ti.com/
  *
  * File: main.c
  *
@@ -26,6 +26,9 @@
  *
  * spinlock_acquire() is a single non-blocking attempt: it returns 1 if the
  * lock was acquired, 0 otherwise. The spin loop lives here in C.
+ *
+ * For how mixed C and assembly projects work, see the PRU Getting Started Labs
+ * > c_and_assembly (academy/getting_started_labs/c_and_assembly).
  */
 uint8_t spinlock_acquire(uint8_t flag_id);
 void spinlock_release(uint8_t flag_id);
@@ -45,8 +48,9 @@ volatile register uint32_t __R30;
 
 /*
  * Cycles spent outside the lock before the next attempt. The lock is not fair:
- * with no gap, the core that just released re-acquires before the other core's
- * retry loop comes round, every time. On LP-AM243 PRU1 never got the lock.
+ * without this gap, the core that just released re-acquires before the other
+ * core's retry loop comes round, and the other core never gets the lock. With
+ * the gap, both cores take turns.
  */
 #define OUTSIDE_TIME        200
 

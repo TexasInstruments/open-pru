@@ -1,5 +1,5 @@
 ; SPDX-License-Identifier: BSD-3-Clause
-; Copyright (C) 2024-2026 Texas Instruments Incorporated - http://www.ti.com/
+; Copyright (C) 2026 Texas Instruments Incorporated - http://www.ti.com/
 
 ;******************************************************************************
 ;   File:   spinlock_example.asm
@@ -76,6 +76,8 @@ main:
     ; Critical section: we now own SPINLOCK_ID. Access the shared resource here.
     ;--------------------------------------------------------------------------
 
+    ; M_SPINLOCK_RELEASE uses the lock id in R1.b0. If the critical section
+    ; overwrites R1.b0, reload it (LDI R1.b0, SPINLOCK_ID) before releasing.
     M_SPINLOCK_RELEASE
 
     halt

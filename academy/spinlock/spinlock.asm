@@ -1,5 +1,5 @@
 ; SPDX-License-Identifier: BSD-3-Clause
-; Copyright (C) 2024-2026 Texas Instruments Incorporated - http://www.ti.com/
+; Copyright (C) 2026 Texas Instruments Incorporated - http://www.ti.com/
 
 ;******************************************************************************
 ;   File:   spinlock.asm
@@ -20,10 +20,6 @@
 ;         The acquire is non-blocking - one XIN is one attempt. The caller
 ;         (here, C) spins until it gets a 1.
 ;       - RELEASE: an XOUT with the same lock id in R1.b0 frees the lock.
-;
-;   Note:
-;       These helpers use XID 0x90 (local PRU subsystem). A separate function
-;       would be needed for accessing spinlocks in a different PRU subsystem.
 ;******************************************************************************
 
 ; Required for building .out with an assembly file
@@ -45,7 +41,7 @@ INT_SPIN_XID    .set    0x90    ; broadside XID for the local PRU spinlock
 ;   Pseudocode:
 ;       R1.b0 = flag_id                 ; present lock id to the accelerator
 ;       XIN(XID 0x90) -> R1.b3          ; one acquire attempt, bit0 = acquired
-;       return R1.b3 & 1                ; 1 = acquired, 0 = held by another
+;       return R1.b3                    ; 1 = acquired, 0 = held by another
 ;
 ;   Registers modified : R1 (R1.b0, R1.b3), R14.b0 (return value)
 ;   Peak Cycles : 4 (one acquire attempt; excludes any C-side retry spin)
@@ -56,7 +52,7 @@ INT_SPIN_XID    .set    0x90    ; broadside XID for the local PRU spinlock
 spinlock_acquire:
     MOV         R1.b0, R14.b0           ; lock id -> R1.b0 (presented to accel)
     XIN         INT_SPIN_XID, &R1.b3, 1 ; status returned in R1.b3 (bit0=acquired)
-    AND         R14.b0, R1.b3, 1        ; return bit 0 only: 1 = acquired
+    MOV         R14.b0, R1.b3           ; return status: 1 = acquired
     JMP         r3.w2
 
 ;******************************************************************************
