@@ -39,7 +39,6 @@ SPINLOCK_ID     .set    0       ; lock id 0-63, fixed in PRU firmware
 ;                 (2 cycles per retry)
 ;******************************************************************************
 M_SPINLOCK_ACQUIRE  .macro
-    .newblock
     LDI     R1.b0, SPINLOCK_ID          ; lock id (0-63)
 $1:
     XIN     INT_SPIN_XID, &R1.b3, 1     ; attempt acquire; status in R1.b3
