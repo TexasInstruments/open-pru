@@ -4,7 +4,7 @@ SUBDIRS := \
     custom_frequency_generator empty empty_c \
     fft/split_radix_fft_4k_single_core fft/split_radix_fft_post_processing \
     LCD_interface logic_scope pru_emif pru_eqep pru_i2s spi_loopback \
-    fir multicore_scheduler rpmsg_echo_linux
+    fir jpeg_decoder/jpeg_decoder_dual_core jpeg_decoder/jpeg_decoder_single_core jpeg_decoder/host multicore_scheduler rpmsg_echo_linux
 
 # "make" or "make all" builds projects that match $(DEVICE) set in imports.mak
 all: ARGUMENTS = all
