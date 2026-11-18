@@ -20,7 +20,7 @@ FILES_PATH := ../../../../
 COMMAND_FILES := linker.cmd
 
 # Silicon version (3: PRUSS, PRU-ICSS; 4: PRU_ICSSG)
-PRU_VERSION := 3
+PRU_VERSION := 4
 EXPECTED_DEVICE := am263x
 
 

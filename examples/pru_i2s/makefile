@@ -65,7 +65,6 @@ ifeq ($(BUILD_PROJECT),y)
 # "make" or "make all" builds PRU firmware then host code for $(DEVICE)
 all: MESSAGE = "Building $(PROJECT_NAME) for $(DEVICE)"
 all: pre_build_message
-	$(MAKE) pru
 	$(MAKE) host
 
 # "make pru" builds only PRU firmware for $(DEVICE)
@@ -73,11 +72,14 @@ pru: ARGUMENTS_PRU = all
 pru: MESSAGE = "Building $(PROJECT_NAME) PRU firmware"
 pru: pre_build_message $(DEVICE)
 
-# "make host" builds only host (R5F) code for $(DEVICE) — requires PRU firmware first
-host: pru
-host: ARGUMENTS_MCUPLUS = all
+# "make host" builds PRU firmware, then the driver library, then host (R5F) code
+# for $(DEVICE). The steps are recipe lines so they stay in order under "make -j":
+# the host code includes the PRU firmware headers, and links the library.
 host: MESSAGE = "Building $(PROJECT_NAME) host code for $(DEVICE)"
-host: pre_build_message $(DEVICE_NON_PRU)
+host: pre_build_message
+	$(MAKE) pru
+	$(MAKE) build_lib_$(DEVICE)
+	$(MAKE) $(DEVICE_NON_PRU) ARGUMENTS_MCUPLUS=all
 
 # "make clean" cleans projects that match $(DEVICE) set in imports.mak
 clean: ARGUMENTS_PRU = clean
@@ -85,7 +87,7 @@ clean: ARGUMENTS_MCUPLUS = scrub
 clean: MESSAGE = "Cleaning $(PROJECT_NAME) for $(DEVICE)"
 clean: pre_build_message $(DEVICE) $(DEVICE_NON_PRU) clean_lib
 
-clean_lib: $(DEVICE) $(DEVICE_NON_PRU)
+clean_lib:
 	$(MAKE) -C ../../source/i2s clean
 
 else
@@ -110,7 +112,7 @@ am261x:
 	$(MAKE) -C firmware/tdm4/pru0_tx/am261x-lp/icssm0-pru0_fw/ti-pru-cgt $(ARGUMENTS_PRU)
 	$(MAKE) -C firmware/tdm4/pru1_rx/am261x-lp/icssm0-pru1_fw/ti-pru-cgt $(ARGUMENTS_PRU)
 
-am261x_mcuplus: build_lib_am261x
+am261x_mcuplus:
 # am261x-lp - R5F application
 	$(MAKE) -C pru_i2s_app/am261x-lp/r5fss0-0_freertos/ti-arm-clang $(ARGUMENTS_MCUPLUS)
 
@@ -126,7 +128,7 @@ am263x:
 	$(MAKE) -C firmware/tdm4/pru0_tx/am263x-cc/icssm0-pru0_fw/ti-pru-cgt $(ARGUMENTS_PRU)
 	$(MAKE) -C firmware/tdm4/pru1_rx/am263x-cc/icssm0-pru1_fw/ti-pru-cgt $(ARGUMENTS_PRU)
 
-am263x_mcuplus: build_lib_am263x
+am263x_mcuplus:
 # am263x-cc - R5F application
 	$(MAKE) -C pru_i2s_app/am263x-cc/r5fss0-0_freertos/ti-arm-clang $(ARGUMENTS_MCUPLUS)
 
