@@ -90,7 +90,7 @@
                 -lfreertos.am263x.r5f.ti-arm-clang.debug.lib
                 -ldrivers.am263x.r5f.ti-arm-clang.freertos.debug.lib
                 -lboard.am263x.r5f.ti-arm-clang.freertos.debug.lib
-                -lpru_i2s.am263x.r5f.ti-arm-clang.debug.lib
+                -lpru_i2s.am263x.r5f.ti-arm-clang.Debug.lib
                 -llibc.a
                 -llibsysbm.a
             "

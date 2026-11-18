@@ -169,7 +169,7 @@ pru_i2s/
 │   │   ├── icss_pru_i2s_fw.h  # Firmware register map
 │   │   ├── pru_i2s_interface.h # Interface definitions
 │   │   ├── pru_i2s_regs.h     # Hardware registers
-│   │   ├── generated/         # Generated firmware array headers (build output, gitignored)
+│   │   ├── pru_i2s_pru0/1_array.h # Generated firmware array headers (build output, gitignored)
 │   │   ├── pru0_tx/           # TX firmware builds
 │   │   │   ├── am261x-lp/     # AM261x variant
 │   │   │   └── am263x-cc/     # AM263x variant
@@ -201,7 +201,7 @@ pru_i2s/
 
 **Build all firmware and application:**
 ```bash
-cd /path/to/open-pru
+cd examples/pru_i2s
 make DEVICE=am261x        # Build for AM261x
 make DEVICE=am263x        # Build for AM263x
 ```
@@ -209,7 +209,7 @@ make DEVICE=am263x        # Build for AM263x
 **Build only firmware:**
 ```bash
 cd examples/pru_i2s
-make DEVICE=am261x        # Builds 4 firmware variants (I2S + TDM4, PRU0 + PRU1)
+make pru DEVICE=am261x    # Builds 4 firmware variants (I2S + TDM4, PRU0 + PRU1)
 ```
 
 **Clean:**
@@ -219,11 +219,11 @@ make DEVICE=am261x clean
 
 **What gets built:**
 - 4 PRU firmware binaries per device (I2S PRU0 TX, I2S PRU1 RX, TDM4 PRU0 TX, TDM4 PRU1 RX)
-- Firmware header arrays (`.h` files) generated into `firmware/i2s/generated/` and `firmware/tdm4/generated/` (gitignored)
+- Firmware header arrays (`.h` files) copied into `firmware/i2s/` and `firmware/tdm4/` (gitignored)
 - PRU I2S driver library (`lib/pru_i2s.*.lib`) built from `source/i2s/makefile`
 - R5F application binary (`.out` and `.mcelf`)
 
-**Note:** The PRU firmware makefiles use `pru_rules.mak` (silicon version `-v3`, PRUSS/PRU-ICSS) and place all build artifacts in a `ti-pru-cgt/generated/` subdirectory. The library build is owned by `source/i2s/makefile` and is invoked automatically by the top-level `makefile`.
+**Note:** The PRU firmware makefiles use `pru_rules.mak` (silicon version `-v4`) and place all build artifacts in a `ti-pru-cgt/generated/` subdirectory. The library build is owned by `source/i2s/makefile` and is invoked automatically by the top-level `makefile`.
 
 ### Building with Code Composer Studio
 
