@@ -30,6 +30,7 @@ include $(OPEN_PRU_PATH)/pru_rules.mak
 # Additional include paths for I2S firmware headers
 INCLUDE += --include_path=$(OPEN_PRU_PATH)/examples/pru_i2s/firmware/include
 INCLUDE += --include_path=$(OPEN_PRU_PATH)/examples/pru_i2s/firmware/i2s
+INCLUDE += --include_path=$(OPEN_PRU_PATH)/source/i2s
 
 # Defines: PRU1, I2S Rx, overflow detection
 DFLAGS := \
