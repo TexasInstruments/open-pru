@@ -110,7 +110,7 @@ LIBS_PATH_common = \
 	-Wl,-i${MCU_PLUS_SDK_PATH}/source/drivers/lib \
 	-Wl,-i${MCU_PLUS_SDK_PATH}/source/board/lib \
 	-Wl,-i${MCU_PLUS_SDK_PATH}/source/pru_io/lib \
-	-Wl,-i${OPEN_PRU_PATH}/examples/pru_i2s/lib \
+	-Wl,-i${OPEN_PRU_PATH}/source/i2s/lib \
 	-Wl,-i${CG_TOOL_ROOT}/lib \
 
 LIBS_common = \
@@ -141,7 +141,7 @@ LIBS_PATH_NAME = \
 	${MCU_PLUS_SDK_PATH}/source/drivers/lib \
 	${MCU_PLUS_SDK_PATH}/source/board/lib \
 	${MCU_PLUS_SDK_PATH}/source/pru_io/lib \
-	${OPEN_PRU_PATH}/examples/pru_i2s/lib \
+	${OPEN_PRU_PATH}/source/i2s/lib \
 	${CG_TOOL_ROOT}/lib \
 
 FILES := $(FILES_common) $(FILES_$(PROFILE))

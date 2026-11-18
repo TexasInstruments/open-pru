@@ -63,7 +63,7 @@
             -i${MCU_PLUS_SDK_PATH}/source/drivers/lib
             -i${MCU_PLUS_SDK_PATH}/source/board/lib
             -i${MCU_PLUS_SDK_PATH}/source/pru_io/lib
-            -i${OPEN_PRU_PATH}/examples/pru_i2s/lib
+            -i${OPEN_PRU_PATH}/source/i2s/lib
             -i${CG_TOOL_ROOT}/lib
             -m=pru_i2s_app.${ConfigName}.map
             --diag_suppress=10063
