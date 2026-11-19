@@ -55,16 +55,9 @@ build_am261x:
 		-I$(MCU_PLUS_SDK_PATH)/source/kernel/freertos/config/am261x/r5f \
 		-DSOC_AM261X -DOS_FREERTOS \
 		-o $(GEN_DIR)/pru_i2s_drv_am261x.obj pru_i2s_drv.c
-	$(CC) -c $(CFLAGS_common) \
-		$(INCLUDES_common) \
-		-I$(MCU_PLUS_SDK_PATH)/source/kernel/freertos/config/am261x/r5f \
-		-DSOC_AM261X -DOS_FREERTOS \
-		-o $(GEN_DIR)/pru_i2s_app_config_am261x.obj pru_i2s_app_config.c
 	$(AR) rc $(GEN_DIR)/pru_i2s.am261x.r5f.ti-arm-clang.$(PROFILE).lib \
-		$(GEN_DIR)/pru_i2s_drv_am261x.obj \
-		$(GEN_DIR)/pru_i2s_app_config_am261x.obj
+		$(GEN_DIR)/pru_i2s_drv_am261x.obj
 	$(RM) $(GEN_DIR)/pru_i2s_drv_am261x.obj
-	$(RM) $(GEN_DIR)/pru_i2s_app_config_am261x.obj
 	@echo "Library build complete."
 
 build_am263x:
@@ -75,16 +68,9 @@ build_am263x:
 		-I$(MCU_PLUS_SDK_PATH)/source/kernel/freertos/config/am263x/r5f \
 		-DSOC_AM263X -DOS_FREERTOS \
 		-o $(GEN_DIR)/pru_i2s_drv_am263x.obj pru_i2s_drv.c
-	$(CC) -c $(CFLAGS_common) \
-		$(INCLUDES_common) \
-		-I$(MCU_PLUS_SDK_PATH)/source/kernel/freertos/config/am263x/r5f \
-		-DSOC_AM263X -DOS_FREERTOS \
-		-o $(GEN_DIR)/pru_i2s_app_config_am263x.obj pru_i2s_app_config.c
 	$(AR) rc $(GEN_DIR)/pru_i2s.am263x.r5f.ti-arm-clang.$(PROFILE).lib \
-		$(GEN_DIR)/pru_i2s_drv_am263x.obj \
-		$(GEN_DIR)/pru_i2s_app_config_am263x.obj
+		$(GEN_DIR)/pru_i2s_drv_am263x.obj
 	$(RM) $(GEN_DIR)/pru_i2s_drv_am263x.obj
-	$(RM) $(GEN_DIR)/pru_i2s_app_config_am263x.obj
 	@echo "Library build complete."
 
 clean:

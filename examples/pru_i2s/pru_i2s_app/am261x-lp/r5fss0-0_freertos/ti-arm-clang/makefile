@@ -39,6 +39,7 @@ endif
 
 FILES_common := \
 	pru_i2s_diagnostic.c \
+	pru_i2s_app_config.c \
 	main.c \
 	ti_drivers_config.c \
 	ti_drivers_open_close.c \
