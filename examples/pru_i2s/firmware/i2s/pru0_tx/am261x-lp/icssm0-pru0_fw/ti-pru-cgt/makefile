@@ -20,7 +20,7 @@ FILES_PATH := ../../../../
 COMMAND_FILES := linker.cmd
 
 # Silicon version (3: PRUSS, PRU-ICSS; 4: PRU_ICSSG)
-PRU_VERSION := 4
+PRU_VERSION := 3
 EXPECTED_DEVICE := am261x
 
 
@@ -29,7 +29,6 @@ EXPECTED_DEVICE := am261x
 include $(OPEN_PRU_PATH)/pru_rules.mak
 
 # Additional include paths for I2S firmware headers
-INCLUDE += --include_path=$(OPEN_PRU_PATH)/examples/pru_i2s/firmware/include
 INCLUDE += --include_path=$(OPEN_PRU_PATH)/examples/pru_i2s/firmware/i2s
 INCLUDE += --include_path=$(OPEN_PRU_PATH)/source/i2s
 

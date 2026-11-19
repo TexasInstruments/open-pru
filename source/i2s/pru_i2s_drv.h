@@ -330,16 +330,6 @@ int32_t PRUI2S_setUserConfig(
     uint8_t pruInstId
 );
 
-/**
- * \brief Apply PRU I2S application configuration
- *
- * This function applies the user configuration to the PRU I2S driver.
- * It must be called before PRUI2S_init().
- *
- * \return 0 on success, negative error code on failure
- */
-int32_t PRUI2S_applyAppConfig(void);
-
 /*
  *   Get PRUI2S SW IP attributes for use in application, e.g.
  *      - # Tx I2S
