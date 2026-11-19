@@ -51,10 +51,10 @@
 
 #define CTR_EN (1 << 3)
 /* Define offsets for each channel in DMEM */
-#define DMEM_CHANNEL_SIZE  0x400  /* 4KB per channel                                 */
+#define DMEM_CHANNEL_SIZE  0x400  /* 1KB per channel                                 */
 #define DMEM_CH0_OFFSET    0x0000 /* Channel 0 starts at base                        */
-#define DMEM_CH1_OFFSET    0x400  /* Channel 1 starts at base + 4KB                  */
-#define DMEM_CH2_OFFSET    0x800  /* Channel 2 starts at base + 8KB                  */
+#define DMEM_CH1_OFFSET    0x400  /* Channel 1 starts at base + 1KB                  */
+#define DMEM_CH2_OFFSET    0x800  /* Channel 2 starts at base + 2KB                  */
 #define DMEM_CH3_OFFSET    0x0C00 /* Channel 3 (RTU_PRU1) starts in PRU1's DRAM bank */
 #define DMEM_CH4_OFFSET    0x1000 /* Channel 4 (PRU1) starts in PRU1's DRAM bank     */
 #define DMEM_CH5_OFFSET    0x1400 /* Channel 5 (TX_PRU1) starts in PRU1's DRAM bank  */
@@ -75,14 +75,6 @@
 #define CH4_PHASE_ERR_OFFSET 0x44
 #define CH5_PHASE_ERR_OFFSET 0x48
 
-/* Define QPOSMAX offsets for each channel (PRU-write-once at boot, R5F-read-once at init) */
-#define CH0_QPOSMAX_OFFSET 0x4C
-#define CH1_QPOSMAX_OFFSET 0x50
-#define CH2_QPOSMAX_OFFSET 0x54
-#define CH3_QPOSMAX_OFFSET 0x58
-#define CH4_QPOSMAX_OFFSET 0x5C
-#define CH5_QPOSMAX_OFFSET 0x60
-
 /* Define last-direction offsets for each channel (PRU-write-every-edge, R5F-read-only) */
 #define CH0_LAST_DIR_OFFSET 0x64
 #define CH1_LAST_DIR_OFFSET 0x68
@@ -98,8 +90,8 @@
 /* Define the below line to enable mem_limit ring-buffer-wrap debug prints (Ch5 bench test) */
 /* #define TEST_MEM_LIMIT_DEBUG */
 
-/* Define the below line to enable pulse loss detection test, refer readme section 8e for more details 
-   #define TEST_PULSE_LOSS */ 
+/* Uncomment the line below to enable the pulse loss detection test, refer readme section 8c for more details */
+/* #define TEST_PULSE_LOSS */
 
 /* Define Pulse loss offsets for each channel, used only when the test is enabled */
 #define CH0_PULSE_LOSS_OFFSET 0x7C
@@ -194,11 +186,11 @@ void EQEP_pruss_load_run_fw(void)
     PRUICSS_enableCore(gPruIcssXHandle, PRUICSS_PRU0);
     PRUICSS_enableCore(gPruIcssXHandle, PRUICSS_TX_PRU0);
 
-   /* PRU1 Cores
-      Disable all cores */
-   PRUICSS_disableCore(gPruIcssXHandle, PRUICSS_RTU_PRU1);    /* ch0 */
-   PRUICSS_disableCore(gPruIcssXHandle, PRUICSS_PRU1);        /* ch1 */
-   PRUICSS_disableCore(gPruIcssXHandle, PRUICSS_TX_PRU1);     /* ch2 */
+    /* PRU1 Cores
+       Disable all cores */
+    PRUICSS_disableCore(gPruIcssXHandle, PRUICSS_RTU_PRU1);    /* ch0 */
+    PRUICSS_disableCore(gPruIcssXHandle, PRUICSS_PRU1);        /* ch1 */
+    PRUICSS_disableCore(gPruIcssXHandle, PRUICSS_TX_PRU1);     /* ch2 */
 
    /* Enable Load Share mode */
    gPru_cfg = (void *)(((PRUICSS_HwAttrs *)(gPruIcssXHandle->hwAttrs))->cfgRegBase);
@@ -278,7 +270,6 @@ void pru_eqep_example_main(void *args)
             i*4
         );
         ABZHandle[i]->icssHandle = gPruIcssXHandle;
-        ABZHandle[i]->prev_QPOS = 0;
         ABZHandle[i]->QPOSCOUNT = 0;
         ABZHandle[i]->read_ptr = ABZHandle[i]->baseMemAddr0;
         ABZHandle[i]->write_ptr = ABZHandle[i]->baseMemAddr1;
@@ -395,7 +386,6 @@ void pru_eqep_example_main(void *args)
              * (eqep_diagnostic.c), which reads QPOS on every ISR entry with
              * no equivalent gate. That gating mismatch was the source of the
              * position-count divergence between the two modes. */
-            ABZHandle[ch]->prev_QPOS  = ABZHandle[ch]->QPOSCOUNT;
             ABZHandle[ch]->QPOSCOUNT  = HW_RD_REG32((uint32_t)ABZHandle[ch]->position_base);
 
             /* Direction comes straight from firmware's last-processed-edge
@@ -410,11 +400,10 @@ void pru_eqep_example_main(void *args)
             else if (last_dir == 2) ABZHandle[ch]->direction = -1;
 
 #ifdef TEST_PULSE_LOSS
-            /* Pulse loss is linked to phase error: an invalid A/B transition
-               (e.g. 00->11) is both. Latch sticky flag if either the PRU-owned
-               pulse-loss counter changed OR a phase error is currently flagged. */
+            /* Latch sticky flag when the PRU-owned pulse-loss counter changes.
+               Phase errors are reported separately via phase_error_flag. */
             uint32_t curr_pulse_loss_count = HW_RD_REG32((uint32_t)ABZHandle[ch]->pulse_loss_base);
-            if ((curr_pulse_loss_count != ABZHandle[ch]->pulse_loss_count_last_seen) || ABZHandle[ch]->phase_error_flag == 1)
+            if (curr_pulse_loss_count != ABZHandle[ch]->pulse_loss_count_last_seen)
             {
                 ABZHandle[ch]->pulse_loss_flag = 1;
                 ABZHandle[ch]->pulse_loss_count_last_seen = curr_pulse_loss_count;
@@ -455,6 +444,9 @@ void pru_eqep_example_main(void *args)
             DebugP_log("\r\nPulse loss flag for channel: Ch0=%d Ch1=%d Ch2=%d Ch3=%d Ch4=%d Ch5=%d\n",
                 ABZHandle[0]->pulse_loss_flag, ABZHandle[1]->pulse_loss_flag, ABZHandle[2]->pulse_loss_flag,
                 ABZHandle[3]->pulse_loss_flag, ABZHandle[4]->pulse_loss_flag, ABZHandle[5]->pulse_loss_flag);
+            DebugP_log("  PhaseErr: Ch0=%d Ch1=%d Ch2=%d Ch3=%d Ch4=%d Ch5=%d\n",
+                ABZHandle[0]->phase_error_flag, ABZHandle[1]->phase_error_flag, ABZHandle[2]->phase_error_flag,
+                ABZHandle[3]->phase_error_flag, ABZHandle[4]->phase_error_flag, ABZHandle[5]->phase_error_flag);
             last_print_us = now_us;
         }
 #endif
@@ -584,7 +576,6 @@ void ABZ_enable_load_share_mode(void *pruCfg, uint32_t pruSlice)
 void EQEP_Get_position_ABZ(void)
 {
     /* Update position and direction */
-    for(int channel=0;channel<6;channel++) ABZHandle[channel]->prev_QPOS = ABZHandle[channel]->QPOSCOUNT;
     for(int channel=0;channel<6;channel++)
     {
         ABZHandle[channel]->QPOSCOUNT = HW_RD_REG32((uint32_t)ABZHandle[channel]->position_base);

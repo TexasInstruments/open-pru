@@ -70,7 +70,7 @@ PRU_CTRL_CONST	    .set	c28
 PRU_CTRL_CONST	    .set	c11
     .endif
 PRU_CYCLCNT	        .set	0x0c
-MAX_BUFFER          .set    0x400     ; Buffer size = 8 kB
+MAX_BUFFER          .set    0x400     ; Buffer size = 1 kB (256 four-byte timestamps)
 READ_POS_SPEED_BUFF .set    0x4
 
 ;--------------------------------------------------------------------------;
@@ -88,7 +88,6 @@ A_B_Z_GPI_mask      .set    0x43     ; Byte level mask for GPI0,1 (0b0100_0011)
 CH_POS_OFFSET       .set    0x1C
 WRITE_PTR_OFFSET    .set    0x0
 PHASE_ERR_CNT_OFFSET .set   0x34
-QPOSMAX_OFFSET      .set    0x4C
 LAST_DIR_OFFSET     .set    0x64
 PULSE_LOSS_OFFSET   .set    0x7C
     .endif
@@ -105,7 +104,6 @@ A_B_Z_GPI_mask      .set    0x4C    ; Byte level mask for GPI2,3 (0b0100_1100)
 CH_POS_OFFSET       .set    0x20
 WRITE_PTR_OFFSET    .set    0x4
 PHASE_ERR_CNT_OFFSET .set   0x38
-QPOSMAX_OFFSET      .set    0x50
 LAST_DIR_OFFSET     .set    0x68
 PULSE_LOSS_OFFSET   .set    0x80
     .endif
@@ -122,7 +120,6 @@ A_B_Z_GPI_mask      .set    0x70     ; Byte level mask for GPI4,5 (0b0111_0000)
 CH_POS_OFFSET       .set    0x24
 WRITE_PTR_OFFSET    .set    0x8
 PHASE_ERR_CNT_OFFSET .set   0x3C
-QPOSMAX_OFFSET      .set    0x54
 LAST_DIR_OFFSET     .set    0x6C
 PULSE_LOSS_OFFSET   .set    0x84
     .endif
@@ -139,7 +136,6 @@ A_B_Z_GPI_mask      .set    0x7     ; Byte level mask for GPI0,1 (0b0000_0111)
 CH_POS_OFFSET       .set    0x28
 WRITE_PTR_OFFSET    .set    0xC
 PHASE_ERR_CNT_OFFSET .set   0x40
-QPOSMAX_OFFSET      .set    0x58
 LAST_DIR_OFFSET     .set    0x70
 PULSE_LOSS_OFFSET   .set    0x88
     .endif
@@ -156,7 +152,6 @@ A_B_Z_GPI_mask      .set    0x5C    ; Byte level mask for GPI11,12 (0b0101_1100)
 CH_POS_OFFSET       .set    0x2C
 WRITE_PTR_OFFSET    .set    0x10
 PHASE_ERR_CNT_OFFSET .set   0x44
-QPOSMAX_OFFSET      .set    0x5C
 LAST_DIR_OFFSET     .set    0x74
 PULSE_LOSS_OFFSET   .set    0x8C
     .endif
@@ -174,7 +169,6 @@ A_B_Z_GPI_mask      .set    0xA4     ; Byte level mask for GPI13,15 (0b1010_0100
 CH_POS_OFFSET       .set    0x30
 WRITE_PTR_OFFSET    .set    0x14
 PHASE_ERR_CNT_OFFSET .set   0x48
-QPOSMAX_OFFSET      .set    0x60
 LAST_DIR_OFFSET     .set    0x78
 PULSE_LOSS_OFFSET   .set    0x90
     .endif

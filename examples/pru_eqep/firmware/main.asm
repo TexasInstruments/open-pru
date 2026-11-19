@@ -45,7 +45,7 @@ main:
     ; Initialize registers
     zero    &r0, 116                    ; Clear registers
     ldi32   DMEM0, DMEM0_BASE
-    ldi     buffer_size, MAX_BUFFER     ; Set buffer size to 8 kB
+    ldi     buffer_size, MAX_BUFFER     ; Set buffer size to 1 kB
     ldi     A_B_Z_edge,A_B_Z_GPI_mask
     ldi     read_pos_speed_intr, READ_POS_SPEED_BUFF
     ldi     a_b_transition, 0
@@ -60,11 +60,6 @@ Curr_A_not_set0:
     qbbc    Curr_B_not_set0, curr_gpi_sample, B_SIGNAL_GPI
     SET     a_b_transition, a_b_transition, 0
 Curr_B_not_set0:
-
-    ; Publish QPOSMAX to R5F once at boot, so the host can read the actual
-    ; counter modulus instead of relying on a hand-duplicated constant.
-    ldi32   scratch2, QPOSMAX
-    sbco    &scratch2, DMEM1, QPOSMAX_OFFSET, 4
 
     ; Cache QPOSMAX in a dedicated register once at boot, so the hot-path
     ; overflow compares below don't pay for an ldi32 reload on every edge.
@@ -118,7 +113,6 @@ write_in_bounds:
     sbbo    &time_stamp, DMEM0, buffer_addr, 4
     sbco    &buffer_addr, DMEM1, WRITE_PTR_OFFSET, 2
 
-no_buffer_wrap:
     add     buffer_addr, buffer_addr, 4
     add     READ_POS_BUFF, READ_POS_BUFF, 4
 
@@ -138,7 +132,7 @@ no_phase_err1:
     ; Handle increment/decrement based on direction
     qbbc    no_increment, qpos_update, 0
     add     QPOS, QPOS, 1
-    qbge    no_qpos_overflow, QPOS, qposmax_reg    ; jump if qposmax_reg >= QPOS (i.e. QPOS <= QPOSMAX)
+    qbge    no_qpos_overflow, QPOS, qposmax_reg    ; jump if qposmax_reg >= QPOS (QPOS <= QPOSMAX)
     ldi     QPOS, 0
 no_qpos_overflow:
     sbco    &QPOS, DMEM1, CH_POS_OFFSET, 4
