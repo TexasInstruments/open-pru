@@ -120,9 +120,6 @@ typedef struct ABZ_Config_s {
     /* Quadrature position counter */
     uint32_t QPOSCOUNT;
 
-    /* Previous quadrature position */
-    int32_t prev_QPOS;
-
     /* Edge status register
     4 bit status for following fields-> [(Prev_A_Edge),(Prev_B_Edge),(Curr_A_Edge),(Curr_B_Edge)] */
     int32_t A_B_EDGE_STATUS;  

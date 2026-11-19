@@ -61,11 +61,6 @@ Curr_A_not_set0:
     SET     a_b_transition, a_b_transition, 0
 Curr_B_not_set0:
 
-    ; Publish QPOSMAX to R5F once at boot, so the host can read the actual
-    ; counter modulus instead of relying on a hand-duplicated constant.
-    ldi32   scratch2, QPOSMAX
-    sbco    &scratch2, DMEM1, QPOSMAX_OFFSET, 4
-
     ; Cache QPOSMAX in a dedicated register once at boot, so the hot-path
     ; overflow compares below don't pay for an ldi32 reload on every edge.
     ldi32   qposmax_reg, QPOSMAX
@@ -118,7 +113,6 @@ write_in_bounds:
     sbbo    &time_stamp, DMEM0, buffer_addr, 4
     sbco    &buffer_addr, DMEM1, WRITE_PTR_OFFSET, 2
 
-no_buffer_wrap:
     add     buffer_addr, buffer_addr, 4
     add     READ_POS_BUFF, READ_POS_BUFF, 4
 

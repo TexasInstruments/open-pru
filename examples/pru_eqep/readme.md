@@ -20,6 +20,8 @@ The PRU eQEP implementation has been bench-validated against a real hardware eQE
 | Mixed concurrent sources | 3 channels driven from an ePWM-based signal source, 3 from a real encoder, running at once — confirms cross-channel independence |
 | Phase-error detection | Negative test: A and B tied to the same physical signal, forcing every transition through the diagonal/invalid states — counter increments, flag sets, and clears correctly with no false positives on a subsequent normal run |
 | Speed calculation | Swept across 1 kHz – 500 kHz — see "Parameter Ranges Tested" below |
+| `QPOS` wraparound | Tested with `QPOSMAX` = 3999: `QPOS` wraps correctly from 3999 to 0 in the forward direction and from 0 to 3999 in the reverse direction |
+| Pulse-loss detection | **Not bench-tested** — a real pulse-loss condition was hard to produce on hardware. Verified in the PRU simulator only (see section 8c) |
 
 
 ## 2. Parameter Ranges Tested
@@ -100,7 +102,7 @@ Notes:
 <figcaption>PRU firmware flow — edge detection, timestamp capture, LUT lookup, QPOS/phase-error update (main.asm)</figcaption>
 </figure>
 
-Note: the diagram shows one merged path — the actual assembly duplicates the Z-check/LUT-lookup/QPOS-update logic once on the buffer-wrap branch and once on the continue branch (see `main.asm`), not because they behave differently, but to avoid an extra branch back into a shared block. Interrupt firing (every `READ_POS_SPEED_BUFF` edges, via `r31.b0`) happens inside the "Write to DMEM0/DMEM1" step and is omitted here for clarity.
+Note: the firmware does not raise any interrupt. It only publishes the timestamp ring buffer, write pointer, `QPOS`, last direction and phase-error counter to DMEM, and the R5F application polls them (see 5b).
 
 ### 5b. R5F Application Flow (`mcuplus/pru_eqep_example.c`, polling mode)
 
@@ -134,7 +136,7 @@ Z signal pins omitted — not a customer requirement, not wired/tested
 
 ## 7. Debug Tips
 
-- **Check `PhaseErr` first if position looks wrong.** Phase error is detected when A and B transition simultaneously — the PRU firmware's LUT lookup returns `3` (diagonal/invalid state), increments `PHASE_ERR_CNT` in DMEM1 for that channel, and skips the QPOS update for that edge. On the R5F side, the polling loop compares `PHASE_ERR_CNT` against `phase_err_count_last_seen` each pass — if it has moved, `phase_error_flag` is set to `1` (sticky). The 1-second status print logs this as `PhaseErr: Ch0=... Ch5=...`. `QPOS` is not corrupted by phase-error events (the edge is skipped, not miscounted), but a set flag means real edges are being lost or misread — check wiring/noise on that channel's A/B lines. To clear the flag once the root cause is fixed, call `EQEP_PRU_clearPhaseErrorFlag(channel)` — this zeroes only the R5F-local `phase_error_flag` and never touches DMEM1 or the PRU-side `PHASE_ERR_CNT` (single-owner rule: PRU owns that counter, R5F only reads it).
+- **Check `PhaseErr` first if position looks wrong.** Phase error is detected when A and B transition simultaneously — the PRU firmware's LUT lookup returns `3` (diagonal/invalid state), increments `PHASE_ERR_CNT` in DMEM1 for that channel, and skips the QPOS update for that edge. On the R5F side, the polling loop compares `PHASE_ERR_CNT` against `phase_err_count_last_seen` each pass — if it has moved, `phase_error_flag` is set to `1` (sticky). The 1-second status print logs this as `PhaseErr: Ch0=... Ch5=...`. The phase-error edge itself is skipped rather than miscounted, but the edges that caused it are still missing from `QPOS` (e.g. losing 1 pulse leaves `QPOS` 2 counts short, see section 8c), so a set flag means real edges are being lost or misread — check wiring/noise on that channel's A/B lines. To clear the flag once the root cause is fixed, call `EQEP_PRU_clearPhaseErrorFlag(channel)` — this zeroes only the R5F-local `phase_error_flag` and never touches DMEM1 or the PRU-side `PHASE_ERR_CNT` (single-owner rule: PRU owns that counter, R5F only reads it).
 - **`QPOS` lags the ring buffer by one edge.** The firmware publishes the timestamp/write-pointer for the *current* edge before updating `QPOS` for it — this is expected, not a bug, if you see `QPOS` one edge "behind" the buffer contents in a memory dump.
 - **Speed reads 0 or garbage after ~55ms of silence on a channel.** `EQEP_Get_Speed_ABZ`'s `delta_t` is derived from a 24-bit-masked timestamp that wraps every ~55ms at 300 MHz — a divide-by-zero guard is not yet in place. If you hit this, it's the known gap, not new.
 - **Direction flips unexpectedly.** Direction is read directly from firmware's `LAST_DIR_OFFSET` (`1`=increment, `2`=decrement), published by the PRU on every processed edge — not inferred from a `QPOSCOUNT` diff on the R5F side. An earlier diff-based approach (re-wrapping `QPOSCOUNT - prev_QPOS` into `[-modulus/2, modulus/2)`) was replaced because it can report the wrong sign if R5F stalls long enough that the true displacement between polls exceeds `modulus/2` — firmware always knows the true direction of the edge it just processed, so it publishes that directly instead of R5F reconstructing it after the fact. If you see a wrong direction reading, check that `last_dir_base` is wired to the correct per-channel `LAST_DIR_OFFSET` before suspecting anything else.
@@ -145,7 +147,7 @@ Z signal pins omitted — not a customer requirement, not wired/tested
   - If `r31` never changes while the encoder is turning, the problem is upstream of the firmware entirely (wiring, `example.syscfg` pinmux, or a dead encoder) — no point debugging `main.asm`'s edge-detection logic until this checks out.
   - If `r31` toggles correctly but `QPOS`/`write_ptr_offset` in DMEM1 don't move, the input path is fine and the bug is in the firmware's edge-detect/LUT logic instead — this check is what narrows down which side of that boundary to debug.
 - **TX_PRU channels (Ch2/Ch5) behave oddly right after boot.** TX_PRU cores can't access DMEM directly — confirm `ABZ_enable_load_share_mode()` ran successfully for that slice before any channel-2/5 debugging; if load-share mode isn't enabled, TX_PRU0/1 can't reach PRU DATARAM at all.
-- **Use the CCS Memory Browser on DMEM1** (`0x00`–`0x14` write pointers, `0x1C`–`0x30` QPOS, `0x34`–`0x48` phase-error counters, `0x4C`–`0x60` QPOSMAX, `0x64`–`0x78` last-direction, `0xF0` LUT) to see raw per-channel state without instrumenting the R5F app.
+- **Use the CCS Memory Browser on DMEM1** (`0x00`–`0x14` write pointers, `0x1C`–`0x30` QPOS, `0x34`–`0x48` phase-error counters, `0x64`–`0x78` last-direction, `0xF0` LUT) to see raw per-channel state without instrumenting the R5F app.
 
 ## 8. Configuration Guide
 
@@ -173,19 +175,23 @@ QPOSMAX .set 3999
 `3999` is `1000 × 4 − 1`, for a 1000 PPR encoder in ×4 quadrature decoding (4 counts per line). To match a different encoder, set `QPOSMAX = (PPR × 4) − 1`.
 
 1. Edit `QPOSMAX` in `firmware/include/macros.inc` to `(your encoder's PPR × 4) − 1`.
-2. Rebuild the firmware project for the target core(s) — `QPOSMAX` is a firmware compile-time constant, so a rebuild+reflash is required. R5F reads the new value from DMEM1 once at boot (firmware publishes it via `QPOSMAX_OFFSET`), so no R5F-side code change is needed.
+2. Rebuild the firmware project for the target core(s) — `QPOSMAX` is a firmware compile-time constant, so a rebuild+reflash is required. 
 
 **Not yet runtime-configurable** — `QPOSMAX` is a per-build constant (`firmware/include/macros.inc`), shared identically across all 6 cores/channels.
 
 ### 8c. Enabling Pulse Loss test following phase/direction method 
 
-Uncomment `TEST_PULSE_LOSS` around line 101-102 in `mcuplus/pru_eqep_example.c` to enable pulse loss detection (disabled by default)
-Set `PULSE_LOSS_DETECTION` to 1 in `firmware/include/macros.inc` line 60 to enable the firmware pulse loss detection via detecting reverse edges (disabled by default) 
+**Both of the following switches must be set for this test.** They are independent, and nothing warns if only one is set:
+
+1. Uncomment `TEST_PULSE_LOSS` in `mcuplus/pru_eqep_example.c` to enable pulse loss detection (disabled by default)
+2. Set `PULSE_LOSS_DETECTION` to 1 in `firmware/include/macros.inc` to enable the firmware pulse loss detection via detecting reverse edges (disabled by default) 
+
+If only `TEST_PULSE_LOSS` is set, the firmware never counts reverse edges, so the 2, 6, 10, ... pulse-loss cases are silently missed and `pulse_loss_flag` stays 0 (only the phase-error cases are still reported through `phase_error_flag`). If only `PULSE_LOSS_DETECTION` is set, the firmware counts reverse edges but the R5F never reads the counter. Rebuild and reflash both the firmware and the R5F project after changing either switch.
 
 So during this test, if either `pulse_loss_flag` or `phase_error_flag` is set and if the A,B signal is valid according to what the PRU EQEP expects, then there is a pulse loss 
 
 `Note`
-1. This test assumes that the fixed direction is forward (+1)
+1. This test assumes that the fixed direction is forward (+1). Any reverse edge is counted as a pulse loss, so encoder vibration or dither at standstill (one step back and forth, with no pulse actually lost) also increments the pulse-loss counter and sets `pulse_loss_flag`
 2. Enabling the test adds 6 cycles in the worst case when a reverse edge is actually detected to the firmware cycle budget 
 
 Assumming that the direction of the A,B pulses is fixed to forward,
@@ -213,7 +219,15 @@ Use `EQEP_PRU_clearPulseLossFlag(channel)` function defined in `mcuplus/pru_eqep
 
 Losing pulses in count of 3, 7, 11, ... brings the A, B signals to the same state machine and losing pulses in count of 4,8,12 looks like a normal forward step — there's nothing left to notice. This is a limitation of quadrature encoding itself, not something the firmware can fix. A Z (index) pulse would close this gap, but Z is not used in this design.
 
-Pulse loss leaves QPOS short by N (number of pulses lost) counts 
+Pulse loss leaves QPOS short. For N lost pulses in forward motion:
+
+|N mod 4	| Phase errors | Reverse edges counted | QPOS short by
+|---|---|---|---|
+|1 (1, 5, 9, ...)	| 1 | 0 | N+1
+|2 (2, 6, 10, ...)	| 0 | 1 | N+2
+|3 (3, 7, 11, ...)	| 0 | 0 | N+1
+|0 (4, 8, 12, ...)	| 0 | 0 | N
+
 
 Check out the below flow chart for more details :
 
@@ -228,7 +242,7 @@ When a phase error is detected then the phase error flag will set for the corres
 
 Use `EQEP_PRU_clearPhaseErrorFlag(channel)` function defined in `mcuplus/pru_eqep_example.c` to clear the phase error flag for the corresponding channel 
 
-Check create_lut() (line 545) to see which transitions are marked as phase error
+Check create_lut() to see which transitions are marked as phase error
 
 ## 9. Steps to run the example 
 
@@ -245,6 +259,8 @@ Check create_lut() (line 545) to see which transitions are marked as phase error
 6. Set up Target configuration window from View>>Target Configuration. Then launch any project target configuration by right clicking on the AM2434_ALX.ccxml file and selecting "launch selected configuration"
 
 7. From the debug window, select the r5f project and load the corresponding .out file and then press the "Resume" button to start the example in debug mode.  
+
+8. To see the status prints (Speeds/Positions/Directions/PhaseErr), open a serial terminal on the AM243x-LP's onboard USB-UART port (the `CONFIG_UART_CONSOLE` instance, USART0) at **921600 baud**. The baud rate is set in `mcuplus/am243x-lp/r5fss0-0_freertos/example.syscfg`.
 
 
 ## 10. References
