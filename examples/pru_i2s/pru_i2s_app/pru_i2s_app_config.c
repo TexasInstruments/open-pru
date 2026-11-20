@@ -86,6 +86,11 @@ static const PRUI2S_UserConfig gPruI2sAppConfig[PRU_I2S_NUM_CONFIG] =
  * It must be called before PRUI2S_init().
  *
  * \return 0 on success, negative error code on failure
+ *
+ * Pseudocode:
+ *     - For each configuration entry in the table:
+ *         * Apply instance settings; stop and return error if any fails
+ *     - Return success if all applied
  */
 int32_t PRUI2S_applyAppConfig(void)
 {

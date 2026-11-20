@@ -157,18 +157,18 @@
 #if (CONFIG_I2S0_MODE == TDM_MODE)
     /* TDM Mode firmware */
     #if defined(CONFIG_PRU_I2S0_ENABLED) && (CONFIG_PRU_I2S0_ENABLED == 1)
-        #include "TDM4/pru_i2s_tdm4_pru0_array.h"  /* PRU0 TDM firmware */
+        #include "pru_i2s_tdm4_pru0_array.h"  /* PRU0 TDM firmware */
     #endif
     #if defined(CONFIG_PRU_I2S1_ENABLED) && (CONFIG_PRU_I2S1_ENABLED == 1)
-        #include "TDM4/pru_i2s_tdm4_pru1_array.h"  /* PRU1 TDM firmware */
+        #include "pru_i2s_tdm4_pru1_array.h"  /* PRU1 TDM firmware */
     #endif
 #else
     /* I2S Mode firmware */
     #if defined(CONFIG_PRU_I2S0_ENABLED) && (CONFIG_PRU_I2S0_ENABLED == 1)
-        #include "I2S/pru_i2s_pru0_array.h"  /* PRU0 I2S firmware */
+        #include "pru_i2s_pru0_array.h"  /* PRU0 I2S firmware */
     #endif
     #if defined(CONFIG_PRU_I2S1_ENABLED) && (CONFIG_PRU_I2S1_ENABLED == 1)
-        #include "I2S/pru_i2s_pru1_array.h"  /* PRU1 I2S firmware */
+        #include "pru_i2s_pru1_array.h"  /* PRU1 I2S firmware */
     #endif
 #endif
 
