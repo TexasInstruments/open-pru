@@ -14,9 +14,9 @@ acquire returns its status in `R1.b3`.
 
 `firmware/spinlock_example.asm` defines two macros:
 
-- `M_SPINLOCK_ACQUIRE` busy-waits until bit 0 of the status is set, which
+- `m_spinlock_acquire` busy-waits until bit 0 of the status is set, which
   means this core now owns the lock.
-- `M_SPINLOCK_RELEASE` frees the lock.
+- `m_spinlock_release` frees the lock.
 
 `main` takes the lock once, leaves room for a critical section, releases the
 lock and halts. The R5F core (running FreeRTOS) loads the firmware onto PRU0 and

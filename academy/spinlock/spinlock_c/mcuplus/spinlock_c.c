@@ -33,6 +33,18 @@ PRUICSS_Handle gPruIcss0Handle;
 
 static TCA6424_Config gTCA6424_Config;
 
+/*
+ *  i2c_io_expander: route the PRU GPIOs to the expansion header.
+ *
+ *  Pseudocode:
+ *      open the TCA6424
+ *      if open succeeded:
+ *          drive P12 (CPSW_FET_SEL) high, then make it an output
+ *      close the TCA6424
+ *      assert that every step succeeded
+ *
+ *  args is unused.
+ */
 static void i2c_io_expander(void *args)
 {
     int32_t             status = SystemP_SUCCESS;
@@ -62,6 +74,18 @@ static void i2c_io_expander(void *args)
 
 #endif
 
+/*
+ *  spinlock_c_main: start the spinlock_c firmware on both PRUs.
+ *
+ *  Pseudocode:
+ *      open the drivers and board drivers, then ICSSG0
+ *      if PRU_GPIO_VIA_IOEXP: enable the PRU GPIOs through the I/O expander
+ *      clear PRU0 and PRU1 data RAM
+ *      load and start the PRU0 and PRU1 firmware
+ *      idle forever; the PRUs run on their own from here
+ *
+ *  Any failed step stops at a DebugP_assert. args is unused.
+ */
 void spinlock_c_main(void *args)
 {
     Drivers_open(); // check return status

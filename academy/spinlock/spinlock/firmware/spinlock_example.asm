@@ -27,7 +27,7 @@ INT_SPIN_XID    .set    144     ; XID 0x90 - local PRU spinlock accelerator
 SPINLOCK_ID     .set    0       ; lock id 0-63, fixed in PRU firmware
 
 ;******************************************************************************
-;   Macro: M_SPINLOCK_ACQUIRE
+;   Macro: m_spinlock_acquire
 ;       Acquire the spinlock and busy-wait until successful.
 ;
 ;   Pseudocode:
@@ -36,28 +36,33 @@ SPINLOCK_ID     .set    0       ; lock id 0-63, fixed in PRU firmware
 ;
 ;   Registers modified : R1.b0 (lock id), R1.b3 (status, bit 0 = 1 on exit)
 ;   Peak Cycles : 3 if the lock is free; unbounded while another core holds it
-;                 (2 cycles per retry)
+;                 (2 cycles per retry). Hand-counted at one cycle per
+;                 instruction, assuming the broadside xin completes in one
+;                 cycle; not measured separately on hardware.
 ;******************************************************************************
-M_SPINLOCK_ACQUIRE  .macro
-    LDI     R1.b0, SPINLOCK_ID          ; lock id (0-63)
-$1:
-    XIN     INT_SPIN_XID, &R1.b3, 1     ; attempt acquire; status in R1.b3
-    QBBC    $1, R1.b3, 0                ; bit 0 clear -> not acquired, retry
+m_spinlock_acquire  .macro
+    ldi     r1.b0, SPINLOCK_ID          ; lock id (0-63)
+    ; INTENTIONALLY_UNBOUNDED_LOOP: waits as long as another core holds the
+    ; lock. A holder that never releases stalls this core here.
+acquire_retry?:
+    xin     INT_SPIN_XID, &r1.b3, 1     ; attempt acquire; status in R1.b3
+    qbbc    acquire_retry?, r1.b3, 0    ; bit 0 clear -> not acquired, retry
     .endm
 
 ;******************************************************************************
-;   Macro: M_SPINLOCK_RELEASE
-;       Release the spinlock. Must follow M_SPINLOCK_ACQUIRE (lock id is still
+;   Macro: m_spinlock_release
+;       Release the spinlock. Must follow m_spinlock_acquire (lock id is still
 ;       in R1.b0).
 ;
 ;   Pseudocode:
 ;       XOUT(XID 0x90) with lock id R1.b0   ; frees the lock
 ;
 ;   Registers modified : none
-;   Peak Cycles : 1 (one XOUT)
+;   Peak Cycles : 1 (one xout), hand-counted; not measured separately on
+;                 hardware.
 ;******************************************************************************
-M_SPINLOCK_RELEASE  .macro
-    XOUT    INT_SPIN_XID, &R1.b3, 1     ; release lock held in R1.b0
+m_spinlock_release  .macro
+    xout    INT_SPIN_XID, &r1.b3, 1     ; release lock held in R1.b0
     .endm
 
 ;********
@@ -69,14 +74,14 @@ main:
     ; Clear the register space before starting.
     zero    &r0, 120
 
-    M_SPINLOCK_ACQUIRE
+    m_spinlock_acquire
 
     ;--------------------------------------------------------------------------
     ; Critical section: we now own SPINLOCK_ID. Access the shared resource here.
     ;--------------------------------------------------------------------------
 
-    ; M_SPINLOCK_RELEASE uses the lock id in R1.b0. If the critical section
-    ; overwrites R1.b0, reload it (LDI R1.b0, SPINLOCK_ID) before releasing.
-    M_SPINLOCK_RELEASE
+    ; m_spinlock_release uses the lock id in R1.b0. If the critical section
+    ; overwrites R1.b0, reload it (ldi r1.b0, SPINLOCK_ID) before releasing.
+    m_spinlock_release
 
     halt
