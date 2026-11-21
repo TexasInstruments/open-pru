@@ -36,14 +36,16 @@ void spinlock_release(uint8_t flag_id);
 /* Spinlock flag id (valid range 0-63). Both PRUs must use the same id. */
 #define SPINLOCK_FLAG 11
 
-/* R30 drives the PRU GPO signals; use a debug pin to scope lock ownership. */
-/* Before use: pinmux the debug signals (see the GPIO lab) and update the */
-/* shift to match your board. PRU0 is selected via -DPRU0 in the makefile. */
+/*
+ * R30 drives the PRU GPO signals; a debug pin shows lock ownership on a scope.
+ * Each core drives its own GPO4 by default. The AM243x LaunchPad routes PRU1
+ * GPO4 to no header, so its PRU1 makefile passes -DDEBUG_PIN_SHIFT=0 (PRU1
+ * GPO0). The pinmux is in the R5F project's example.syscfg; see readme.md for
+ * the header pins.
+ */
 volatile register uint32_t __R30;
-#if PRU0
-#define DEBUG_PIN_SHIFT     4       /* PRU0 debug pin */
-#else
-#define DEBUG_PIN_SHIFT     5       /* PRU1 debug pin */
+#ifndef DEBUG_PIN_SHIFT
+#define DEBUG_PIN_SHIFT     4
 #endif
 
 /*
@@ -87,7 +89,4 @@ void main(void)
         /* Work outside the lock, so the other core gets a turn. */
         __delay_cycles(OUTSIDE_TIME);
     }
-
-    /* Not reached because of the while(1) loop above. */
-    __halt();
 }
