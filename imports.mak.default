@@ -97,5 +97,6 @@ CCS_NODE = $(CCS_PATH)/tools/node/node
 SYSCFG_CLI_PATH ?= $(SYSCFG_PATH)
 SYSCFG_NODE = $(SYSCFG_PATH)/nodejs/node
 SYSCFG_NWJS = $(SYSCFG_PATH)/nw/nw
+SYSCFG_GUI_SCRIPT=$(SYSCFG_PATH)/sysconfig_gui.sh
 SYSCFG_SDKPRODUCT=$(MCU_PLUS_SDK_PATH)/.metadata/product.json
 SYSCFG_MCU_PLUS_SDK_PRODUCT=$(OPEN_PRU_PATH)/.metadata/product.json

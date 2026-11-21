@@ -37,17 +37,26 @@ crc/crc
 * How to use the CRC16/32 module
 
 gpio/gpio_toggle
-* How to toggle the SoC GPIO pins using the PRU GPIO module
+* How to toggle the SoC GPIO pins using the PRU GPIO module (assembly)
+
+gpio/gpio_toggle_c
+* How to toggle the SoC GPIO pins using the PRU GPIO module (C)
 
 intc/intc_mcu
 * How to use the INTC module to send and receive interrupts
   between the PRU core and an MCU+ core
 
 mac/mac
-* How to use the MAC module in Multiply and Accumulate mode
+* How to use the MAC module in Multiply and Accumulate mode (assembly)
+
+mac/mac_c
+* How to do MAC without using the hardware MAC accelerator (C)
 
 mac/mac_multiply
-* How to use the MAC module in Multiply-Only mode
+* How to use the MAC module in Multiply-Only mode (assembly)
+
+uart/uart_loopback
+* Loopback example with the PRU hardware UART peripheral
 
 ## Supported processors per-project
 
@@ -79,7 +88,10 @@ For more information about the PRU features on each processor, refer to app note
 | -------------------- | ------ | ------ | ------- | ------ | ----- | ----- |
 | crc/crc              | Yport  | Y      | Y       | Y      | Yport | Yport |
 | getting_started_labs | Y      | Y      | Y       | Y      | Y     | Y     |
-| gpio/gpio_toggle     | Yport  | Y      | Y       | Y      | N-sw  | Yport |
+| gpio/gpio_toggle     | Y      | Y      | Y       | Y      | N-sw  | Y     |
+| gpio/gpio_toggle_c   | Y      | Yport  | Yport   | Yport  | N-sw  | Y     |
 | intc/intc_mcu        | Yport  | Y      | Y       | Y      | N-sw  | Yport |
 | mac/mac              | Yport  | Y      | Y       | Y      | Yport | Yport |
+| mac/mac_c            | Yport  | Yport  | Yport   | Yport  | Y     | Y     |
 | mac/mac_multiply     | Yport  | Y      | Y       | Y      | Yport | Yport |
+| uart/uart_loopback   | Yport  | Yport  | Yport   | Yport  | Y     | Yport |

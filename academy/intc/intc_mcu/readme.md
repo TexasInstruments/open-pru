@@ -20,12 +20,26 @@ The successful completion of this interrupt sequence can be verified by checking
 - The R5F successfully generated a response interrupt
 - The PRU correctly received and handled the response interrupt
 
-# Supported Combinations
+## Supported Combinations
 
- Parameter      | Value
- ---------------|-----------
- ICSSM          | ICSSM0 - PRU0, PRU1; ICSSM1 (only in am261x) - PRU0, PRU1
- Toolchain      | pru-cgt
- Board          | am261x-lp, am263px-cc, am263px-lp, am263x-cc, am263x-lp
- Example folder | academy/intc/intc_mcu
+Refer to open-pru/academy/readme.md > Supported processors per-project
+for the list of processors that support building this project, and information
+about porting this project to other processors.
+
+## Validated HW & SW
+
+This project was tested on hardware with these software versions:
+
+| Processor | Hardware | Software                                |
+| --------- | -------- | --------------------------------------- |
+| am261x    | FIXME     | MCU PLUS SDK FIXME, OpenPRU FIXME         |
+| am263px   | FIXME     | MCU PLUS SDK FIXME, OpenPRU FIXME         |
+| am263x    | FIXME     | MCU PLUS SDK FIXME, OpenPRU FIXME         |
+
+## Steps to Run the Example
+
+1. Build and run the PRU firmware.
+2. After the firmware finishes running, Inspect PRU register R11. The expected
+   value is `0x12345678`, confirming
+   that the full PRU ↔ R5F interrupt handshake completed successfully.
 

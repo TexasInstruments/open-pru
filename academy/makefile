@@ -4,8 +4,10 @@ SUBDIRS := \
     crc/crc \
     getting_started_labs \
     gpio/gpio_toggle \
+    gpio/gpio_toggle_c \
     intc/intc_mcu \
-    mac/mac mac/mac_multiply
+    mac/mac mac/mac_multiply mac/mac_c \
+    uart/uart_loopback
 
 # "make" or "make all" builds projects that match $(DEVICE) set in imports.mak
 all: ARGUMENTS = all

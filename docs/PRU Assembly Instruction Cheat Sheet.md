@@ -197,7 +197,7 @@ tsen 1                      ; Enable task manager mode 1
 
 ### Conditional Branches
 
-**⚠️ NOTE: Branch comparison** assembly instructions process operands in a reversed order from other assembly instructions (3rd operand before 2nd operand)
+**⚠️ NOTE: Branch comparison** assembly instructions process operands in a reversed order from other assembly instructions (3rd operand before 2nd operand). Max distance to branch is signed 10 bit index. +511 and -512 instructions. 
 
 **Format:** `QBxx Label, Reg1, OP(255)` means: branch if `OP(255) <comparison> Reg1`
 

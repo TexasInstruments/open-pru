@@ -104,9 +104,9 @@ am261x:
 
 am261x_mcuplus:
 # am261x-lp
-	$(MAKE) -C am261x-lp/r5fss0-0_freertos/ti-arm-clang $(ARGUMENTS_MCUPLUS)
+	$(MAKE) -C mcuplus/am261x-lp/r5fss0-0_freertos/ti-arm-clang $(ARGUMENTS_MCUPLUS)
 # no am261x-som/r5f folder at this point in time
-#	$(MAKE) -C am261x-som/r5fss0-0_freertos/ti-arm-clang $(ARGUMENTS_MCUPLUS)
+#	$(MAKE) -C mcuplus/am261x-som/r5fss0-0_freertos/ti-arm-clang $(ARGUMENTS_MCUPLUS)
 
 am263px:
 # am263px-lp
@@ -118,9 +118,9 @@ am263px:
 
 am263px_mcuplus:
 # am263px-lp
-	$(MAKE) -C am263px-lp/r5fss0-0_freertos/ti-arm-clang $(ARGUMENTS_MCUPLUS)
+	$(MAKE) -C mcuplus/am263px-lp/r5fss0-0_freertos/ti-arm-clang $(ARGUMENTS_MCUPLUS)
 # am263px-cc
-	$(MAKE) -C am263px-cc/r5fss0-0_freertos/ti-arm-clang $(ARGUMENTS_MCUPLUS)
+	$(MAKE) -C mcuplus/am263px-cc/r5fss0-0_freertos/ti-arm-clang $(ARGUMENTS_MCUPLUS)
 
 am263x:
 # am263x-lp
@@ -132,8 +132,8 @@ am263x:
 
 am263x_mcuplus:
 # am263x-lp
-	$(MAKE) -C am263x-lp/r5fss0-0_freertos/ti-arm-clang $(ARGUMENTS_MCUPLUS)
+	$(MAKE) -C mcuplus/am263x-lp/r5fss0-0_freertos/ti-arm-clang $(ARGUMENTS_MCUPLUS)
 # am263x-cc
-	$(MAKE) -C am263x-cc/r5fss0-0_freertos/ti-arm-clang $(ARGUMENTS_MCUPLUS)
+	$(MAKE) -C mcuplus/am263x-cc/r5fss0-0_freertos/ti-arm-clang $(ARGUMENTS_MCUPLUS)
 
 .PHONY: all clean pru host pre_build_message $(DEVICE) $(DEVICE_NON_PRU) $(SUPPORTED_PROCESSORS)

@@ -1,13 +1,13 @@
 {
     "name": "OPEN_PRU",
     "displayName": "OPEN_PRU",
-    "version": "07.03.01",
+    "version": "2026.02.00",
     "documentationPath": "../docs",
     "includePaths": [
         "../source",
     ],
     "components": [
-
+    "/open_pru",
     ],
     "devices": [
         "AM64x",
