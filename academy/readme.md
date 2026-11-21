@@ -55,6 +55,12 @@ mac/mac_c
 mac/mac_multiply
 * How to use the MAC module in Multiply-Only mode (assembly)
 
+spinlock/spinlock
+* How to acquire and release the PRU_ICSSG local hardware spinlock (assembly)
+
+spinlock/spinlock_c
+* How PRU0 and PRU1 share a resource through the hardware spinlock (C)
+
 uart/uart_loopback
 * Loopback example with the PRU hardware UART peripheral
 
@@ -94,4 +100,6 @@ For more information about the PRU features on each processor, refer to app note
 | mac/mac              | Yport  | Y      | Y       | Y      | Yport | Yport |
 | mac/mac_c            | Yport  | Yport  | Yport   | Yport  | Y     | Y     |
 | mac/mac_multiply     | Yport  | Y      | Y       | Y      | Yport | Yport |
+| spinlock/spinlock    | Y      | N-hw   | N-hw    | N-hw   | N-hw  | Y     |
+| spinlock/spinlock_c  | Y      | N-hw   | N-hw    | N-hw   | N-hw  | Y     |
 | uart/uart_loopback   | Yport  | Yport  | Yport   | Yport  | Y     | Yport |

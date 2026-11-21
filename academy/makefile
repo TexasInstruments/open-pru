@@ -7,6 +7,8 @@ SUBDIRS := \
     gpio/gpio_toggle_c \
     intc/intc_mcu \
     mac/mac mac/mac_multiply mac/mac_c \
+    spinlock/spinlock spinlock/spinlock_c \
+    spinlock/spinlock spinlock/spinlock_c \
     uart/uart_loopback
 
 # "make" or "make all" builds projects that match $(DEVICE) set in imports.mak
