@@ -8,3 +8,7 @@ push_commands = [
     "/agentic_describe",
     "/agentic_review",
 ]
+
+[config]
+invite_only_mode = true
+allowed_users = ["pratheesh-ti", "nsaulnier-ti", "dhavaljk", "tleyrer", "manojKoppolu", "a1248924", "rajul-bhambay", "achala-ti", "JC-Jayachandran"]

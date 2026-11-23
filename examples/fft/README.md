@@ -8,6 +8,21 @@
 ## Introduction
 The code performs a real valued 4096-point Fast-Fourier Transform on 4096 discrete input samples in the ICSS Shared Memory. The implementation makes use of a Real-valued DIT Split-Radix algorithm and has two versions that each runs on ICSSG PRU0 and ICSSM PRU0.  
 
+## Supported Combinations
+
+Refer to open-pru/examples/readme.md > Supported processors per-project
+for the list of processors that support building this project, and information
+about porting this project to other processors.
+
+## Validated HW & SW
+
+This project was tested on hardware with these software versions:
+
+| Processor | Hardware | Software                                        |
+| --------- | -------- | ----------------------------------------------- |
+| am243x    | FIXME     | MCU PLUS SDK 10.01.00.32, OpenPRU FIXME          |
+| am261x    | FIXME     | MCU PLUS SDK 10.00.01.10, OpenPRU FIXME          |
+
 ## Overview
 The algorithm assumes input samples in Q24 format to be present in the configured memory space. The current implementation assumes unsigned inputs which are common for ADC measurement values. 
 
@@ -18,7 +33,7 @@ After execution, the output samples, in frequency domain, will be present in spe
 ## Instructions 
 
 1. Get the 'fft' folder from the repository which contains the project, data and utility scripts.  
-2. Naviagte to the 'split_radix_fft_4k_single_core' folder inside the 'fft' folder and import the device specific project into the CCS workspace. 
+2. Navigate to the 'split_radix_fft_4k_single_core' folder inside the 'fft' folder and import the device specific project into the CCS workspace.
 3. Build the Project. 
 4. Launch Target Configuration and connect to an R5SS core.
 5. Edit the 'load_memory.js' file in the 'utilities' folder and configure the following :
@@ -119,7 +134,7 @@ We can perform an FFT Magnitude plot of the sample input using CCS in-built 'fft
 To compare the accuracy of the calculations, the CCS values were exported and the SNR of the magnitude plot for both CCS calculated and PRU calculated magnitude values were calculated. The SNR or Signal to Noise Ratio is given by : 
 $$ SNR = 10 * log (Signal Power/Noise Power)   $$
 
-The signal power and noise power of both magnitudes and claculated SNR is compared in the following table:
+The signal power and noise power of both magnitudes and calculated SNR is compared in the following table:
 
 | Parameters     | CCS     | PRU      |
 |----------------|:-------:|:-----------:|
@@ -233,7 +248,7 @@ The window coefficients are stored as a Look-up Table (LUT) in the shared memory
 <figcaption>Fig.6 Application of Window coefficients</figcaption>
 </figure>
 
-The window coefficients are loaded into the ICSSG Shared Memory(for AM243x) or a memory external to ICSS like TCMA of ARM R5 core(for AM261x), from where we make use of xfer2vbus data accelerator for loading 8 window coefficients together into the registers. The accelerator works by pre-loading a certain number of window coefficients into an XFR2VBUS RX buffer, from where the broadside connection enables us to load these values to the registers in a single cycle. Before the first set of coefficients are loaded, there is a wait involved to make sure all window coefficients are loaded into the buffer. Auto read mode is enabled such that everytime the coefficients are read from the buffer, the transfer of next set of window coefficients is initiated. This transfer happens in the background while we perform operations using the already loaded coefficients and by the time the next set is needed, it can be loaded into the registers in a single cycle, without any wait time involved. 
+The window coefficients are loaded into the ICSSG Shared Memory(for AM243x) or a memory external to ICSS like TCMA of ARM R5 core(for AM261x), from where we make use of xfer2vbus data accelerator for loading 8 window coefficients together into the registers. The accelerator works by pre-loading a certain number of window coefficients into an XFR2VBUS RX buffer, from where the broadside connection enables us to load these values to the registers in a single cycle. Before the first set of coefficients are loaded, there is a wait involved to make sure all window coefficients are loaded into the buffer. Auto read mode is enabled such that every time the coefficients are read from the buffer, the transfer of next set of window coefficients is initiated. This transfer happens in the background while we perform operations using the already loaded coefficients and by the time the next set is needed, it can be loaded into the registers in a single cycle, without any wait time involved.
 
 The 8 loaded window coefficients have to be multiplied with 16 input values as described earlier. Due to register space limitation, half of these values are moved to the scratchpad after they are loaded. For multiplication, first the window coefficient is moved to one of the multiplication operand registers. The first input to be multiplied with this coefficient is moved to the second operand register ad multiplication is performed. Later, the second input which is present in scratchpad is moved similarly  to obtain the second required product. The obtained product has to be stored in a different index to perform bit-order reversed sorting of the inputs which is discussed in the 
 next section. The algorithm can be visualized in the combined image showing both steps below. 
@@ -286,7 +301,7 @@ If the inputs are real valued, special optimized algorithms that make use of com
 
 The in-place algorithm makes use of complex-conjugate symmetry involved to optimally store real and imaginary part of intermediate complex values at different locations. This results in the final arrangement as follows:
 
-The computing algoirthm for real-valued DIT split radix FFT makes use of special indexing to apply the different butterflies over different stages. The algorithm can be found in [[2]](#2)
+The computing algorithm for real-valued DIT split radix FFT makes use of special indexing to apply the different butterflies over different stages. The algorithm can be found in [[2]](#2)
 C code for the FORTRAN algorithm for reference in [rsplitfft.c](https://github.com/dave18/Pandora-Star/blob/master/rsplitfft.c)
 
 #### length-2 butterflies
@@ -304,7 +319,7 @@ The l-shaped butterflies operate on 4 inputs at a time and the indexing scheme w
 
 To deal with general-case butterflies, the twiddle factors for multiplication are pre-computed and stored as a Look-up Table in the order that they are required. When a twiddle factor, which is an exponential function, is decomposed into its constituent Cos and Sin components, the l-shaped butterfly computation loop requires four values namely, $cos(A)$, $sin(A)$, $cos(3*A)$ and $sin(3*A)$. The value of A is given by: $$ A = \frac{2\pi}{N2} $$,  where N2 starts at 2 and gets multiplied by 2 every stage. 
 
-The twiddle factors, in the case of AM243x implementation, are stored in the FDB-BS RAM that works like a normal Broadside RAM in general purpose mode. To make use of the 16KB space available fully, we store each two sets of these 4 values(4 Bytes each) in each page(32 Bytes) of FDB-BS RAM. The values are pre-computed and stored in exactly the order they are accessed using the reference C-code mentioned before. The auto-increment feature of BS-RAM increments the address by one-page everytime a read happens. Because of this, two set of twiddle factors in the current page are fetched together. The second set is stored in scratch-pad and is used in the next 'fetch cycle', when a new set of twiddle factors are required. A dedicated variable keeps track of the parity of the fetch cycle and loads 2 sets of twiddle factors every even cycle. This mechanism is explained in the figure below: 
+The twiddle factors, in the case of AM243x implementation, are stored in the FDB-BS RAM that works like a normal Broadside RAM in general purpose mode. To make use of the 16KB space available fully, we store each two sets of these 4 values(4 Bytes each) in each page(32 Bytes) of FDB-BS RAM. The values are pre-computed and stored in exactly the order they are accessed using the reference C-code mentioned before. The auto-increment feature of BS-RAM increments the address by one-page every time a read happens. Because of this, two set of twiddle factors in the current page are fetched together. The second set is stored in scratch-pad and is used in the next 'fetch cycle', when a new set of twiddle factors are required. A dedicated variable keeps track of the parity of the fetch cycle and loads 2 sets of twiddle factors every even cycle. This mechanism is explained in the figure below:
 
 <figure>
 <img src="images/twiddle_factor_alt_cyc_fetch.png" alt="twiddle factor alternate cycle fetch" width = "800">
@@ -323,7 +338,6 @@ H. Sorensen, D. Jones, M. Heideman and C. Burrus, "Real-valued fast Fourier tran
 
 <a id="3">[3]</a> 
 P. Duhamel, "Implementation of "Split-radix" FFT algorithms for complex, real, and real-symmetric data," in IEEE Transactions on Acoustics, Speech, and Signal Processing, vol. 34, no. 2, pp. 285-295
-
 
 
 

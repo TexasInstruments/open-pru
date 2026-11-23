@@ -402,6 +402,8 @@ Key conventions:
 - Copyright header is required on all source files (see General Remarks).
 - Use FIXME (not TODO) for pending work markers.
 - Column limits: no text beyond column 79 (soft), column 129 (hard).
+  Tool-generated files (for example SysConfig `*.syscfg` files) are exempt; see
+  General Remarks rule 11.
 
 ## C Code Best Practices (MCU+ Host Cores)
 
@@ -612,12 +614,18 @@ m_test_assert .macro condition, error_code
 8. Use "for example" instead of "e.g.".
 9. Use "that is" instead of "i.e.".
 10. Use "and so on" instead of "etc,".
-11. No text beyond column 79 in source files (does not apply to markdown docs or .txt docs).
+11. No text beyond column 79 in hand-written source files (does not apply to
+    markdown docs, .txt docs, or tool-generated files).
     - Column 79 is the "soft" limit.
     - Long lines of code are more difficult to follow and interrupt code flow.
     - There shall be no text beyond column 129.
     - This is the "hard" limit.
     - Lines longer than column 79 should be the exceptional case in any source file.
+    - Tool-generated files are exempt from both the soft and hard limits, since
+      their formatting is owned by the generating tool and cannot be wrapped by
+      hand. This notably includes SysConfig `*.syscfg` files, whose
+      `@cliArgs`/`@v2CliArgs` header lines are emitted as single-line command
+      strings that exceed column 129 by construction.
 
 ## Files
 1. The extension for clpru (CGT PRU) source files shall be ".asm".
@@ -727,6 +735,13 @@ Compiler does not support forward declarations of symbols via the .set directive
 
 ## Header File include rules
 - It is recommended to include only header files required in .asm sources
+- Use the backslash character (`\`) in PRU assembly `.include` paths for
+  cross-platform compatibility with the PRU assembler. Do not use forward
+  slash (`/`) separators in `.include` operands.
+  ```
+  ; portable across Windows and Linux builds for PRU assembly includes
+  .include "source\firmware\common\icss_constant_defines.inc"
+  ```
 - Four underscores recommended in header guard, example below:
   ```
   .if !$isdefed("____icss_header_h")
@@ -954,6 +969,3 @@ For the complete and up-to-date PRU Assembly Instruction Cheat Sheet, see:
 - **Solution**: Document all timing-critical sections and hardware dependencies
 
 ---
-
-
-

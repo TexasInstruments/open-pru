@@ -78,7 +78,7 @@ void SPI_pru_demo_main(void *args)
 
      while (1)
      {
-        /*TODO: [PINDSW-8471] Add unit test cases here for CI CD automation */
+        /*FIXME: [PINDSW-8471] Add unit test cases here for CI CD automation */
         ClockP_usleep(1);
      }
 

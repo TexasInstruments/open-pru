@@ -212,6 +212,16 @@ pr_compliances:
     failure_criteria: |
       - "Any .asm, .inc, .c, or .h file containing tab characters"
 
+  - title: "Portable Assembly Include Paths"
+    compliance_label: true
+    objective: "Ensure assembly .include paths use PRU assembler-compatible separators (best_practices.md §Header File include rules)"
+    success_criteria: |
+      - 'All new or modified .asm and .inc files use the backslash character (`\`) in .include paths'
+      - "Relative include paths remain valid when built on Windows or Linux hosts"
+    failure_criteria: |
+      - "New or modified .include paths use the forward slash character (`/`)"
+      - "Include paths rely on non-PRU-assembler slash path separators"
+
   - title: "Bugfix: Shared Library Impact"
     compliance_label: true
     objective: "Ensure that bugfixes to shared libraries in source/ do not silently break other projects (docs/contributing.md §'Adding a bugfix')"

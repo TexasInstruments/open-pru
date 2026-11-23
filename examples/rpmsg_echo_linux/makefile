@@ -93,7 +93,6 @@ pre_build_message:
 
 # provide target definitions for each supported processor
 # PRU firmware should be built before any RTOS code that includes it
-# TODO: what do we want to call the PRU Subsystem folder for AM62x? pruss, pruss0, icssm0, something else?
 am62x:
 # am62x-sk
 	$(MAKE) -C firmware/am62x-sk/pruss0_pru0_fw/ti-pru-cgt $(ARGUMENTS_PRU)

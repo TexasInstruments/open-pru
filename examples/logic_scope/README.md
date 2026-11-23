@@ -1,11 +1,27 @@
 # 8-channel Logic Scope
 
+## Introduction
+
 The project realizes a simple logic scope that uses two cores, PRU0 and RTU0, to continuously sample a configured GPI Pin. The sampling frequency is restricted only by the clock frequency of PRU and for AM243 we could configure the clock upto 333Mhz. This gives us a maximum sampling rate of 333Mhz. The number of samples that need to be captured can be configured in multiples of 100 and the maximum number of samples is only restricted by the size of the configured storage memory. For MSRAM, this is around 2MB of sample size. The Logic-scope reads 1 Byte of data every clock cycle which contains logic data from 8 input channels.  The trigger for sampling in current implementation is set to a low to high in the 8th channel (PRU0.GPI7).
 ![alt text](images/dcls_overview.png)
 
+## Supported Combinations
+
+Refer to open-pru/examples/readme.md > Supported processors per-project
+for the list of processors that support building this project, and information
+about porting this project to other processors.
+
+## Validated HW & SW
+
+This project was tested on hardware with these software versions:
+
+| Processor | Hardware | Software                                |
+| --------- | -------- | --------------------------------------- |
+| am243x    | FIXME     | MCU PLUS SDK FIXME, OpenPRU FIXME         |
+
 ## Overview
 
-PRU cores can directly read certain input pins using their R30 registers. Since R30 has real-time information on the logic levels of these pins, a zero-overhead loop and indirect register addressing could be used to continuously transfer the samples to other registers, bytewise. The number of samples we can transfer continously in this case, is limited by the number of available registers in a single core. Once we are out of registers, with a single core, we have no other choice but to pause sampling to tranfer the collected samples to memory. 
+PRU cores can directly read certain input pins using their R30 registers. Since R30 has real-time information on the logic levels of these pins, a zero-overhead loop and indirect register addressing could be used to continuously transfer the samples to other registers, bytewise. The number of samples we can transfer continuously in this case, is limited by the number of available registers in a single core. Once we are out of registers, with a single core, we have no other choice but to pause sampling to transfer the collected samples to memory.
 
 The above mentioned restriction can be surpassed by making use of an extra core which can continue sampling after the first core fills up it's registers. This way, one core will always continue sampling while the other core stores the data that it sampled. The cores are selected as PRU and RTU since they will have access to the same input pins simultaneously. A conceptual timing diagram of the same is shown below:
 
@@ -15,7 +31,7 @@ The cores have to be synchronized once before they wait for the trigger together
 
 ## Configuration
 
-1. dcls_config_macros.inc contains all the configurations for DCLS. It is imortant to note that required configurations are to be done in this file for both cores
+1. dcls_config_macros.inc contains all the configurations for DCLS. It is important to note that required configurations are to be done in this file for both cores
 
 2. 8 channels are sampled simultaneously. Set the channel Byte to be sampled as 0, 1, or 2. For GPI0-GPI7, channel Byte is 0. Note that depending on the availability of pins, changing the Byte number will reduce the number of usable channels. 
     ```

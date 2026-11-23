@@ -85,9 +85,10 @@ SDK versions that were validated during [Test SDK releases](#test-sdk-releases):
 ## Update the .metadata version
 
 Update the OpenPRU version field to the new release tag (e.g. `2026.01.00`) in
-this file:
+these files:
 
-`.metadata/.tirex/package.tirex.json`
+* `.metadata/.tirex/package.tirex.json`
+* `.metadata/product.json`
 
 ## Update the year
 
