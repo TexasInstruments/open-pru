@@ -88,13 +88,14 @@ static void i2c_io_expander(void *args)
  */
 void spinlock_c_main(void *args)
 {
-    Drivers_open(); // check return status
+    Drivers_open(); /* returns void, so there is no status to check */
 
     int status;
     status = Board_driversOpen();
     DebugP_assert(SystemP_SUCCESS == status);
 
     gPruIcss0Handle = PRUICSS_open(CONFIG_PRU_ICSS0);
+    DebugP_assert(gPruIcss0Handle != NULL);
 
     #if defined(PRU_GPIO_VIA_IOEXP)
     /* Configure the IO Expander to connect the PRU IOs */

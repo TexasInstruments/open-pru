@@ -19,7 +19,9 @@
 ;             * bit0 == 0 -> the lock is held by someone else; retry
 ;         The acquire is non-blocking - one XIN is one attempt. The caller
 ;         (here, C) spins until it gets a 1.
-;       - RELEASE: an XOUT with the same lock id in R1.b0 frees the lock.
+;       - RELEASE: an XOUT with the same lock id in R1.b0 frees the lock. The
+;         XOUT operand is R1.b3, as for the acquire; the lock id is still
+;         taken from R1.b0, so R1.b0 must hold the id when the XOUT runs.
 ;******************************************************************************
 
 ; Required for building .out with an assembly file
@@ -48,6 +50,7 @@ INT_SPIN_XID    .set    0x90    ; broadside XID for the local PRU spinlock
 ;       return R1.b3 & 1                ; 1 = acquired, 0 = held by another
 ;
 ;   Registers modified : R1 (R1.b0, R1.b3), R14.b0 (return value)
+;   Registers preserved: all others
 ;   Peak Cycles : 4, hand-counted at one cycle per instruction (mov, xin, and,
 ;                 jmp), for one acquire attempt; excludes any C-side retry
 ;                 spin. Assumes the broadside xin completes in one cycle; not
@@ -81,6 +84,7 @@ spinlock_acquire:   .asmfunc
 ;       XOUT(XID 0x90)                  ; free the lock
 ;
 ;   Registers modified : R1.b0
+;   Registers preserved: all others
 ;   Peak Cycles : 3, hand-counted at one cycle per instruction (mov, xout,
 ;                 jmp). Assumes the broadside xout completes in one cycle; not
 ;                 measured separately on hardware.

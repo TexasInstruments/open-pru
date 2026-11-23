@@ -13,7 +13,9 @@
 ;       - The lock id (0..63) is presented in R1.b0.
 ;       - ACQUIRE: XIN returns acquisition status in R1.b3; bit 0 set means the
 ;         lock is now owned by this core. Busy-wait until bit 0 is set.
-;       - RELEASE: XOUT with the same lock id in R1.b0 frees the lock.
+;       - RELEASE: XOUT with the same lock id in R1.b0 frees the lock. The
+;         XOUT operand is R1.b3, as for the acquire; the lock id is still
+;         taken from R1.b0, so R1.b0 must hold the id when the XOUT runs.
 ;
 ;   Steps to build:
 ;       clpru --silicon_version=4 spinlock_example.asm
@@ -35,6 +37,7 @@ SPINLOCK_ID     .set    0       ; lock id 0-63, fixed in PRU firmware
 ;       do { XIN(XID 0x90) -> R1.b3 } while (R1.b3 bit 0 == 0)
 ;
 ;   Registers modified : R1.b0 (lock id), R1.b3 (status, bit 0 = 1 on exit)
+;   Registers preserved: all others
 ;   Peak Cycles : 3 if the lock is free; unbounded while another core holds it
 ;                 (2 cycles per retry). Hand-counted at one cycle per
 ;                 instruction, assuming the broadside xin completes in one
@@ -58,6 +61,7 @@ acquire_retry?:
 ;       XOUT(XID 0x90) with lock id R1.b0   ; frees the lock
 ;
 ;   Registers modified : none
+;   Registers preserved: all
 ;   Peak Cycles : 1 (one xout), hand-counted; not measured separately on
 ;                 hardware.
 ;******************************************************************************

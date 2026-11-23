@@ -23,13 +23,14 @@ PRUICSS_Handle gPruIcss0Handle;
 
 void spinlock_main(void *args)
 {
-    Drivers_open(); // check return status
+    Drivers_open(); /* returns void, so there is no status to check */
 
     int status;
     status = Board_driversOpen();
     DebugP_assert(SystemP_SUCCESS == status);
 
     gPruIcss0Handle = PRUICSS_open(CONFIG_PRU_ICSS0);
+    DebugP_assert(gPruIcss0Handle != NULL);
 
     status = PRUICSS_initMemory(gPruIcss0Handle, PRUICSS_DATARAM(PRUICSS_PRU0));
     DebugP_assert(status != 0);
