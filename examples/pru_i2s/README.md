@@ -168,15 +168,17 @@ pru_i2s/
 │   │   ├── linker.cmd         # Linker script
 │   │   ├── pru_i2s_interface.h # Interface definitions
 │   │   ├── pru_i2s_regs.h     # Hardware registers
-│   │   ├── pru_i2s_pru0/1_array.h # Generated firmware array headers (build output)
 │   │   ├── pru0_tx/           # TX firmware builds
 │   │   │   ├── am261x-lp/     # AM261x variant
 │   │   │   └── am263x-cc/     # AM263x variant
 │   │   └── pru1_rx/           # RX firmware builds
 │   │       ├── am261x-lp/
 │   │       └── am263x-cc/
-│   └── tdm4/                   # TDM4 protocol (parallel structure)
-│       └── (same structure as I2S, with pru_i2s_tdm4_pru0/1_array.h generated)
+│   ├── tdm4/                   # TDM4 protocol (parallel structure)
+│   ├── am261x-lp/              # Generated firmware array headers for AM261x (build output)
+│   │   └── pru_i2s_pru0/1_array.h, pru_i2s_tdm4_pru0/1_array.h
+│   └── am263x-cc/              # Generated firmware array headers for AM263x (build output)
+│       └── pru_i2s_pru0/1_array.h, pru_i2s_tdm4_pru0/1_array.h
 ├── pru_i2s_app/                 # R5F host application
 │   ├── board/                  # Board support files
 │   │   ├── ioexp_tca6416.c    # IO expander driver
@@ -227,7 +229,7 @@ make DEVICE=am261x libs-clean  # Clean the driver library
 
 **What gets built:**
 - 4 PRU firmware binaries per device (I2S PRU0 TX, I2S PRU1 RX, TDM4 PRU0 TX, TDM4 PRU1 RX)
-- Firmware header arrays (`.h` files) copied into `firmware/i2s/` and `firmware/tdm4/`
+- Firmware header arrays (`.h` files) copied into `firmware/<board>/` (`firmware/am261x-lp/` or `firmware/am263x-cc/`). Each board has its own copy, so building for one board does not overwrite the headers of the other
 - PRU I2S driver library (`lib/pru_i2s.<device>.r5f.ti-arm-clang.<profile>.lib`), built by `make libs` from the driver source in `source/i2s/`
 - R5F application binary (`.out` and `.mcelf`)
 

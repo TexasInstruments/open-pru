@@ -11,7 +11,7 @@ OUTPUT_NAME := pru_i2s_tdm4_am261x-lp_icssm0-pru0_fw
 # MCU+ projects: rename & move hex array output
 MCU_HEX_NAME := pru_i2s_tdm4_pru0_array.h
 HEX_ARRAY_PREFIX := pru_prupru_i2s0_image_0
-MCU_HEX_PATH := $(OPEN_PRU_PATH)/examples/pru_i2s/firmware/tdm4/$(MCU_HEX_NAME)
+MCU_HEX_PATH := $(OPEN_PRU_PATH)/examples/pru_i2s/firmware/am261x-lp/$(MCU_HEX_NAME)
 
 # which directories to search for assembly & C source files?
 FILES_PATH := ../../../../
