@@ -163,6 +163,7 @@ post-build:
 	-$(CAT) $(OPEN_PRU_PATH)/source/firmware/pru_load_bin_copyright.h $(TARGET_HEX) > $(TARGET_HEX).temp
 	-$(MOVE) $(TARGET_HEX).temp $(TARGET_HEX)
 ifeq ($(BUILD_MCUPLUS),y)
+	-$(MKDIR) $(dir $(MCU_HEX_PATH))
 	-$(COPY) $(TARGET_HEX) $(MCU_HEX_PATH)
 endif
 	@echo ' '

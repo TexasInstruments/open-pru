@@ -3,11 +3,22 @@ include imports.mak
 SUBDIRS := source academy examples
 
 # "make" or "make all" builds projects that match $(DEVICE) set in imports.mak
-# this also builds all libraries in the source directory
+# this also builds all libraries in the source directory and the project
+# libraries ("make libs")
 all:
 	$(MAKE) -C source
+	$(MAKE) libs
 	$(MAKE) pru
 	$(MAKE) host
+
+# "make libs" builds the libraries owned by projects (for example pru_i2s)
+# the projects link these libraries, but "make pru" and "make host" do not build them
+libs:
+	$(MAKE) -C examples libs
+
+# "make libs-clean" cleans the libraries owned by projects. "make clean" does not
+libs-clean:
+	$(MAKE) -C examples libs-clean
 
 # "make pru" builds PRU firmware for all projects matching $(DEVICE)
 pru: ARGUMENTS := pru
@@ -59,12 +70,20 @@ help:
 	@echo  "$(MAKE) -s pru        // build only PRU firmware for all projects"
 	@echo  "$(MAKE) -s host       // build only host code for all projects"
 	@echo  "$(MAKE) -s clean      // clean all projects that match DEVICE"
+	@echo  "$(MAKE) -s libs       // build only the libraries owned by projects"
+	@echo  "$(MAKE) -s libs-clean // clean only the libraries owned by projects"
 	@echo
 	@echo  "The overall build targets also build & clean all libraries in the"
 	@echo  "source/ directory"
 	@echo
-	@echo  "Note: make pru and make host assume source/ libraries are already"
-	@echo  "built. Run make first on a fresh clone to build everything in order."
+	@echo  "Libraries owned by a project (for example the pru_i2s driver library)"
+	@echo  "are built by make and make libs. make clean does not remove them, use"
+	@echo  "make libs-clean. Rebuild them with make libs after changing the library"
+	@echo  "source code."
+	@echo
+	@echo  "Note: make pru and make host assume source/ libraries and project"
+	@echo  "libraries are already built. Run make first on a fresh clone to build"
+	@echo  "everything in order."
 	@echo
 	@echo  "Build a single project:"
 	@echo  "======================="
@@ -90,4 +109,4 @@ help:
 	@echo  "the PRU firmware."
 	@echo
 
-.PHONY: all clean pru host help academy examples source
+.PHONY: all clean pru host libs libs-clean help academy examples source

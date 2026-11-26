@@ -99,6 +99,12 @@ Makefiles can be used to:
 For detailed steps on how to use makefiles, run ```make help``` from the root
 folder of the `open-pru` repository.
 
+Some projects build a library that the project then links, for example the
+`pru_i2s` driver library. `make` builds these libraries first. They can also be
+built or cleaned on their own with `make libs` and `make libs-clean`.
+`make clean` does not remove them. Run `make libs` again after changing the
+library source code.
+
 ### Building With CCS
 
 - Import the project into CCS. For steps to create a new PRU project in CCS,

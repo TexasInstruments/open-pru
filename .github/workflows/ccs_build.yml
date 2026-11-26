@@ -249,6 +249,25 @@ jobs:
           CCS_NODE = $(CCS_PATH)/tools/node/node
           EOF
 
+      - name: Build project libraries
+        # Some projects (for example pru_i2s) link a library that the CCS
+        # project does not build. Build these first with the makefiles, the
+        # same way a user runs "make libs" before building in CCS.
+        # Projects without a library for this device do nothing.
+        run: |
+          DEVICE="${{ matrix.device }}"
+          if [ -z "${{ matrix.mcu_plus_sdk }}" ]; then
+            echo "No MCU+ SDK for ${DEVICE}, skipping library build"
+            exit 0
+          fi
+          ARM_CGT_PATH="$HOME/ti/ccs_20.3.1/ccs/tools/compiler/ti-cgt-armllvm_4.0.3.LTS"
+          [ -d "${ARM_CGT_PATH}" ] || ARM_CGT_PATH="$HOME/ti/ti-cgt-armllvm_4.0.3.LTS"
+          make libs DEVICE="${DEVICE}" \
+              BUILD_MCUPLUS=y \
+              PROFILE=release \
+              MCU_PLUS_SDK_PATH="$HOME/ti/${{ matrix.mcu_plus_sdk }}" \
+              CGT_TI_ARM_CLANG_PATH="${ARM_CGT_PATH}"
+
       - name: Patch metadata for SysConfig version
         # Temporarily encodes the SysConfig version into OpenPRU's package.tirex.json
         # and product.json so CCS selects the correct SysConfig version when

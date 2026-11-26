@@ -1,51 +1,6 @@
 include ../../imports.mak
 
 #######################
-# Library build tools #
-#######################
-ifeq ($(CG_TOOL_ROOT),)
-  CC=$(CGT_TI_ARM_CLANG_PATH)/bin/tiarmclang
-  AR=$(CGT_TI_ARM_CLANG_PATH)/bin/tiarmar
-else
-  CC=$(CG_TOOL_ROOT)/bin/tiarmclang
-  AR=$(CG_TOOL_ROOT)/bin/tiarmar
-endif
-
-CFLAGS_OPT_debug := -O0
-CFLAGS_OPT_release := -Os
-CFLAGS_OPT := $(CFLAGS_OPT_$(PROFILE))
-
-CFLAGS_AM261X := -mcpu=cortex-r5 -mfloat-abi=hard -mfpu=vfpv3-d16 -mthumb -Wall -Werror -g -Wno-gnu-variable-sized-type-not-at-end -Wno-unused-function $(CFLAGS_OPT)
-CFLAGS_AM263X := -mcpu=cortex-r5 -mfloat-abi=hard -mfpu=vfpv3-d16 -mthumb -Wall -Werror -g -Wno-gnu-variable-sized-type-not-at-end -Wno-unused-function $(CFLAGS_OPT)
-
-INCLUDES_AM261X := \
-	-I$(MCU_PLUS_SDK_PATH)/source \
-	-I$(OPEN_PRU_PATH)/source \
-	-I$(MCU_PLUS_SDK_PATH)/source/kernel/freertos/FreeRTOS-Kernel/include \
-	-I$(MCU_PLUS_SDK_PATH)/source/kernel/freertos/portable/TI_ARM_CLANG/ARM_CR5F \
-	-I$(MCU_PLUS_SDK_PATH)/source/kernel/freertos/config/am261x/r5f \
-	-I./include \
-	-I./firmware \
-	-I. \
-	-I.. \
-	-I$(OPEN_PRU_PATH)/examples
-
-INCLUDES_AM263X := \
-	-I$(MCU_PLUS_SDK_PATH)/source \
-	-I$(OPEN_PRU_PATH)/source \
-	-I$(MCU_PLUS_SDK_PATH)/source/kernel/freertos/FreeRTOS-Kernel/include \
-	-I$(MCU_PLUS_SDK_PATH)/source/kernel/freertos/portable/TI_ARM_CLANG/ARM_CR5F \
-	-I$(MCU_PLUS_SDK_PATH)/source/kernel/freertos/config/am263x/r5f \
-	-I./include \
-	-I./firmware \
-	-I. \
-	-I.. \
-	-I$(OPEN_PRU_PATH)/examples
-
-DEFINES_AM261X := -DSOC_AM261X -DOS_FREERTOS
-DEFINES_AM263X := -DSOC_AM263X -DOS_FREERTOS
-
-#######################
 # project information #
 #######################
 
@@ -55,6 +10,8 @@ SUPPORTED_PROCESSORS := am261x am263x
 # Profile used when naming the built pru_i2s driver library, must match the
 # ConfigName the R5F application makefiles link against (see PROFILE there).
 PROFILE?=release
+# The driver library is built from source/i2s, its output belongs to this project
+LIB_DIR := $(CURDIR)/lib
 # Does the PRU code have dependencies outside of the open-pru repo?
 PRU_DEPENDENCIES := mcuplus
 # Use NON_PRU_DEPENDENCIES to select which makefiles to call for non-PRU cores
@@ -106,24 +63,34 @@ endif
 # Make and clean commands #
 ###########################
 
-# "make pru" builds PRU firmware for all supported devices
-pru: ARGUMENTS_PRU = all
-pru: ARGUMENTS_MCUPLUS = all
-pru: MESSAGE = "Building $(PROJECT_NAME) PRU firmware"
-pru: pre_build_message $(SUPPORTED_PROCESSORS)
-
-# "make host" builds host (R5F/ARM) code for specified DEVICE
-host: ARGUMENTS_PRU = pru
-host: ARGUMENTS_MCUPLUS = all
-host: MESSAGE = "Building $(PROJECT_NAME) host code for $(DEVICE)"
-host: pre_build_message $(DEVICE_NON_PRU)
-
 ifeq ($(BUILD_PROJECT),y)
-# "make" or "make all" builds projects that match $(DEVICE) set in imports.mak
-all: ARGUMENTS_PRU = all
-all: ARGUMENTS_MCUPLUS = $(ARGUMENTS_PRU)
+# "make" or "make all" builds PRU firmware then host code for $(DEVICE)
 all: MESSAGE = "Building $(PROJECT_NAME) for $(DEVICE)"
-all: pre_build_message $(DEVICE) $(DEVICE_NON_PRU)
+all: pre_build_message
+	$(MAKE) host
+
+# "make pru" builds only PRU firmware for $(DEVICE)
+pru: ARGUMENTS_PRU = all
+pru: MESSAGE = "Building $(PROJECT_NAME) PRU firmware"
+pru: pre_build_message $(DEVICE)
+
+# "make host" builds PRU firmware, then host (R5F) code for $(DEVICE). The steps
+# are recipe lines so they stay in order under "make -j": the host code includes
+# the PRU firmware headers. The host code links the driver library, which is not
+# built here: run "make libs" first.
+host: MESSAGE = "Building $(PROJECT_NAME) host code for $(DEVICE)"
+host: pre_build_message
+	$(MAKE) pru
+	$(MAKE) $(DEVICE_NON_PRU) ARGUMENTS_MCUPLUS=all
+
+# "make libs" builds the driver library for $(DEVICE) into $(LIB_DIR)
+libs: MESSAGE = "Building $(PROJECT_NAME) driver library for $(DEVICE)"
+libs: pre_build_message build_lib_$(DEVICE)
+
+# "make libs-clean" removes the driver library, "make clean" does not
+libs-clean: MESSAGE = "Cleaning $(PROJECT_NAME) driver library"
+libs-clean: pre_build_message
+	$(MAKE) -C ../../source/i2s clean GEN_DIR=$(LIB_DIR)
 
 # "make clean" cleans projects that match $(DEVICE) set in imports.mak
 clean: ARGUMENTS_PRU = clean
@@ -133,7 +100,7 @@ clean: pre_build_message $(DEVICE) $(DEVICE_NON_PRU)
 
 else
 # if a prebuild check failed, print message and exit
-all clean: pre_build_message
+all clean pru host libs libs-clean: pre_build_message
 endif
 
 pre_build_message:
@@ -147,48 +114,34 @@ pre_build_message:
 # PRU firmware should be built before any RTOS code that includes it
 am261x:
 # am261x-lp - I2S protocol
-	$(MAKE) -C firmware/I2S/pru0_tx/am261x-lp/icssm0-pru0_fw/ti-pru-cgt $(ARGUMENTS_PRU)
-	$(MAKE) -C firmware/I2S/pru1_rx/am261x-lp/icssm0-pru1_fw/ti-pru-cgt $(ARGUMENTS_PRU)
+	$(MAKE) -C firmware/i2s/pru0_tx/am261x-lp/icssm0-pru0_fw/ti-pru-cgt $(ARGUMENTS_PRU)
+	$(MAKE) -C firmware/i2s/pru1_rx/am261x-lp/icssm0-pru1_fw/ti-pru-cgt $(ARGUMENTS_PRU)
 # am261x-lp - TDM4 protocol
-	$(MAKE) -C firmware/TDM4/pru0_tx/am261x-lp/icssm0-pru0_fw/ti-pru-cgt $(ARGUMENTS_PRU)
-	$(MAKE) -C firmware/TDM4/pru1_rx/am261x-lp/icssm0-pru1_fw/ti-pru-cgt $(ARGUMENTS_PRU)
+	$(MAKE) -C firmware/tdm4/pru0_tx/am261x-lp/icssm0-pru0_fw/ti-pru-cgt $(ARGUMENTS_PRU)
+	$(MAKE) -C firmware/tdm4/pru1_rx/am261x-lp/icssm0-pru1_fw/ti-pru-cgt $(ARGUMENTS_PRU)
 
-am261x_mcuplus: build_lib_am261x
+am261x_mcuplus:
 # am261x-lp - R5F application
 	$(MAKE) -C pru_i2s_app/am261x-lp/r5fss0-0_freertos/ti-arm-clang $(ARGUMENTS_MCUPLUS)
 
 build_lib_am261x:
-# am261x-lp - Build driver library (always rebuild by removing old lib and objects first)
-	$(RM) lib/pru_i2s.am261x.r5f.ti-arm-clang.*.lib lib/pru_i2s_*_am261x.obj
-	$(MKDIR) lib
-	@echo "Building pru_i2s library for am261x..."
-	$(CC) -c $(CFLAGS_AM261X) $(INCLUDES_AM261X) $(DEFINES_AM261X) -o lib/pru_i2s_drv_am261x.obj driver/pru_i2s_drv.c
-	$(CC) -c $(CFLAGS_AM261X) $(INCLUDES_AM261X) $(DEFINES_AM261X) -o lib/pru_i2s_app_config_am261x.obj pru_i2s_app/pru_i2s_app_config.c
-	$(AR) rc lib/pru_i2s.am261x.r5f.ti-arm-clang.$(PROFILE).lib lib/pru_i2s_drv_am261x.obj lib/pru_i2s_app_config_am261x.obj
-	$(RM) lib/pru_i2s_*_am261x.obj
-	@echo "Library build complete."
+# am261x-lp - Build driver library
+	$(MAKE) -C ../../source/i2s build_am261x PROFILE=$(PROFILE) GEN_DIR=$(LIB_DIR)
 
 am263x:
 # am263x-cc - I2S protocol
-	$(MAKE) -C firmware/I2S/pru0_tx/am263x-cc/icssm0-pru0_fw/ti-pru-cgt $(ARGUMENTS_PRU)
-	$(MAKE) -C firmware/I2S/pru1_rx/am263x-cc/icssm0-pru1_fw/ti-pru-cgt $(ARGUMENTS_PRU)
+	$(MAKE) -C firmware/i2s/pru0_tx/am263x-cc/icssm0-pru0_fw/ti-pru-cgt $(ARGUMENTS_PRU)
+	$(MAKE) -C firmware/i2s/pru1_rx/am263x-cc/icssm0-pru1_fw/ti-pru-cgt $(ARGUMENTS_PRU)
 # am263x-cc - TDM4 protocol
-	$(MAKE) -C firmware/TDM4/pru0_tx/am263x-cc/icssm0-pru0_fw/ti-pru-cgt $(ARGUMENTS_PRU)
-	$(MAKE) -C firmware/TDM4/pru1_rx/am263x-cc/icssm0-pru1_fw/ti-pru-cgt $(ARGUMENTS_PRU)
+	$(MAKE) -C firmware/tdm4/pru0_tx/am263x-cc/icssm0-pru0_fw/ti-pru-cgt $(ARGUMENTS_PRU)
+	$(MAKE) -C firmware/tdm4/pru1_rx/am263x-cc/icssm0-pru1_fw/ti-pru-cgt $(ARGUMENTS_PRU)
 
-am263x_mcuplus: build_lib_am263x
+am263x_mcuplus:
 # am263x-cc - R5F application
 	$(MAKE) -C pru_i2s_app/am263x-cc/r5fss0-0_freertos/ti-arm-clang $(ARGUMENTS_MCUPLUS)
 
 build_lib_am263x:
-# am263x-cc - Build driver library (always rebuild by removing old lib and objects first)
-	$(RM) lib/pru_i2s.am263x.r5f.ti-arm-clang.*.lib lib/pru_i2s_*_am263x.obj
-	$(MKDIR) lib
-	@echo "Building pru_i2s library for am263x..."
-	$(CC) -c $(CFLAGS_AM263X) $(INCLUDES_AM263X) $(DEFINES_AM263X) -o lib/pru_i2s_drv_am263x.obj driver/pru_i2s_drv.c
-	$(CC) -c $(CFLAGS_AM263X) $(INCLUDES_AM263X) $(DEFINES_AM263X) -o lib/pru_i2s_app_config_am263x.obj pru_i2s_app/pru_i2s_app_config.c
-	$(AR) rc lib/pru_i2s.am263x.r5f.ti-arm-clang.$(PROFILE).lib lib/pru_i2s_drv_am263x.obj lib/pru_i2s_app_config_am263x.obj
-	$(RM) lib/pru_i2s_*_am263x.obj
-	@echo "Library build complete."
+# am263x-cc - Build driver library
+	$(MAKE) -C ../../source/i2s build_am263x PROFILE=$(PROFILE) GEN_DIR=$(LIB_DIR)
 
-.PHONY: all clean pru host pre_build_message $(DEVICE) $(DEVICE_NON_PRU) $(SUPPORTED_PROCESSORS)
+.PHONY: all clean pru host libs libs-clean pre_build_message build_lib_am261x build_lib_am263x $(DEVICE) $(DEVICE_NON_PRU) $(SUPPORTED_PROCESSORS)

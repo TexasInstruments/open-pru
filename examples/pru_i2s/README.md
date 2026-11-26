@@ -42,7 +42,7 @@ This ensures continuous and efficient data transmission/reception with minimal l
 
 | Processor | Hardware | Software |
 |-----------|----------|----------|
-| AM263x | Control Card (TMDSCNCD263) + HSECDOCK | MCU+ SDK AM263x 11.0, CCS 21.0.1, SysConfig 1.28.1, PRU CGT 2.3.3 |
+| AM263x | Control Card (TMDSCNCD263) + HSECDOCK | OpenPRU 2026.02, MCU+ SDK AM263x 11.0, CCS 21.0.1, SysConfig 1.28.1, PRU CGT 2.3.3 |
 | AM261x | LaunchPad LP-AM261 REV A | MCU+ SDK AM261x 11.0, CCS 21.0.1, SysConfig 1.28.1, PRU CGT 2.3.3 |
 
 ---
@@ -162,12 +162,10 @@ pru_i2s/
 ├── README.md                    # This file
 ├── makefile                     # Top-level makefile
 ├── firmware/                    # PRU firmware source code
-│   ├── include/                # Shared firmware headers
-│   ├── I2S/                    # I2S protocol implementation
+│   ├── i2s/                    # I2S protocol implementation
 │   │   ├── pru_i2s_main.asm   # Main firmware logic
 │   │   ├── fw_regs.asm        # Register definitions
 │   │   ├── linker.cmd         # Linker script
-│   │   ├── icss_pru_i2s_fw.h  # Firmware register map
 │   │   ├── pru_i2s_interface.h # Interface definitions
 │   │   ├── pru_i2s_regs.h     # Hardware registers
 │   │   ├── pru0_tx/           # TX firmware builds
@@ -176,22 +174,29 @@ pru_i2s/
 │   │   └── pru1_rx/           # RX firmware builds
 │   │       ├── am261x-lp/
 │   │       └── am263x-cc/
-│   └── TDM4/                   # TDM4 protocol (parallel structure)
-│       └── (same as I2S)
-├── driver/                      # PRU I2S driver implementation
-│   └── pru_i2s_drv.c           # Driver source (~2400 lines)
-├── include/                     # Driver public headers
-│   ├── pru_i2s_drv.h           # Driver API (~1000+ lines)
-│   └── pru_i2s_pruss_intc_mapping.h  # INTC definitions
+│   ├── tdm4/                   # TDM4 protocol (parallel structure)
+│   ├── am261x-lp/              # Generated firmware array headers for AM261x (build output)
+│   │   ├── pru_i2s_pru0_array.h, pru_i2s_pru1_array.h
+│   │   └── pru_i2s_tdm4_pru0_array.h, pru_i2s_tdm4_pru1_array.h
+│   └── am263x-cc/              # Generated firmware array headers for AM263x (build output)
+│       └── (same files as am261x-lp)
 ├── pru_i2s_app/                 # R5F host application
 │   ├── board/                  # Board support files
 │   │   ├── ioexp_tca6416.c    # IO expander driver
 │   │   └── ioexp_tca6416.h
 │   ├── pru_i2s_diagnostic.c    # Main application
+│   ├── pru_i2s_app_config.c/.h # Application configuration (PRUI2S_applyAppConfig)
 │   ├── data.h                  # Test data
 │   ├── am261x-lp/r5fss0-0_freertos/
 │   └── am263x-cc/r5fss0-0_freertos/
+├── lib/                         # Driver library (build output of make libs, not checked in)
 └── images/                      # Documentation images
+
+source/i2s/                      # I2S driver library source, outside of this example
+├── pru_i2s_drv.c/.h            # Driver
+├── pru_i2s_config.h            # Driver configuration
+├── icss_pru_i2s_fw.h           # Firmware register layout shared with the PRU firmware
+└── makefile                    # Builds the library, run through make libs in this example
 ```
 
 ---
@@ -204,35 +209,53 @@ pru_i2s/
 - Set `DEVICE` environment variable in `imports.mak`
 - Ensure CCS utils are in PATH (for gmake on Windows)
 
-**Build all firmware and application:**
-```bash
-cd /path/to/open-pru
-make DEVICE=am261x        # Build for AM261x
-make DEVICE=am263x        # Build for AM263x
-```
-
-**Build only firmware:**
+**Build the driver library first, then the firmware and application.**
+Run both commands for the device you are building for, in this order:
 ```bash
 cd examples/pru_i2s
-make DEVICE=am261x        # Builds 4 firmware variants (I2S + TDM4, PRU0 + PRU1)
+
+# AM261x
+make DEVICE=am261x libs   # 1. Build the driver library
+make DEVICE=am261x        # 2. Build the firmware and application
+
+# AM263x
+make DEVICE=am263x libs   # 1. Build the driver library
+make DEVICE=am263x        # 2. Build the firmware and application
 ```
+
+The driver library is built separately from the application. `make` in this
+directory does **not** build the library. The application only links the
+existing library, and stops with an error if the library is missing. Run
+`make libs` first on a fresh clone, and again after any change to the driver
+source in `source/i2s/`. Library files are not checked in. Running `make` from
+the root of the repository builds the library first, so the two steps are not
+needed there.
+
+Use `make libs PROFILE=debug` to build the debug library for a debug build of the
+application. The default is `release`, set `PROFILE` in `imports.mak`.
 
 **Clean:**
 ```bash
-make DEVICE=am261x clean
+make DEVICE=am261x clean       # Clean the firmware and application
+make DEVICE=am261x libs-clean  # Clean the driver library
 ```
+
+`clean` does not remove the driver library. Use `libs-clean` for that.
 
 **What gets built:**
 - 4 PRU firmware binaries per device (I2S PRU0 TX, I2S PRU1 RX, TDM4 PRU0 TX, TDM4 PRU1 RX)
-- Firmware header arrays (`.h` files for embedding in application)
-- R5F application binary (`.out` and `.appimage`)
+- Firmware header arrays (`.h` files) copied into `firmware/<board>/` (`firmware/am261x-lp/` or `firmware/am263x-cc/`). Each board has its own copy, so building for one board does not overwrite the headers of the other
+- PRU I2S driver library (`lib/pru_i2s.<device>.r5f.ti-arm-clang.<profile>.lib`), built by `make libs` from the driver source in `source/i2s/`
+- R5F application binary (`.out` and `.mcelf`)
+
+**Note:** The PRU firmware makefiles use `pru_rules.mak` (silicon version `-v3`) and place all build artifacts in a `ti-pru-cgt/generated/` subdirectory. The driver source is in `source/i2s/`, and its library output belongs to this example in `examples/pru_i2s/lib/`.
 
 ### Building with Code Composer Studio
 
 **Import Firmware Projects:**
 1. Open CCS
 2. Project → Import CCS Projects
-3. Navigate to `examples/pru_i2s/firmware/I2S/pru0_tx/am261x-lp/icssm0-pru0_fw/ti-pru-cgt/`
+3. Navigate to `examples/pru_i2s/firmware/i2s/pru0_tx/am261x-lp/icssm0-pru0_fw/ti-pru-cgt/`
 4. Select `example.projectspec`
 5. Click Finish
 6. Repeat for other firmware variants (pru1_rx, TDM4, etc.)
@@ -242,8 +265,9 @@ make DEVICE=am261x clean
 2. Import `example.projectspec`
 
 **Build Order:**
-1. Build PRU firmware first (generates header arrays)
-2. Build R5F application (includes firmware headers)
+1. Build the driver library (`make DEVICE=<device> libs` in `examples/pru_i2s`). CCS does not build it. Rebuild it after any change to `source/i2s/`. Build `PROFILE=debug` for the Debug configuration, the default is `release`
+2. Build PRU firmware (generates header arrays)
+3. Build R5F application (includes firmware headers, links the driver library from `examples/pru_i2s/lib/`)
 
 **Debug Configuration:**
 Refer to MCU+ SDK documentation:
@@ -265,7 +289,7 @@ The R5F application initializes PRU-ICSSG, downloads firmware to PRU cores, and 
 │   (pru_i2s_diagnostic.c)    │
 ├─────────────────────────────┤
 │   PRU I2S Driver            │
-│   (pru_i2s_drv.c)           │
+│   (source/i2s/pru_i2s_drv.c)│
 ├─────────────────────────────┤
 │   MCU+ SDK Drivers          │
 │   (PRUICSS, GPIO, etc.)     │
@@ -302,17 +326,20 @@ The R5F application uses SysConfig to configure PRUICSS:
 
 **Initialization:**
 ```c
+PRUICSS_intcInit()            // Initialize the PRU-ICSS INTC (MCU+ SDK, called by the application before PRUI2S_init)
 PRUI2S_init()                 // Read firmware config, update driver tables
 PRUI2S_getInitCfg()          // Get buffer sizes, sampling freq, slot width
 PRUI2S_paramsInit()          // Set default parameters
-PRUI2S_open()                // Clear IMEM/DMEM, init INTC, download firmware
-PRUI2S_pruGpioPadConfig()    // Configure I2S signal pins
-PRUI2S_initPpBufs()          // Initialize ping-pong buffers
+PRUI2S_open()                // Clear IMEM/DMEM, download firmware, initialize the ping-pong buffers
 ```
+
+The I2S signal pins are configured by SysConfig, the driver does not configure them.
+The driver library (`source/i2s/`) does not contain the application configuration
+(`PRUI2S_applyAppConfig()`). It is part of the example, in
+`pru_i2s_app/pru_i2s_app_config.c`.
 
 **Interrupt Management:**
 ```c
-PRUICSS_intcSetSysEvtChMap() // Map system events to channels
 PRUI2S_enableInt()           // Enable TX/RX interrupts
 PRUI2S_disableInt()          // Disable interrupts
 PRUI2S_clearInt()            // Clear interrupt flags
@@ -361,11 +388,11 @@ Interrupts trigger on:
 - **Clobbers**: `r0`–`r29` (all working registers used); flags modified
 - **Preserved**: none (`main` uses full PRU register context; no registers guaranteed preserved across the loop)
 - **Clock assumption**: PRU at 200 MHz; BCLK/FSYNC derived externally
-- **Notes**: See `firmware/I2S/pru_i2s_regs.h` for register-to-symbol mapping (`tx_buffer_address`, `rx_buffer_address`, `fs_counter`, etc.).
+- **Notes**: See `firmware/i2s/pru_i2s_regs.h` for register-to-symbol mapping (`tx_buffer_address`, `rx_buffer_address`, `fs_counter`, etc.).
 
 ### Firmware Configuration
 
-Configurable parameters in `firmware/I2S/pru_i2s_interface.h` or `firmware/TDM4/pru_i2s_interface.h`:
+Configurable parameters in `firmware/i2s/pru_i2s_interface.h` or `firmware/tdm4/pru_i2s_interface.h`:
 
 ```c
 // Bytes per channel
@@ -382,7 +409,7 @@ Configurable parameters in `firmware/I2S/pru_i2s_interface.h` or `firmware/TDM4/
 
 #### FW Register Map
 
-`fw_regs.asm` (`firmware/I2S/` and `firmware/TDM4/`) lays out a fixed-layout status/config struct at DMEM offset 0 of each PRU core, shared between the firmware and the R5F driver (`icss_pru_i2s_fw.h` defines the same offsets on the C side). This is the entire handshake surface between the R5F and the PRU — the driver reads/writes these fields directly via `HW_RD/WR_REG*`, there is no other channel. `PRUI2S_getPruFwImageInfo()` (during driver init, before the PRU core is even running) only ever reads the capability/interrupt fields (`NUM_TX_I2S`, `NUM_RX_I2S`, `SAMP_FREQ`, the three `*_ICSS_INTC_SYS_EVT` fields) out of the firmware image — it never reads the buffer address/size fields.
+`fw_regs.asm` (`firmware/i2s/` and `firmware/tdm4/`) lays out a fixed-layout status/config struct at DMEM offset 0 of each PRU core, shared between the firmware and the R5F driver (`icss_pru_i2s_fw.h` defines the same offsets on the C side). This is the entire handshake surface between the R5F and the PRU — the driver reads/writes these fields directly via `HW_RD/WR_REG*`, there is no other channel. `PRUI2S_getPruFwImageInfo()` (during driver init, before the PRU core is even running) only ever reads the capability/interrupt fields (`NUM_TX_I2S`, `NUM_RX_I2S`, `SAMP_FREQ`, the three `*_ICSS_INTC_SYS_EVT` fields) out of the firmware image — it never reads the buffer address/size fields.
 
 | Offset | Size | Field | Direction | Description |
 |--------|------|-------|-----------|--------------|
