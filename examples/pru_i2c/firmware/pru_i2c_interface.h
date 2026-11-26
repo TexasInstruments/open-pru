@@ -29,7 +29,7 @@
 * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 *************************************************************************************
-*   File:     icss_i2c.h
+*   File:     pru_i2c_interface.h
 *
 *   Brief:   This is a common header file with all memory map configuration.   
 *************************************************************************************
@@ -173,17 +173,19 @@ typedef enum PRUICSS_PruCores_e
 
 
 /* The iep counter increment value for 400KHz value */
+//  The IEP counts DEFAULT_INC = 5 per 200 MHz clock, so every increment
+//  must be a multiple of 5 to land exactly on a counter value.
 //  1 I2C instance, time-slice 125 (625/5) cycles.
 //  => bus clock time is 125*4/200e6 = 2.5 usec.
 //  => bus clock speed is 1/2.5e-6 = 400 kHz
-#define IEP_CMP_INCREMENT_VAL_400KHZ               (0x00000270U)  // 400 kHz
+#define IEP_CMP_INCREMENT_VAL_400KHZ               (0x00000271U)  // 400 kHz
 #define IEP_CMP_INCREMENT_HALF_VAL_400KHZ          (0x00000138U)
 
 /* The iep counter increment value for 100KHz value */
 //  4 I2C instances, time-slice 125 (625/5) cycles.
 //  => bus clock time is 125*4*4/200e6 = 10 usec.
 //  => bus clock speed is 1/10e-6 = 100 kHz
-#define IEP_CMP_INCREMENT_VAL_100KHZ          (0x000009c3U)  //  100 kHz, 1x instances
+#define IEP_CMP_INCREMENT_VAL_100KHZ          (0x000009C4U)  //  100 kHz, 1x instances
 #define IEP_CMP_INCREMENT_HALF_VAL_100KHZ     (0x000004e1U)  // 
 
 //  1 I2C instance, time-slice 64 (320/5) cycles.
