@@ -1,0 +1,20 @@
+[package]
+name = "i2c_led_visualizer"
+version = "0.1.0"
+edition = "2024"
+description = "PicoScope 7 I2C decode -> TCA9538 8-LED view (electronica 2026 i2c_io demo)"
+license = "BSD-3-Clause"
+
+[lib]
+name = "viz"
+path = "src/lib.rs"
+
+[[bin]]
+name = "i2c_led_visualizer"
+path = "src/main.rs"
+
+[dependencies]
+clap = { version = "4.6.7", features = ["derive"] }
+eframe = "0.37.0"
+serde_json = "1.0.154"
+ureq = "3.5.0"

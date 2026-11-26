@@ -1,0 +1,211 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="980" viewBox="0 0 1600 980">
+<defs><marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#52606d"/></marker><radialGradient id="glow"><stop offset="0" stop-color="#ff3b3b" stop-opacity="0.75"/><stop offset="1" stop-color="#ff3b3b" stop-opacity="0"/></radialGradient></defs>
+<rect width="1600" height="980" fill="#f7f8fa"/>
+<text x="40" y="62" font-family="DejaVu Sans, Verdana, sans-serif" font-size="34" fill="#1f2933" font-weight="bold" font-style="normal" text-anchor="start">From prompt to booth demo: PRU I2C running LED</text>
+<text x="40" y="96" font-family="DejaVu Sans, Verdana, sans-serif" font-size="18" fill="#52606d" font-weight="normal" font-style="normal" text-anchor="start">electronica 2026 · AM243x LaunchPad · ICSSG0 PRU0 bit-bangs I2C writes for a TCA9538 IO expander</text>
+<rect x="40" y="135" width="272" height="620" rx="14" fill="#ffffff" stroke="#cbd2d9" stroke-width="1.5"/>
+<path d="M40,149 a14,14 0 0 1 14,-14 h244 a14,14 0 0 1 14,14 v48 h-272 z" fill="#2563a8"/>
+<circle cx="70" cy="166" r="16" fill="#ffffff"/>
+<text x="70" y="172" font-family="DejaVu Sans, Verdana, sans-serif" font-size="18" fill="#2563a8" font-weight="bold" font-style="normal" text-anchor="middle">1</text>
+<text x="94" y="173" font-family="DejaVu Sans, Verdana, sans-serif" font-size="19" fill="#ffffff" font-weight="bold" font-style="normal" text-anchor="start">Simulate</text>
+<rect x="54" y="207" width="244" height="40" rx="8" fill="#2563a8" fill-opacity="0.08"/>
+<rect x="54" y="207" width="4" height="40" fill="#2563a8"/>
+<text x="66" y="232" font-family="DejaVu Sans, Verdana, sans-serif" font-size="14" fill="#52606d" font-weight="normal" font-style="italic" text-anchor="start">Prompt in an earlier session</text>
+<text x="58" y="279" font-family="DejaVu Sans, Verdana, sans-serif" font-size="17" fill="#1f2933" font-weight="bold" font-style="normal" text-anchor="start">PRU assembly in TI's</text>
+<text x="58" y="302" font-family="DejaVu Sans, Verdana, sans-serif" font-size="17" fill="#1f2933" font-weight="bold" font-style="normal" text-anchor="start">pru-simulator</text>
+<circle cx="64" cy="330" r="3.5" fill="#2563a8"/>
+<text x="76" y="335" font-family="DejaVu Sans Mono, monospace" font-size="14" fill="#1f2933" font-weight="normal" font-style="normal" text-anchor="start">source/</text>
+<text x="76" y="356" font-family="DejaVu Sans Mono, monospace" font-size="14" fill="#1f2933" font-weight="normal" font-style="normal" text-anchor="start">i2c_tca9538_running_led.asm</text>
+<circle cx="64" cy="381" r="3.5" fill="#2563a8"/>
+<text x="76" y="386" font-family="DejaVu Sans, Verdana, sans-serif" font-size="15" fill="#1f2933" font-weight="normal" font-style="normal" text-anchor="start">Cycle-accurate PRU0 at 200</text>
+<text x="76" y="407" font-family="DejaVu Sans, Verdana, sans-serif" font-size="15" fill="#1f2933" font-weight="normal" font-style="normal" text-anchor="start">MHz</text>
+<circle cx="64" cy="432" r="3.5" fill="#2563a8"/>
+<text x="76" y="437" font-family="DejaVu Sans, Verdana, sans-serif" font-size="15" fill="#1f2933" font-weight="normal" font-style="normal" text-anchor="start">IO device: TCA9538 I2C</text>
+<text x="76" y="458" font-family="DejaVu Sans, Verdana, sans-serif" font-size="15" fill="#1f2933" font-weight="normal" font-style="normal" text-anchor="start">model at address 0x23</text>
+<circle cx="64" cy="483" r="3.5" fill="#2563a8"/>
+<text x="76" y="488" font-family="DejaVu Sans, Verdana, sans-serif" font-size="15" fill="#1f2933" font-weight="normal" font-style="normal" text-anchor="start">Bit-banged I2C at 1</text>
+<text x="76" y="509" font-family="DejaVu Sans, Verdana, sans-serif" font-size="15" fill="#1f2933" font-weight="normal" font-style="normal" text-anchor="start">Mbit/s: 100-cycle half</text>
+<text x="76" y="530" font-family="DejaVu Sans, Verdana, sans-serif" font-size="15" fill="#1f2933" font-weight="normal" font-style="normal" text-anchor="start">bits</text>
+<circle cx="64" cy="555" r="3.5" fill="#2563a8"/>
+<text x="76" y="560" font-family="DejaVu Sans, Verdana, sans-serif" font-size="15" fill="#1f2933" font-weight="normal" font-style="normal" text-anchor="start">Checked: CONFIG = 0x00,</text>
+<text x="76" y="581" font-family="DejaVu Sans, Verdana, sans-serif" font-size="15" fill="#1f2933" font-weight="normal" font-style="normal" text-anchor="start">LED byte walks 0x01 to</text>
+<text x="76" y="602" font-family="DejaVu Sans, Verdana, sans-serif" font-size="15" fill="#1f2933" font-weight="normal" font-style="normal" text-anchor="start">0x80</text>
+<line x1="316" y1="445.0" x2="348" y2="445.0" stroke="#52606d" stroke-width="2.5" marker-end="url(#arr)"/>
+<rect x="352" y="135" width="272" height="620" rx="14" fill="#ffffff" stroke="#cbd2d9" stroke-width="1.5"/>
+<path d="M352,149 a14,14 0 0 1 14,-14 h244 a14,14 0 0 1 14,14 v48 h-272 z" fill="#7b4bb7"/>
+<circle cx="382" cy="166" r="16" fill="#ffffff"/>
+<text x="382" y="172" font-family="DejaVu Sans, Verdana, sans-serif" font-size="18" fill="#7b4bb7" font-weight="bold" font-style="normal" text-anchor="middle">2</text>
+<text x="406" y="173" font-family="DejaVu Sans, Verdana, sans-serif" font-size="19" fill="#ffffff" font-weight="bold" font-style="normal" text-anchor="start">Port to open-pru</text>
+<rect x="366" y="207" width="244" height="106" rx="8" fill="#7b4bb7" fill-opacity="0.08"/>
+<rect x="366" y="207" width="4" height="106" fill="#7b4bb7"/>
+<text x="378" y="223" font-family="DejaVu Sans, Verdana, sans-serif" font-size="11" fill="#7b4bb7" font-weight="bold" font-style="normal" text-anchor="start">Prompt</text>
+<text x="378" y="241" font-family="DejaVu Sans, Verdana, sans-serif" font-size="15" fill="#1f2933" font-weight="normal" font-style="italic" text-anchor="start">“Move the project … to</text>
+<text x="378" y="263" font-family="DejaVu Sans, Verdana, sans-serif" font-size="15" fill="#1f2933" font-weight="normal" font-style="italic" text-anchor="start">open-pru … It should run on</text>
+<text x="378" y="285" font-family="DejaVu Sans, Verdana, sans-serif" font-size="15" fill="#1f2933" font-weight="normal" font-style="italic" text-anchor="start">real target AM243 LP using</text>
+<text x="378" y="307" font-family="DejaVu Sans, Verdana, sans-serif" font-size="15" fill="#1f2933" font-weight="normal" font-style="italic" text-anchor="start">CCS.”</text>
+<text x="370" y="351" font-family="DejaVu Sans, Verdana, sans-serif" font-size="17" fill="#1f2933" font-weight="bold" font-style="normal" text-anchor="start">MCU+ SDK project for</text>
+<text x="370" y="374" font-family="DejaVu Sans, Verdana, sans-serif" font-size="17" fill="#1f2933" font-weight="bold" font-style="normal" text-anchor="start">AM243x LP</text>
+<circle cx="376" cy="402" r="3.5" fill="#7b4bb7"/>
+<text x="388" y="407" font-family="DejaVu Sans Mono, monospace" font-size="14" fill="#1f2933" font-weight="normal" font-style="normal" text-anchor="start">electronica2026/</text>
+<text x="388" y="428" font-family="DejaVu Sans Mono, monospace" font-size="14" fill="#1f2933" font-weight="normal" font-style="normal" text-anchor="start">i2c_io_expander/i2c_io</text>
+<circle cx="376" cy="453" r="3.5" fill="#7b4bb7"/>
+<text x="388" y="458" font-family="DejaVu Sans, Verdana, sans-serif" font-size="15" fill="#1f2933" font-weight="normal" font-style="normal" text-anchor="start">R5F FreeRTOS loads ICSSG0</text>
+<text x="388" y="479" font-family="DejaVu Sans, Verdana, sans-serif" font-size="15" fill="#1f2933" font-weight="normal" font-style="normal" text-anchor="start">PRU0 only</text>
+<circle cx="376" cy="504" r="3.5" fill="#7b4bb7"/>
+<text x="388" y="509" font-family="DejaVu Sans, Verdana, sans-serif" font-size="15" fill="#1f2933" font-weight="normal" font-style="normal" text-anchor="start">SysConfig: PRU 200 MHz,</text>
+<text x="388" y="530" font-family="DejaVu Sans, Verdana, sans-serif" font-size="15" fill="#1f2933" font-weight="normal" font-style="normal" text-anchor="start">GPO0 = SCL, GPO1 = SDA</text>
+<circle cx="376" cy="555" r="3.5" fill="#7b4bb7"/>
+<text x="388" y="560" font-family="DejaVu Sans, Verdana, sans-serif" font-size="15" fill="#1f2933" font-weight="normal" font-style="normal" text-anchor="start">Silicon change: push-pull</text>
+<text x="388" y="581" font-family="DejaVu Sans, Verdana, sans-serif" font-size="15" fill="#1f2933" font-weight="normal" font-style="normal" text-anchor="start">SDA, ACK not sampled</text>
+<circle cx="376" cy="606" r="3.5" fill="#7b4bb7"/>
+<text x="388" y="611" font-family="DejaVu Sans, Verdana, sans-serif" font-size="15" fill="#1f2933" font-weight="normal" font-style="normal" text-anchor="start">671 of 671 SCL edges</text>
+<text x="388" y="632" font-family="DejaVu Sans, Verdana, sans-serif" font-size="15" fill="#1f2933" font-weight="normal" font-style="normal" text-anchor="start">identical to the simulator</text>
+<line x1="628" y1="445.0" x2="660" y2="445.0" stroke="#52606d" stroke-width="2.5" marker-end="url(#arr)"/>
+<rect x="664" y="135" width="272" height="620" rx="14" fill="#ffffff" stroke="#cbd2d9" stroke-width="1.5"/>
+<path d="M664,149 a14,14 0 0 1 14,-14 h244 a14,14 0 0 1 14,14 v48 h-272 z" fill="#c2410c"/>
+<circle cx="694" cy="166" r="16" fill="#ffffff"/>
+<text x="694" y="172" font-family="DejaVu Sans, Verdana, sans-serif" font-size="18" fill="#c2410c" font-weight="bold" font-style="normal" text-anchor="middle">3</text>
+<text x="718" y="173" font-family="DejaVu Sans, Verdana, sans-serif" font-size="19" fill="#ffffff" font-weight="bold" font-style="normal" text-anchor="start">Run on LP-AM243</text>
+<rect x="678" y="207" width="244" height="62" rx="8" fill="#c2410c" fill-opacity="0.08"/>
+<rect x="678" y="207" width="4" height="62" fill="#c2410c"/>
+<text x="690" y="223" font-family="DejaVu Sans, Verdana, sans-serif" font-size="11" fill="#c2410c" font-weight="bold" font-style="normal" text-anchor="start">Prompt</text>
+<text x="690" y="241" font-family="DejaVu Sans, Verdana, sans-serif" font-size="15" fill="#1f2933" font-weight="normal" font-style="italic" text-anchor="start">“option 2, add 100 ms</text>
+<text x="690" y="263" font-family="DejaVu Sans, Verdana, sans-serif" font-size="15" fill="#1f2933" font-weight="normal" font-style="italic" text-anchor="start">pause”</text>
+<text x="682" y="307" font-family="DejaVu Sans, Verdana, sans-serif" font-size="17" fill="#1f2933" font-weight="bold" font-style="normal" text-anchor="start">Built and loaded from</text>
+<text x="682" y="330" font-family="DejaVu Sans, Verdana, sans-serif" font-size="17" fill="#1f2933" font-weight="bold" font-style="normal" text-anchor="start">CCS 21</text>
+<circle cx="688" cy="358" r="3.5" fill="#c2410c"/>
+<text x="700" y="363" font-family="DejaVu Sans, Verdana, sans-serif" font-size="15" fill="#1f2933" font-weight="normal" font-style="normal" text-anchor="start">SCL on BoosterPack pin 33,</text>
+<text x="700" y="384" font-family="DejaVu Sans, Verdana, sans-serif" font-size="15" fill="#1f2933" font-weight="normal" font-style="normal" text-anchor="start">SDA on pin 32</text>
+<circle cx="688" cy="409" r="3.5" fill="#c2410c"/>
+<text x="700" y="414" font-family="DejaVu Sans, Verdana, sans-serif" font-size="15" fill="#1f2933" font-weight="normal" font-style="normal" text-anchor="start">100 ms idle after each LED</text>
+<text x="700" y="435" font-family="DejaVu Sans, Verdana, sans-serif" font-size="15" fill="#1f2933" font-weight="normal" font-style="normal" text-anchor="start">write</text>
+<circle cx="688" cy="460" r="3.5" fill="#c2410c"/>
+<text x="700" y="465" font-family="DejaVu Sans, Verdana, sans-serif" font-size="15" fill="#1f2933" font-weight="normal" font-style="normal" text-anchor="start">Running light visible, one</text>
+<text x="700" y="486" font-family="DejaVu Sans, Verdana, sans-serif" font-size="15" fill="#1f2933" font-weight="normal" font-style="normal" text-anchor="start">frame per scope capture</text>
+<circle cx="688" cy="511" r="3.5" fill="#c2410c"/>
+<text x="700" y="516" font-family="DejaVu Sans, Verdana, sans-serif" font-size="15" fill="#1f2933" font-weight="normal" font-style="normal" text-anchor="start">Simulated step: 100.03 ms</text>
+<line x1="940" y1="445.0" x2="972" y2="445.0" stroke="#52606d" stroke-width="2.5" marker-end="url(#arr)"/>
+<rect x="976" y="135" width="272" height="620" rx="14" fill="#ffffff" stroke="#cbd2d9" stroke-width="1.5"/>
+<path d="M976,149 a14,14 0 0 1 14,-14 h244 a14,14 0 0 1 14,14 v48 h-272 z" fill="#0f766e"/>
+<circle cx="1006" cy="166" r="16" fill="#ffffff"/>
+<text x="1006" y="172" font-family="DejaVu Sans, Verdana, sans-serif" font-size="18" fill="#0f766e" font-weight="bold" font-style="normal" text-anchor="middle">4</text>
+<text x="1030" y="173" font-family="DejaVu Sans, Verdana, sans-serif" font-size="19" fill="#ffffff" font-weight="bold" font-style="normal" text-anchor="start">Trace with scope</text>
+<rect x="990" y="207" width="244" height="84" rx="8" fill="#0f766e" fill-opacity="0.08"/>
+<rect x="990" y="207" width="4" height="84" fill="#0f766e"/>
+<text x="1002" y="223" font-family="DejaVu Sans, Verdana, sans-serif" font-size="11" fill="#0f766e" font-weight="bold" font-style="normal" text-anchor="start">Prompt</text>
+<text x="1002" y="241" font-family="DejaVu Sans, Verdana, sans-serif" font-size="15" fill="#1f2933" font-weight="normal" font-style="italic" text-anchor="start">“I am only using a pico-</text>
+<text x="1002" y="263" font-family="DejaVu Sans, Verdana, sans-serif" font-size="15" fill="#1f2933" font-weight="normal" font-style="italic" text-anchor="start">scope to show the I2C at 1</text>
+<text x="1002" y="285" font-family="DejaVu Sans, Verdana, sans-serif" font-size="15" fill="#1f2933" font-weight="normal" font-style="italic" text-anchor="start">MHz.”</text>
+<text x="994" y="329" font-family="DejaVu Sans, Verdana, sans-serif" font-size="17" fill="#1f2933" font-weight="bold" font-style="normal" text-anchor="start">PicoScope 3416E MSO on</text>
+<text x="994" y="352" font-family="DejaVu Sans, Verdana, sans-serif" font-size="17" fill="#1f2933" font-weight="bold" font-style="normal" text-anchor="start">USB 3</text>
+<circle cx="1000" cy="380" r="3.5" fill="#0f766e"/>
+<text x="1012" y="385" font-family="DejaVu Sans, Verdana, sans-serif" font-size="15" fill="#1f2933" font-weight="normal" font-style="normal" text-anchor="start">Digital inputs: D0 = SCL,</text>
+<text x="1012" y="406" font-family="DejaVu Sans, Verdana, sans-serif" font-size="15" fill="#1f2933" font-weight="normal" font-style="normal" text-anchor="start">D1 = SDA</text>
+<circle cx="1000" cy="431" r="3.5" fill="#0f766e"/>
+<text x="1012" y="436" font-family="DejaVu Sans, Verdana, sans-serif" font-size="15" fill="#1f2933" font-weight="normal" font-style="normal" text-anchor="start">PicoScope 7 I2C decoder,</text>
+<text x="1012" y="457" font-family="DejaVu Sans, Verdana, sans-serif" font-size="15" fill="#1f2933" font-weight="normal" font-style="normal" text-anchor="start">Fast-mode Plus</text>
+<circle cx="1000" cy="482" r="3.5" fill="#0f766e"/>
+<text x="1012" y="487" font-family="DejaVu Sans, Verdana, sans-serif" font-size="15" fill="#1f2933" font-weight="normal" font-style="normal" text-anchor="start">Pulse-width trigger on the</text>
+<text x="1012" y="508" font-family="DejaVu Sans, Verdana, sans-serif" font-size="15" fill="#1f2933" font-weight="normal" font-style="normal" text-anchor="start">idle bus</text>
+<circle cx="1000" cy="533" r="3.5" fill="#0f766e"/>
+<text x="1012" y="538" font-family="DejaVu Sans, Verdana, sans-serif" font-size="15" fill="#1f2933" font-weight="normal" font-style="normal" text-anchor="start">Built-in MCP server (beta)</text>
+<text x="1012" y="559" font-family="DejaVu Sans, Verdana, sans-serif" font-size="15" fill="#1f2933" font-weight="normal" font-style="normal" text-anchor="start">on localhost</text>
+<line x1="1252" y1="445.0" x2="1284" y2="445.0" stroke="#52606d" stroke-width="2.5" marker-end="url(#arr)"/>
+<rect x="1288" y="135" width="272" height="620" rx="14" fill="#ffffff" stroke="#cbd2d9" stroke-width="1.5"/>
+<path d="M1288,149 a14,14 0 0 1 14,-14 h244 a14,14 0 0 1 14,14 v48 h-272 z" fill="#b91c1c"/>
+<circle cx="1318" cy="166" r="16" fill="#ffffff"/>
+<text x="1318" y="172" font-family="DejaVu Sans, Verdana, sans-serif" font-size="18" fill="#b91c1c" font-weight="bold" font-style="normal" text-anchor="middle">5</text>
+<text x="1342" y="173" font-family="DejaVu Sans, Verdana, sans-serif" font-size="19" fill="#ffffff" font-weight="bold" font-style="normal" text-anchor="start">Visualize in Rust</text>
+<rect x="1302" y="207" width="244" height="62" rx="8" fill="#b91c1c" fill-opacity="0.08"/>
+<rect x="1302" y="207" width="4" height="62" fill="#b91c1c"/>
+<text x="1314" y="223" font-family="DejaVu Sans, Verdana, sans-serif" font-size="11" fill="#b91c1c" font-weight="bold" font-style="normal" text-anchor="start">Prompt</text>
+<text x="1314" y="241" font-family="DejaVu Sans, Verdana, sans-serif" font-size="15" fill="#1f2933" font-weight="normal" font-style="italic" text-anchor="start">“Would like to use RUST for</text>
+<text x="1314" y="263" font-family="DejaVu Sans, Verdana, sans-serif" font-size="15" fill="#1f2933" font-weight="normal" font-style="italic" text-anchor="start">this if possible.”</text>
+<text x="1306" y="307" font-family="DejaVu Sans, Verdana, sans-serif" font-size="17" fill="#1f2933" font-weight="bold" font-style="normal" text-anchor="start">LED window next to</text>
+<text x="1306" y="330" font-family="DejaVu Sans, Verdana, sans-serif" font-size="17" fill="#1f2933" font-weight="bold" font-style="normal" text-anchor="start">PicoScope 7</text>
+<circle cx="1312" cy="358" r="3.5" fill="#b91c1c"/>
+<text x="1324" y="363" font-family="DejaVu Sans Mono, monospace" font-size="14" fill="#1f2933" font-weight="normal" font-style="normal" text-anchor="start">electronica2026/</text>
+<text x="1324" y="384" font-family="DejaVu Sans Mono, monospace" font-size="14" fill="#1f2933" font-weight="normal" font-style="normal" text-anchor="start">i2c_io_expander/</text>
+<text x="1324" y="405" font-family="DejaVu Sans Mono, monospace" font-size="14" fill="#1f2933" font-weight="normal" font-style="normal" text-anchor="start">visualizer</text>
+<circle cx="1312" cy="430" r="3.5" fill="#b91c1c"/>
+<text x="1324" y="435" font-family="DejaVu Sans, Verdana, sans-serif" font-size="15" fill="#1f2933" font-weight="normal" font-style="normal" text-anchor="start">Reads the decode via MCP</text>
+<text x="1324" y="456" font-family="DejaVu Sans, Verdana, sans-serif" font-size="15" fill="#1f2933" font-weight="normal" font-style="normal" text-anchor="start">every 50 ms</text>
+<circle cx="1312" cy="481" r="3.5" fill="#b91c1c"/>
+<text x="1324" y="486" font-family="DejaVu Sans, Verdana, sans-serif" font-size="15" fill="#1f2933" font-weight="normal" font-style="normal" text-anchor="start">Draws the TCA9538 board</text>
+<text x="1324" y="507" font-family="DejaVu Sans, Verdana, sans-serif" font-size="15" fill="#1f2933" font-weight="normal" font-style="normal" text-anchor="start">with 8 LEDs</text>
+<circle cx="1312" cy="532" r="3.5" fill="#b91c1c"/>
+<text x="1324" y="537" font-family="DejaVu Sans, Verdana, sans-serif" font-size="15" fill="#1f2933" font-weight="normal" font-style="normal" text-anchor="start">Keeps up with the scope</text>
+<text x="1324" y="558" font-family="DejaVu Sans, Verdana, sans-serif" font-size="15" fill="#1f2933" font-weight="normal" font-style="normal" text-anchor="start">screen</text>
+<circle cx="1312" cy="583" r="3.5" fill="#b91c1c"/>
+<text x="1324" y="588" font-family="DejaVu Sans, Verdana, sans-serif" font-size="15" fill="#1f2933" font-weight="normal" font-style="normal" text-anchor="start">46 tests, design, plan and</text>
+<text x="1324" y="609" font-family="DejaVu Sans, Verdana, sans-serif" font-size="15" fill="#1f2933" font-weight="normal" font-style="normal" text-anchor="start">final review</text>
+<rect x="1304" y="663" width="240" height="74" rx="8" fill="#0b4d2c" stroke="#0e6b3c" stroke-width="2"/>
+<circle cx="1319.0" cy="693" r="10" fill="#3a1010" stroke="#552222" stroke-width="1.5"/>
+<text x="1319.0" y="725" font-family="DejaVu Sans Mono, monospace" font-size="11" fill="#b8d8c4" font-weight="normal" font-style="normal" text-anchor="middle">P0</text>
+<circle cx="1349.0" cy="693" r="10" fill="#3a1010" stroke="#552222" stroke-width="1.5"/>
+<text x="1349.0" y="725" font-family="DejaVu Sans Mono, monospace" font-size="11" fill="#b8d8c4" font-weight="normal" font-style="normal" text-anchor="middle">P1</text>
+<circle cx="1379.0" cy="693" r="10" fill="#3a1010" stroke="#552222" stroke-width="1.5"/>
+<text x="1379.0" y="725" font-family="DejaVu Sans Mono, monospace" font-size="11" fill="#b8d8c4" font-weight="normal" font-style="normal" text-anchor="middle">P2</text>
+<circle cx="1409.0" cy="693" r="20" fill="url(#glow)"/>
+<circle cx="1409.0" cy="693" r="10" fill="#ff3b3b" stroke="#ff8888" stroke-width="1.5"/>
+<text x="1409.0" y="725" font-family="DejaVu Sans Mono, monospace" font-size="11" fill="#b8d8c4" font-weight="normal" font-style="normal" text-anchor="middle">P3</text>
+<circle cx="1439.0" cy="693" r="10" fill="#3a1010" stroke="#552222" stroke-width="1.5"/>
+<text x="1439.0" y="725" font-family="DejaVu Sans Mono, monospace" font-size="11" fill="#b8d8c4" font-weight="normal" font-style="normal" text-anchor="middle">P4</text>
+<circle cx="1469.0" cy="693" r="10" fill="#3a1010" stroke="#552222" stroke-width="1.5"/>
+<text x="1469.0" y="725" font-family="DejaVu Sans Mono, monospace" font-size="11" fill="#b8d8c4" font-weight="normal" font-style="normal" text-anchor="middle">P5</text>
+<circle cx="1499.0" cy="693" r="10" fill="#3a1010" stroke="#552222" stroke-width="1.5"/>
+<text x="1499.0" y="725" font-family="DejaVu Sans Mono, monospace" font-size="11" fill="#b8d8c4" font-weight="normal" font-style="normal" text-anchor="middle">P6</text>
+<circle cx="1529.0" cy="693" r="10" fill="#3a1010" stroke="#552222" stroke-width="1.5"/>
+<text x="1529.0" y="725" font-family="DejaVu Sans Mono, monospace" font-size="11" fill="#b8d8c4" font-weight="normal" font-style="normal" text-anchor="middle">P7</text>
+<rect x="56" y="663" width="240" height="74" rx="8" fill="#0f172a"/>
+<text x="66" y="685" font-family="DejaVu Sans Mono, monospace" font-size="11" fill="#93c5fd" font-weight="normal" font-style="normal" text-anchor="start">SCL</text>
+<text x="66" y="719" font-family="DejaVu Sans Mono, monospace" font-size="11" fill="#fcd34d" font-weight="normal" font-style="normal" text-anchor="start">SDA</text>
+<path d="M98,677 L98.0,677 L108.44444444444444,677 L108.44444444444444,693 L118.88888888888889,693 L118.88888888888889,677 L129.33333333333334,677 L129.33333333333334,693 L139.77777777777777,693 L139.77777777777777,677 L150.22222222222223,677 L150.22222222222223,693 L160.66666666666669,693 L160.66666666666669,677 L171.11111111111111,677 L171.11111111111111,693 L181.55555555555554,693 L181.55555555555554,677 L192.0,677 L192.0,693 L202.44444444444446,693 L202.44444444444446,677 L212.88888888888889,677 L212.88888888888889,693 L223.33333333333334,693 L223.33333333333334,677 L233.77777777777777,677 L233.77777777777777,693 L244.22222222222223,693 L244.22222222222223,677 L254.66666666666666,677 L254.66666666666666,693 L265.1111111111111,693 L265.1111111111111,677 L275.55555555555554,677 L275.55555555555554,693 L286.0,693" fill="none" stroke="#93c5fd" stroke-width="2"/>
+<path d="M98.0,711 L118.88888888888889,711 L118.88888888888889,727 L139.77777777777777,727 L139.77777777777777,727 L160.66666666666669,727 L160.66666666666669,727 L181.55555555555554,727 L181.55555555555554,711 L202.44444444444446,711 L202.44444444444446,711 L223.33333333333334,711 L223.33333333333334,727 L244.22222222222223,727 L244.22222222222223,711 L265.1111111111111,711 L265.1111111111111,727 L286.0,727" fill="none" stroke="#fcd34d" stroke-width="2"/>
+<rect x="368" y="663" width="240" height="74" rx="8" fill="#0f172a"/>
+<text x="380" y="684" font-family="DejaVu Sans Mono, monospace" font-size="12" fill="#c4b5fd" font-weight="normal" font-style="normal" text-anchor="start">ICSSG0 PRU0</text>
+<text x="492" y="684" font-family="DejaVu Sans Mono, monospace" font-size="12" fill="#e5e7eb" font-weight="normal" font-style="normal" text-anchor="start">200 MHz</text>
+<text x="380" y="704" font-family="DejaVu Sans Mono, monospace" font-size="12" fill="#c4b5fd" font-weight="normal" font-style="normal" text-anchor="start">GPO0</text>
+<text x="492" y="704" font-family="DejaVu Sans Mono, monospace" font-size="12" fill="#e5e7eb" font-weight="normal" font-style="normal" text-anchor="start">SCL  BP 33</text>
+<text x="380" y="724" font-family="DejaVu Sans Mono, monospace" font-size="12" fill="#c4b5fd" font-weight="normal" font-style="normal" text-anchor="start">GPO1</text>
+<text x="492" y="724" font-family="DejaVu Sans Mono, monospace" font-size="12" fill="#e5e7eb" font-weight="normal" font-style="normal" text-anchor="start">SDA  BP 32</text>
+<rect x="680" y="663" width="240" height="74" rx="8" fill="#0f172a"/>
+<text x="692" y="685" font-family="DejaVu Sans Mono, monospace" font-size="11" fill="#fdba74" font-weight="normal" font-style="normal" text-anchor="start">frame</text>
+<text x="784" y="685" font-family="DejaVu Sans Mono, monospace" font-size="11" fill="#9ca3af" font-weight="normal" font-style="normal" text-anchor="start">idle 100 ms</text>
+<rect x="692" y="695" width="40" height="22" fill="#fb923c"/>
+<line x1="732" y1="706" x2="896" y2="706" stroke="#9ca3af" stroke-width="2" stroke-dasharray="4 4"/>
+<rect x="896" y="695" width="10" height="22" fill="#fb923c"/>
+<text x="692" y="731" font-family="DejaVu Sans Mono, monospace" font-size="11" fill="#fdba74" font-weight="normal" font-style="normal" text-anchor="start">29 µs</text>
+<rect x="992" y="663" width="240" height="74" rx="8" fill="#0f172a"/>
+<text x="1004" y="685" font-family="DejaVu Sans Mono, monospace" font-size="11" fill="#5eead4" font-weight="normal" font-style="normal" text-anchor="start">I2C decode</text>
+<rect x="1004" y="697" width="18" height="24" rx="4" fill="#134e4a" stroke="#5eead4"/>
+<text x="1013.0" y="714" font-family="DejaVu Sans Mono, monospace" font-size="12" fill="#ccfbf1" font-weight="normal" font-style="normal" text-anchor="middle">S</text>
+<rect x="1028" y="697" width="50" height="24" rx="4" fill="#134e4a" stroke="#5eead4"/>
+<text x="1053.0" y="714" font-family="DejaVu Sans Mono, monospace" font-size="12" fill="#ccfbf1" font-weight="normal" font-style="normal" text-anchor="middle">23 W</text>
+<rect x="1084" y="697" width="32" height="24" rx="4" fill="#134e4a" stroke="#5eead4"/>
+<text x="1100.0" y="714" font-family="DejaVu Sans Mono, monospace" font-size="12" fill="#ccfbf1" font-weight="normal" font-style="normal" text-anchor="middle">01</text>
+<rect x="1122" y="697" width="32" height="24" rx="4" fill="#134e4a" stroke="#5eead4"/>
+<text x="1138.0" y="714" font-family="DejaVu Sans Mono, monospace" font-size="12" fill="#ccfbf1" font-weight="normal" font-style="normal" text-anchor="middle">08</text>
+<rect x="1160" y="697" width="18" height="24" rx="4" fill="#134e4a" stroke="#5eead4"/>
+<text x="1169.0" y="714" font-family="DejaVu Sans Mono, monospace" font-size="12" fill="#ccfbf1" font-weight="normal" font-style="normal" text-anchor="middle">P</text>
+<rect x="40" y="795" width="1520" height="120" rx="14" fill="#ffffff" stroke="#cbd2d9" stroke-width="1.5"/>
+<text x="64" y="829" font-family="DejaVu Sans, Verdana, sans-serif" font-size="19" fill="#1f2933" font-weight="bold" font-style="normal" text-anchor="start">At the booth: data path</text>
+<rect x="64" y="847" width="210" height="46" rx="23" fill="#eef2f6" stroke="#cbd2d9"/>
+<text x="169.0" y="876" font-family="DejaVu Sans, Verdana, sans-serif" font-size="15" fill="#1f2933" font-weight="bold" font-style="normal" text-anchor="middle">ICSSG0 PRU0</text>
+<line x1="278" y1="870" x2="310" y2="870" stroke="#52606d" stroke-width="2.5" marker-end="url(#arr)"/>
+<rect x="316" y="847" width="210" height="46" rx="23" fill="#eef2f6" stroke="#cbd2d9"/>
+<text x="421.0" y="876" font-family="DejaVu Sans, Verdana, sans-serif" font-size="15" fill="#1f2933" font-weight="bold" font-style="normal" text-anchor="middle">I2C bus, 1 Mbit/s</text>
+<line x1="530" y1="870" x2="562" y2="870" stroke="#52606d" stroke-width="2.5" marker-end="url(#arr)"/>
+<rect x="568" y="847" width="210" height="46" rx="23" fill="#eef2f6" stroke="#cbd2d9"/>
+<text x="673.0" y="876" font-family="DejaVu Sans, Verdana, sans-serif" font-size="15" fill="#1f2933" font-weight="bold" font-style="normal" text-anchor="middle">PicoScope 3416E MSO</text>
+<line x1="782" y1="870" x2="814" y2="870" stroke="#52606d" stroke-width="2.5" marker-end="url(#arr)"/>
+<rect x="820" y="847" width="210" height="46" rx="23" fill="#eef2f6" stroke="#cbd2d9"/>
+<text x="925.0" y="876" font-family="DejaVu Sans, Verdana, sans-serif" font-size="15" fill="#1f2933" font-weight="bold" font-style="normal" text-anchor="middle">PicoScope 7 decode</text>
+<line x1="1034" y1="870" x2="1066" y2="870" stroke="#52606d" stroke-width="2.5" marker-end="url(#arr)"/>
+<rect x="1072" y="847" width="210" height="46" rx="23" fill="#eef2f6" stroke="#cbd2d9"/>
+<text x="1177.0" y="876" font-family="DejaVu Sans, Verdana, sans-serif" font-size="15" fill="#1f2933" font-weight="bold" font-style="normal" text-anchor="middle">MCP on localhost</text>
+<line x1="1286" y1="870" x2="1318" y2="870" stroke="#52606d" stroke-width="2.5" marker-end="url(#arr)"/>
+<rect x="1324" y="847" width="210" height="46" rx="23" fill="#eef2f6" stroke="#cbd2d9"/>
+<text x="1429.0" y="876" font-family="DejaVu Sans, Verdana, sans-serif" font-size="15" fill="#1f2933" font-weight="bold" font-style="normal" text-anchor="middle">Rust LED window</text>
+<text x="40" y="952" font-family="DejaVu Sans, Verdana, sans-serif" font-size="14" fill="#52606d" font-weight="normal" font-style="normal" text-anchor="start">Built with Claude Code (Claude Opus 5.5): pru-assembly skill for lint, build and simulation; design → plan → test-first build for the Rust app. Steps 2-5: 2026-11-02.</text>
+</svg>
