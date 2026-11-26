@@ -176,19 +176,27 @@ pru_i2s/
 │   │       └── am263x-cc/
 │   ├── tdm4/                   # TDM4 protocol (parallel structure)
 │   ├── am261x-lp/              # Generated firmware array headers for AM261x (build output)
-│   │   └── pru_i2s_pru0/1_array.h, pru_i2s_tdm4_pru0/1_array.h
+│   │   ├── pru_i2s_pru0_array.h, pru_i2s_pru1_array.h
+│   │   └── pru_i2s_tdm4_pru0_array.h, pru_i2s_tdm4_pru1_array.h
 │   └── am263x-cc/              # Generated firmware array headers for AM263x (build output)
-│       └── pru_i2s_pru0/1_array.h, pru_i2s_tdm4_pru0/1_array.h
+│       └── (same files as am261x-lp)
 ├── pru_i2s_app/                 # R5F host application
 │   ├── board/                  # Board support files
 │   │   ├── ioexp_tca6416.c    # IO expander driver
 │   │   └── ioexp_tca6416.h
 │   ├── pru_i2s_diagnostic.c    # Main application
+│   ├── pru_i2s_app_config.c/.h # Application configuration (PRUI2S_applyAppConfig)
 │   ├── data.h                  # Test data
 │   ├── am261x-lp/r5fss0-0_freertos/
 │   └── am263x-cc/r5fss0-0_freertos/
 ├── lib/                         # Driver library (build output of make libs, not checked in)
 └── images/                      # Documentation images
+
+source/i2s/                      # I2S driver library source, outside of this example
+├── pru_i2s_drv.c/.h            # Driver
+├── pru_i2s_config.h            # Driver configuration
+├── icss_pru_i2s_fw.h           # Firmware register layout shared with the PRU firmware
+└── makefile                    # Builds the library, run through make libs in this example
 ```
 
 ---
@@ -201,20 +209,27 @@ pru_i2s/
 - Set `DEVICE` environment variable in `imports.mak`
 - Ensure CCS utils are in PATH (for gmake on Windows)
 
-**Build the driver library, then the firmware and application:**
+**Build the driver library first, then the firmware and application.**
+Run both commands for the device you are building for, in this order:
 ```bash
 cd examples/pru_i2s
-make DEVICE=am261x libs   # Build the driver library for AM261x
-make DEVICE=am261x        # Build the firmware and application for AM261x
-make DEVICE=am263x libs   # Build the driver library for AM263x
-make DEVICE=am263x        # Build the firmware and application for AM263x
+
+# AM261x
+make DEVICE=am261x libs   # 1. Build the driver library
+make DEVICE=am261x        # 2. Build the firmware and application
+
+# AM263x
+make DEVICE=am263x libs   # 1. Build the driver library
+make DEVICE=am263x        # 2. Build the firmware and application
 ```
 
-The driver library is built separately from the application. The application
-only links the existing library, and stops with an error if the library is
-missing. Run `make libs` first on a fresh clone, and again after any change to
-the driver source in `source/i2s/`. Library files are not checked in. Building
-from the root of the repository with `make` also builds the library first.
+The driver library is built separately from the application. `make` in this
+directory does **not** build the library. The application only links the
+existing library, and stops with an error if the library is missing. Run
+`make libs` first on a fresh clone, and again after any change to the driver
+source in `source/i2s/`. Library files are not checked in. Running `make` from
+the root of the repository builds the library first, so the two steps are not
+needed there.
 
 Use `make libs PROFILE=debug` to build the debug library for a debug build of the
 application. The default is `release`, set `PROFILE` in `imports.mak`.
@@ -311,17 +326,20 @@ The R5F application uses SysConfig to configure PRUICSS:
 
 **Initialization:**
 ```c
+PRUICSS_intcInit()            // Initialize the PRU-ICSS INTC (MCU+ SDK, called by the application before PRUI2S_init)
 PRUI2S_init()                 // Read firmware config, update driver tables
 PRUI2S_getInitCfg()          // Get buffer sizes, sampling freq, slot width
 PRUI2S_paramsInit()          // Set default parameters
-PRUI2S_open()                // Clear IMEM/DMEM, init INTC, download firmware
-PRUI2S_pruGpioPadConfig()    // Configure I2S signal pins
-PRUI2S_initPpBufs()          // Initialize ping-pong buffers
+PRUI2S_open()                // Clear IMEM/DMEM, download firmware, initialize the ping-pong buffers
 ```
+
+The I2S signal pins are configured by SysConfig, the driver does not configure them.
+The driver library (`source/i2s/`) does not contain the application configuration
+(`PRUI2S_applyAppConfig()`). It is part of the example, in
+`pru_i2s_app/pru_i2s_app_config.c`.
 
 **Interrupt Management:**
 ```c
-PRUICSS_intcSetSysEvtChMap() // Map system events to channels
 PRUI2S_enableInt()           // Enable TX/RX interrupts
 PRUI2S_disableInt()          // Disable interrupts
 PRUI2S_clearInt()            // Clear interrupt flags
