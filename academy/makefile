@@ -6,7 +6,7 @@ SUBDIRS := \
     gpio/gpio_toggle \
     gpio/gpio_toggle_c \
     intc/intc_mcu \
-    mac/mac mac/mac_multiply mac/mac_c \
+    mac/mac mac/mac_multiply mac/mac_c mac/mac_throughput \
     uart/uart_loopback
 
 # "make" or "make all" builds projects that match $(DEVICE) set in imports.mak
