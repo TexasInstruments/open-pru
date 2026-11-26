@@ -1,0 +1,105 @@
+# pdm-eth: PC application of pdm_audio_eth
+
+Talks raw Ethernet (EtherType 0x88B5) to the LP-AM243 running
+[pdm_audio_eth](../pdm_audio_eth/readme.md): Ethernet test, live
+spectrograms of the board's 8-channel PDM round trip, streaming WAV files in,
+capturing WAV files out. Linux only (AF_PACKET).
+
+## Build
+
+```
+cargo build --release
+sudo setcap cap_net_raw,cap_net_admin+ep target/release/pdm-eth   # after every build
+sudo nmcli device set enp129s0 managed no                          # once
+cargo test                                                          # no board needed
+```
+
+Every command takes `--iface IFACE` (default `enp129s0`) or `--emulator`, an
+in-process board model with the same frames, for work without the board.
+
+## Commands
+
+| Command | What it does |
+| ------- | ------------ |
+| `pdm-eth test [--pings N] [--seconds S]` | link speed/duplex, ping-pong RTT (min/mean/p99/max) and the board's turnaround, throughput both ways; one PASS/FAIL line per step |
+| `pdm-eth capture --seconds S --out DIR` | board output to `DIR/out_ch0..7.wav` (16 kHz, 24-bit), loss and board counters |
+| `pdm-eth stream --ch0 a.wav ... --ch7 h.wav [--set] [--capture DIR] [--export-shm NAME] [--lead 8000]` | streams the files (any rate, converted to 16 kHz mono, peak 0.5 FS), stops at the end of the longest; `--set` loads them as one capture set (one gain, see below); `--capture` writes `in_ch*.wav` and `out_ch*.wav`; `--export-shm` writes aligned blocks to the processing seam (below), from the first sent frame on, and prints the lag and the board latency |
+| `pdm-eth gui [--ch0 a.wav ...] [--set] [--export-shm NAME]` | the booth window (layout C): one channel large, input above output and their dB difference, live numbers on the right; each file loops on its own length, channels without a file play their booth clip |
+| `pdm-eth gui --playlist DIR [--transcribe BIN] [--transcript-log FILE]` | booth transcripts: every subfolder of `DIR` with `mic1..8.wav` is a scene (one capture set), played in name order with 1 s of silence after each, looped; `--transcribe` runs `BIN live` (`pctools/audio_pipe`) on the board output (a 4 s `/dev/shm/pdm-eth-<pid>` ring) and draws each talker's final text in a lane under the spectrograms; `--transcript-log` appends the text and pass-start lines (JSON) for `tools/booth_curate.py`. `--screenshot-after S` sets the screenshot time |
+| `pdm-eth gui --scene PATH`, `--ui-scale F`, `--listen chN\|azD` | `--scene`: one Scene Simulator scene (its zip, or a folder with `mic1..8.wav` flat or under `mics/`) looped like a one-scene playlist (also "open scene…" in the side panel while a playlist runs). `--ui-scale` / `PDM_UI_SCALE`: window zoom (0.5-4). `--listen`: start with a channel's board output (`ch3`) or the talker nearest a direction (`az30`, needs `--transcribe`) on the PC's audio output; the speaker icons in the top bar and the lane labels change it. `PDM_PLAYER`: the player command (default `aplay`, raw 16 kHz mono S16_LE on stdin) |
+
+**Custom audio per channel:** the "Sources" table at the top of the side
+panel has one selector per channel: *booth clip* (the board's own clip of
+that channel), *speech*, *music*, *speech + music* (the example files in
+`audio/`, compiled in; origin and licence in `audio/SOURCES.md`), *silence*,
+or *open WAV file...* (the desktop's file dialog; any rate, stereo mixed
+down, scaled to 0.5 FS like `--chN`). The window streams from the start,
+every channel on its booth clip (this also restores the board's clip
+buffer after an earlier session); a choice plays live, without a restart,
+and the channels nobody changed play their booth clips. The IN pane names
+the channel's source. A new source starts at its first sample.
+
+**Capture sets** (synchronized multi-microphone recordings): *open capture
+set...* above the table multi-selects up to 8 mono WAV files of one sample
+rate; sorted by file name they go to ch0, ch1, ... and start on the same
+sample. The set is trimmed to its shortest file, so all channels have the
+same length and loop together, and gets one gain (its loudest sample maps
+to 0.5 FS), so the level differences between the microphones are kept. The
+side panel shows the set's length and the samples cut from each file.
+
+GUI options for documentation: `--screenshot PNG` saves the window after 5 s
+and exits; under Wayland run it with `WAYLAND_DISPLAY` unset (XWayland), since a
+hidden Wayland window draws no frames. `--no-vsync` draws without waiting for
+the display (a hidden window is otherwise throttled by the compositor to about
+1 fps; a visible window runs at the display rate).
+
+![GUI on the emulator](../pdm_audio_eth/docs/gui_emulator_loop.png)
+
+Each spectrogram has its frequency scale on the left (0 to 8 kHz, grid every
+1 kHz), its colour scale on the right (IN and OUT: -90 to 0 dB, a full-scale
+sine reads 0 dB; difference: -30 to +30 dB), and the time strip at the
+bottom runs from 10 s ago to now (8 ms per column).
+
+**`--set` on the command line** does the same for `--ch0` .. `--ch7`: the
+files share one gain and are trimmed to the shortest. Use it for
+multi-microphone recordings (beamforming, localisation); without it every
+file is scaled to 0.5 FS on its own and the level differences between the
+microphones are lost.
+
+## Side panel
+
+| Line | Meaning |
+| ---- | ------- |
+| board audio latency | RTU1 taking a sample out of the clip buffer to its AUDIO_OUT frame leaving the board, on the board's IEP clock (best case over recent frames) |
+| buffered ahead (PC) | how far the PC's input is ahead of RTU1 (target 0.5 s) |
+| frames/s in / out | AUDIO_IN (250/s) and AUDIO_OUT (500/s) |
+| input underrun / blocked / restart | RTU1 reached unsent audio / a block would have overwritten unread audio / the board restarted |
+| lost / dup / resync | AUDIO_OUT frames missing, doubled, index jumps (board reset) |
+| UNDERRUN / SD_OVF, tx_late | ICSSG0 and ICSSG1 PRU0 counters from the status block |
+| board clock | board IEP against the PC clock, ppm |
+
+## Processing seam
+
+For the later GPU projects (cepstrum, speaker separation, noise and echo
+cancellation): `src/seam.rs` has a `Stage` trait for in-process processing of
+aligned 64-frame input/output blocks, and `--export-shm NAME` writes the same
+blocks to a ring in `/dev/shm/NAME` for another process; the layout is in the
+module documentation of `src/seam.rs`. A killed `pdm-eth` leaves the file
+behind; the next start recreates it. `gui` keeps 256 blocks (1 s); `stream`
+keeps 4096 (16 s), because it also exports the frames sent before the lag
+was found (about 1.5 s), in one go. A consumer:
+`scenes/audio_pipe/tools/board_bench.py` (8 scene microphones through the
+board into the post-processing pipeline).
+
+**Channel timing:** the ICSSG0 firmware staggers the stage-2 FIR (even
+channels on decimation phase 0, odd on phase 1, `pru0_rx.asm`) and gives the
+odd channels a one-tap-shifted coefficient table, so all 8 outputs are
+time-aligned (board, the same noise on all 8 inputs: 0.000 samples, each
+channel within -82 dB of channel 1). Firmware before 2026-11-07 left the
+even channels 0.5 sample (31.25 us) behind the odd ones.
+
+## Modules
+
+`proto` frames, `link` AF_PACKET, `emulator` board model, `ethtest`, `rx`
+reconstruction and WAV capture, `wavin` WAV input, `pacing` AUDIO_IN timing,
+`latency`, `spectro`, `ui`, `seam`.

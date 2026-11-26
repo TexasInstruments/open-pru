@@ -1,0 +1,351 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 1212" width="1920" height="1212" font-family="Segoe UI, Ubuntu, Helvetica, Arial, sans-serif">
+<defs>
+<marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#2f3b4c"/></marker>
+<marker id="ad" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#8e44ad"/></marker>
+<marker id="ac" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#c0601a"/></marker>
+<style>
+.t{font-size:13px;fill:#1f2933}
+.tb{font-size:13px;fill:#1f2933;font-weight:700}
+.ts{font-size:12px;fill:#3e4c59}
+.h{font-size:14.5px;font-weight:700;fill:#fff}
+.hs{font-size:11.5px;fill:#f1f4f8}
+.bh{font-size:15px;font-weight:700;fill:#fff}
+.bs{font-size:12px;fill:#fff}
+.lab{font-size:12px;fill:#2f3b4c;font-weight:600}
+.labd{font-size:12px;fill:#8e44ad;font-weight:600}
+.labc{font-size:12px;fill:#c0601a;font-weight:600}
+.sec{font-size:19px;font-weight:700;fill:#1f2933}
+.num{font-size:13px;font-weight:700}
+</style></defs>
+<rect width="1920" height="1212" fill="#fff"/>
+<text x="46" y="44" font-size="26" font-weight="700" fill="#1f2933">PDM audio over Gigabit Ethernet: signal flow and clocks, WAV file to 8 PDM microphones and back to the GUI</text>
+<text x="46" y="72" class="ts" font-size="14">LP-AM243 Rev A, ICSSG0 + ICSSG1 at 333.33 MHz, PRU firmware only in the data path (the R5F configures and idles). Each column is one clock domain. Numbers: design.md, firmware headers, test_report.md (board run 2026-11-05).</text>
+<rect x="34" y="92" width="522" height="778" rx="12" fill="#eaf1fb" stroke="#2c6fb7" stroke-opacity="0.35"/>
+<rect x="34" y="92" width="522" height="86" rx="12" fill="#2c6fb7"/>
+<text x="48" y="118" class="bh">PC: Ubuntu 26.04, Rust pdm-eth</text>
+<text x="48" y="141" class="bs">CLOCK_MONOTONIC; display 60 Hz</text>
+<text x="48" y="160" class="bs">follows the board clock (pacer)</text>
+<rect x="566" y="92" width="256" height="778" rx="12" fill="#f4ecfa" stroke="#7d3c98" stroke-opacity="0.35"/>
+<rect x="566" y="92" width="256" height="86" rx="12" fill="#7d3c98"/>
+<text x="580" y="118" class="bh">Ethernet cable</text>
+<text x="580" y="141" class="bs">1000BASE-T FD, RGMII2</text>
+<text x="580" y="160" class="bs">125 MHz DDR = 8 ns per byte</text>
+<rect x="832" y="92" width="256" height="778" rx="12" fill="#e7f5ec" stroke="#1e7b45" stroke-opacity="0.35"/>
+<rect x="832" y="92" width="256" height="86" rx="12" fill="#1e7b45"/>
+<text x="846" y="118" class="bh">ICSSG1</text>
+<text x="846" y="141" class="bs">core 333.33 MHz (3 ns)</text>
+<text x="846" y="160" class="bs">IEP +3 per cycle = ns timestamps</text>
+<rect x="1098" y="92" width="256" height="778" rx="12" fill="#f1f2f4" stroke="#5f6b7a" stroke-opacity="0.35"/>
+<rect x="1098" y="92" width="256" height="86" rx="12" fill="#5f6b7a"/>
+<text x="1112" y="118" class="bh">Shared memory</text>
+<text x="1112" y="141" class="bs">no clock of its own:</text>
+<text x="1112" y="160" class="bs">hand-off between domains</text>
+<rect x="1364" y="92" width="522" height="778" rx="12" fill="#fdf1e4" stroke="#c0601a" stroke-opacity="0.35"/>
+<rect x="1364" y="92" width="522" height="86" rx="12" fill="#c0601a"/>
+<text x="1378" y="118" class="bh">ICSSG0: the audio sample clock</text>
+<text x="1378" y="141" class="bs">core 333.33 MHz -&gt; PDM 3.072 MHz</text>
+<text x="1378" y="160" class="bs">-&gt; 16 kHz PCM (master clock)</text>
+<rect x="46" y="196" width="232" height="300" rx="8" fill="#ffffff" stroke="#2c6fb7" stroke-width="2"/>
+<rect x="46" y="196" width="232" height="44" rx="8" fill="#2c6fb7"/><rect x="46" y="226" width="232" height="14" fill="#2c6fb7"/>
+<circle cx="63" cy="218" r="11" fill="#ffffff"/><text x="63" y="222.5" text-anchor="middle" class="num" fill="#2c6fb7">1</text>
+<text x="80" y="215" class="h">WAV sources</text>
+<text x="80" y="232" class="hs">pc_app wavin.rs, sources.rs</text>
+<text x="58" y="260" class="tb">one mono source per channel</text>
+<text x="58" y="277.5" class="t">booth clip, speech, music,</text>
+<text x="58" y="295.0" class="t">speech + music, silence, any</text>
+<text x="58" y="312.5" class="t">WAV file or a capture set</text>
+<text x="58" y="347.5" class="t">converted on load:</text>
+<text x="58" y="365.0" class="t">resample to 16 kHz, mono,</text>
+<text x="58" y="382.5" class="t">int16, peak scaled to 0.5 FS</text>
+<text x="58" y="400.0" class="t">(near full scale would wrap</text>
+<text x="58" y="417.5" class="t">the RTU1 modulators)</text>
+<text x="58" y="435.0" class="ts">each channel loops on its length</text>
+<rect x="312" y="196" width="232" height="300" rx="8" fill="#ffffff" stroke="#2c6fb7" stroke-width="2"/>
+<rect x="312" y="196" width="232" height="44" rx="8" fill="#2c6fb7"/><rect x="312" y="226" width="232" height="14" fill="#2c6fb7"/>
+<circle cx="329" cy="218" r="11" fill="#ffffff"/><text x="329" y="222.5" text-anchor="middle" class="num" fill="#2c6fb7">2</text>
+<text x="346" y="215" class="h">Pacer + AUDIO_IN TX</text>
+<text x="346" y="232" class="hs">pacing.rs, link.rs (AF_PACKET)</text>
+<text x="324" y="260" class="tb">next index = RTU1 position</text>
+<text x="324" y="277.5" class="tb">                  + 0.5 s lead</text>
+<text x="324" y="295.0" class="t">(8000 frames ahead, ring 1.024 s)</text>
+<text x="324" y="330.0" class="t">AUDIO_IN frame: 1062 B,</text>
+<text x="324" y="347.5" class="t">64 frames x 8 ch x int16 =</text>
+<text x="324" y="365.0" class="t">1024 B + target sample index</text>
+<text x="324" y="382.5" class="tb">250 frames/s = 256 KB/s</text>
+<text x="324" y="417.5" class="t">raw socket on enp129s0</text>
+<text x="324" y="435.0" class="ts">counts underrun / blocked / restart</text>
+<rect x="578" y="196" width="232" height="300" rx="8" fill="#ffffff" stroke="#7d3c98" stroke-width="2"/>
+<rect x="578" y="196" width="232" height="44" rx="8" fill="#7d3c98"/><rect x="578" y="226" width="232" height="14" fill="#7d3c98"/>
+<circle cx="595" cy="218" r="11" fill="#ffffff"/><text x="595" y="222.5" text-anchor="middle" class="num" fill="#7d3c98">3</text>
+<text x="612" y="215" class="h">PC -&gt; board</text>
+<text x="612" y="232" class="hs">raw Ethernet II, EtherType 0x88B5</text>
+<text x="590" y="260" class="t">RTL8125 (2.5 GbE, 1 GbE link)</text>
+<text x="590" y="277.5" class="t">direct cable to J18,</text>
+<text x="590" y="295.0" class="t">DP83869 PHY address 15</text>
+<text x="590" y="330.0" class="t">1062 B frame + preamble + IFG</text>
+<text x="590" y="347.5" class="tb">= about 8.7 us on the wire</text>
+<text x="590" y="365.0" class="t">every 4 ms</text>
+<text x="590" y="400.0" class="t">use: 2 Mbit/s of 1000</text>
+<text x="590" y="417.5" class="ts">(throughput test: 984 Mbit/s,</text>
+<text x="590" y="435.0" class="ts">0 lost frames)</text>
+<rect x="844" y="196" width="232" height="300" rx="8" fill="#ffffff" stroke="#1e7b45" stroke-width="2"/>
+<rect x="844" y="196" width="232" height="44" rx="8" fill="#1e7b45"/><rect x="844" y="226" width="232" height="14" fill="#1e7b45"/>
+<circle cx="861" cy="218" r="11" fill="#ffffff"/><text x="861" y="222.5" text-anchor="middle" class="num" fill="#1e7b45">4</text>
+<text x="878" y="215" class="h">ICSSG1 PRU1</text>
+<text x="878" y="232" class="hs">eth_rx.asm: receiver</text>
+<text x="856" y="260" class="t">RX_L2 FIFO, 32-byte banks:</text>
+<text x="856" y="277.5" class="tb">1 bank per 256 ns = 85 cycles</text>
+<text x="856" y="295.0" class="t">filter EtherType / board MAC</text>
+<text x="856" y="330.0" class="t">AUDIO_IN: each bank stored</text>
+<text x="856" y="347.5" class="t">while the frame arrives,</text>
+<text x="856" y="365.0" class="t">one SBBO (posted) to MSRAM</text>
+<text x="856" y="382.5" class="t">CLIP_ADDR + (idx &amp; 16383) x 16</text>
+<text x="856" y="417.5" class="t">pings: RX IEP time to PRU0</text>
+<text x="856" y="435.0" class="ts">counters -&gt; ICSSG1 shared RAM</text>
+<rect x="1110" y="196" width="232" height="300" rx="8" fill="#ffffff" stroke="#5f6b7a" stroke-width="2"/>
+<rect x="1110" y="196" width="232" height="44" rx="8" fill="#5f6b7a"/><rect x="1110" y="226" width="232" height="14" fill="#5f6b7a"/>
+<circle cx="1127" cy="218" r="11" fill="#ffffff"/><text x="1127" y="222.5" text-anchor="middle" class="num" fill="#5f6b7a">5</text>
+<text x="1144" y="215" class="h">MSRAM clip ring</text>
+<text x="1144" y="232" class="hs">0x700C0000, = PC input ring</text>
+<text x="1122" y="260" class="tb">16384 frames x 8 ch x int16</text>
+<text x="1122" y="277.5" class="tb">= 256 KB = 1.024 s</text>
+<text x="1122" y="295.0" class="t">frame = 16 B, size 2^14,</text>
+<text x="1122" y="312.5" class="t">so PRU1 wraps with an AND</text>
+<text x="1122" y="347.5" class="t">PC writes 0.5 s ahead,</text>
+<text x="1122" y="365.0" class="t">RTU1 reads behind</text>
+<text x="1122" y="400.0" class="t">pre-filled with the booth</text>
+<text x="1122" y="417.5" class="t">clips: plays without a PC</text>
+<text x="1122" y="435.0" class="ts">(no RTU1 change for the PC)</text>
+<rect x="1376" y="196" width="232" height="300" rx="8" fill="#ffffff" stroke="#c0601a" stroke-width="2"/>
+<rect x="1376" y="196" width="232" height="44" rx="8" fill="#c0601a"/><rect x="1376" y="226" width="232" height="14" fill="#c0601a"/>
+<circle cx="1393" cy="218" r="11" fill="#ffffff"/><text x="1393" y="222.5" text-anchor="middle" class="num" fill="#c0601a">6</text>
+<text x="1410" y="215" class="h">ICSSG0 RTU1</text>
+<text x="1410" y="232" class="hs">rtu1_mod.asm: 8 modulators</text>
+<text x="1388" y="260" class="tb">fetch 1 frame per 192 PDM</text>
+<text x="1388" y="277.5" class="tb">periods (16 kHz, held: ZOH)</text>
+<text x="1388" y="295.0" class="t">8 x 2nd-order sigma-delta,</text>
+<text x="1388" y="312.5" class="t">1 bit per channel per period</text>
+<text x="1388" y="347.5" class="t">batches of 28 periods</text>
+<text x="1388" y="365.0" class="t">(9.11 us, 3038 cycles) to</text>
+<text x="1388" y="382.5" class="t">IPC scratchpad XFR ID 15</text>
+<text x="1388" y="400.0" class="t">RTU1 worst case 58 % busy</text>
+<text x="1388" y="435.0" class="ts">publishes RTU1_FRAME_POS, LOOPS</text>
+<rect x="1642" y="196" width="232" height="300" rx="8" fill="#ffffff" stroke="#c0601a" stroke-width="2"/>
+<rect x="1642" y="196" width="232" height="44" rx="8" fill="#c0601a"/><rect x="1642" y="226" width="232" height="14" fill="#c0601a"/>
+<circle cx="1659" cy="218" r="11" fill="#ffffff"/><text x="1659" y="222.5" text-anchor="middle" class="num" fill="#c0601a">7</text>
+<text x="1676" y="215" class="h">ICSSG0 PRU1</text>
+<text x="1676" y="232" class="hs">pru1_pdm.asm: PDM driver</text>
+<text x="1654" y="260" class="tb">cycle-exact PDM clock</text>
+<text x="1654" y="277.5" class="tb">3.072 MHz = 108 + 73/144</text>
+<text x="1654" y="295.0" class="tb">cycles per period</text>
+<text x="1654" y="312.5" class="t">(71 x 108 + 73 x 109 per 144)</text>
+<text x="1654" y="347.5" class="t">clock on GPO0 (BP.11),</text>
+<text x="1654" y="365.0" class="t">8 data pins, 1 bit per</text>
+<text x="1654" y="382.5" class="t">channel per clock period</text>
+<text x="1654" y="417.5" class="t">takes 1 batch per 28 periods,</text>
+<text x="1654" y="435.0" class="ts">counts UNDERRUN (late batch)</text>
+<rect x="1642" y="556" width="232" height="300" rx="8" fill="#ffffff" stroke="#c0392b" stroke-width="2"/>
+<rect x="1642" y="556" width="232" height="44" rx="8" fill="#c0392b"/><rect x="1642" y="586" width="232" height="14" fill="#c0392b"/>
+<circle cx="1659" cy="578" r="11" fill="#ffffff"/><text x="1659" y="582.5" text-anchor="middle" class="num" fill="#c0392b">8</text>
+<text x="1676" y="575" class="h">8 PDM microphones</text>
+<text x="1676" y="592" class="hs">emulated: 9 jumper wires</text>
+<text x="1654" y="620" class="tb">1 clock + 8 data wires</text>
+<text x="1654" y="637.5" class="t">PRU1 GPO -&gt; PRU0 GPI</text>
+<text x="1654" y="655.0" class="t">clock GPO0 BP.11 -&gt;</text>
+<text x="1654" y="672.5" class="t">GPI16 BP.7 = SD8_CLK,</text>
+<text x="1654" y="690.0" class="t">shared by all 8 channels</text>
+<text x="1654" y="725.0" class="t">the same signals as 8 PDM</text>
+<text x="1654" y="742.5" class="t">MEMS microphones: 3.072 MHz,</text>
+<text x="1654" y="760.0" class="t">1-bit data per channel</text>
+<text x="1654" y="795.0" class="ts">real mics replace the source only</text>
+<rect x="1376" y="556" width="232" height="300" rx="8" fill="#ffffff" stroke="#c0601a" stroke-width="2"/>
+<rect x="1376" y="556" width="232" height="44" rx="8" fill="#c0601a"/><rect x="1376" y="586" width="232" height="14" fill="#c0601a"/>
+<circle cx="1393" cy="578" r="11" fill="#ffffff"/><text x="1393" y="582.5" text-anchor="middle" class="num" fill="#c0601a">9</text>
+<text x="1410" y="575" class="h">ICSSG0 PRU0</text>
+<text x="1410" y="592" class="hs">pru0_rx.asm: SD decoder</text>
+<text x="1388" y="620" class="t">8 sigma-delta channels on</text>
+<text x="1388" y="637.5" class="t">the shared SD8_CLK</text>
+<text x="1388" y="655.0" class="tb">SINC3, OSR 96 -&gt; 32 kHz</text>
+<text x="1388" y="672.5" class="tb">63-tap FIR, / 2 -&gt; 16 kHz</text>
+<text x="1388" y="690.0" class="t">20 Hz DC blocker,</text>
+<text x="1388" y="707.5" class="t">24-bit saturation in int32</text>
+<text x="1388" y="742.5" class="t">1 PCM frame = 8 ch x int32</text>
+<text x="1388" y="760.0" class="t">every 62.5 us</text>
+<text x="1388" y="777.5" class="t">8-ch worst case 39 % busy</text>
+<text x="1388" y="795.0" class="ts">counts SD_OVF</text>
+<rect x="1110" y="556" width="232" height="300" rx="8" fill="#ffffff" stroke="#5f6b7a" stroke-width="2"/>
+<rect x="1110" y="556" width="232" height="44" rx="8" fill="#5f6b7a"/><rect x="1110" y="586" width="232" height="14" fill="#5f6b7a"/>
+<circle cx="1127" cy="578" r="11" fill="#ffffff"/><text x="1127" y="582.5" text-anchor="middle" class="num" fill="#5f6b7a">10</text>
+<text x="1144" y="575" class="h">ICSSG0 shared RAM</text>
+<text x="1144" y="592" class="hs">0x30010000: header + halves</text>
+<text x="1122" y="620" class="tb">ping-pong halves A / B:</text>
+<text x="1122" y="637.5" class="tb">64 frames x 8 ch x int32</text>
+<text x="1122" y="655.0" class="tb">= 2 KB = 4 ms each</text>
+<text x="1122" y="690.0" class="t">HALF_SEQ++ when a half is</text>
+<text x="1122" y="707.5" class="t">full: 250 times per second</text>
+<text x="1122" y="742.5" class="t">header: HALF_SEQ, RTU1 pos,</text>
+<text x="1122" y="760.0" class="t">UNDERRUN, SD_OVF, PCM_COUNT</text>
+<text x="1122" y="795.0" class="ts">4 ms before a half is reused</text>
+<rect x="844" y="556" width="232" height="300" rx="8" fill="#ffffff" stroke="#1e7b45" stroke-width="2"/>
+<rect x="844" y="556" width="232" height="44" rx="8" fill="#1e7b45"/><rect x="844" y="586" width="232" height="14" fill="#1e7b45"/>
+<circle cx="861" cy="578" r="11" fill="#ffffff"/><text x="861" y="582.5" text-anchor="middle" class="num" fill="#1e7b45">11</text>
+<text x="878" y="575" class="h">ICSSG1 PRU0</text>
+<text x="878" y="592" class="hs">eth_tx.asm: transmitter</text>
+<text x="856" y="620" class="t">polls HALF_SEQ (global</text>
+<text x="856" y="637.5" class="t">0x30010018), IEP timestamp,</text>
+<text x="856" y="655.0" class="t">reads the header status</text>
+<text x="856" y="690.0" class="t">copies 2 x 1 KB in 64-byte</text>
+<text x="856" y="707.5" class="t">bursts to its DRAM0, sends</text>
+<text x="856" y="725.0" class="tb">2 AUDIO_OUT of 1118 B</text>
+<text x="856" y="742.5" class="tb">per half = 500 frames/s</text>
+<text x="856" y="760.0" class="t">TX_L2 FIFO, 64 B per XOUT</text>
+<text x="856" y="795.0" class="ts">also PONGs and test frames</text>
+<rect x="578" y="556" width="232" height="300" rx="8" fill="#ffffff" stroke="#7d3c98" stroke-width="2"/>
+<rect x="578" y="556" width="232" height="44" rx="8" fill="#7d3c98"/><rect x="578" y="586" width="232" height="14" fill="#7d3c98"/>
+<circle cx="595" cy="578" r="11" fill="#ffffff"/><text x="595" y="582.5" text-anchor="middle" class="num" fill="#7d3c98">12</text>
+<text x="612" y="575" class="h">board -&gt; PC</text>
+<text x="612" y="592" class="hs">AUDIO_OUT, to the last PC MAC</text>
+<text x="590" y="620" class="t">1118 B: header, status</text>
+<text x="590" y="637.5" class="t">block, first sample index,</text>
+<text x="590" y="655.0" class="t">32 frames x 8 ch x int32</text>
+<text x="590" y="690.0" class="tb">512 KB/s (4 Mbit/s of 1000)</text>
+<text x="590" y="707.5" class="t">about 9.1 us per frame on</text>
+<text x="590" y="725.0" class="t">the wire, 2 frames per 4 ms</text>
+<text x="590" y="760.0" class="t">MII_RT TX_IPG 0x28 (109 ns</text>
+<text x="590" y="777.5" class="t">measured gap)</text>
+<text x="590" y="795.0" class="ts">(throughput test: 976 Mbit/s)</text>
+<rect x="312" y="556" width="232" height="300" rx="8" fill="#ffffff" stroke="#2c6fb7" stroke-width="2"/>
+<rect x="312" y="556" width="232" height="44" rx="8" fill="#2c6fb7"/><rect x="312" y="586" width="232" height="14" fill="#2c6fb7"/>
+<circle cx="329" cy="578" r="11" fill="#ffffff"/><text x="329" y="582.5" text-anchor="middle" class="num" fill="#2c6fb7">13</text>
+<text x="346" y="575" class="h">AUDIO_OUT RX</text>
+<text x="346" y="592" class="hs">rx.rs: reconstruction</text>
+<text x="324" y="620" class="tb">placed by sample index:</text>
+<text x="324" y="637.5" class="tb">(HALF_SEQ - 1) x 64</text>
+<text x="324" y="655.0" class="tb">                + part x 32</text>
+<text x="324" y="672.5" class="t">not by arrival time</text>
+<text x="324" y="707.5" class="t">lost / dup / resync counted,</text>
+<text x="324" y="725.0" class="t">gap filled with silence</text>
+<text x="324" y="760.0" class="t">status block -&gt; pacer</text>
+<text x="324" y="777.5" class="t">IEP time -&gt; board clock ppm</text>
+<text x="324" y="795.0" class="ts">(+10.9 ppm vs PC, measured)</text>
+<rect x="46" y="556" width="232" height="300" rx="8" fill="#ffffff" stroke="#2c6fb7" stroke-width="2"/>
+<rect x="46" y="556" width="232" height="44" rx="8" fill="#2c6fb7"/><rect x="46" y="586" width="232" height="14" fill="#2c6fb7"/>
+<circle cx="63" cy="578" r="11" fill="#ffffff"/><text x="63" y="582.5" text-anchor="middle" class="num" fill="#2c6fb7">14</text>
+<text x="80" y="575" class="h">GUI + capture</text>
+<text x="80" y="592" class="hs">ui.rs, spectro.rs (egui, wgpu)</text>
+<text x="58" y="620" class="tb">IN pane: samples as sent</text>
+<text x="58" y="637.5" class="tb">OUT pane: board PCM</text>
+<text x="58" y="655.0" class="t">difference strip (dB per bin)</text>
+<text x="58" y="690.0" class="t">STFT 256 Hann, hop 128:</text>
+<text x="58" y="707.5" class="t">8 ms = 125 columns/s</text>
+<text x="58" y="725.0" class="t">0-8 kHz, -90 to 0 dB</text>
+<text x="58" y="742.5" class="tb">60 fps measured (need 30)</text>
+<text x="58" y="777.5" class="t">capture: WAV per channel,</text>
+<text x="58" y="795.0" class="ts">16 kHz 24-bit, in and out</text>
+<line x1="280" y1="346.0" x2="309" y2="346.0" stroke="#2f3b4c" stroke-width="2.6" marker-end="url(#a)"/>
+<line x1="546" y1="346.0" x2="575" y2="346.0" stroke="#2f3b4c" stroke-width="2.6" marker-end="url(#a)"/>
+<line x1="812" y1="346.0" x2="841" y2="346.0" stroke="#2f3b4c" stroke-width="2.6" marker-end="url(#a)"/>
+<line x1="1078" y1="346.0" x2="1107" y2="346.0" stroke="#2f3b4c" stroke-width="2.6" marker-end="url(#a)"/>
+<line x1="1344" y1="346.0" x2="1373" y2="346.0" stroke="#2f3b4c" stroke-width="2.6" marker-end="url(#a)"/>
+<line x1="1610" y1="346.0" x2="1639" y2="346.0" stroke="#2f3b4c" stroke-width="2.6" marker-end="url(#a)"/>
+<line x1="1640" y1="706.0" x2="1611" y2="706.0" stroke="#2f3b4c" stroke-width="2.6" marker-end="url(#a)"/>
+<line x1="1374" y1="706.0" x2="1345" y2="706.0" stroke="#2f3b4c" stroke-width="2.6" marker-end="url(#a)"/>
+<line x1="1108" y1="706.0" x2="1079" y2="706.0" stroke="#2f3b4c" stroke-width="2.6" marker-end="url(#a)"/>
+<line x1="842" y1="706.0" x2="813" y2="706.0" stroke="#2f3b4c" stroke-width="2.6" marker-end="url(#a)"/>
+<line x1="576" y1="706.0" x2="547" y2="706.0" stroke="#2f3b4c" stroke-width="2.6" marker-end="url(#a)"/>
+<line x1="310" y1="706.0" x2="281" y2="706.0" stroke="#2f3b4c" stroke-width="2.6" marker-end="url(#a)"/>
+<line x1="1758.0" y1="498" x2="1758.0" y2="553" stroke="#c0392b" stroke-width="3.2" marker-end="url(#a)"/>
+<text x="1748.0" y="520.0" text-anchor="end" class="lab" style="fill:#c0392b">3.072 MHz clock</text>
+<text x="1748.0" y="536.0" text-anchor="end" class="lab" style="fill:#c0392b">+ 8 x 1-bit data</text>
+<line x1="428.0" y1="554" x2="428.0" y2="500" stroke="#8e44ad" stroke-width="2.6" stroke-dasharray="7 5" marker-end="url(#ad)"/>
+<text x="418.0" y="520.0" text-anchor="end" class="labd">status: RTU1 position</text>
+<text x="418.0" y="536.0" text-anchor="end" class="labd">paces AUDIO_IN</text>
+<line x1="162.0" y1="498" x2="162.0" y2="552" stroke="#8e44ad" stroke-width="2.6" stroke-dasharray="7 5" marker-end="url(#ad)"/>
+<text x="172.0" y="520.0" class="labd">input as sent,</text>
+<text x="172.0" y="536.0" class="labd">aligned by index</text>
+<path d="M1416,498 L1416,526.0 L1302,526.0 L1302,552" fill="none" stroke="#c0601a" stroke-width="2.6" stroke-dasharray="7 5" marker-end="url(#ac)"/>
+<text x="1424" y="518.0" class="labc">RTU1_FRAME_POS, LOOPS</text>
+<text x="46" y="902" class="sec">Clock and rate chain: one sample clock, the ICSSG0 core clock; everything else follows it</text>
+<text x="46" y="954" class="tb" style="fill:#c0601a">Return (decode)</text>
+<rect x="250" y="924" width="166" height="50" rx="7" fill="#ffffff" stroke="#c0601a" stroke-width="2"/>
+<text x="333.0" y="945" text-anchor="middle" class="tb">333.33 MHz</text>
+<text x="333.0" y="963" text-anchor="middle" class="ts">ICSSG0 core, 3 ns</text>
+<rect x="480" y="924" width="166" height="50" rx="7" fill="#ffffff" stroke="#c0601a" stroke-width="2"/>
+<text x="563.0" y="945" text-anchor="middle" class="tb">3.072 MHz</text>
+<text x="563.0" y="963" text-anchor="middle" class="ts">PDM clock (PRU1)</text>
+<rect x="710" y="924" width="166" height="50" rx="7" fill="#ffffff" stroke="#c0601a" stroke-width="2"/>
+<text x="793.0" y="945" text-anchor="middle" class="tb">32 kHz</text>
+<text x="793.0" y="963" text-anchor="middle" class="ts">SINC3 output</text>
+<rect x="940" y="924" width="166" height="50" rx="7" fill="#ffffff" stroke="#c0601a" stroke-width="2"/>
+<text x="1023.0" y="945" text-anchor="middle" class="tb">16 kHz</text>
+<text x="1023.0" y="963" text-anchor="middle" class="ts">PCM frame, 62.5 us</text>
+<rect x="1170" y="924" width="166" height="50" rx="7" fill="#ffffff" stroke="#c0601a" stroke-width="2"/>
+<text x="1253.0" y="945" text-anchor="middle" class="tb">250 Hz</text>
+<text x="1253.0" y="963" text-anchor="middle" class="ts">ping-pong half, 4 ms</text>
+<rect x="1400" y="924" width="166" height="50" rx="7" fill="#ffffff" stroke="#c0601a" stroke-width="2"/>
+<text x="1483.0" y="945" text-anchor="middle" class="tb">500 frames/s</text>
+<text x="1483.0" y="963" text-anchor="middle" class="ts">AUDIO_OUT to the PC</text>
+<rect x="1630" y="924" width="166" height="50" rx="7" fill="#ffffff" stroke="#c0601a" stroke-width="2"/>
+<text x="1713.0" y="945" text-anchor="middle" class="tb">125 columns/s</text>
+<text x="1713.0" y="963" text-anchor="middle" class="ts">spectrogram, 8 ms</text>
+<line x1="419" y1="949" x2="476" y2="949" stroke="#c0601a" stroke-width="2" marker-end="url(#a)"/>
+<text x="449.0" y="939" text-anchor="middle" class="lab" style="fill:#c0601a">/108.51</text>
+<text x="449.0" y="969" text-anchor="middle" class="ts">PRU1</text>
+<line x1="649" y1="949" x2="706" y2="949" stroke="#c0601a" stroke-width="2" marker-end="url(#a)"/>
+<text x="679.0" y="939" text-anchor="middle" class="lab" style="fill:#c0601a">/96</text>
+<text x="679.0" y="969" text-anchor="middle" class="ts">SINC3</text>
+<line x1="879" y1="949" x2="936" y2="949" stroke="#c0601a" stroke-width="2" marker-end="url(#a)"/>
+<text x="909.0" y="939" text-anchor="middle" class="lab" style="fill:#c0601a">/2</text>
+<text x="909.0" y="969" text-anchor="middle" class="ts">FIR</text>
+<line x1="1109" y1="949" x2="1166" y2="949" stroke="#c0601a" stroke-width="2" marker-end="url(#a)"/>
+<text x="1139.0" y="939" text-anchor="middle" class="lab" style="fill:#c0601a">/64</text>
+<text x="1139.0" y="969" text-anchor="middle" class="ts">frames</text>
+<line x1="1339" y1="949" x2="1396" y2="949" stroke="#c0601a" stroke-width="2" marker-end="url(#a)"/>
+<text x="1369.0" y="939" text-anchor="middle" class="lab" style="fill:#c0601a">x2</text>
+<text x="1369.0" y="969" text-anchor="middle" class="ts">1 KB parts</text>
+<line x1="1569" y1="949" x2="1626" y2="949" stroke="#c0601a" stroke-width="2" marker-end="url(#a)"/>
+<text x="1599.0" y="939" text-anchor="middle" class="lab" style="fill:#c0601a">/128</text>
+<text x="1599.0" y="969" text-anchor="middle" class="ts">hop</text>
+<text x="46" y="1036" class="tb" style="fill:#2c6fb7">Forward (modulate)</text>
+<rect x="250" y="1006" width="166" height="50" rx="7" fill="#ffffff" stroke="#2c6fb7" stroke-width="2"/>
+<text x="333.0" y="1027" text-anchor="middle" class="tb">250 frames/s</text>
+<text x="333.0" y="1045" text-anchor="middle" class="ts">AUDIO_IN from the PC</text>
+<rect x="480" y="1006" width="166" height="50" rx="7" fill="#ffffff" stroke="#2c6fb7" stroke-width="2"/>
+<text x="563.0" y="1027" text-anchor="middle" class="tb">16 kHz</text>
+<text x="563.0" y="1045" text-anchor="middle" class="ts">clip frames in MSRAM</text>
+<rect x="710" y="1006" width="166" height="50" rx="7" fill="#ffffff" stroke="#2c6fb7" stroke-width="2"/>
+<text x="793.0" y="1027" text-anchor="middle" class="tb">3.072 MHz</text>
+<text x="793.0" y="1045" text-anchor="middle" class="ts">1 bit per ch (RTU1)</text>
+<rect x="940" y="1006" width="166" height="50" rx="7" fill="#ffffff" stroke="#2c6fb7" stroke-width="2"/>
+<text x="1023.0" y="1027" text-anchor="middle" class="tb">109.7 kHz</text>
+<text x="1023.0" y="1045" text-anchor="middle" class="ts">batch of 28 periods</text>
+<rect x="1170" y="1006" width="166" height="50" rx="7" fill="#ffffff" stroke="#2c6fb7" stroke-width="2"/>
+<text x="1253.0" y="1027" text-anchor="middle" class="tb">3.072 MHz</text>
+<text x="1253.0" y="1045" text-anchor="middle" class="ts">pins, cycle-exact</text>
+<rect x="1400" y="1006" width="166" height="50" rx="7" fill="#ffffff" stroke="#2c6fb7" stroke-width="2"/>
+<text x="1483.0" y="1027" text-anchor="middle" class="tb">1.024 s</text>
+<text x="1483.0" y="1045" text-anchor="middle" class="ts">ring = 16384 frames</text>
+<rect x="1630" y="1006" width="166" height="50" rx="7" fill="#ffffff" stroke="#2c6fb7" stroke-width="2"/>
+<text x="1713.0" y="1027" text-anchor="middle" class="tb">0.5 s</text>
+<text x="1713.0" y="1045" text-anchor="middle" class="ts">PC lead = 8000 frames</text>
+<line x1="419" y1="1031" x2="476" y2="1031" stroke="#2c6fb7" stroke-width="2" marker-end="url(#a)"/>
+<text x="449.0" y="1021" text-anchor="middle" class="lab" style="fill:#2c6fb7">x64</text>
+<text x="449.0" y="1051" text-anchor="middle" class="ts">frames</text>
+<line x1="649" y1="1031" x2="706" y2="1031" stroke="#2c6fb7" stroke-width="2" marker-end="url(#a)"/>
+<text x="679.0" y="1021" text-anchor="middle" class="lab" style="fill:#2c6fb7">x192</text>
+<text x="679.0" y="1051" text-anchor="middle" class="ts">ZOH</text>
+<line x1="879" y1="1031" x2="936" y2="1031" stroke="#2c6fb7" stroke-width="2" marker-end="url(#a)"/>
+<text x="909.0" y="1021" text-anchor="middle" class="lab" style="fill:#2c6fb7">/28</text>
+<text x="909.0" y="1051" text-anchor="middle" class="ts">SPAD</text>
+<line x1="1109" y1="1031" x2="1166" y2="1031" stroke="#2c6fb7" stroke-width="2" marker-end="url(#a)"/>
+<text x="1139.0" y="1021" text-anchor="middle" class="lab" style="fill:#2c6fb7">x28</text>
+<text x="1139.0" y="1051" text-anchor="middle" class="ts">PRU1</text>
+<line x1="1339" y1="1031" x2="1396" y2="1031" stroke="#2c6fb7" stroke-width="2" marker-end="url(#a)"/>
+<text x="1369.0" y="1021" text-anchor="middle" class="lab" style="fill:#2c6fb7"></text>
+<rect x="1337" y="1002" width="62" height="58" fill="#ffffff"/>
+<line x1="1368.0" y1="1004" x2="1368.0" y2="1058" stroke="#9aa5b1" stroke-width="1.5" stroke-dasharray="4 4"/>
+<rect x="46" y="1098" width="1828" height="92" rx="10" fill="#f7f9fb" stroke="#c9d2dc"/>
+<text x="64" y="1124" class="t"><tspan class="tb">Who sets the time.</tspan> PRU1 (ICSSG0) is the only free-running audio clock. RTU1 consumes the MSRAM ring at its rate and reports its position in every AUDIO_OUT status block; the PC pacer keeps 0.5 s ahead of that position, never of its own clock.</text>
+<text x="64" y="1148" class="t"><tspan class="tb">Alignment.</tspan> Both directions carry sample indices. The PC places output by (HALF_SEQ - 1) x 64 + part x 32 and the GUI lines the IN and OUT panes up by index, so PC clock drift (+10.9 ppm measured) and network jitter never shift audio.</text>
+<text x="64" y="1172" class="t"><tspan class="tb">Measured (2026-11-05).</tspan> Board audio latency 1.08 ms, constant (RTU1 takes a sample -&gt; its AUDIO_OUT leaves the board, best case). 500 / 250 frames/s out / in, 0 lost, UNDERRUN and SD_OVF 0, GUI 60 fps, board PONG turnaround 0.3 to 32 us.</text>
+</svg>

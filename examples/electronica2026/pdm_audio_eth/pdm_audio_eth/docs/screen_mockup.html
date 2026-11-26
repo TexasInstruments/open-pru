@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"><title>PDM over Ethernet: screen layouts</title>
+<style>
+ :root{--bg:#f5f5f2;--fg:#1d1d1b;--mute:#6b6b66;--line:#d6d6d0;--panel:#fff;--in:#2f6fb3;--out:#c2571a;--ok:#2e8540;--warn:#b58105}
+ body{font:14px/1.45 system-ui,sans-serif;background:var(--bg);color:var(--fg);margin:24px 32px}
+ h1{font-size:20px;margin:0 0 4px} h2{font-size:16px;margin:28px 0 6px} .sub{color:var(--mute);margin:0 0 14px}
+ .opt{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:14px;margin:0 0 22px}
+ .tag{display:inline-block;font-weight:600;background:var(--fg);color:#fff;border-radius:4px;padding:1px 8px;margin-right:8px}
+ .win{border:1px solid #444;border-radius:6px;overflow:hidden;background:#141414;color:#ddd;font-size:12px;max-width:1100px}
+ .bar{display:flex;gap:10px;align-items:center;background:#262626;padding:6px 10px;border-bottom:1px solid #333;flex-wrap:wrap}
+ .btn{border:1px solid #555;border-radius:4px;padding:2px 8px;background:#333}
+ .btn.on{background:#3a5f2e;border-color:#5c8f4a}
+ .stat{margin-left:auto;display:flex;gap:14px;color:#aaa}
+ .stat b{color:#e6e6e6;font-weight:600}
+ .grid{display:grid;gap:6px;padding:8px}
+ .sg{position:relative;height:120px;border-radius:3px;
+     background:linear-gradient(180deg,rgba(0,0,0,.0),rgba(0,0,0,.35)),
+     repeating-linear-gradient(90deg,#1e1a3a 0 3px,#22204a 3px 6px);}
+ .sg::after{content:"";position:absolute;inset:0;
+     background:linear-gradient(170deg,transparent 40%,#f0c419 41%,#f0c419 43%,transparent 44%),
+                linear-gradient(180deg,transparent 70%,#e8743b 71%,#e8743b 73%,transparent 74%);opacity:.9}
+ .sg.tone::after{background:linear-gradient(180deg,transparent 62%,#f0c419 63%,#f0c419 65%,transparent 66%)}
+ .sg.small{height:58px}
+ .lab{position:absolute;left:6px;top:4px;font-size:11px;background:rgba(0,0,0,.55);padding:1px 6px;border-radius:3px;z-index:2}
+ .lab.in{border-left:3px solid #5fa0e6}.lab.out{border-left:3px solid #ff8a4c}
+ .side{display:flex;gap:8px;padding:8px}
+ .panel{background:#1c1c1c;border:1px solid #333;border-radius:4px;padding:6px 8px}
+ .k{color:#999}.g{color:#7fd17f}.y{color:#f0c419}
+ .note{color:var(--mute);font-size:13px;margin:8px 2px 0}
+ table.ch td{padding:1px 6px;white-space:nowrap}
+</style></head><body>
+<h1>PDM audio over Ethernet: live screen</h1>
+<p class="sub">Three layouts for "PC input next to board output". The spectrograms are placeholders: scrolling time left to right, 0 to 8 kHz bottom to top. Tell me in the terminal which one is closest, and what to change.</p>
+
+<div class="opt"><span class="tag">A</span><b>Pairs: input above output, 2 channels big</b>
+<p class="note">You pick the two channels to show. Each one is an input/output pair stacked vertically, so the eye compares straight down. The other channels show only as level meters.</p>
+<div class="win">
+ <div class="bar"><span class="btn on">Stream</span><span class="btn">Capture</span><span class="btn">Eth test</span><span class="k">Show</span><span class="btn on">ch0 speech</span><span class="btn on">ch1 chirp</span><span class="btn">ch3</span><span class="btn">…</span>
+  <span class="stat"><span>link <b class="g">1G FD</b></span><span>fps <b>60</b></span><span>latency <b>11.8 ms</b></span><span>ring <b>0.52 s</b></span><span>lost <b class="g">0</b></span><span>underrun <b class="g">0</b></span></span></div>
+ <div class="grid" style="grid-template-columns:1fr 1fr">
+  <div class="sg"><span class="lab in">ch0 IN  speech_long.wav (PC)</span></div>
+  <div class="sg"><span class="lab in">ch1 IN  chirp_100_7000.wav (PC)</span></div>
+  <div class="sg"><span class="lab out">ch0 OUT  board PCM, PDM round trip</span></div>
+  <div class="sg"><span class="lab out">ch1 OUT  board PCM, PDM round trip</span></div>
+ </div>
+ <div class="side"><div class="panel" style="flex:1">
+  <span class="k">levels out:</span> ch0 ▮▮▮▮▯ ch1 ▮▮▮▮▮ ch2 ▮▮▮▯▯ ch3 ▮▮▮▮▯ ch4 ▮▮▮▮▯ ch5 ▮▮▮▮▯ ch6 ▮▮▮▮▯ ch7 ▮▮▮▯▯</div></div>
+</div></div>
+
+<div class="opt"><span class="tag">B</span><b>Two columns: all inputs left, all outputs right</b>
+<p class="note">Every channel is visible at once, 8 rows by 2 columns. The rows are thinner, so it's better for "it all works" than for detail. Clicking a row would enlarge it.</p>
+<div class="win">
+ <div class="bar"><span class="btn on">Stream</span><span class="btn">Capture</span><span class="btn">Eth test</span>
+  <span class="stat"><span>link <b class="g">1G FD</b></span><span>fps <b>60</b></span><span>latency <b>11.8 ms</b></span><span>lost <b class="g">0</b></span></span></div>
+ <div class="grid" style="grid-template-columns:1fr 1fr">
+  <div class="sg small"><span class="lab in">ch0 IN</span></div><div class="sg small"><span class="lab out">ch0 OUT</span></div>
+  <div class="sg small"><span class="lab in">ch1 IN</span></div><div class="sg small"><span class="lab out">ch1 OUT</span></div>
+  <div class="sg small tone"><span class="lab in">ch3 IN 1 kHz</span></div><div class="sg small tone"><span class="lab out">ch3 OUT</span></div>
+  <div class="sg small tone"><span class="lab in">…ch7 IN</span></div><div class="sg small tone"><span class="lab out">…ch7 OUT</span></div>
+ </div>
+</div></div>
+
+<div class="opt"><span class="tag">C</span><b>Booth view: one channel huge, with a difference strip</b>
+<p class="note">One channel fills the screen: input on top, output below, and a thin strip showing input minus output (what the PDM round trip changed). A side panel shows the live numbers that make the "fast" point.</p>
+<div class="win">
+ <div class="bar"><span class="btn on">Stream</span><span class="btn">Capture</span><span class="btn">Eth test</span><span class="k">Channel</span><span class="btn on">ch0 speech</span>
+  <span class="stat"><span>link <b class="g">1G FD</b></span></span></div>
+ <div class="side">
+  <div style="flex:1;display:grid;gap:6px">
+   <div class="sg" style="height:150px"><span class="lab in">ch0 IN (PC)</span></div>
+   <div class="sg" style="height:150px"><span class="lab out">ch0 OUT (board)</span></div>
+   <div class="sg small" style="height:36px;background:#1a1a1a"><span class="lab">difference IN-OUT</span></div>
+  </div>
+  <div class="panel" style="width:230px"><table class="ch">
+   <tr><td class="k">board audio latency</td><td><b>11.8 ms</b></td></tr>
+   <tr><td class="k">buffered ahead (PC)</td><td><b>0.50 s</b></td></tr>
+   <tr><td class="k">ping RTT (PRU)</td><td><b>14 µs</b></td></tr>
+   <tr><td class="k">frames/s in / out</td><td><b>250 / 500</b></td></tr>
+   <tr><td class="k">spectrogram fps</td><td><b>60</b></td></tr>
+   <tr><td class="k">simulator, same audio</td><td class="y"><b>≈ 11 min/s</b></td></tr>
+   <tr><td class="k">lost / underrun / SD ovf</td><td class="g"><b>0 / 0 / 0</b></td></tr>
+  </table></div>
+ </div>
+</div></div>
+
+<p class="note">All numbers on this page are invented placeholders, not measurements.</p>
+</body></html>

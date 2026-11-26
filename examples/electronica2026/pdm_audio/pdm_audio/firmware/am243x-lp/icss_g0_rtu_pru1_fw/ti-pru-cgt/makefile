@@ -1,0 +1,62 @@
+export OPEN_PRU_PATH?=$(abspath ../../../../../../../..)
+include $(OPEN_PRU_PATH)/imports.mak
+
+# Define build outputs
+OUTPUT_NAME := pdm_audio_am243x-lp_icss_g0_rtu_pru1_fw
+
+# MCU+ projects: rename & move hex array output
+MCU_HEX_NAME := rtupru1_load_bin.h
+HEX_ARRAY_PREFIX := RTUPRU1Firmware
+MCU_HEX_PATH := $(OPEN_PRU_PATH)/examples/electronica2026/pdm_audio/pdm_audio/firmware/am243x-lp/$(MCU_HEX_NAME)
+
+# which directories to search for assembly & C source files?
+# firmware/ (../../..) holds the sources of all three cores (rtu1_mod.asm,
+# pru1_pdm.asm, pru0_rx.asm), so it is not searched as a whole: this core's
+# source is added by name below.
+FILES_PATH := .. .
+CORE_ASM := rtu1_mod.asm
+CORE_SRC_PATH := ../../..
+
+# Linker command file
+COMMAND_FILES := linker.cmd
+
+# Silicon version (3: PRUSS, PRU-ICSS; 4: PRU_ICSSG)
+PRU_VERSION := 4
+EXPECTED_DEVICE := am243x
+
+# Default values are defined in pru_rules.mak:
+#   - include paths (INCLUDE)
+#   - compiler flags (CFLAGS)
+#   - linker flags (LFLAGS)
+
+# Optional:
+# Pre-define here to override default value
+#   OPT_LEVEL, STACK_SIZE, HEAP_SIZE, or ENTRY_POINT
+ENTRY_POINT := RTU1_MOD
+
+# pru_rules.mak has shared settings for all PRU/RTU/TX_PRU core makefiles
+include $(OPEN_PRU_PATH)/pru_rules.mak
+
+# Optional:
+# Append values to INCLUDE, CFLAGS, or LFLAGS here.
+# Values can be appended like this:
+# INCLUDE += --include_path=<value>
+INCLUDE += --include_path=$(CORE_SRC_PATH)
+
+# This core's source from firmware/: compiled by the pru_rules.mak pattern
+# rule and linked with the objects found in FILES_PATH ($^ of the link rule).
+vpath $(CORE_ASM) $(CORE_SRC_PATH)
+CORE_OBJ := $(GEN_DIR)/$(CORE_ASM:.asm=.obj)
+all: $(CORE_OBJ)
+$(TARGET): $(CORE_OBJ)
+-include $(CORE_OBJ:%.obj=%.pp)
+
+# Defines (pass instance specific definitions to the program)
+# see --define or -D in 'PRU Optimizing C/C++ Compiler User's Guide'
+# For example, to define PRU0, ICSSG1, SOC_AM243X, and set _DEBUG_=1:
+# -DPRU0 -DICSSG1 --define=SOC_AM243X -D_DEBUG_=1
+DFLAGS :=
+
+# Libraries
+# see --library in 'PRU Optimizing C/C++ Compiler User's Guide'
+LIBS :=
