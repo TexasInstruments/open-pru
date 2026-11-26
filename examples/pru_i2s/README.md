@@ -185,6 +185,7 @@ pru_i2s/
 │   ├── data.h                  # Test data
 │   ├── am261x-lp/r5fss0-0_freertos/
 │   └── am263x-cc/r5fss0-0_freertos/
+├── lib/                         # Driver library (build output of make libs, not checked in)
 └── images/                      # Documentation images
 ```
 
@@ -198,25 +199,39 @@ pru_i2s/
 - Set `DEVICE` environment variable in `imports.mak`
 - Ensure CCS utils are in PATH (for gmake on Windows)
 
-**Build all firmware and application:**
+**Build the driver library, then the firmware and application:**
 ```bash
 cd examples/pru_i2s
-make DEVICE=am261x        # Build for AM261x
-make DEVICE=am263x        # Build for AM263x
+make DEVICE=am261x libs   # Build the driver library for AM261x
+make DEVICE=am261x        # Build the firmware and application for AM261x
+make DEVICE=am263x libs   # Build the driver library for AM263x
+make DEVICE=am263x        # Build the firmware and application for AM263x
 ```
+
+The driver library is built separately from the application. The application
+only links the existing library, and stops with an error if the library is
+missing. Run `make libs` first on a fresh clone, and again after any change to
+the driver source in `source/i2s/`. Library files are not checked in. Building
+from the root of the repository with `make` also builds the library first.
+
+Use `make libs PROFILE=debug` to build the debug library for a debug build of the
+application. The default is `release`, set `PROFILE` in `imports.mak`.
 
 **Clean:**
 ```bash
-make DEVICE=am261x clean
+make DEVICE=am261x clean       # Clean the firmware and application
+make DEVICE=am261x libs-clean  # Clean the driver library
 ```
+
+`clean` does not remove the driver library. Use `libs-clean` for that.
 
 **What gets built:**
 - 4 PRU firmware binaries per device (I2S PRU0 TX, I2S PRU1 RX, TDM4 PRU0 TX, TDM4 PRU1 RX)
 - Firmware header arrays (`.h` files) copied into `firmware/i2s/` and `firmware/tdm4/`
-- PRU I2S driver library (`source/i2s/lib/pru_i2s.*.lib`) built from `source/i2s/makefile`
+- PRU I2S driver library (`lib/pru_i2s.<device>.r5f.ti-arm-clang.<profile>.lib`), built by `make libs` from the driver source in `source/i2s/`
 - R5F application binary (`.out` and `.mcelf`)
 
-**Note:** The PRU firmware makefiles use `pru_rules.mak` (silicon version `-v3`) and place all build artifacts in a `ti-pru-cgt/generated/` subdirectory. The library build is owned by `source/i2s/makefile` and is invoked automatically by the top-level `makefile`.
+**Note:** The PRU firmware makefiles use `pru_rules.mak` (silicon version `-v3`) and place all build artifacts in a `ti-pru-cgt/generated/` subdirectory. The driver source is in `source/i2s/`, and its library output belongs to this example in `examples/pru_i2s/lib/`.
 
 ### Building with Code Composer Studio
 
@@ -233,8 +248,9 @@ make DEVICE=am261x clean
 2. Import `example.projectspec`
 
 **Build Order:**
-1. Build PRU firmware first (generates header arrays)
-2. Build R5F application (includes firmware headers)
+1. Build the driver library (`make DEVICE=<device> libs` in `examples/pru_i2s`). CCS does not build it. Rebuild it after any change to `source/i2s/`. Build `PROFILE=debug` for the Debug configuration, the default is `release`
+2. Build PRU firmware (generates header arrays)
+3. Build R5F application (includes firmware headers, links the driver library from `examples/pru_i2s/lib/`)
 
 **Debug Configuration:**
 Refer to MCU+ SDK documentation:

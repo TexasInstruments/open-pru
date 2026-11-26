@@ -10,6 +10,8 @@ SUPPORTED_PROCESSORS := am261x am263x
 # Profile used when naming the built pru_i2s driver library, must match the
 # ConfigName the R5F application makefiles link against (see PROFILE there).
 PROFILE?=release
+# The driver library is built from source/i2s, its output belongs to this project
+LIB_DIR := $(CURDIR)/lib
 # Does the PRU code have dependencies outside of the open-pru repo?
 PRU_DEPENDENCIES := mcuplus
 # Use NON_PRU_DEPENDENCIES to select which makefiles to call for non-PRU cores
@@ -72,27 +74,33 @@ pru: ARGUMENTS_PRU = all
 pru: MESSAGE = "Building $(PROJECT_NAME) PRU firmware"
 pru: pre_build_message $(DEVICE)
 
-# "make host" builds PRU firmware, then the driver library, then host (R5F) code
-# for $(DEVICE). The steps are recipe lines so they stay in order under "make -j":
-# the host code includes the PRU firmware headers, and links the library.
+# "make host" builds PRU firmware, then host (R5F) code for $(DEVICE). The steps
+# are recipe lines so they stay in order under "make -j": the host code includes
+# the PRU firmware headers. The host code links the driver library, which is not
+# built here: run "make libs" first.
 host: MESSAGE = "Building $(PROJECT_NAME) host code for $(DEVICE)"
 host: pre_build_message
 	$(MAKE) pru
-	$(MAKE) build_lib_$(DEVICE)
 	$(MAKE) $(DEVICE_NON_PRU) ARGUMENTS_MCUPLUS=all
+
+# "make libs" builds the driver library for $(DEVICE) into $(LIB_DIR)
+libs: MESSAGE = "Building $(PROJECT_NAME) driver library for $(DEVICE)"
+libs: pre_build_message build_lib_$(DEVICE)
+
+# "make libs-clean" removes the driver library, "make clean" does not
+libs-clean: MESSAGE = "Cleaning $(PROJECT_NAME) driver library"
+libs-clean: pre_build_message
+	$(MAKE) -C ../../source/i2s clean GEN_DIR=$(LIB_DIR)
 
 # "make clean" cleans projects that match $(DEVICE) set in imports.mak
 clean: ARGUMENTS_PRU = clean
 clean: ARGUMENTS_MCUPLUS = scrub
 clean: MESSAGE = "Cleaning $(PROJECT_NAME) for $(DEVICE)"
-clean: pre_build_message $(DEVICE) $(DEVICE_NON_PRU) clean_lib
-
-clean_lib:
-	$(MAKE) -C ../../source/i2s clean
+clean: pre_build_message $(DEVICE) $(DEVICE_NON_PRU)
 
 else
 # if a prebuild check failed, print message and exit
-all clean pru host: pre_build_message
+all clean pru host libs libs-clean: pre_build_message
 endif
 
 pre_build_message:
@@ -118,7 +126,7 @@ am261x_mcuplus:
 
 build_lib_am261x:
 # am261x-lp - Build driver library
-	$(MAKE) -C ../../source/i2s build_am261x PROFILE=$(PROFILE)
+	$(MAKE) -C ../../source/i2s build_am261x PROFILE=$(PROFILE) GEN_DIR=$(LIB_DIR)
 
 am263x:
 # am263x-cc - I2S protocol
@@ -134,6 +142,6 @@ am263x_mcuplus:
 
 build_lib_am263x:
 # am263x-cc - Build driver library
-	$(MAKE) -C ../../source/i2s build_am263x PROFILE=$(PROFILE)
+	$(MAKE) -C ../../source/i2s build_am263x PROFILE=$(PROFILE) GEN_DIR=$(LIB_DIR)
 
-.PHONY: all clean pru host pre_build_message clean_lib $(DEVICE) $(DEVICE_NON_PRU) $(SUPPORTED_PROCESSORS)
+.PHONY: all clean pru host libs libs-clean pre_build_message build_lib_am261x build_lib_am263x $(DEVICE) $(DEVICE_NON_PRU) $(SUPPORTED_PROCESSORS)

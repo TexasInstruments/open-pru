@@ -15,8 +15,6 @@ endif
 # Debug: no optimization (-O0) for faster compile/debug; Release: size-optimized (-Os)
 CFLAGS_OPT_debug := -O0
 CFLAGS_OPT_release := -Os
-CFLAGS_OPT_Release := -Os
-CFLAGS_OPT_Debug := -O0
 CFLAGS_OPT := $(CFLAGS_OPT_$(PROFILE))
 
 CFLAGS_common := \
@@ -38,9 +36,11 @@ INCLUDES_common := \
 	-I$(MCU_PLUS_SDK_PATH)/source/kernel/freertos/FreeRTOS-Kernel/include \
 	-I$(MCU_PLUS_SDK_PATH)/source/kernel/freertos/portable/TI_ARM_CLANG/ARM_CR5F
 
-# Default library profile is Release (uppercase) so library names match linker refs
-PROFILE?=Release
-GEN_DIR := $(OPEN_PRU_PATH)/source/i2s/lib
+# Library profile (debug or release), lowercase to match the MCU+ SDK library names
+PROFILE?=release
+# Output directory. The project that owns the library overrides this on the
+# command line, see examples/pru_i2s/makefile
+GEN_DIR ?= $(OPEN_PRU_PATH)/source/i2s/lib
 
 # Only build if MCU+ SDK is available
 ifeq ($(BUILD_MCUPLUS),y)
@@ -54,10 +54,11 @@ build_am261x:
 		$(INCLUDES_common) \
 		-I$(MCU_PLUS_SDK_PATH)/source/kernel/freertos/config/am261x/r5f \
 		-DSOC_AM261X -DOS_FREERTOS \
-		-o $(GEN_DIR)/pru_i2s_drv_am261x.obj pru_i2s_drv.c
+		-o $(GEN_DIR)/pru_i2s_drv_am261x.$(PROFILE).obj pru_i2s_drv.c
+	$(RM) $(GEN_DIR)/pru_i2s.am261x.r5f.ti-arm-clang.$(PROFILE).lib
 	$(AR) rc $(GEN_DIR)/pru_i2s.am261x.r5f.ti-arm-clang.$(PROFILE).lib \
-		$(GEN_DIR)/pru_i2s_drv_am261x.obj
-	$(RM) $(GEN_DIR)/pru_i2s_drv_am261x.obj
+		$(GEN_DIR)/pru_i2s_drv_am261x.$(PROFILE).obj
+	$(RM) $(GEN_DIR)/pru_i2s_drv_am261x.$(PROFILE).obj
 	@echo "Library build complete."
 
 build_am263x:
@@ -67,10 +68,11 @@ build_am263x:
 		$(INCLUDES_common) \
 		-I$(MCU_PLUS_SDK_PATH)/source/kernel/freertos/config/am263x/r5f \
 		-DSOC_AM263X -DOS_FREERTOS \
-		-o $(GEN_DIR)/pru_i2s_drv_am263x.obj pru_i2s_drv.c
+		-o $(GEN_DIR)/pru_i2s_drv_am263x.$(PROFILE).obj pru_i2s_drv.c
+	$(RM) $(GEN_DIR)/pru_i2s.am263x.r5f.ti-arm-clang.$(PROFILE).lib
 	$(AR) rc $(GEN_DIR)/pru_i2s.am263x.r5f.ti-arm-clang.$(PROFILE).lib \
-		$(GEN_DIR)/pru_i2s_drv_am263x.obj
-	$(RM) $(GEN_DIR)/pru_i2s_drv_am263x.obj
+		$(GEN_DIR)/pru_i2s_drv_am263x.$(PROFILE).obj
+	$(RM) $(GEN_DIR)/pru_i2s_drv_am263x.$(PROFILE).obj
 	@echo "Library build complete."
 
 clean:

@@ -63,15 +63,13 @@
             -i${MCU_PLUS_SDK_PATH}/source/drivers/lib
             -i${MCU_PLUS_SDK_PATH}/source/board/lib
             -i${MCU_PLUS_SDK_PATH}/source/pru_io/lib
-            -i${OPEN_PRU_PATH}/source/i2s/lib
+            -i${OPEN_PRU_PATH}/examples/pru_i2s/lib
             -i${CG_TOOL_ROOT}/lib
             -m=pru_i2s_app.${ConfigName}.map
             --diag_suppress=10063
             --ram_model
             --reread_libs
         "
-
-        preBuildStep="$(MAKE) -C ${OPEN_PRU_PATH}/examples/pru_i2s build_lib_am261x PROFILE=${ConfigName} CG_TOOL_ROOT=${CG_TOOL_ROOT} MCU_PLUS_SDK_PATH=${MCU_PLUS_SDK_PATH} OPEN_PRU_PATH=${OPEN_PRU_PATH} BUILD_MCUPLUS=y"
 
         postBuildStep="$(MAKE) -C ${CCS_PROJECT_DIR} -f makefile_ccs_bootimage_gen OUTNAME=${BuildArtifactFileBaseName} PROFILE=${ConfigName} MCU_PLUS_SDK_PATH=${MCU_PLUS_SDK_PATH} OPEN_PRU_PATH=${OPEN_PRU_PATH} CG_TOOL_ROOT=${CG_TOOL_ROOT} CCS_INSTALL_DIR=${CCS_INSTALL_DIR} CCS_IDE_MODE=${CCS_IDE_MODE} DEVICE=am261x"
 
@@ -90,7 +88,7 @@
                 -lfreertos.am261x.r5f.ti-arm-clang.debug.lib
                 -ldrivers.am261x.r5f.ti-arm-clang.freertos.debug.lib
                 -lboard.am261x.r5f.ti-arm-clang.freertos.debug.lib
-                -lpru_i2s.am261x.r5f.ti-arm-clang.Debug.lib
+                -lpru_i2s.am261x.r5f.ti-arm-clang.debug.lib
                 -llibc.a
                 -llibsysbm.a
             "
@@ -103,7 +101,7 @@
                 -lfreertos.am261x.r5f.ti-arm-clang.release.lib
                 -ldrivers.am261x.r5f.ti-arm-clang.freertos.release.lib
                 -lboard.am261x.r5f.ti-arm-clang.freertos.release.lib
-                -lpru_i2s.am261x.r5f.ti-arm-clang.Release.lib
+                -lpru_i2s.am261x.r5f.ti-arm-clang.release.lib
                 -llibc.a
                 -llibsysbm.a
             "
