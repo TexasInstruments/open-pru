@@ -69,8 +69,7 @@ This project was tested on hardware with these software versions:
 
 | Processor | Hardware | Software                                          |
 | --------- | -------- | ------------------------------------------------- |
-| am243x    | FIXME    | MCU PLUS SDK FIXME, OpenPRU FIXME                 |
-| am64x     | FIXME    | MCU PLUS SDK FIXME, OpenPRU FIXME                 |
+| am243x    | LP-AM243 | MCU PLUS SDK 12.01.00.33, OpenPRU v2026.02.00     |
 
 ## Steps to Run the Example
 
